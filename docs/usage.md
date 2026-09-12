@@ -6,11 +6,11 @@ This guide covers the interactive terminal client. The [key reference](keys.md) 
 
 Run `masume` to open the connection picker. Select a profile with Up and Down, then press Enter. `n` opens a new connection form; `e` edits the selected connection. In the form, `Ctrl+T` tests the connection and `Ctrl+S` saves the profile.
 
-An explicit target or `$DATABASE_URL` can open a connection directly. See [connection targets](configuration.md#a-connection-on-the-command-line), [container detection](configuration.md#databases-in-a-container), and [passwords](configuration.md#passwords).
+An explicit target or `$DATABASE_URL` can open a connection directly. See [connection targets](#connection-targets), [container detection](#databases-in-a-container), and [passwords](configuration.md#passwords).
 
 A connection without restored tabs starts with an empty query tab and focus in the object tree. `Tab` and `Shift+Tab` move between visible panes. `Alt+P s` focuses the tree, `Alt+P e` focuses the editor, and `Alt+P r` focuses results.
 
-The tree draws every schema of the server, including one that holds no relation. A MySQL-family or ClickHouse profile that names a database draws that database alone. A MySQL-family profile without one draws every database of the server. See [a profile](configuration.md#a-profile).
+The tree draws every schema of the server, including one that holds no relation. A MySQL-family or ClickHouse profile that names a database draws that database alone. A MySQL-family profile without one draws every database of the server. See [profiles](configuration.md#profiles).
 
 In the tree, arrows move, expand, and collapse nodes. `Enter` on a table opens its rows or reuses its existing tab. `o` opens another tab for that table. `i` opens the Columns view. `Enter` on a column inserts its qualified name into a query editor.
 
@@ -18,11 +18,92 @@ In the tree, arrows move, expand, and collapse nodes. `Enter` on a table opens i
 
 `m` opens the object menu. Available entries include SQL templates, table changes, imports, and an ER diagram. SQL templates enter the editor without execution. Available actions depend on the object and engine.
 
+## Connection targets
+
+masume accepts a URL, a keyword connection string, or an existing SQLite file. These open a connection without a saved profile. `--profile NAME` opens a user or project profile instead. A connection argument and `--profile` cannot appear together. With neither, masume opens `$DATABASE_URL`.
+
+```sh
+masume 'postgres://reader@db.internal:5432/shop?sslmode=verify-full'
+masume "host=db.internal port=5432 dbname=shop user=reader sslmode=require"
+masume ./notes.db
+masume --profile shop-prod
+```
+
+| Form | Read as |
+| --- | --- |
+| A URL | Supported schemes: `postgres`, `postgresql`, `mysql`, `mariadb`, `cockroachdb`, `redshift`, `sqlserver`, `mssql`, `clickhouse`, `mongodb` |
+| A connection string | `key=value` pairs: `engine`, `host`, `hostaddr`, `port`, `dbname`, `database`, `user`, `password`, `sslmode`. The default engine is `postgres` |
+| A file path | A SQLite path ending in `.db`, `.db3`, `.sqlite` or `.sqlite3`. Other extensions require an existing SQLite header. `:memory:` is also accepted |
+
+A URL without a database uses the user name on PostgreSQL-family engines and `admin` on MongoDB. A MySQL-family URL without a database opens the server itself. Every other engine requires the database in the URL. A missing URL host uses `127.0.0.1`.
+
+Connection strings accept single-quoted values and backslash escapes inside quotes. `engine` accepts the profile engine names. Unknown connection string keys are errors.
+
+URLs support one host, credentials, a port, a database, and `sslmode`, `ssl-mode` or `sslMode`. Other native URL options are ignored, including `authSource`, `replicaSet` and `connect_timeout`. `mongodb+srv` URLs are refused.
+
+Other settings use new-connection defaults, including `env = "dev"`, `mode = "write"` and `page_size = 200`.
+
+The client asks for a missing password when the engine and user require one. SQLite and MongoDB without a user need no password. The connection stays in memory until saved. The picker uses the database name or file name, with a numeric suffix for duplicate names.
+
+## Databases in a container
+
+```sh
+masume --detect
+```
+
+`--detect` reads running containers through `docker`, or `podman` if Docker is absent. Detected databases appear before saved profiles in the connection picker. Detection does not write the configuration file.
+
+A container is offered when both are true:
+
+- The image name contains a supported database name. Recognized names are `postgres`, `postgis`, `pgvector`, `timescale`, `supabase`, `cockroach`, `mysql`, `percona`, `mariadb`, `tidb` and `mongo`. Detection uses the image name, not the parent image. `supabase/postgres` is Supabase.
+- The container publishes the database port.
+
+Detection reads the user, database and password from container environment variables:
+
+| Engine | Variables |
+| --- | --- |
+| PostgreSQL | `POSTGRES_USER`, `POSTGRES_DB`, `POSTGRES_PASSWORD` |
+| MySQL | `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`, `MYSQL_ROOT_PASSWORD` |
+| MariaDB | The MySQL names with a `MARIADB_` prefix, with MySQL variables as fallbacks |
+| MongoDB | `MONGO_INITDB_ROOT_USERNAME`, `MONGO_INITDB_ROOT_PASSWORD`, `MONGO_INITDB_DATABASE` |
+| CockroachDB | `COCKROACH_USER`, `COCKROACH_PASSWORD`, `COCKROACH_DATABASE` |
+
+Missing variables use the detection defaults. A PostgreSQL container with only `POSTGRES_DB` set uses the `postgres` user.
+
+Detected connections use `env = "dev"` and `mode = "write"`. Hosted-service images such as `supabase/postgres` use `sslmode = "prefer"` instead of the engine default `require`.
+
+`--detect` exits with code 1 if neither tool is available, detection fails, or no supported database is found. `--detect` cannot be combined with a target or `--profile`. An explicit target or profile takes priority over `$DATABASE_URL`.
+
+## Temporary connections
+
+A command-line or detected connection is temporary. On exit, masume offers to save each temporary connection that was opened:
+
+```
+┌─ save connection ─────────────────────────────┐
+│ Write "shop" to the config file?              │
+│                                               │
+│ shop  postgres@db.internal:5432/shop          │
+│                                               │
+│ The password goes into the keyring, not the   │
+│ file.                                         │
+│                                               │
+│ y save and quit · n quit without saving       │
+└───────────────────────────────────────────────┘
+```
+
+`y` saves the connections and exits. `n` exits without saving. `Esc` returns to the client. Saved profiles, project profiles, and unopened connections are not offered.
+
+The password notice appears only for a retained password. Saving a retained password uses the keyring and sets `auth = "keyring"`. Without a keyring, masume saves `auth = "prompt"` and does not store the password.
+
+`Ctrl+N`, then `e`, opens the selected connection in the form. `Ctrl+S` saves the profile. The exit prompt does not offer that profile again. Selecting `auth = "prompt"` leaves a password already retained in memory; saving can still store that password in the keyring.
+
+A save error keeps the client open and displays the reason.
+
 ## Editing SQL
 
 `Alt+N` opens a new query tab with editor focus. `Alt+E` opens a table read as a query. In a query tab, `Alt+E` writes the grid sort and server filters into the SQL.
 
-Type SQL or use the terminal paste command. `Ctrl+V` only pastes text last copied inside masume, not arbitrary operating system clipboard text.
+Type SQL or use the terminal paste command. `Ctrl+V` pastes the last text copied inside masume. The terminal paste command pastes the operating system clipboard.
 
 Completion appears while typing. Up and Down select a candidate; Tab accepts the candidate. Enter always inserts a newline, including while completion is open. Esc dismisses completion. Without completion, Tab changes panes.
 
@@ -46,9 +127,9 @@ The result pane receives focus after editor execution. `;` and `'` select previo
 
 Named parameters such as `:customer_id` open a JSON value form before execution. `Ctrl+R` submits the values; Esc cancels. Each statement with parameters has its own form. No statement runs until all parameter forms are complete.
 
-Read-only profiles refuse writes. Other profiles can ask for confirmation or show a write plan. Review the SQL and affected rows before accepting. See [write guards](configuration.md#a-profile) and [write plans](configuration.md#measuring-a-write).
+Read-only profiles refuse writes. Other profiles can ask for confirmation or show a write plan. Review the SQL and affected rows before accepting. See [write guards](configuration.md#profiles) and [write plans](configuration.md#write-plans).
 
-`Ctrl+X` requests query cancellation and stops a running export. Cancellation support depends on the engine. CockroachDB, MongoDB, PlanetScale, SQL Server and SQLite take no cancel: the key is hidden there, and the wheel of the run shows `this engine cannot stop a running statement`. `Ctrl+C` is not the query cancellation command.
+`Ctrl+X` requests query cancellation and stops a running export. Cancellation support depends on the engine. CockroachDB, MongoDB, PlanetScale, SQL Server and SQLite take no cancel: the key is hidden there, and the wheel of the run shows `this engine cannot stop a running statement`. Query cancel is `Ctrl+X`. `Ctrl+C` copies or quits.
 
 ## Transactions
 
@@ -130,7 +211,7 @@ Staging does not write to the database. The right of the status bar counts the s
 
 Staged changes belong to one statement result. Return to that result before applying, or discard the staged changes.
 
-### Three undo operations
+### Undo
 
 | Operation | Effect |
 | --- | --- |
@@ -138,7 +219,7 @@ Staged changes belong to one statement result. Return to that result before appl
 | Grid `Ctrl+Z` | Reverses staged changes only; redo with `Ctrl+Shift+Z` or `Z` |
 | Global `Alt+U` | Asks to execute reverse SQL retained by a write plan |
 
-Neither editor undo nor grid undo reverses an executed database write. `Alt+U` requires an available write-plan undo; imports and staged grid writes do not create one. Transaction rollback is separate from all three operations. See [write-plan limits](configuration.md#measuring-a-write).
+Neither editor undo nor grid undo reverses an executed database write. `Alt+U` requires an available write-plan undo; imports and staged grid writes do not create one. Transaction rollback is separate from all three operations. See [write plans](configuration.md#write-plans).
 
 ## Copy and export
 
@@ -159,25 +240,50 @@ CSV options include delimiter, header, quoting, line endings, NULL text, and for
 
 Formula guarding prefixes risky text with an apostrophe. Risky prefixes are `=`, `+`, `-`, `@`, tab, and carriage return; plain numbers remain unchanged.
 
-Default CSV output cannot distinguish NULL from empty text. A custom `null as` value changes the NULL output. Import treats empty CSV fields as NULL even with a custom marker; see [import NULL handling](configuration.md#importing-a-file).
+Default CSV output cannot distinguish NULL from empty text. A custom `null as` value changes the NULL output. Import treats empty CSV fields as NULL even with a custom marker; see [Importing files](#importing-files).
 
 Result JSON exports and copies preserve JSON nulls and native numeric and boolean values. Cell and row-menu copies use display text; row-menu JSON is not the typed result JSON export.
 
 ## Importing files
 
-Select a table in the object tree, press `m`, and choose Import a file. The schema menu imports into a new table. Select a file, adjust its format and column mapping, then press Enter for review. Enter from review starts the import. Esc returns from review to the form.
+Select a table in the object tree, press `m`, and choose Import a file. The schema menu imports into a new table. Imports support PostgreSQL-family engines, MySQL-family engines and SQLite. MongoDB has no import. Read-only connections refuse imports.
 
-While the import writes, the review draws a bar of the rows written against the rows the file holds.
+![The import form](../vhs/shots/18-import-form.png)
 
-The review validates file values locally; the review does not test database constraints or permissions. Rejected rows are omitted. Import refuses an active transaction. Commit or roll back before importing.
+Select a file, adjust its format and column mapping, then press Enter for review. Enter from review starts the import. Esc returns from review to the form. While the import writes, the review draws a bar of the rows written against the rows the file holds.
 
-Import has its own review and transaction. Import does not use `write_plan` or create an `Alt+U` undo. See [import configuration](configuration.md#importing-a-file) for formats, sampled types, NULL handling, mappings, and limits.
+Supported extensions are `.csv`, `.tsv`, `.txt`, `.json`, `.jsonl` and `.ndjson`.
+
+| Setting | Meaning |
+| --- | --- |
+| `file` | The file path. A leading `~` expands to the home directory |
+| `table` | The target table, optionally qualified with a schema |
+| `format` | `csv` or `json`. The file extension is the default source |
+| `delimiter` | One CSV delimiter character. The default is a comma, or a tab for `.tsv` |
+| `header` | `yes` uses the first CSV row as column names. `no` creates names such as `column_1` |
+| `null as` | The CSV text for `NULL`, initially `\N`. Empty fields, including quoted empty fields, always become `NULL` |
+
+Existing table columns with matching names map automatically, without case sensitivity. Other columns initially use `(skip)`. Generated columns are not available as targets. New tables initially include every sampled column.
+
+Type inference uses the first 200 rows: `integer`, `number`, `boolean`, `timestamp` or `text`. Numeric text with leading zeroes stays text. Mixed values use a common type, with text as the fallback.
+
+Existing table imports cast values to the target type category. New PostgreSQL tables use `bigint`, `numeric`, `boolean`, `timestamptz` and `text`. Other engines use their dialect types.
+
+The review checks mappings, required columns, field counts, type conversions and nullability. The local row check does not query the server. Reading an existing table's column definitions does query the server. The review counts every rejected row and lists the first 20 errors.
+
+Execution skips rows that fail local validation. Accepted rows can still fail server constraints, permissions, type limits or triggers.
+
+Imports refuse an existing transaction. Each import starts a transaction and attempts to commit the accepted rows together. Batches contain at most 1000 rows, with smaller batches for engine parameter limits. A write failure triggers rollback; rollback errors appear on the card.
+
+Rollback depends on engine and table support. MySQL-family DDL can commit implicitly, and nontransactional tables cannot roll back writes. An import that creates a table is not universally all-or-none.
+
+Imports do not retain an undo. Import does not use `write_plan`. Supported input is UTF-8 CSV, JSON object arrays, and newline-delimited JSON objects.
 
 ## Dump and restore
 
 Select a schema in the object tree, press `m`, and choose Dump the schema. The table menu dumps one table. The form asks for the file, the content, and the drop statement. Up and Down move between fields; Left and Right change choices. Enter writes the file. An existing file requires overwrite confirmation.
 
-| Content | What it does |
+| Content | Meaning |
 | --- | --- |
 | `schema and rows` | Writes the definition of each table and one INSERT per row; the default |
 | `schema only` | Writes the definitions and reads no row |
@@ -193,13 +299,13 @@ The table menu dumps one table on its own, without the objects and the views of 
 
 Select a schema, press `m`, and choose Restore a dump to run a `.sql` file. Pick the file, then press Enter. Every statement runs on the open connection, one at a time, in file order, the way a statement of the editor runs: with autocommit off masume opens one transaction and leaves it open for an explicit commit. A failure stops the run, the card names the statement that failed, and with autocommit on the server keeps what the statements before it wrote. Restore refuses an active transaction and a read-only connection. The statements of a restore are not written to the query history.
 
-Both entries need an engine that reports definitions. See [engine support](engines.md). `masume dump` and `masume restore` do the same without a screen; see [without a screen](headless.md#dump-and-restore).
+Both entries need an engine that reports definitions. See [engine support](engines.md). `masume dump` and `masume restore` do the same in [headless mode](headless.md#dump-and-restore).
 
 ## Query plans
 
 `Ctrl+E` requests an estimated plan. `Ctrl+Y` requests an analyzed plan where supported. Analysis executes a read to measure the read. For a statement classified as a write, masume downgrades analysis to an estimate without executing the write.
 
-In Plan, `r` toggles the raw server plan and `y` copies the raw plan. `i` requests AI analysis when AI is enabled. See [engine support](engines.md) and [AI data handling](ai.md).
+In Plan, `r` toggles the raw server plan and `y` copies the raw plan. `i` requests AI analysis when AI is enabled. See [engine support](engines.md) and [AI chat](ai.md).
 
 ## Tabs and history
 
@@ -211,17 +317,13 @@ In Plan, `r` toggles the raw server plan and `y` copies the raw plan. `i` reques
 
 `Ctrl+P` saves the query under a name. On a notebook tab, `Ctrl+P` writes the notebook file. `Ctrl+Q` opens saved queries; `Ctrl+T` opens query history. Type to filter either list. Enter replaces the current query text; `Alt+Enter` loads a new query tab. On a table or object tab, either choice opens a query tab. Loading does not execute SQL.
 
-`Ctrl+D` removes a selected personal saved query. Project queries require changes to the [project file](configuration.md#the-project-file).
+`Ctrl+D` removes a selected personal saved query. Project queries require changes to the [project file](configuration.md#project-file).
 
 Restoration uses stored tab identities, query text, notebook text, active tab, caret, sort, and server filters. Results, staged edits, transaction state, screen filters, column widths, and frozen columns are not restored. Restored query tabs do not execute automatically. Restored table and object tabs read data when first shown.
 
 ## Notebooks
 
-`Alt+B` opens a notebook: an ordered list of cells over one connection, stored as a Markdown file. `Alt+O n` lists the notebooks of the project and of the user. Opening one runs no cell.
-
-The cell list stands where a query tab draws its editor. Up and Down move between cells, `Enter` puts the caret in the focused cell, and `Esc` brings it back to the list. `b` adds a cell and asks for its kind. `r` runs the focused cell, `R` runs it and the cells below it, and `Alt+R` runs every cell. `Alt+O r` writes a report of the rows every cell answered.
-
-Each cell keeps the view of its own result: the view, the cursor, the frozen columns, the sort and the filter. A reopened notebook comes back on the cell it was left on, with the cells that were folded still folded. See the [notebook guide](notebooks.md) for the cell kinds, the run policy, the file format and `masume nb run`.
+`Alt+B` opens a notebook. `Alt+O n` lists the notebooks of the project and of the user. Opening one runs no cell. See the [notebook guide](notebooks.md) for cell kinds, run policy, the file format, and `masume nb run`.
 
 ## Server activity
 
@@ -268,11 +370,11 @@ Palette-only operations include Reload the theme files and AI provider selection
 
 ## Troubleshooting
 
-- A key types text: check focus and the [scope rules](keys.md#focus-and-notation). A card can have a different action for the same key.
+- A key types text: check focus and the [scope rules](keys.md#scopes). A card can have a different action for the same key.
 - A modified key fails: check terminal and multiplexer support. Use a listed alternative, the palette, or [rebind the action](keys.md#rebinding).
 - Clipboard paste differs from expected text: use terminal paste for the operating system clipboard. Clipboard writes also require terminal support.
 - Rows appear missing: check screen filters, server filters, SQL limits, and the loaded-row count. Use `Ctrl+F` for another page.
 - Grid editing is refused: check the status reason, primary key, selected columns, relation kind, and profile access mode.
-- Connection or configuration fails: inspect the reported error and Config problems in the palette. See [configuration](configuration.md) and [engine limits](engines.md).
+- Connection or configuration fails: inspect the reported error and Config problems in the palette. See [configuration](configuration.md) and [engines](engines.md).
 - Symbols or colors are unreadable: select ASCII icons or another [theme](themes.md) in the [interface configuration](configuration.md#interface).
-- For execution without a TUI, see [headless usage](headless.md). For agent access, see [MCP](mcp.md).
+- For headless runs, see [headless mode](headless.md). For agent access, see [MCP](mcp.md).

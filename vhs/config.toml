@@ -58,3 +58,19 @@ password_env = "MASUME_DEMO_PASSWORD"
 env          = "dev"
 mode         = "write"
 description  = "the demo shop database"
+
+# A second profile for vhs/dialogs.tape. `auth = "prompt"` reaches the password dialog,
+# and the write settings reach the write-plan card. No tape connects it for a still of
+# the client itself.
+[profile.shop-prod]
+engine         = "postgres"
+host           = "127.0.0.1"
+port           = 55432
+database       = "shop"
+user           = "postgres"
+auth           = "prompt"
+env            = "prod"
+mode           = "write"
+confirm_writes = "write"
+write_plan     = "undo"
+description    = "the demo shop database, as a production profile"

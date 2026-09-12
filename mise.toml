@@ -172,7 +172,7 @@ depends = ["lint", "vuln", "race"]
 
 # The README recording and the screenshots. Both need docker for the database, and vhs,
 # ttyd and ffmpeg for the capture. These tasks are run rarely, so the tools are not
-# listed in [tools].
+# listed in [tools]. vhs is pinned: 0.12.0 captures frames and encodes nothing.
 [tasks.demo-fixture]
 description = "Start the demo database and build the binary the tapes record"
 hide = true
@@ -185,6 +185,20 @@ mkdir -p .demo/config/masume .demo/state/masume/notebooks .demo/bin
 cp vhs/config.toml .demo/config/masume/config.toml
 cp vhs/notebook.masume.md .demo/state/masume/notebooks/revenue-review.masume.md
 go build -o .demo/bin/masume .
+
+# go-rod omits --no-sandbox, which Chromium requires where
+# kernel.apparmor_restrict_unprivileged_userns is 1.
+if ! chromium --headless --version >/dev/null 2>&1 && ! google-chrome --headless --version >/dev/null 2>&1; then
+  cat > .demo/bin/chrome <<'SHIM'
+#!/bin/sh
+for candidate in "$HOME"/.cache/rod/browser/*/chrome; do
+  [ -x "$candidate" ] && exec "$candidate" --no-sandbox "$@"
+done
+echo "no browser in ~/.cache/rod/browser; run a tape once to let go-rod fetch one" >&2
+exit 1
+SHIM
+  chmod +x .demo/bin/chrome
+fi
 """
 
 [tasks.demo]
@@ -193,7 +207,7 @@ depends = ["demo-fixture"]
 run = """
 set -eu
 PATH="$PWD/.demo/bin:$PATH" mise exec \\
-  "go:github.com/charmbracelet/vhs@latest" ttyd@latest ffmpeg@latest \\
+  "go:github.com/charmbracelet/vhs@0.10.0" ttyd@latest ffmpeg@latest \\
   -- vhs vhs/demo.tape
 rm -rf .demo
 ls -la vhs/demo.gif vhs/demo.mp4
@@ -205,7 +219,7 @@ depends = ["demo-fixture"]
 run = """
 set -eu
 PATH="$PWD/.demo/bin:$PATH" mise exec \\
-  "go:github.com/charmbracelet/vhs@latest" ttyd@latest ffmpeg@latest \\
+  "go:github.com/charmbracelet/vhs@0.10.0" ttyd@latest ffmpeg@latest \\
   -- vhs vhs/notebook.tape
 rm -rf .demo
 ls -la vhs/notebook.mp4
@@ -216,11 +230,23 @@ description = "Rebuild the still frames in vhs/shots"
 depends = ["demo-fixture"]
 run = """
 set -eu
-rm -rf vhs/shots
-mkdir -p vhs/shots
+# vhs exits 0 after a render that wrote nothing, so the frame count is the only signal.
+rm -rf .demo/shots
+mkdir -p .demo/shots
 PATH="$PWD/.demo/bin:$PATH" mise exec \\
-  "go:github.com/charmbracelet/vhs@latest" ttyd@latest ffmpeg@latest \\
+  "go:github.com/charmbracelet/vhs@0.10.0" ttyd@latest ffmpeg@latest \\
   -- vhs vhs/shots.tape
+PATH="$PWD/.demo/bin:$PATH" mise exec \\
+  "go:github.com/charmbracelet/vhs@0.10.0" ttyd@latest ffmpeg@latest \\
+  -- vhs vhs/dialogs.tape
+count=$(find .demo/shots -name '*.png' | wc -l)
+if [ "$count" -lt 19 ]; then
+  echo "vhs wrote $count of 19 frames. vhs/shots is unchanged." >&2
+  rm -rf .demo
+  exit 1
+fi
+rm -rf vhs/shots
+mv .demo/shots vhs/shots
 rm -rf .demo
 ls -la vhs/shots
 """

@@ -142,51 +142,43 @@ paths = []
 # key_hints           = "full"    # full main off. main names the primary keys only, off names none
 
 # Example glyph overrides by row kind. An empty string hides that glyph.
+# These examples are Nerd Font glyphs. A terminal without that font draws empty boxes.
 #
 # [ui.icon_glyphs]
-# # kinds of rows in the tree
-# schema            = ""
-# table             = ""
-# view              = ""
-# materialized-view = ""
-# function          = ""
-# sequence          = ""
-# type              = ""
-# trigger           = ""
-# column            = ""
+# schema            = ""
+# table             = ""
+# view              = ""
+# materialized-view = ""
+# function          = ""
+# sequence          = ""
+# type              = ""
+# trigger           = ""
+# column            = ""
 # index             = "▤"
-# primary-key       = ""
-# foreign-key       = ""
-# role              = ""
-# roles             = ""
-#
-# # saved items
-# favourites = ""
-# recent     = ""
-# query      = "≡"
-# folder     = "▸"
-#
-# # views of a result
-# plan = "⊳"
-#
-# # message kinds
-# note    = ""
-# problem = "✗"
-# ai      = "✦"
-#
-# # control glyphs
-# fold-closed = "▸"
-# fold-open   = "▾"
-# field       = "▸"
-# close       = "×"
-# dot         = "●"
-# sort-up     = "↑"
-# sort-down   = "↓"
-# prompt      = "❯"
-# step-back   = "‹"
-# step-on     = "›"
-# banner      = "⚑"
-# new-tab     = "+"
+# primary-key       = ""
+# foreign-key       = ""
+# role              = ""
+# roles             = ""
+# favourites        = ""
+# recent            = ""
+# query             = "≡"
+# folder            = "▸"
+# plan              = "⊳"
+# note              = ""
+# problem           = "✗"
+# ai                = "✦"
+# fold-closed       = "▸"
+# fold-open         = "▾"
+# field             = "▸"
+# close             = "×"
+# dot               = "●"
+# sort-up           = "↑"
+# sort-down         = "↓"
+# prompt            = "❯"
+# step-back         = "‹"
+# step-on           = "›"
+# banner            = "⚑"
+# new-tab           = "+"
 
 # Example colour overrides for the active theme. Every theme colour name is allowed here.
 #

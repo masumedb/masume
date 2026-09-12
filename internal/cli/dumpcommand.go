@@ -14,11 +14,11 @@ import (
 	"github.com/turanmahmudov/masume/internal/headless"
 )
 
-// `masume dump` writes a schema as SQL and `masume restore` runs such a file back into a
-// server. internal/headless opens the connection and returns an exit code.
+// `masume dump` dumps schema and data to a SQL file and `masume restore` restores that dump.
+// internal/headless opens the connection and returns an exit code.
 
 // dumpUsage is what `masume dump --help` writes.
-const dumpUsage = `masume dump - write a schema as SQL
+const dumpUsage = `masume dump - dump schema and data
 
 usage:
   masume dump [TARGET] FILE
@@ -43,7 +43,7 @@ views over them, then its triggers. Every table stands after the tables its fore
 Roles, grants and owners are not written.`
 
 // restoreUsage is what `masume restore --help` writes.
-const restoreUsage = `masume restore - run the statements of a SQL file
+const restoreUsage = `masume restore - restore a dump
 
 usage:
   masume restore [TARGET] FILE

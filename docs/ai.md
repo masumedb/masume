@@ -1,23 +1,31 @@
 # AI chat
 
-Each connection has its own AI chat. The AI chat uses that connection and ten database tools shared with the [MCP server](mcp.md).
+Each connection has one AI chat. The chat uses that connection and the database tools shared with the [MCP server](mcp.md), without `list_profiles`.
 
-## Opening the AI chat
+Opening the panel sends nothing. The first submitted question sends the system prompt, the connection summary, the tool schemas, and the question to the configured provider.
+
+## Keys
 
 These are the default keys. See [keys.md](keys.md) for other bindings.
 
 | Key | Action |
 | --- | --- |
-| `Ctrl+I` | Open the AI chat without sending a question |
-| `Alt+I` | Open the AI chat with the full editor buffer in the input field, with outer whitespace removed |
-| `Ctrl+H` | Open the AI chat and immediately send a question about the editor error or failed check |
-| `Ctrl+O` in the AI chat | Open the conversation list |
+| `Ctrl+I` | Open the chat |
+| `Alt+I` | Open the chat with the editor buffer in the input, outer whitespace removed. Submission sends it |
+| `Ctrl+H` | Open the chat and send a question about the editor error or failed check. Sends when the editor is nonempty |
+| `i` in Plan | Send the displayed raw plan |
+| `Enter` | Submit the input |
+| `Shift+Enter` or `Alt+Enter` | Insert a newline |
+| `Ctrl+X` | Stop the reply, reject a pending statement, and keep the text already received |
+| `Ctrl+L` | Start a new conversation |
+| `Ctrl+O` | Open the conversation list |
+| `Ctrl+D` in the list | Remove the selected conversation |
+| `Ctrl+J` | Insert SQL from the last reply into the editor, without execution |
+| `Ctrl+G` | Open the conversation as a notebook, without running cells |
 
-`Alt+I` does not send the input until submission. `Ctrl+H` sends immediately when the editor is not empty. The plan view also has an AI action that immediately sends the displayed raw plan.
+Closing the panel leaves a running reply and a pending statement in place. `Ctrl+X` does not undo a completed database operation.
 
-Closing the AI chat panel does not stop a reply or reject a pending statement. The stop action cancels the reply, rejects a pending statement, and keeps the text already received. Cancellation does not undo a completed database operation.
-
-In the AI chat, Enter submits a question; Shift+Enter or Alt+Enter inserts a newline. `Ctrl+X` stops the reply. `Ctrl+L` starts a new conversation. `Ctrl+O` lists stored conversations; `Ctrl+D` removes the selected conversation from that list. `Ctrl+J` inserts SQL from the last reply into the editor without execution.
+The palette has **Ask AI: explain this query**, **Ask AI: optimize this query**, **Ask AI: build a notebook**, and the provider picker. Those have no default chord.
 
 ## Configuration
 
@@ -36,57 +44,37 @@ model       = "gpt-5"
 api_key_env = "OPENAI_API_KEY"
 ```
 
-`default_provider` is `anthropic` or `openai`. The starter config includes the environment variable names above.
+`default_provider` is `anthropic` or `openai`. The palette changes the provider for the session. Switching providers keeps the conversation. The next question sends the retained messages to the new provider.
 
-`api_key_env` is the environment variable for the API key. `api_key` is a key stored directly in the config file and takes priority. A file with `api_key` contains a secret.
+`api_key_env` is the environment variable for the API key. `api_key` is a key stored in the config file and takes priority. A file with `api_key` holds a secret.
 
-`base_url` is an optional gateway URL. `base_url_env` is the environment variable for that URL. The direct value takes priority. The gateway receives the API key and request content.
+`base_url` and `base_url_env` set a gateway. The direct value takes priority. The gateway receives the API key and the request content. See [configuration](configuration.md#ai) for defaults, `/v1` rewriting, and the key table.
 
-### Disabling the AI chat
-
-```toml
-[ai]
-enabled = false
-```
-
-This disables the AI chat, its actions, and its interface elements. The disabled AI chat sends no provider requests. The config loader still reads the file, including configured API keys.
-
-This setting does not disable MCP. `[mcp]` is separate, and external agents use their own providers and credentials.
+`enabled = false` hides the chat and its actions. The loader still reads `[ai]`, including API keys. `[mcp]` is separate. A project file cannot set `[ai]`.
 
 ## Request content
 
-Opening the AI chat alone sends nothing. The first question includes system instructions, connection context, tool definitions, and the question.
-
-| Context | Content |
+| Piece | Content |
 | --- | --- |
-| System instructions | The assistant role, answer format, and tool-use instructions |
-| Dialect | The engine and statement language |
-| Default namespace | The session's default schema or database |
-| Other namespaces | Up to 300 distinct schema or database names from the loaded table catalog |
-| Tools | The names, descriptions, and argument schemas of the ten tools |
-| Profile instructions | `ai_instructions`, when set |
+| System prompt | Role, answer format, tool-use instructions, dialect, default schema or database, up to 300 other schema or database names from the loaded catalog, and `ai_instructions` when set |
+| Tools | Names, descriptions, and argument schemas of the tools |
+| Question | The submitted text |
+| Editor | The full buffer, outer whitespace removed, truncated at 4000 Unicode characters. Typed questions, `Alt+I` input, error text, raw plans, and tool results are not truncated |
+| Error | The last execution error, when the editor is nonempty and the last run failed |
+| Plan | The full raw plan, when the Plan action starts the question |
+| History | Earlier user and assistant text, with the editor context stored on those turns |
 
-The generated catalog summary contains no table or column names. Instructions and editor text can contain those names. The model receives instructions to call `list_tables` and `describe_table` as needed. These instructions do not enforce tool use or require a minimum number of calls.
+The catalog summary holds no table or column names. The prompt tells the model to call `list_tables` and `describe_table`. The model can skip those tools.
 
-The prompt uses `Default schema or database` and `Other schemas or databases in the loaded catalog`. On PostgreSQL, these values are schema names within the connected database. They are not a list of PostgreSQL databases.
+On PostgreSQL, the named namespaces are schemas of the connected database.
 
-Each question can also include:
+An unchanged editor buffer is not a new message. The earlier context stays in the conversation and is sent again with that history.
 
-- The question text.
-- Automatic editor context: the full buffer with outer whitespace removed, truncated to 4000 Unicode characters.
-- The last execution error, when the editor is not empty and the last execution failed.
-- Earlier user messages, assistant replies, and their saved editor contexts.
-- The full raw plan when the plan action starts the question.
+Tool results return to the provider in later rounds of the same reply. Later questions keep user and assistant text. They do not keep a separate history of tool calls and results.
 
-The 4000-character limit applies only to automatic editor text. It does not limit typed questions, the `Alt+I` input, error text, raw plans, or tool results.
+## Tools
 
-An unchanged editor context is not attached again as a new message. The earlier context remains in the conversation and is sent again with its history.
-
-Switching providers keeps the conversation. The next question sends the retained messages and contexts to the newly selected provider.
-
-## Database tools
-
-The panel displays tool steps during a reply. One question allows up to 25 provider rounds. Each round can request several tool calls.
+One question allows 25 provider rounds. Each round can request several tool calls. A run that hits the limit with no text reply stops.
 
 | Tool | Result |
 | --- | --- |
@@ -96,67 +84,49 @@ The panel displays tool steps during a reply. One question allows up to 25 provi
 | `list_constraints` | Constraint names and definitions |
 | `get_table_ddl` | Table or collection creation statements |
 | `list_relationships` | Foreign keys into and out of tables |
-| `validate_query` | Best-effort statement diagnostics |
+| `validate_query` | Adapter diagnostics. SQL uses preparation where available; MongoDB uses local diagnostics. An open transaction returns `checked: false` |
 | `explain_query` | An estimated or analyzed plan |
 | `plan_write` | Available row counts, assigned columns, trigger names, foreign-key effects, and undo information |
 | `run_query` | Execution status, returned rows, and optional undo statements |
 
-Tool results return to the provider in later rounds of the same reply. Later questions retain user and assistant text, but not a separate history of all tool calls and results.
+`run_query` returns unmasked values. Grid masking does not apply. Undo statements can hold old row values. Plans, defaults, constraints, and errors can hold secrets.
 
-`run_query` returns unmasked values. Grid masking does not remove data from AI requests. Undo statements can include old row values. Plans, defaults, constraints, and errors can also contain sensitive values.
+MongoDB `describe_table` samples up to 100 documents per collection and returns inferred field names and types.
 
-MongoDB schema discovery reads up to 100 documents per collection description. The tool returns inferred field names and types, not the sampled documents themselves.
-
-`validate_query` is a best-effort check, not proof that a statement is valid or safe. SQL adapters use preparation where available; MongoDB uses local diagnostics. Some unsupported checks and connection failures produce no diagnostic. An open transaction returns `checked: false`.
+`explain_query` with `analyze` true executes a statement classified as a read. `plan_write` runs counts that evaluate the write predicate.
 
 ## Confirmation and limits
 
-The AI chat asks before every `run_query` call, including reads. The AI chat does not use `confirm_writes` for these questions. It also asks before `explain_query` for a statement classified as a write.
+The chat asks before every `run_query` call, including reads. It does not use `confirm_writes`. It also asks before `explain_query` of a statement classified as a write. `plan_write` runs without that question.
 
-`write_plan` adds a plan when the profile, engine, and statement support measurement. Available undo appears after execution, and `Alt+U` opens undo in the client. See [configuration.md](configuration.md#measuring-a-write).
+`write_plan` adds a plan when the profile, engine, and statement support measurement. After execution, `Alt+U` opens available undo. See [write plans](configuration.md#write-plans).
 
-The AI chat uses the profile's `mode` and database permissions. `[mcp] access`, `[mcp] row_limit`, and `[mcp] timeout_ms` do not apply to the AI chat.
+The chat uses the profile `mode` and database permissions. `[mcp] access`, `[mcp] row_limit`, and `[mcp] timeout_ms` do not apply.
 
-The profile's `page_size` is the maximum returned rows for `run_query`. A tool argument can lower this limit. The row limit does not bound database work or changed rows.
+`page_size` is the maximum returned rows for `run_query`. A tool argument can lower that cap. The cap does not bound changed rows or database work.
 
-`[ai] statement_timeout_ms` is the execution timeout for `run_query`. It does not cover provider requests, confirmation, schema calls, validation, explain calls, write-plan measurement, or undo capture. A profile timeout can apply separately to database operations. Cancellation can fail, and a statement can remain active after a timeout.
+`[ai] statement_timeout_ms` is the execution timeout for `run_query`. It does not cover provider requests, confirmation, catalog calls, validation, explain, write-plan measurement, or undo capture. A profile `statement_timeout_ms` can apply separately. Cancellation can fail, and a statement can remain active after a timeout.
 
-### Read-only protection
-
-`mode = "read-only"` applies client checks to recognized writes. Engine protection differs:
-
-| Engine | Additional protection |
-| --- | --- |
-| PostgreSQL family | A default read-only transaction setting on the main session |
-| MySQL family, except TiDB | A read-only transaction setting on the main session |
-| SQLite | Read-only opening for a disk file; no read-only file mode for `:memory:` |
-| MongoDB | Client checks only; database permissions remain necessary |
-| TiDB | An explicit read-only profile fails to connect |
-
-These checks are not a sandbox. Database functions, extensions, and engine features can have effects beyond the statement's apparent operation.
-
-`run_query` is not the only tool with possible effects. `explain_query` can execute a statement classified as a read when `analyze` is true. `plan_write` runs counts that evaluate the write predicate. Planning and validation can also invoke engine behavior.
-
-The tools provide no general shell or file API. Database features can still reach files, networks, or other databases when database permissions allow access. Use database accounts with only the required permissions.
+Read-only profiles use the same client checks and engine protection as the rest of the client. See [read-only access](engines.md#read-only-access).
 
 ## Notebooks
 
-**Ask AI: build a notebook** in the palette asks what the notebook is to cover, sends the request, and opens the reply as a notebook: prose as text cells, one statement cell per query, and a parameter cell for the `:name` marks the statements bind. Nothing runs.
+**Ask AI: build a notebook** asks what the notebook is to cover, sends that request, and opens the reply as a notebook: prose as text cells, one statement cell per query, and a parameter cell for the `:name` marks the statements bind. Nothing runs.
 
-`Ctrl+J` inserts the statement of the last reply. On a notebook tab it becomes a new cell under the focused one; on any other tab it goes into a query editor. `Ctrl+G` turns the conversation into a notebook: the prose of every turn becomes a text cell, and every statement the model wrote becomes a statement cell. The notebook opens unsaved and runs nothing. See the [notebook guide](notebooks.md).
+`Ctrl+J` inserts the statement of the last reply. On a notebook tab it becomes a new cell under the focused one. On any other tab it goes into a query editor.
 
-## Storage and sharing
+`Ctrl+G` turns the conversation into a notebook: the prose of every turn becomes a text cell, and every statement the model wrote becomes a statement cell. The notebook opens unsaved and runs nothing. See the [notebook guide](notebooks.md).
 
-The configured provider or gateway receives instructions, tool definitions, questions, editor contexts, retained messages, and tool results. Do not enable this sharing for data that must remain local.
+## Storage
 
-The history file stores conversations and their editor contexts. It retains up to 50 conversations per profile and 100 messages per stored conversation. These storage limits do not cap the current conversation in memory.
+The provider or gateway receives the system prompt, tool schemas, questions, editor contexts, retained messages, and tool results.
 
-`run_query` execution attempts also enter query history, including failures. `Ctrl+T` opens query history. History writes can fail.
+The history file stores conversations and their editor contexts: 50 conversations per profile, 100 messages per stored conversation. Those limits do not cap the current conversation in memory. The conversation title is the first question, truncated at 90 characters.
 
-`$XDG_STATE_HOME/masume/ai-chat.log` is a partial diagnostic log. Tool arguments and results are truncated after 500 Unicode characters. Questions and some events are not subject to that truncation. The log is not a complete request record or an audit log.
+`run_query` attempts also enter query history, including failures. `Ctrl+T` opens query history.
 
-Rotation uses a 2,000,000-byte threshold and one `.1` backup. Logging and rotation are best effort. See [SECURITY.md](../SECURITY.md) for storage paths and protection limits.
+`$XDG_STATE_HOME/masume/ai-chat.log` records chat traffic. Tool arguments and results are truncated after 500 Unicode characters. Rotation uses a 2,000,000-byte threshold and one `.1` backup. See [SECURITY.md](../SECURITY.md#diagnostic-logs).
 
-## Caching and cost
+## Caching
 
-Requests still transmit their content when caching is available. Anthropic requests include cache markers; OpenAI requests include a cache key. A cache hit and a lower price are not guaranteed. Provider prices and cache rules apply.
+Requests still transmit their content. Anthropic marks the last content block of the request with `cache_control: ephemeral`. OpenAI sends `prompt_cache_key` as `masume/` plus the profile name. Provider cache rules and prices apply.

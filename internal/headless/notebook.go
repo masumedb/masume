@@ -172,7 +172,7 @@ func refuseNotebookWrites(options NotebookOptions) int {
 	if writes == 0 || options.AllowWrites {
 		return CodeOK
 	}
-	options.report("%s a confirmation, and a run without a screen cannot ask; "+
+	options.report("%s a confirmation, and a headless run cannot ask; "+
 		"pass --allow-writes to run them",
 		present.FormatCountOf(int64(writes), "write cell needs", "write cells need"))
 	return CodeStatement
@@ -294,7 +294,7 @@ func readOneCellStatement(
 		return cellAnswer{}, CodeRefused
 	}
 	if writes && !options.AllowWrites {
-		options.report("this cell writes, and a run without a screen cannot ask; " +
+		options.report("this cell writes, and a headless run cannot ask; " +
 			"pass --allow-writes to run it")
 		return cellAnswer{}, CodeStatement
 	}

@@ -35,28 +35,28 @@ Down Sleep 200ms
 Down Sleep 200ms
 Right
 Sleep 2s
-Screenshot vhs/shots/01-object-tree.png
+Screenshot .demo/shots/01-object-tree.png
 
 # The rows of that table.
 Enter
 Sleep 3s
-Screenshot vhs/shots/02-grid.png
+Screenshot .demo/shots/02-grid.png
 
 Type "2" Sleep 2s
-Screenshot vhs/shots/03-columns.png
+Screenshot .demo/shots/03-columns.png
 
 Type "3" Sleep 2s
-Screenshot vhs/shots/04-indexes.png
+Screenshot .demo/shots/04-indexes.png
 
 Type "5" Sleep 2s
-Screenshot vhs/shots/05-ddl.png
+Screenshot .demo/shots/05-ddl.png
 
 # The object menu, and the diagram that its first entry opens.
 Type "m" Sleep 2s
-Screenshot vhs/shots/06-object-menu.png
+Screenshot .demo/shots/06-object-menu.png
 
 Enter Sleep 3s
-Screenshot vhs/shots/07-er-diagram.png
+Screenshot .demo/shots/07-er-diagram.png
 Escape Sleep 800ms
 
 # A partly typed statement with the completion menu open.
@@ -68,7 +68,7 @@ Type "sum(o.total) as revenue" Enter
 Type "from orders o" Enter
 Type "join cust"
 Sleep 2500ms
-Screenshot vhs/shots/08-completion.png
+Screenshot .demo/shots/08-completion.png
 
 Tab
 Sleep 700ms
@@ -79,35 +79,35 @@ Sleep 1s
 
 Ctrl+r
 Sleep 3s
-Screenshot vhs/shots/09-result.png
+Screenshot .demo/shots/09-result.png
 
 # The plan, with the times that the server measured.
 Ctrl+y
 Sleep 4s
-Screenshot vhs/shots/10-plan.png
+Screenshot .demo/shots/10-plan.png
 
 # The palette.
 Ctrl+k
 Sleep 2s
-Screenshot vhs/shots/11-palette.png
+Screenshot .demo/shots/11-palette.png
 Escape Sleep 800ms
 
 # A notebook of prose, values, statements and a chart, with every cell run.
 Alt+o
 Type "n"
 Sleep 2s
-Screenshot vhs/shots/12-notebooks-card.png
+Screenshot .demo/shots/12-notebooks-card.png
 
 Enter
 Sleep 2s
 Alt+r
 Sleep 4s
-Screenshot vhs/shots/13-notebook.png
+Screenshot .demo/shots/13-notebook.png
 
 Type "j" Sleep 400ms
 Type "j" Sleep 400ms
 Type "j" Sleep 2s
-Screenshot vhs/shots/14-notebook-chart.png
+Screenshot .demo/shots/14-notebook-chart.png
 
 # The palette again, for the light theme frame.
 Ctrl+k
@@ -126,5 +126,5 @@ Down Sleep 200ms
 Down Sleep 1500ms
 Enter
 Sleep 2500ms
-Screenshot vhs/shots/15-light-theme.png
+Screenshot .demo/shots/15-light-theme.png
 Sleep 500ms

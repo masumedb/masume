@@ -1,10 +1,12 @@
-# Without a screen
+# Headless mode
 
-`masume run` runs statements without a screen and writes results to stdout. The command uses the configured profiles, connection commands, timeouts, and read-only checks.
+`masume run`, `masume nb run`, `masume dump`, and `masume restore` open a connection, do the work, and write to stdout. They use profiles, connection commands, timeouts, and read-only checks. They have no write confirmation, write plan, or undo.
 
 ```sh
 masume run -p shop-prod -f json 'select count(*) from orders'
 ```
+
+A target, `--profile`, and `$DATABASE_URL` follow the same rules as the client. See [connection targets](usage.md#connection-targets).
 
 ## Arguments
 
@@ -15,38 +17,25 @@ masume run [TARGET] -e FILE
 
 | Argument | Meaning |
 | --- | --- |
-| `TARGET` | A supported URL, keyword connection string, or SQLite path. Without a target, use `--profile` or `$DATABASE_URL` |
-| `-p`, `--profile NAME` | A profile from the config file or the project file |
+| `TARGET` | A connection URL, keyword connection string, or existing SQLite file. Without a target, use `--profile` or `$DATABASE_URL` |
+| `-p`, `--profile NAME` | A user or project profile |
 | `-e`, `--execute FILE` | The statement file. A single `-` reads stdin |
 | `-f`, `--format FORMAT` | `table` by default, or `csv`, `json`, or `markdown` |
 | `-l`, `--limit ROWS` | A positive output cap per statement, including statements with their own limit |
 | `--param NAME=VALUE` | A string value for `:NAME`. Repeat for each parameter |
 | `--explain` | A JSON plan, with execution measurements for eligible reads |
-| `-h`, `--help` | Print help and exit |
 
-The target precedes the statement when both are positional arguments. A target and `--profile` cannot appear together.
+The target precedes the statement when both are positional. A target and `--profile` cannot appear together.
 
 `-h` takes priority over the positional arguments and prints the help. An unknown option takes priority over `-h` and exits with code 2.
 
 Only one `-e` file is used. Repeated `-e` options use the last file. SQL that starts with `--` must come from a file or stdin. The argument parser has no `--` separator.
 
-### Connection targets
-
-Supported URL schemes are `postgres`, `postgresql`, `cockroachdb`, `redshift`, `mysql`, `mariadb`, `sqlserver`, `mssql`, `clickhouse`, and `mongodb`. Other engines need a profile or a keyword connection string with `engine`.
-
-URLs support one host. Multi-host URLs and `mongodb+srv` are unsupported. The parser reads credentials, host, port, database, and `sslmode`, `ssl-mode`, or `sslMode`. Other query options are ignored and are not forwarded to the driver. This includes native options such as `authSource`, `replicaSet`, `tls`, and `connect_timeout`.
-
-Keyword connection strings default to PostgreSQL. The accepted keys are `engine`, `host`, `hostaddr`, `port`, `dbname`, `database`, `user`, `password`, and `sslmode`. `hostaddr` is an alias for `host`; `dbname` is an alias for `database`. Unknown keys are refused. See [configuration.md](configuration.md) for connection configuration.
-
-SQLite files must already exist. Recognized extensions are `.db`, `.db3`, `.sqlite`, and `.sqlite3`; other paths need a SQLite header. `:memory:` opens a temporary database for that run.
-
 ## Writes and access
 
-Headless runs do not use `confirm_writes`, `write_plan`, or undo capture. The profile's `autocommit` setting does not start a transaction. SQL transactions require explicit `BEGIN`, `COMMIT`, or `ROLLBACK` statements.
+The profile `autocommit` setting does not start a transaction. SQL transactions need explicit `BEGIN`, `COMMIT`, or `ROLLBACK`.
 
-A read-only profile refuses recognized writes before execution. PostgreSQL also sets `default_transaction_read_only`; MySQL and MariaDB set the session transaction mode to read-only. SQLite opens existing files with `mode=ro`. MongoDB has client checks only, without a server read-only session.
-
-A TiDB profile with `mode = "read-only"` fails to open, with exit `2`. MCP read-only access has a separate client-only fallback for TiDB. See [engines.md](engines.md#read-only-access).
+A read-only profile refuses recognized writes before execution. A TiDB profile with `mode = "read-only"` fails to open, with exit `2`. See [read-only access](engines.md#read-only-access).
 
 ## Exit codes
 
@@ -57,9 +46,9 @@ A TiDB profile with `mode = "read-only"` fails to open, with exit `2`. MCP read-
 | `2` | Argument, input file, password, connection command, or connection failure |
 | `3` | The profile's read-only check refused a write |
 
-Exit `1` does not prove that a write failed. A write can succeed before output fails or its returned rows exceed the default cap. Do not automatically retry a write after a nonzero exit. Check the database state first.
+Exit `1` can follow a successful write: output can fail after the write, or returned rows can exceed the default cap. An explicit `--limit` makes truncation return `0`, including truncation of write results.
 
-An explicit `--limit` makes truncation return `0`, including truncation of write results. Diagnostics and truncation notices go to stderr. Check the exit status before using the output as a complete result.
+Diagnostics and truncation notices go to stderr.
 
 ## Formats
 
@@ -75,7 +64,7 @@ id  total_cents  status
 
 CSV uses commas, a header, LF endings, and quoting as needed. Null and empty string values both produce empty fields. Newlines remain inside quoted fields.
 
-CSV formula guarding is enabled. Non-numeric fields starting with `=`, `+`, `-`, `@`, tab, or carriage return receive a leading apostrophe. Plain numbers remain unchanged. Headless runs have no options for these CSV settings.
+CSV formula guarding is on. Non-numeric fields starting with `=`, `+`, `-`, `@`, tab, or carriage return receive a leading apostrophe. Plain numbers stay unchanged. Headless runs have no flags for these CSV settings.
 
 JSON output is an array of records. A result without rows produces an empty array. CSV writes the available column header even without rows. An empty MongoDB result has no discovered columns.
 
@@ -89,13 +78,13 @@ JSON output is an array of records. A result without rows produces an empty arra
 | Newline inside text | The escape `\n` |
 | Other driver values | Formatted text |
 
-MongoDB output contains columns from documents, not a lossless BSON dump. Object IDs become hexadecimal strings, and decimal values become text.
+MongoDB output contains columns from documents. Object IDs become hexadecimal strings, and decimal values become text.
 
 A statement without a result set writes its command and available affected count to stderr, such as `UPDATE 1`. Such statements write nothing to stdout.
 
 ## Parameters
 
-Parameter names are case-insensitive. Every CLI parameter value is a string. `42`, `true`, and `null` do not become numbers, booleans, or null values. The database can apply conversions required by the statement.
+Parameter names are case-insensitive. Every CLI parameter value is a string. `42`, `true`, and `null` stay strings. The database can convert them as the statement requires.
 
 Repeated parameter names use the last supplied value.
 
@@ -107,11 +96,11 @@ masume run -p shop -f csv \
   'select id from orders where created_at::date = :day and status = :status'
 ```
 
-Typed MongoDB values must appear in the statement, for example `ObjectId("507f1f77bcf86cd799439011")` or `{quantity: 42}`.
+Typed MongoDB values belong in the statement, for example `ObjectId("507f1f77bcf86cd799439011")` or `{quantity: 42}`.
 
 ## Plans
 
-`--explain` always writes JSON, regardless of `--format`. Eligible reads execute when the engine supports measured plans. This is not a dry run. Reads can take locks or call functions with side effects.
+`--explain` always writes JSON, regardless of `--format`. Eligible reads execute when the engine supports measured plans. Reads can take locks or call functions with side effects.
 
 Recognized writes receive an estimated plan only, when the engine supports that statement. Read-only checks still apply before planning.
 
@@ -143,11 +132,9 @@ Commands have no stdin and have a 30-second timeout. Missing required passwords,
 
 ## Several statements
 
-A statement argument or file can contain several statements. Headless runs execute statements in order on one session and stop at the first failure. Later statements do not run.
+A statement argument or file can contain several statements. Headless runs execute them in order on one session and stop at the first failure. Later statements do not run.
 
-A batch is not automatically atomic. Earlier writes can remain committed after a later failure. Supported SQL engines accept explicit transaction statements within the batch. Separate invocations do not share a session or transaction.
-
-For example, a transaction file can contain:
+A batch is not automatically atomic. Earlier writes can remain committed after a later failure. Supported SQL engines accept explicit transaction statements within the batch. Separate invocations share no session.
 
 ```sql
 BEGIN;
@@ -156,7 +143,11 @@ INSERT INTO order_events (order_id, event) VALUES (42, 'paid');
 COMMIT;
 ```
 
-Run the file with `masume run -p shop -e payment.sql`. Engine DDL and nontransactional table restrictions still apply.
+```sh
+masume run -p shop -e payment.sql
+```
+
+Engine DDL and nontransactional table restrictions still apply.
 
 `--format json` refuses several statements with exit `1`, before executing any statement. Other formats write consecutive results, with a separate header for each tabular result. Empty input or SQL containing only comments returns `1`.
 
@@ -194,7 +185,7 @@ Without `--limit`, truncated write results return `1`. An explicit `--limit` mak
 
 ### Report profile
 
-`page_size` is the default cap for the interface and headless runs. This example uses an environment password:
+`page_size` is the default cap for the interface and headless runs:
 
 ```toml
 [profile.shop-report]
@@ -208,21 +199,28 @@ mode         = "read-only"
 page_size    = 50000
 ```
 
-`SHOP_REPORT_PASSWORD` must be available in the process environment.
-
 ## Notebooks
 
-`masume nb run FILE` runs a notebook file. The profile, the timeouts, the read-only check and the exit codes are the ones above. A write cell needs `--allow-writes`, because a run without a screen has no confirmation, no write plan and no undo.
+`masume nb run FILE` runs a notebook file. The profile, timeouts, and read-only check are the same as `masume run`. A write cell needs `--allow-writes`.
 
-```
+```sh
 masume nb run reports/revenue-review.masume.md -p shop --param day=2026-09-01 -f markdown
 ```
 
-`--only CELL` runs one cell by id. `--explain` writes a JSON plan of every statement and runs none of them. `markdown` writes the whole notebook with the rows of every cell. See the [notebook guide](notebooks.md#without-a-screen).
+`--only CELL` runs one cell by id. `--explain` writes a JSON plan of every statement and runs none of them. `markdown` writes the whole notebook with the rows of every cell.
+
+| Code | Meaning |
+| --- | --- |
+| `0` | The run completed |
+| `1` | A cell failed, or a write cell ran without `--allow-writes` |
+| `2` | Argument, input file, password, or connection failure |
+| `3` | The profile is read-only and a cell writes |
+
+See the [notebook guide](notebooks.md#headless-mode).
 
 ## Dump and restore
 
-`masume dump` writes a schema as SQL and `masume restore` runs such a file back into a server. Both use the profiles, the connection commands, the timeouts and the exit codes above.
+`masume dump` dumps schema and data to a SQL file. `masume restore` restores that dump. Both use the profiles, connection commands, and timeouts above.
 
 ```sh
 masume dump -p shop --schema public --drop shop.sql
@@ -238,18 +236,26 @@ masume restore [TARGET] FILE
 | Argument | Meaning |
 | --- | --- |
 | `FILE` | The dump file. A single `-` writes stdout, and a restore reads stdin |
-| `-p`, `--profile NAME` | A profile from the config file or the project file |
+| `-p`, `--profile NAME` | A user or project profile |
 | `-s`, `--schema NAME` | The schema to dump. Without it, the default schema of the connection |
 | `-t`, `--table NAME` | One table, as `name` or `schema.name`. Repeat for more, and the objects are left out |
 | `-c`, `--content WHAT` | `schema and rows` by default, or `schema only` or `rows only` |
 | `--drop` | Write a `DROP … IF EXISTS` for everything the dump makes |
-| `-h`, `--help` | Print help and exit |
 
-A dump holds the types, sequences and functions of the schema, then its tables and their rows, then the views over them, then its triggers. Every table stands after the tables its foreign keys name. Roles, grants and owners are not written. A dump only reads, so a read-only profile writes one.
+A dump holds the types, sequences, and functions of the schema, then its tables and their rows, then the views over them, then its triggers. Every table stands after the tables its foreign keys name. Roles, grants, and owners are omitted. A dump only reads. A read-only profile can dump.
 
-Neither command runs on an engine that reports no definitions, such as MongoDB, which holds another language.
+Neither command runs on an engine that reports no definitions, such as MongoDB.
 
-A restore runs each statement on its own, in file order, with no wrapping transaction. It stops at the first failure, reports the statement that failed and how many ran before it, and exits with code 1. A read-only profile exits with code 3 and sends nothing.
+A restore runs each statement on its own, in file order, with no wrapping transaction. It stops at the first failure, reports the statement that failed and how many ran before it, and exits with code `1`. A read-only profile exits with code `3` and sends nothing.
+
+| Code | `dump` | `restore` |
+| --- | --- | --- |
+| `0` | The dump was written | Every statement ran |
+| `1` | A read, a definition, or the file failed | A statement failed; the statements before it stand |
+| `2` | Argument, password, or connection failure | Argument, input file, password, or connection failure |
+| `3` | | The profile is read-only |
+
+See [dump and restore](usage.md#dump-and-restore) for the file layout.
 
 ## Config and history
 

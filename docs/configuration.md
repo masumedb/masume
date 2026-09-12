@@ -1,29 +1,30 @@
 # Configuration
 
-The user configuration file is `$XDG_CONFIG_HOME/masume/config.toml`. The default path is `~/.config/masume/config.toml`. A repository can provide profiles and queries in a [project file](#the-project-file), `.masume.toml`.
+The user configuration file is `$XDG_CONFIG_HOME/masume/config.toml`. The default path is `~/.config/masume/config.toml`. A repository can provide profiles and queries in a [project file](#project-file), `.masume.toml`.
 
 [`config.example.toml`](../config.example.toml) lists the settings and sample profiles. The example values are not all defaults. The tables below give the defaults. [Usage](usage.md) covers the client workflows.
 
 On the first run, masume creates a starter file if none exists. The client, `masume --detect` and `masume --mcp` create the file; `masume run` does not. The connection form saves profiles in the user configuration file. Text outside the edited profile block stays unchanged. Rewritten assignments can lose inline comments.
 
-## The sections
+## Sections
 
 | Section | Holds |
 | --- | --- |
-| [`[profile.NAME]`](#a-profile) | One connection profile |
-| [`[secret.NAME]`](#a-secret-store) | One password store, shared by profiles |
+| [`[profile.NAME]`](#profiles) | One connection profile |
+| [`[secret.NAME]`](#secret-stores) | One password store, shared by profiles |
 | [`[ui]`](#interface) | Icons, theme and colours |
 | [`[keys]`](#keys) | The key preset and bindings for each scope |
 | [`[ai]`](#ai) | AI chat availability and provider settings |
 | [`[mcp]`](#mcp) | The profiles an agent reaches, and its access level |
+| [`[notebooks]`](#notebooks) | Extra notebook directories |
 
-A committed [`.masume.toml`](#the-project-file) accepts only `[profile.NAME]` and `[query.NAME]`.
+A committed [`.masume.toml`](#project-file) accepts only `[profile.NAME]` and `[query.NAME]`.
 
 Every key is optional unless the table marks the key `required`. Invalid TOML prevents the whole file from loading. masume reports the file error and uses default settings without the profiles from that file. The user file and project file load separately.
 
 An invalid value in valid TOML can skip a profile or use a default. Some invalid values produce reports; others silently use defaults. For example, a non-boolean `autocommit` uses `true`, and a non-positive AI timeout uses `30000`.
 
-Each kind of report appears in its own place:
+Reports appear here:
 
 | Report | Where it appears |
 | --- | --- |
@@ -32,7 +33,7 @@ Each kind of report appears in its own place:
 
 Unknown keys are generally ignored without a report. Exceptions include unknown actions, icon kinds, providers, and sections in a project file.
 
-## A profile
+## Profiles
 
 One profile is one connection. The name after `profile.` is the picker name.
 
@@ -53,25 +54,24 @@ mode     = "write"
 | `engine` | `postgres` | See [engines.md](engines.md) for the list |
 | `host` | required | The form defaults to `127.0.0.1`. Ignored for SQLite |
 | `port` | per engine | The server port |
-| `database` | required, except on MySQL-protocol engines | The database name, or the SQLite file path. The object tree draws that database alone on a MySQL-protocol and a ClickHouse connection. A MySQL-protocol connection without one opens the server, and the tree draws every database of it. A leading `~` expands to the home directory |
+| `database` | required, except on MySQL-protocol engines | The database name, or the SQLite file path |
 | `user` | required if the engine needs one | Ignored for SQLite. Optional for MongoDB |
 | `auth` | `secret` if `secret` is set; otherwise `command` if `password_command` is set; otherwise `password` | The password source: `prompt`, `keyring`, `command`, `secret` or `password`. See [Passwords](#passwords) |
-| `password` | | **Ignored in files.** A non-empty string produces a warning. The configured password source still applies |
 | `password_env` | | The environment variable that holds the password. Read when `auth` is `password` |
 | `password_command` | | A shell command that prints the password on its first line. Read when `auth` is `command` |
 | `secret` | | The `[secret]` store that holds the password. Read when `auth` is `secret` |
 | `secret_ref` | | The reference inside that store, passed to its command as one quoted argument |
 | `env` | `dev` | `dev`, `test` or `prod`. The theme provides the environment colour |
-| `mode` | `write` | `write` or `read-only`. TiDB accepts the read-only statement without enforcing it, so masume blocks the write in the client. MongoDB has no read-only session, and masume blocks the write in the client |
+| `mode` | `write` | `write` or `read-only`. See [read-only access](engines.md#read-only-access) |
 | `confirm_writes` | `off` on dev, `delete` on test, `write` on prod | `off`, `delete`, `write` or `agent`. See [MCP confirmation](mcp.md#clients-without-elicitation) for clients without dialogs |
-| `write_plan` | `off` on dev, `count` on test, `undo` on prod | `off`, `count` or `undo`. See [Measuring a write](#measuring-a-write) |
-| `undo_rows` | `1000` | Maximum captured rows for an undo. `0` uses an internal ceiling of 1048576 rows |
+| `write_plan` | `off` on dev, `count` on test, `undo` on prod | `off`, `count` or `undo`. See [Write plans](#write-plans) |
+| `undo_rows` | `1000` | Maximum captured rows for an undo. `0` uses a ceiling of 1048576 rows |
 | `sslmode` | per engine | The TLS mode. See [TLS](#tls) |
 | `statement_timeout_ms` | `0` | Time limit for one statement in milliseconds. `0` uses the server default |
 | `keepalive_s` | `30` | Seconds between connection checks. `0` disables the keepalive |
 | `page_size` | `200` | Rows the grid loads per page, and rows one page of `masume run` holds. Must be above zero |
 | `autocommit` | `true` | `false` starts a transaction on TUI statement execution and keeps the transaction open until commit or rollback |
-| `command` | | A shell command run before the connection and stopped with it, for example an SSH tunnel. See [A command before the connection](#a-command-before-the-connection) |
+| `command` | | A shell command started before connect and stopped when the connection closes, for example an SSH tunnel. See [Connection command](#connection-command) |
 | `wait_for_port` | | The TCP port checked on `host` before connection. Without this key, masume connects immediately after starting `command` |
 | `command_timeout` | `10` | Seconds to wait for `wait_for_port`. Must be above zero |
 | `mcp` | the `[mcp]` level | The profile access limit: `off`, `read-only`, `read-write` or `full`. The global limit and profile mode still apply. See [mcp.md](mcp.md) |
@@ -80,9 +80,11 @@ mode     = "write"
 
 A missing required key skips the profile and produces a report. Other valid profiles still load.
 
+A leading `~` in `database` expands to the home directory. Relative SQLite paths in `.masume.toml` use the project file directory. Relative paths in the user file or command line use the startup directory. `:memory:` opens an in-memory database.
+
 Environment defaults apply when `confirm_writes` or `write_plan` is absent from a profile file. Changing `env` in the connection form does not change the confirmation setting. A new form starts with confirmation `off`. [Usage](usage.md) covers connection forms and transaction commands.
 
-Relative SQLite paths in `.masume.toml` use the project file directory. Relative paths in the user file or command line use the startup directory. `:memory:` opens an in-memory database.
+Headless commands use `statement_timeout_ms`, `mode`, `page_size` and `command`. They do not use `autocommit`, `confirm_writes`, `write_plan` or undo, and they cannot prompt for a password. See [headless.md](headless.md).
 
 ### TLS
 
@@ -98,93 +100,7 @@ Redshift, Neon, Supabase and PlanetScale default to `require`. Other PostgreSQL-
 
 An unknown non-empty `sslmode` string skips the profile and produces a report.
 
-## A connection on the command line
-
-The first argument can be a connection target without a saved profile. masume accepts three forms.
-
-```sh
-masume 'postgres://reader@db.internal:5432/shop?sslmode=verify-full'
-masume "host=db.internal port=5432 dbname=shop user=reader sslmode=require"
-masume ./notes.db
-```
-
-| Form | Read as |
-| --- | --- |
-| A URL | Supported schemes: `postgres`, `postgresql`, `mysql`, `mariadb`, `cockroachdb`, `redshift`, `sqlserver`, `mssql`, `clickhouse`, `mongodb` |
-| A connection string | `key=value` pairs: `engine`, `host`, `hostaddr`, `port`, `dbname`, `database`, `user`, `password`, `sslmode`. The default engine is `postgres` |
-| A file path | A SQLite path ending in `.db`, `.db3`, `.sqlite` or `.sqlite3`. Other extensions require an existing SQLite header. `:memory:` is also accepted |
-
-A URL without a database uses the user name on PostgreSQL-family engines and `admin` on MongoDB. A MySQL-family URL without a database opens the server itself. Every other engine requires the database in the URL. A missing URL host uses `127.0.0.1`.
-
-Connection strings accept single-quoted values and backslash escapes inside quotes. `engine` accepts the profile engine names. Unknown connection string keys are errors.
-
-URLs support one host, credentials, a port, a database, and `sslmode`, `ssl-mode` or `sslMode`. Other native URL options are ignored. For example, `authSource`, `replicaSet` and `connect_timeout` are not forwarded. `mongodb+srv` URLs are not supported.
-
-Other target settings use new connection defaults, including `env = "dev"`, `mode = "write"` and `page_size = 200`.
-
-The client asks for a missing password when the engine and user require one. SQLite and MongoDB without a user need no password. The target profile stays in memory until saved. The picker uses the database name or file name, with a numeric suffix for duplicate names.
-
-```sh
-masume --profile shop-prod       # Open a saved profile.
-```
-
-## Databases in a container
-
-```sh
-masume --detect
-```
-
-`--detect` reads running containers through `docker`, or `podman` if Docker is absent. Detected databases appear before saved profiles in the connection picker. Detection does not write the configuration file.
-
-A container is offered when both are true:
-
-- The image name contains a supported database name. Recognised names are `postgres`, `postgis`, `pgvector`, `timescale`, `supabase`, `cockroach`, `mysql`, `percona`, `mariadb`, `tidb` and `mongo`. Detection uses the image name, not the parent image. `supabase/postgres` is Supabase.
-- The container publishes the database port.
-
-Detection reads the user, database and password from container environment variables:
-
-| Engine | Variables |
-| --- | --- |
-| PostgreSQL | `POSTGRES_USER`, `POSTGRES_DB`, `POSTGRES_PASSWORD` |
-| MySQL | `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`, `MYSQL_ROOT_PASSWORD` |
-| MariaDB | The MySQL names with a `MARIADB_` prefix, with MySQL variables as fallbacks |
-| MongoDB | `MONGO_INITDB_ROOT_USERNAME`, `MONGO_INITDB_ROOT_PASSWORD`, `MONGO_INITDB_DATABASE` |
-| CockroachDB | `COCKROACH_USER`, `COCKROACH_PASSWORD`, `COCKROACH_DATABASE` |
-
-Missing variables use the detection defaults. A PostgreSQL container with only `POSTGRES_DB` set uses the `postgres` user.
-
-Detected connections use `env = "dev"` and `mode = "write"`. Hosted-service images such as `supabase/postgres` use `sslmode = "prefer"` instead of the engine default `require`.
-
-`--detect` exits with code 1 if neither tool is available, detection fails, or no supported database is found. `--detect` cannot be combined with a target or `--profile`.
-
-Without an explicit target or profile, masume can open `$DATABASE_URL`. An explicit target or profile takes priority.
-
-## Keeping a connection that is in no file
-
-A command-line or detected connection is temporary. On exit, masume offers to save each temporary connection that was opened:
-
-```
-┌─ save connection ─────────────────────────────┐
-│ Write "shop" to the config file?              │
-│                                               │
-│ shop  postgres@db.internal:5432/shop          │
-│                                               │
-│ The password goes into the keyring, not the   │
-│ file.                                         │
-│                                               │
-│ y save and quit · n quit without saving       │
-└───────────────────────────────────────────────┘
-```
-
-`y` saves the connections and exits. `n` exits without saving. `Esc` returns to the client. Saved profiles, project profiles, and unopened connections are not offered.
-
-The password notice appears only for a retained password. Saving a retained password uses the keyring and sets `auth = "keyring"`. Without a keyring, masume saves `auth = "prompt"` and does not store the password.
-
-`Ctrl+N`, then `e`, opens the selected connection in the form. `Ctrl+S` saves the profile. The exit prompt does not offer that profile again. Selecting `auth = "prompt"` does not discard a password already retained in memory; saving can still store that password in the keyring.
-
-A save error keeps the client open and displays the reason. [Usage](usage.md) covers the connection picker and form.
-
-## The project file
+## Project file
 
 A repository can contain `.masume.toml` with shared profiles and queries.
 
@@ -219,22 +135,24 @@ sql      = "select * from jobs where state = 'running' and started_at < now() - 
 profiles = ["staging"]
 ```
 
-### What the file can set
+### Project profiles
 
-Project profiles accept connection settings and write limits. A profile with any of these keys is refused, even when the value is empty:
+A project profile accepts the connection keys of a user profile, except the keys below. A profile that sets one of these is skipped, even when the value is empty:
 
-| Key | What it does |
+| Key | Meaning |
 | --- | --- |
-| `password_command` | Runs a shell command on connect |
-| `command` | Runs a shell command on connect |
-| `password_env` | Reads a shell environment variable |
-| `secret`, `secret_ref` | Reads a secret store |
+| `password_command` | A shell command run on connect |
+| `command` | A shell command run on connect |
+| `password_env` | An environment variable |
+| `secret`, `secret_ref` | A secret store |
 
-A profile that sets one of these is skipped, and the reason is reported.
+`auth = "prompt"` and `auth = "keyring"` are allowed. Other password sources require a user profile. Project profiles accept `env`, `mode`, `confirm_writes` and `write_plan`.
 
-`auth = "prompt"` and `auth = "keyring"` are allowed. Other password sources require a user profile. `e` opens a project profile in the connection form; `Ctrl+S` saves a user override. The override retains the profile settings, including settings absent from the form.
+Other sections, including `[secret]`, `[ui]`, `[keys]`, `[ai]` and `[mcp]`, are reported and ignored.
 
-`[query.NAME]` is a shared query available under `Ctrl+Q`:
+### Project queries
+
+`[query.NAME]` is a shared query, listed under `Ctrl+Q`:
 
 | Key | Type | Default | Meaning |
 | --- | --- | --- | --- |
@@ -242,104 +160,17 @@ A profile that sets one of these is skipped, and the reason is reported.
 | `description` | string | | The query description, displayed instead of the SQL in the saved query list |
 | `profiles` | list of strings | every profile | The profiles with access to the query. An empty list includes every profile |
 
-Project profiles accept `env`, `mode`, `confirm_writes` and `write_plan`. The active theme provides the frame colour for `env = "prod"`.
-
-Other sections, including `[secret]`, `[ui]`, `[keys]`, `[ai]` and `[mcp]`, are reported and ignored.
-
-### What the user keeps
+### Overrides
 
 A user profile replaces the project profile with the same name. A user query replaces the project query with the same name.
 
-The connection picker marks project profiles with `project` and displays the project path. `d` cannot remove a project profile. Removal requires a project file edit.
+The connection picker marks project profiles with `project` and displays the project path. `d` cannot remove a project profile. `e` opens a project profile in the connection form; `Ctrl+S` saves a user override. The override retains the profile settings, including settings absent from the form.
 
-`Ctrl+Q` lists project and user queries, sorted by name. Project queries have a `project` label. `Enter` loads the selected query into the editor. `Ctrl+D` cannot remove a project query. Removal requires a project file edit.
+`Ctrl+Q` lists project and user queries, sorted by name. Project queries have a `project` label. `Enter` loads the selected query into the editor. `Ctrl+D` cannot remove a project query. Removal of a project profile or query requires a project file edit.
 
-## Importing a file
-
-The table object menu, `m` in the tree, offers **Import a file…**. The schema menu offers imports into a new table. Imports support PostgreSQL-family engines, MySQL-family engines and SQLite, but not MongoDB. Read-only connections refuse imports.
-
-The file picker starts in the startup directory. `Up` and `Down` move the cursor. `Right` opens a directory; `Left` opens the parent directory. `Enter` selects a file. Supported extensions are `.csv`, `.tsv`, `.txt`, `.json`, `.jsonl` and `.ndjson`. Other files are dimmed and cannot be selected.
-
-Selecting a file reads a sample and opens the import form:
-
-```
-┌─ import orders.csv · 4 rows ──────────────────────────────┐
-│ ▸ file                  ./orders.csv                      │
-│   table                 public.orders                     │
-│   format                csv                               │
-│   delimiter             ,                                 │
-│   header                yes                               │
-│   null as               \N                                │
-│   order_id integer      order_id                          │
-│   placed_at timestamp   placed_at                         │
-│   coupon text           (skip)                            │
-│ ↑↓ field · ← → change · Enter review · Esc cancel         │
-└───────────────────────────────────────────────────────────┘
-```
-
-`Enter` advances through reading, review and execution. `Esc` from the review returns to the form. Column mappings can change without another sample read. The review and execution each read the full file.
-
-`Enter` on the `file` row opens the picker again. The file can change after column mapping. The row also accepts a typed or pasted path.
-
-| Setting | Meaning |
-| --- | --- |
-| `file` | The file path. A leading `~` expands to the home directory |
-| `table` | The target table, optionally qualified with a schema |
-| `format` | `csv` or `json`. The file extension is the default source |
-| `delimiter` | One CSV delimiter character. The default is a comma, or a tab for `.tsv` |
-| `header` | `yes` uses the first CSV row as column names. `no` creates names such as `column_1` |
-| `null as` | The CSV text for `NULL`, initially `\N`. Empty fields, including quoted empty fields, always become `NULL` |
-
-### The columns
-
-Each file column has a form row with its inferred type and target column. Existing table columns with matching names map automatically, without case sensitivity. Other columns initially use `(skip)`. Generated columns are not available as targets. New tables initially include every sampled column.
-
-Type inference uses the first 200 rows: `integer`, `number`, `boolean`, `timestamp` or `text`. Numeric text with leading zeroes stays text. Mixed values use a common type, with text as the fallback.
-
-Existing table imports cast values to the target type category. New PostgreSQL tables use `bigint`, `numeric`, `boolean`, `timestamptz` and `text`. Other engines use their dialect types.
-
-### The review
-
-The review shows row counts, local validation errors and sample SQL:
-
-```
-3 of 4 rows into orders, 5 columns
-
-1 row not written:
-  line 5  total_cents: "n/a" is no whole number
-
-insert into "public"."orders" (order_id, placed_at, total_cents, paid, note)
-values (100241, '2026-02-11 09:03:00.000', 4990, true, 'first order'),
-       (100242, '2026-02-12 00:00:00.000', 1200, false, null)
-```
-
-The review checks mappings, required columns, field counts, type conversions and nullability. The local row check does not query the server. Reading an existing table's column definitions does query the server. The review counts every rejected row and lists the first 20 errors.
-
-Execution skips rows that fail local validation. Accepted rows can still fail server constraints, permissions, type limits or triggers. A successful review is not a guarantee of a successful import.
-
-Imports refuse an existing transaction. Each import starts a transaction and attempts to commit the accepted rows together. Batches contain at most 1000 rows, with smaller batches for engine parameter limits. A write failure triggers rollback; rollback errors appear on the card.
-
-Rollback depends on engine and table support. MySQL-family DDL can commit implicitly, and nontransactional tables cannot roll back writes. An import that creates a table is not universally all-or-none.
-
-Imports do not retain an undo. Supported input is UTF-8 CSV, JSON object arrays, and newline-delimited JSON objects. Parquet and upserts are not supported. [Usage](usage.md) covers the import workflow.
-
-## Measuring a write
+## Write plans
 
 `write_plan` measures an eligible single write before execution. PostgreSQL-family engines, MySQL-family engines and SQLite support write plans. MongoDB does not. The plan uses the target table and predicate from the statement. Unsupported statements, including joins, target aliases and batches, use the normal confirmation path.
-
-```
-╭─ write plan · shop-prod ──────────────────────────────────────────────╮
-│ delete from orders where status = 'open'                              │
-│                                                                       │
-│ rows      904 of 48,210 in orders · 1.9%                               │
-│ cascades  order_lines · on delete cascade · 4,201 rows                │
-│ blocked   order_notes · on delete restrict · 8 rows reference these   │
-│ undo      904 target rows captured with the write                     │
-│ commit    the write and its undo run in one transaction               │
-│                                                                       │
-│ y run · n cancel · Esc cancel                                         │
-╰───────────────────────────────────────────────────────────────────────╯
-```
 
 The server counts matching rows with the write predicate. Counts can change before execution. An update plan also lists assigned columns. `cascades` lists trigger names and foreign key effects. The plan does not inspect trigger bodies or predict their effects. `blocked` lists foreign keys that can reject the delete.
 
@@ -351,13 +182,9 @@ Undo covers only captured target rows. Cascaded rows and trigger effects are exc
 
 Inserts, tables without primary keys, and updates that assign primary keys receive no undo. Plans with zero matching rows, failed counts, failed metadata reads, or counts above `undo_rows` also receive no undo. The plan gives the reason, and the write can still run after confirmation. Grid changes and imports do not retain an undo.
 
-The default `undo_rows` is `1000`. `0` removes the configured limit but uses an internal capture ceiling of 1048576 rows. If a plan promises an undo, capture must succeed before execution. A capture error or truncated capture stops the write. This differs from a planning failure that offers a write without undo.
+The default `undo_rows` is `1000`. `0` removes the configured limit but uses a capture ceiling of 1048576 rows. If a plan promises an undo, capture must succeed before execution. A capture error or truncated capture stops the write. A planning failure that offers a write without undo still allows the write after confirmation.
 
 A connection without transaction support runs without undo and reports the reason. The AI chat and MCP use the same planning code. MCP write responses include captured undo SQL when available. [Usage](usage.md) covers write confirmation and undo commands.
-
-## Without a screen
-
-`masume run` uses the same profiles, including `statement_timeout_ms`, `mode`, `page_size` and the pre-connect command. It does not use `autocommit`, `confirm_writes`, `write_plan` or undo. Headless transactions require explicit SQL statements. Headless execution cannot prompt for passwords. See [headless.md](headless.md).
 
 ## Passwords
 
@@ -389,7 +216,7 @@ auth         = "password"
 password_env = "PGPASSWORD"
 ```
 
-A password command runs through `sh -c` with no stdin. The command must exit successfully within 30 seconds and print a non-empty first line. Later output is ignored. Printing a line without exiting is not sufficient.
+A password command runs through `sh -c` with no stdin. The command must exit successfully within 30 seconds and print a non-empty first line. Later output is ignored.
 
 masume ignores profile passwords in configuration files. A non-empty `password` string produces this warning:
 
@@ -403,7 +230,7 @@ Ignoring `password` does not change `auth`. The configured environment variable,
 
 `masume run` and `masume --mcp` cannot prompt. A required password must come from a non-interactive source. Saving a profile removes an existing `password` assignment from that profile block.
 
-### The keyring of the operating system
+### Keyring
 
 Linux keyring access uses Secret Service over D-Bus, supported by GNOME Keyring and KWallet. macOS uses Keychain. Keyring entries use service `masume` and the profile name.
 
@@ -432,14 +259,13 @@ Removing a saved connection with `d` also removes its keyring entry.
 
 Without a keyring, the TUI hides the checkbox and prompts when necessary. Headless commands cannot use this prompt fallback.
 
-### A secret store
+### Secret stores
 
 A secret store is a reusable password command under `[secret.NAME]`. `{{ref}}` is the placeholder for the profile's `secret_ref`.
 
 | Key | Type | Default | Meaning |
 | --- | --- | --- | --- |
 | `command` | string | required | The shell command that prints the secret on its first line. At least one unquoted, standalone `{{ref}}` argument is required |
-
 
 ```toml
 [secret.work]
@@ -478,7 +304,7 @@ Secret stores belong in the user configuration file. Project files cannot declar
 
 MongoDB credentials require a user. A server without authentication can reject supplied credentials.
 
-## A command before the connection
+## Connection command
 
 A profile can start a shell command before connection, such as an SSH tunnel. The command must stay in the foreground. masume stops the running process group when the connection closes or connection setup fails. Detached or daemonized processes are not reliably cleaned up.
 
@@ -509,31 +335,108 @@ key_hints           = "full"
 
 | Key | Type | Default | Meaning |
 | --- | --- | --- | --- |
-| `icons` | `plain` or `ascii` | `plain` | The tree glyph set. `ascii` uses ASCII characters only. An unknown name produces a report and uses `plain` |
+| `icons` | `plain` or `ascii` | `plain` | The base glyph set. See [Icons](#icons) |
 | `theme` | string | `ayu-dark` | A built-in theme name, a file name in `themes/` without `.toml`, or `system` for the colours of the terminal. See [themes.md](themes.md) |
 | `hide_system_schemas` | boolean | `true` | `false` displays system schemas, including `pg_catalog` and `information_schema`. `h` in the tree toggles visibility for the session |
 | `key_hints` | `full`, `main` or `off` | `full` | How many key hints the status bar, the title bar, the tab row, the pane strips and the pane borders draw. An unknown mode produces a report and uses `full`. See [Key hint modes](#key-hint-modes) |
 
-Four tables under `[ui]` override glyphs or theme settings:
+### Icons
 
-| Table | Meaning |
-| --- | --- |
-| `[ui.icon_glyphs]` | Glyphs by row kind, including Nerd Font glyphs. `""` hides a glyph. An unknown kind produces a report |
-| `[ui.palette]` | Named hex colours available to `[ui.colors]` and `[ui.syntax]` |
-| `[ui.colors]` | Interface colours, including `accent` and `error` |
-| `[ui.syntax]` | Editor highlight styles |
+`icons = "plain"` is the default set. `icons = "ascii"` is ASCII-only. An unknown set produces a report and uses `plain`.
 
-[`config.example.toml`](../config.example.toml) lists the icon kinds, colour names and token kinds. [Themes](themes.md) describes the colours and highlight styles.
+`[ui.icon_glyphs]` overlays individual glyphs on that set. An empty string hides that kind. An unknown kind produces a report. A Nerd Font glyph belongs here; the shipped sets stay one column wide without that font.
+
+```toml
+[ui]
+icons = "plain"
+
+[ui.icon_glyphs]
+schema            = ""
+table             = ""
+view              = ""
+materialized-view = ""
+function          = ""
+sequence          = ""
+type              = ""
+trigger           = ""
+column            = ""
+index             = "▤"
+primary-key       = ""
+foreign-key       = ""
+role              = ""
+roles             = ""
+favourites        = ""
+recent            = ""
+query             = "≡"
+folder            = "▸"
+plan              = "⊳"
+note              = ""
+problem           = "✗"
+ai                = "✦"
+fold-closed       = "▸"
+fold-open         = "▾"
+field             = "▸"
+close             = "×"
+dot               = "●"
+sort-up           = "↑"
+sort-down         = "↓"
+prompt            = "❯"
+step-back         = "‹"
+step-on           = "›"
+banner            = "⚑"
+new-tab           = "+"
+```
+
+A terminal without a Nerd Font draws those example glyphs as empty boxes.
+
+| Kind | Drawn for | `plain` | `ascii` |
+| --- | --- | --- | --- |
+| `schema` | A schema in the object tree | `◇` | `~` |
+| `table` | A table | `▦` | `T` |
+| `view` | A view | `◈` | `V` |
+| `materialized-view` | A materialized view | `◆` | `M` |
+| `function` | A function | `ƒ` | `f` |
+| `sequence` | A sequence | `№` | `S` |
+| `type` | A type | `⊞` | `Y` |
+| `trigger` | A trigger | `⚑` | `!` |
+| `column` | A column | `·` | `.` |
+| `index` | An index | `▤` | `#` |
+| `primary-key` | A primary key | `◆` | `*` |
+| `foreign-key` | A foreign key | `→` | `>` |
+| `role` | A role | `●` | `o` |
+| `roles` | The roles folder | `●` | `o` |
+| `favourites` | The favourites folder | `★` | `*` |
+| `recent` | The recent folder | `↻` | `@` |
+| `query` | A saved query | `≡` | `=` |
+| `folder` | A folder | `▸` | `>` |
+| `plan` | A query plan | `⊳` | `>` |
+| `note` | A notice | `⚠` | `!` |
+| `problem` | A problem | `✗` | `x` |
+| `ai` | The AI chat | `✦` | `*` |
+| `fold-closed` | A closed fold | `▸` | `>` |
+| `fold-open` | An open fold | `▾` | `v` |
+| `field` | A form field marker | `▸` | `>` |
+| `close` | A close control | `×` | `x` |
+| `dot` | A status dot | `●` | `o` |
+| `sort-up` | Ascending sort | `↑` | `^` |
+| `sort-down` | Descending sort | `↓` | `v` |
+| `prompt` | A prompt marker | `❯` | `>` |
+| `step-back` | A step back | `‹` | `<` |
+| `step-on` | A step forward | `›` | `>` |
+| `banner` | A banner | `⚑` | `!` |
+| `new-tab` | A new tab | `+` | `+` |
+
+`[ui.palette]`, `[ui.colors]` and `[ui.syntax]` overlay the selected theme. See [themes.md](themes.md) for colour names, token kinds and inheritance.
 
 ### Key hint modes
 
-| Mode | What it shows |
+| Mode | Hints |
 | --- | --- |
 | `full` | Every key hint of the status bar, the title bar, the tab row, the pane strips, the pane borders and the cards |
 | `main` | The primary key hints only. See the list below |
 | `off` | No key hints. Every bar, strip, border and card keeps its readouts: the count of the statements, the place of the caret, the count of the faults, the rows of the result, what a card is for |
 
-`main` shows the primary keys: the key a pane is there for (open a tree row, run the statement, run all, run a notebook cell), the key that opens the menu of the row under the cursor, the keys a state raises (cancel a running read, run a failed one, fetch more rows, count the rows, edit a table as a query), and the keys no other key reaches (show a hidden tree, step through the connections). On a card it shows the keys that answer it and the key that closes it, without the extras. The chat card shows `ask`, `last reply query to editor` and `close`. The notebook card shows `open` and `close`. The title bar, the pane borders and the plan strip keep their keys. The tab row and the step keys of the result strips show none, because each one stands for a chip a press reaches.
+`main` shows the primary keys: the key a pane is there for (open a tree row, run the statement, run all, run a notebook cell), the key that opens the menu of the row under the cursor, the keys a state raises (cancel a running read, run a failed one, fetch more rows, count the rows, edit a table as a query), and the keys no other key reaches (show a hidden tree, step through the connections). On a card it shows the keys that answer it and the key that closes it, without the extras. The chat card shows `ask`, `last reply query to editor` and `close`. The notebook card shows `open` and `close`. The title bar, the pane borders and the plan strip keep their keys. The tab row and the step keys of the result strips show none.
 
 `full` and `main` show the keys that reach the model: `ask ai` on the title bar, the one key of the model on the border of the editor, and `ask ai` on the strip of the plan. `off` hides all three.
 
@@ -557,7 +460,7 @@ copy-menu = "alt+y"
 | --- | --- | --- | --- |
 | `preset` | string | `default` | The initial key set. `default` is the only preset |
 
-Each table below `[keys]` is a scope. Each scope entry binds an action to one chord or a chord list. An empty list removes the binding. Unlisted actions retain the preset bindings. The nine scopes are:
+Each table below `[keys]` is a scope. Each scope entry binds an action to one chord or a chord list. An empty list removes the binding. Unlisted actions retain the preset bindings.
 
 | Scope | Where its keys apply |
 | --- | --- |
@@ -638,7 +541,7 @@ paths = ["~/notes/sql"]
 
 See the [notebook guide](notebooks.md) for the file format and the run policy.
 
-## Other files
+## Paths
 
 | Path | Contains |
 | --- | --- |

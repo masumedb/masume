@@ -54,7 +54,7 @@ Query plans are displayed as a tree, with estimated or measured costs.
 
 ### Notebooks
 
-Cells of prose, values, statements and charts over one connection. Each cell keeps its own result and its own view. A notebook is a Markdown file, and `masume nb run` runs it without a screen.
+Cells of prose, values, statements and charts over one connection. Each cell keeps its own result and its own view. A notebook is a Markdown file, and `masume nb run` runs the file.
 
 ![A notebook of prose, values, statements and a chart](vhs/shots/13-notebook.png)
 
@@ -70,51 +70,39 @@ Both interfaces share database tools, but their policies differ. See [AI data sh
 
 **Multiple engines:** PostgreSQL, MySQL, SQL Server, ClickHouse, SQLite and MongoDB, plus hosted services based on them
 
-**MCP server:** `masume --mcp` exposes selected profiles to an agent over stdio, with an access level per profile and for the whole server
+**Staged edits:** insert, edit, duplicate and delete supported table rows, then review the SQL. See [editing rows](docs/usage.md#editing-rows).
 
-**AI chat:** ask about a statement, its error, or its query plan. Supports Anthropic and OpenAI
-
-**Catalog completion:** suggestions for table and column names, with best-effort statement diagnostics
-
-**Table details:** data, columns, indexes, constraints, DDL, query plans and ER diagrams, subject to engine support
-
-**Staged edits:** insert, edit, duplicate and delete supported table rows. Review SQL before execution. Sorting, server filtering and rerunning discard staged edits. See [editing rows](docs/usage.md#editing-rows).
-
-**Filters:** server predicates and filters on loaded rows. See [sorting and filters](docs/usage.md#sorting-and-filters) for their different scopes.
-
-**Foreign keys:** open rows matching the selected foreign-key column. Composite keys require additional filtering.
-
-**Query plans** as a tree with estimated or measured costs, or as raw text
-
-**SQL notebooks:** an ordered list of cells over one connection: prose, the values every cell binds, statements, and charts of what they answered. Each cell keeps its own result and its own view. A notebook is a Markdown file, and `masume nb run` runs one without a screen. See [notebooks](docs/notebooks.md).
+**Filters:** server predicates and filters on loaded rows. See [sorting and filters](docs/usage.md#sorting-and-filters).
 
 **Named parameters:** a statement with `:name` placeholders opens a form for the values
 
-**Server dashboard:** `Alt+O a` opens sessions and available metrics, refreshed about every two seconds. PostgreSQL panels include locks, load, cache hits, replication lag and statement statistics where supported. See [server activity](docs/usage.md#server-activity) for engine limits and session actions.
+**Export and copy:** CSV and JSON files. Clipboard formats also include Markdown, `INSERT` statements, row JSON and column `IN` clauses. See [copy and export](docs/usage.md#copy-and-export).
 
-**MongoDB:** supported shell-style calls and extended JSON. This is a [subset of shell syntax](docs/engines.md#mongodb), not a JavaScript runtime.
+**Dump and restore:** schema and data as a SQL file. See [dump and restore](docs/usage.md#dump-and-restore).
 
-**Export and copy:** CSV and JSON files. Clipboard formats also include Markdown, `INSERT` statements, row JSON and column `IN` clauses. See [copy and export](docs/usage.md#copy-and-export) for row scope and CSV transformations.
+**Import:** CSV or JSON into an existing or new SQL table. See [importing files](docs/usage.md#importing-files).
 
-**Dump and restore:** a schema as a SQL file: its types, sequences and functions, its tables and rows, its views and its triggers, ordered so the file runs from the top. `masume dump` and `masume restore` do the same without a screen. See [dump and restore](docs/usage.md#dump-and-restore).
+**Query history and saved queries:** history of statements and named queries. Restored tabs keep query text and settings, not result rows.
 
-**Import:** CSV or JSON into an existing or new SQL table. A file picker, column mapping and local validation precede execution. Database constraints can still reject accepted rows. See [importing files](docs/usage.md#importing-files).
+**Write plans:** counts and reverse SQL for eligible writes. See [write plans](docs/configuration.md#write-plans).
 
-**Query history and saved queries.** Tab restoration retains query text and selected settings, but not result rows, staged edits or transactions.
+**Transactions:** begin, commit and rollback, or automatic begin with autocommit disabled
 
-**Project profiles and queries:** the nearest `.masume.toml` supplies shared connections and saved queries. User profiles replace project profiles with matching names.
+**Server dashboard:** sessions and metrics the engine supports. See [server activity](docs/usage.md#server-activity).
 
-**Write plans:** optional counts, assigned columns, trigger names and foreign-key effects for eligible single SQL writes. Plans can retain reverse SQL for captured target rows. Undo excludes cascades and trigger effects, and can overwrite later changes. See [write-plan limits](docs/configuration.md#measuring-a-write).
+**Password sources:** prompt, keyring, environment variables, commands and named secret stores. Profile files do not store database passwords. See [credentials](SECURITY.md#credentials).
 
-**Manual transactions:** explicit begin, commit and rollback, or automatic begin with autocommit disabled. Engine transaction restrictions still apply.
+**Read-only profiles:** client checks, with extra protection on engines that support it. See [read-only access](docs/engines.md#read-only-access).
 
-**Password sources:** prompts, the operating system keyring, environment variables, commands and named secret stores. masume ignores database passwords in profile files. AI API keys have separate storage rules. See [credentials](SECURITY.md#credentials).
+**MCP server:** `masume --mcp` serves selected profiles over stdio, with an access level per profile and for the whole server
 
-**Read-only profiles:** client checks with additional engine-specific protection. MongoDB uses client checks only; explicit TiDB read-only profiles fail to connect. Database permissions remain essential.
+**AI chat:** questions about a statement, its error, or its query plan. Anthropic and OpenAI. `[ai] enabled = false` hides the chat.
 
-**Seventeen built-in themes,** custom themes, or terminal colours. System-theme updates require terminal colour-query support.
+**MongoDB:** a [subset of shell syntax](docs/engines.md#mongodb)
 
-**Optional AI chat:** `[ai] enabled = false` disables the AI chat and its interface elements. MCP settings are separate.
+**Themes:** built-in themes, custom themes, or terminal colours
+
+**Project profiles:** the nearest `.masume.toml` shares connections and saved queries. See [project file](docs/configuration.md#project-file).
 
 ---
 
@@ -188,56 +176,35 @@ mise run install
 ## Usage
 
 ```text
-masume                       open the client
-masume run [TARGET] STATEMENT run statements and exit
-masume dump [TARGET] FILE    write a schema as SQL and exit
-masume restore [TARGET] FILE run the statements of a SQL file and exit
-masume URL                   open a supported connection URL
-masume FILE                  open an existing SQLite file
-masume DSN                   open a keyword connection string
-masume --profile NAME        open a saved or project profile
-masume --detect              offer detected container databases
-masume --mcp                 serve allowed MCP profiles
-masume --mcp --profile=NAME  serve one allowed MCP profile
-masume --mcp --check         check enabled MCP profiles and exit
-masume --version             print the version and exit
+masume                                  open the client
+masume TARGET                           open a connection, postgres://you@host/shop
+masume --profile NAME                   open a user or project profile
+masume --detect                         open detected container databases
+masume run [TARGET | -p NAME] STATEMENT run statements
+masume nb run [TARGET | -p NAME] FILE   run a notebook
+masume dump [TARGET | -p NAME] FILE     dump schema and data
+masume restore [TARGET | -p NAME] FILE  restore a dump
+masume --mcp                            serve allowed MCP profiles
+masume --mcp --profile=NAME             serve one allowed MCP profile
+masume --mcp --check                    check enabled MCP profiles
+masume --version                        print the version
 ```
 
-A command-line target needs no saved profile. Without an explicit target or profile, masume can open `$DATABASE_URL`.
+With no target or profile, masume opens `$DATABASE_URL`.
 
-```sh
-masume 'postgres://reader@db.internal:5432/shop?sslmode=verify-full'
-masume "host=db.internal dbname=shop user=reader"
-masume ./notes.db
-masume --profile shop-prod
-masume --detect
-```
+Supported URLs are not complete native driver connection strings. Most native URL options are ignored. See [connection targets](docs/usage.md#connection-targets).
 
-`--detect` reads running containers through Docker, or Podman when Docker is absent. Supported database images with published ports appear in the picker. Connection fields come from container environment variables and detection defaults.
-
-The client prompts when the connection requires a missing password. Temporary connections remain unsaved until requested. On exit, `y` saves opened temporary profiles and `n` exits without saving. Saving a retained password can store that password in the keyring.
-
-Supported URLs are not complete native driver connection strings. Most native URL options are ignored. See [connection targets](docs/configuration.md#a-connection-on-the-command-line) before using authentication or TLS options.
-
-The [user guide](docs/usage.md) covers navigation, SQL, editing, transactions, imports, exports, history and troubleshooting. The [notebook guide](docs/notebooks.md) covers cells, charts and `masume nb run`.
-
-### Without a screen
-
-`masume run` executes statements and writes results to stdout. It uses profiles, connection commands, timeouts and read-only checks, but not write confirmation, write plans or undo. Batches are not automatically atomic.
+### Headless mode
 
 ```sh
 masume run -p shop-prod -f json 'select count(*) from orders'
 masume run -p shop -e ./reports/daily.sql --param day=2026-09-02
-masume run -p shop --explain 'select * from orders where status = :status' --param status=paid
 masume run ./notes.db -f csv 'select * from notes limit 100000' > notes.csv
-echo 'select 1' | masume run -p shop -e -
 ```
 
-Formats are `table` by default, `csv`, `json` and `markdown`. Reads without their own limit return one profile page by default. `--limit` adds an output cap, including for statements with a SQL limit. Limited reads without `--limit` stream CSV and JSON in batches; table and Markdown output remain buffered.
+See [headless mode](docs/headless.md) for formats, exit codes, dump, restore and notebooks.
 
-`--explain` executes eligible reads to measure their plans. It is not a dry run. Exit `1` can follow a successful write with incomplete output; do not automatically retry writes. See [headless usage](docs/headless.md) for exit codes, credentials and output limits.
-
-### For a team
+### For teams
 
 A repository can contain `.masume.toml` with shared profiles and queries:
 
@@ -254,19 +221,7 @@ sql         = "select * from orders order by created_at desc limit 50"
 description = "the newest 50 orders"
 ```
 
-masume reads the nearest project file in or above the working directory. Profiles appear in the picker with a `project` label; queries appear under `Ctrl+Q`. A user profile replaces the whole project profile with the same name.
-
-Project profiles with `password_command`, `password_env`, `command`, `secret` or `secret_ref` are refused. Literal `password` values are ignored instead. Both `auth = "prompt"` and `auth = "keyring"` work. Keyring access uses the profile name, so a project profile can access an existing password under that name.
-
-Project files cannot set global themes, keys, AI providers or MCP settings. An allowed MCP name can still resolve to a project profile. See [project configuration](docs/configuration.md#the-project-file) and [project security](SECURITY.md#project-files).
-
-The config file is `$XDG_CONFIG_HOME/masume/config.toml`. The history file is `$XDG_STATE_HOME/masume/history.sqlite`. See [docs/mcp.md](docs/mcp.md) for the MCP server.
-
-## Status
-
-The project is in an early stage. The config file format can change before `v1`. It builds on Linux and macOS, for amd64 and arm64.
-
-Tier 1 engines have integration coverage in CI; SQLite uses temporary files. Tier 2 services share protocols but have no real-server integration coverage. See [engine limits](docs/engines.md) before production use.
+masume reads the nearest project file in or above the working directory. See [project file](docs/configuration.md#project-file) and [project security](SECURITY.md#project-files).
 
 ## First connection
 
@@ -299,13 +254,12 @@ mode     = "write"
 | [User guide](docs/usage.md) | Workflows, navigation, editing, data transfer and troubleshooting |
 | [Notebooks](docs/notebooks.md) | Cells, charts, run policy, the file format and `masume nb run` |
 | [Configuration](docs/configuration.md) | Settings, defaults, profiles and password sources |
-| [Engines](docs/engines.md) | Support tiers and capabilities |
+| [Engines](docs/engines.md) | Protocols and capabilities |
 | [Keys](docs/keys.md) | Default bindings, scopes and overrides |
 | [Themes](docs/themes.md) | Built-in themes, and how to write a custom one |
 | [AI chat](docs/ai.md) | Providers, tools, what is sent to the provider |
 | [MCP server](docs/mcp.md) | Tools, limits, confirming a write |
-| [Without a screen](docs/headless.md) | `masume run` for scripts and CI |
-| [Architecture](docs/architecture.md) | How the source is organized |
+| [Headless mode](docs/headless.md) | `masume run` for scripts and CI |
 | [Security](SECURITY.md) | Storage, data sharing and protection limits |
 
 ## Contributing

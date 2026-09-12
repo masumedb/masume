@@ -56,12 +56,44 @@ icons               = "plain"      # plain ascii
 hide_system_schemas = true         # false lists pg_catalog and the rest in the tree
 key_hints           = "full"       # full main off. main names the primary keys only, off names none
 
-# Each tree row kind accepts a custom glyph, including Nerd Font glyphs.
-# An empty glyph hides that icon. `config.example.toml` lists all kinds.
+# Glyphs overlay the selected set. An empty string hides that kind.
+# These examples are Nerd Font glyphs. A terminal without that font draws empty boxes.
 #
 # [ui.icon_glyphs]
-# table = ""
-# view  = ""
+# schema            = ""
+# table             = ""
+# view              = ""
+# materialized-view = ""
+# function          = ""
+# sequence          = ""
+# type              = ""
+# trigger           = ""
+# column            = ""
+# index             = "▤"
+# primary-key       = ""
+# foreign-key       = ""
+# role              = ""
+# roles             = ""
+# favourites        = ""
+# recent            = ""
+# query             = "≡"
+# folder            = "▸"
+# plan              = "⊳"
+# note              = ""
+# problem           = "✗"
+# ai                = "✦"
+# fold-closed       = "▸"
+# fold-open         = "▾"
+# field             = "▸"
+# close             = "×"
+# dot               = "●"
+# sort-up           = "↑"
+# sort-down         = "↓"
+# prompt            = "❯"
+# step-back         = "‹"
+# step-on           = "›"
+# banner            = "⚑"
+# new-tab           = "+"
 
 # Colour overrides for the selected theme.
 #

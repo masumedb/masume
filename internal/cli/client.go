@@ -21,29 +21,27 @@ import (
 const usage = `masume - a database client for the terminal
 
 usage:
-  masume                        open the client
-  masume run [TARGET] STATEMENT run statements, write results, and exit
-  masume nb run [TARGET] FILE   run a notebook, write results, and exit
-  masume dump [TARGET] FILE     write a schema as SQL and exit
-  masume restore [TARGET] FILE  run the statements of a SQL file and exit
-  masume URL                    open a supported URL, for example postgres://you@host/shop
-  masume FILE                   open an existing SQLite file, for example ./notes.db
-  masume FILE.masume.md         open a notebook file
-  masume DSN                    open a keyword connection string, for example "host=db dbname=shop"
-  masume --profile NAME         open a user or project profile
-  masume --detect               open the picker with detected container databases
-  masume --mcp                  serve allowed profiles over JSON-RPC on stdio
-  masume --mcp --profile=NAME   serve one allowed profile
-  masume --mcp --check          check enabled MCP profiles and exit
-  masume --version              print the version and exit
-  masume --help                 print this help and exit
+  masume                                  open the client
+  masume TARGET                           open a connection, postgres://you@host/shop
+  masume --profile NAME                   open a user or project profile
+  masume --detect                         open the picker with detected container databases
+  masume run [TARGET | -p NAME] STATEMENT run statements
+  masume nb run [TARGET | -p NAME] FILE   run a notebook
+  masume dump [TARGET | -p NAME] FILE     dump schema and data
+  masume restore [TARGET | -p NAME] FILE  restore a dump
+  masume FILE.masume.md                   open a notebook file
+  masume --mcp                            serve allowed profiles over JSON-RPC on stdio
+  masume --mcp --profile=NAME             serve one allowed profile
+  masume --mcp --check                    check enabled MCP profiles
+  masume --version                        print the version
+  masume --help                           print this help
 
 Run masume run --help for headless options, and masume nb --help for notebooks.
 Run masume dump --help and masume restore --help for the SQL file commands.
 
 A command-line connection remains temporary until saved.
 Press Ctrl+N, then e, then Ctrl+S to save the selected profile.
-Without an explicit target or profile, masume can open $DATABASE_URL.
+With no target or profile, masume opens $DATABASE_URL.
 
 The config file is $XDG_CONFIG_HOME/masume/config.toml.
 The history file is $XDG_STATE_HOME/masume/history.sqlite.

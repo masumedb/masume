@@ -14,11 +14,11 @@ import (
 	"github.com/turanmahmudov/masume/internal/notebook"
 )
 
-// `masume nb run` runs a notebook file without a screen. internal/headless runs the cells
+// `masume nb run` runs a notebook file. internal/headless runs the cells
 // and returns an exit code.
 
 // notebookUsage is what `masume nb --help` writes.
-const notebookUsage = `masume nb - run a notebook without a screen
+const notebookUsage = `masume nb - run a notebook
 
 usage:
   masume nb run [TARGET] FILE
@@ -40,7 +40,7 @@ exit codes:
   3 the profile is read-only and a cell writes
 
 markdown output writes the whole notebook with the rows of every cell.
-A run without a screen has no write confirmation, no write plan and no undo.`
+A headless run has no write confirmation, no write plan and no undo.`
 
 // notebookInvocation is the parsed notebook request.
 type notebookInvocation struct {

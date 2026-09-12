@@ -1,6 +1,9 @@
 package cfg_test
 
 import (
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -295,6 +298,40 @@ func TestEveryKindTheConfigMayNameIsAKindThereIs(t *testing.T) {
 	for _, kind := range cfg.IconKinds {
 		if !cfg.IsIconKind(string(kind)) {
 			t.Errorf("the kind %q is drawn but cannot be named in the config", kind)
+		}
+	}
+}
+
+func TestStarterAndExampleNameEveryIconKind(t *testing.T) {
+	example, err := os.ReadFile(filepath.Join("..", "..", "config.example.toml"))
+	if err != nil {
+		t.Fatalf("cannot read config.example.toml: %v", err)
+	}
+	guide, err := os.ReadFile(filepath.Join("..", "..", "docs", "configuration.md"))
+	if err != nil {
+		t.Fatalf("cannot read configuration.md: %v", err)
+	}
+	files := []struct {
+		name string
+		body string
+	}{
+		{"starter.toml", string(cfg.StarterConfig())},
+		{"config.example.toml", string(example)},
+		{"docs/configuration.md", string(guide)},
+	}
+	for _, file := range files {
+		for _, kind := range cfg.IconKinds {
+			pattern := `(?m)^\s*#?\s*` + regexp.QuoteMeta(string(kind)) + `\s*=`
+			if file.name == "docs/configuration.md" {
+				pattern = "`" + regexp.QuoteMeta(string(kind)) + "`"
+			}
+			matched, err := regexp.MatchString(pattern, file.body)
+			if err != nil {
+				t.Fatalf("%s: %v", file.name, err)
+			}
+			if !matched {
+				t.Errorf("%s does not name icon kind %q", file.name, kind)
+			}
 		}
 	}
 }
