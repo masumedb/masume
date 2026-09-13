@@ -983,11 +983,18 @@ func NewAdapter(support db.EngineSupport) db.Adapter {
 
 // BuildClientOptions returns the options the driver opens the profile with.
 func BuildClientOptions(profile cfg.Profile, password string) *options.ClientOptions {
+	dialHost, dialPort := profile.DialAddress()
 	held := options.Client().
-		SetHosts([]string{fmt.Sprintf("%s:%d", profile.Host, profile.Port)}).
+		SetHosts([]string{fmt.Sprintf("%s:%d", dialHost, dialPort)}).
 		SetAppName(applicationName).
 		SetConnectTimeout(connectTimeout).
 		SetServerSelectionTimeout(connectTimeout)
+
+	// The driver dials other replica set members directly, which the tunnel does not
+	// reach.
+	if profile.OpensTunnel() {
+		held.SetDirect(true)
+	}
 
 	if profile.User != "" {
 		held.SetAuth(options.Credential{Username: profile.User, Password: password})

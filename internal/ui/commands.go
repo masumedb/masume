@@ -272,9 +272,9 @@ const connectTimeout = 30 * time.Second
 // connect opens one connection, and returns why it could not.
 func connect(adapters engines.Adapters, profile cfg.Profile, password string) tea.Cmd {
 	return func() tea.Msg {
-		// A tunnel or a proxy has to listen before the driver is asked, so the command
-		// of the profile runs first and is stopped with the connection.
-		preConnect, err := cfg.StartPreConnectCommand(profile)
+		// The pre-connect command and the SSH tunnel open before the driver, and close
+		// with the connection.
+		dialed, preConnect, err := cfg.StartPreConnect(profile)
 		if err != nil {
 			return connectedMsg{Profile: profile, Problem: err.Error()}
 		}
@@ -282,7 +282,7 @@ func connect(adapters engines.Adapters, profile cfg.Profile, password string) te
 		ctx, stop := context.WithTimeout(context.Background(), connectTimeout)
 		defer stop()
 
-		session, err := adapters.Open(ctx, profile, password)
+		session, err := adapters.Open(ctx, dialed, password)
 		if err != nil {
 			preConnect.Stop()
 			return connectedMsg{Profile: profile, Problem: db.DescribeError(err)}

@@ -63,3 +63,20 @@ func TestBuildPostgresConfigFallsBackToTheClear(t *testing.T) {
 		t.Errorf("`require` has %d fallbacks, wanted none", len(held.Fallbacks))
 	}
 }
+
+// A tunneled profile dials the local endpoint and verifies the certificate against the
+// database host.
+func TestBuildPostgresConfigDialsTheTunnel(t *testing.T) {
+	profile := cfg.Profile{
+		Host: "db.internal", Port: 5432, SSLMode: core.SSLVerifyFull,
+		DialHost: "127.0.0.1", DialPort: 40000,
+	}
+
+	config := buildPostgresConfig(profile, "")
+	if config.Host != "127.0.0.1" || config.Port != 40000 {
+		t.Errorf("the driver dials %s:%d", config.Host, config.Port)
+	}
+	if config.TLSConfig == nil || config.TLSConfig.ServerName != "db.internal" {
+		t.Errorf("the certificate is checked against %+v", config.TLSConfig)
+	}
+}

@@ -9,6 +9,7 @@ import (
 
 	"github.com/turanmahmudov/masume/internal/core"
 	"github.com/turanmahmudov/masume/internal/secret"
+	"github.com/turanmahmudov/masume/internal/tunnel"
 )
 
 // AuthMode is the password source: memory, a command, a store, the system keyring, or a prompt.
@@ -146,6 +147,21 @@ type Profile struct {
 	WritePlan     WritePlan
 	// The maximum row count for undo.
 	UndoRows int
+	// SSH tunnel. Without SSHHost the driver dials the server directly.
+	SSHHost string
+	SSHPort int
+	SSHUser string
+	// Private key path. Empty uses the SSH agent.
+	SSHKey string
+	// Env vars with the key passphrase and the SSH password.
+	SSHKeyPassphraseEnv string
+	SSHPasswordEnv      string
+	// Known hosts path. Empty reads `~/.ssh/known_hosts`.
+	SSHKnownHosts string
+	// Tunnel endpoint the driver dials in place of Host and Port. Config files never hold
+	// it.
+	DialHost string
+	DialPort int
 	// A command to run before the connection, for example a tunnel.
 	Command string
 	// The port the command must open before the client connects.
@@ -166,6 +182,17 @@ type Profile struct {
 	InConfigFile bool
 	// The source project file path, or empty for other profiles.
 	ProjectFile string
+}
+
+// OpensTunnel is true for a profile with an SSH tunnel.
+func (profile Profile) OpensTunnel() bool { return profile.SSHHost != "" }
+
+// DialAddress returns the driver endpoint: the open tunnel, or the server.
+func (profile Profile) DialAddress() (string, int) {
+	if profile.DialHost != "" {
+		return profile.DialHost, profile.DialPort
+	}
+	return profile.Host, profile.Port
 }
 
 // IsInAFile is true for a profile from a user config or project file.
@@ -435,6 +462,23 @@ func buildProfile(name string, source Table) (Profile, error) {
 		autocommit = written
 	}
 
+	sshPort, hasSSHPort, err := readPositiveInteger(source, "ssh_port")
+	if err != nil {
+		return Profile{}, err
+	}
+	sshHost, _ := FindString(source, "ssh_host")
+	if sshHost != "" && !hasSSHPort {
+		sshPort = tunnel.DefaultPort
+	}
+	sshUser, _ := FindString(source, "ssh_user")
+	if sshHost != "" && sshUser == "" {
+		return Profile{}, failProfile("%q must be set when %q is set", "ssh_user", "ssh_host")
+	}
+	sshKey, _ := FindString(source, "ssh_key")
+	sshKeyPassphraseEnv, _ := FindString(source, "ssh_key_passphrase_env")
+	sshPasswordEnv, _ := FindString(source, "ssh_password_env")
+	sshKnownHosts, _ := FindString(source, "ssh_known_hosts")
+
 	passwordEnv, _ := FindString(source, "password_env")
 	secretName, _ := FindString(source, "secret")
 	secretRef, _ := FindString(source, "secret_ref")
@@ -449,7 +493,10 @@ func buildProfile(name string, source Table) (Profile, error) {
 		Secret: secretName, SecretRef: secretRef,
 		SSLMode: sslMode, Autocommit: autocommit, ConfirmWrites: confirmWrites,
 		WritePlan: writePlan, UndoRows: undoRows,
-		Command: command, WaitForPort: waitForPort, CommandTimeout: commandTimeout,
+		SSHHost: sshHost, SSHPort: sshPort, SSHUser: sshUser, SSHKey: sshKey,
+		SSHKeyPassphraseEnv: sshKeyPassphraseEnv, SSHPasswordEnv: sshPasswordEnv,
+		SSHKnownHosts: sshKnownHosts,
+		Command:       command, WaitForPort: waitForPort, CommandTimeout: commandTimeout,
 		PageSize: pageSize, Keepalive: keepalive, Description: description,
 		StatementTimeout: time.Duration(timeoutMilliseconds) * time.Millisecond,
 		AiInstructions:   aiInstructions, McpAccess: mcpAccess, InConfigFile: true,

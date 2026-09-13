@@ -139,13 +139,20 @@ type formTestedMsg struct {
 }
 
 // testFormConnection opens the profile the form describes and closes it again, so a wrong
-// value is found before it is saved.
+// value is found before it is saved. The pre-connect command and the SSH tunnel open for
+// the test and close with it.
 func testFormConnection(adapters engines.Adapters, profile cfg.Profile, password string) tea.Cmd {
 	return func() tea.Msg {
+		dialed, preConnect, err := cfg.StartPreConnect(profile)
+		if err != nil {
+			return formTestedMsg{Problem: err.Error()}
+		}
+		defer preConnect.Stop()
+
 		ctx, stop := context.WithTimeout(context.Background(), connectTimeout)
 		defer stop()
 
-		session, err := adapters.Open(ctx, profile, password)
+		session, err := adapters.Open(ctx, dialed, password)
 		if err != nil {
 			return formTestedMsg{Problem: db.DescribeError(err)}
 		}
@@ -468,7 +475,7 @@ type confirmState struct {
 const (
 	widestFormCard    = 76
 	narrowestFormCard = 40
-	formLabelWidth    = 18
+	formLabelWidth    = 20
 )
 
 // renderForm draws the connection form: one row per field, and how the last test went.

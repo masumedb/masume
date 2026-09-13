@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/turanmahmudov/masume/internal/tunnel"
 )
 
 // FormField is one field of the connection form.
@@ -36,6 +37,35 @@ func resolveDatabaseLabel(engine core.Engine) string {
 		return "file"
 	}
 	return "database"
+}
+
+// The ssh toggle shows the tunnel fields when it is on.
+const (
+	sshToggleKey = "ssh"
+	toggleOff    = "off"
+	toggleOn     = "on"
+)
+
+// The ssh toggle shows these fields.
+var sshFields = map[string]bool{
+	"sshHost": true, "sshPort": true, "sshUser": true, "sshKey": true,
+	"sshKeyPassphraseEnv": true, "sshPasswordEnv": true, "sshKnownHosts": true,
+}
+
+// describeToggle returns the value of a toggle field.
+func describeToggle(on bool) string {
+	if on {
+		return toggleOn
+	}
+	return toggleOff
+}
+
+// resolveFormSSHPort returns the ssh port the form shows.
+func resolveFormSSHPort(profile Profile) int {
+	if profile.SSHPort > 0 {
+		return profile.SSHPort
+	}
+	return tunnel.DefaultPort
 }
 
 // serverFields are the fields for the address of a server and the user.
@@ -115,6 +145,21 @@ func BuildFormFields(profile Profile, editing bool, secretStoreNames []string) [
 		},
 		{Key: "sslMode", Label: "sslmode", Value: string(source.SSLMode)},
 		{
+			Key: sshToggleKey, Label: "ssh tunnel",
+			Value:   describeToggle(source.OpensTunnel()),
+			Choices: []string{toggleOff, toggleOn},
+		},
+		{Key: "sshHost", Label: "ssh host", Value: source.SSHHost},
+		{Key: "sshPort", Label: "ssh port", Value: strconv.Itoa(resolveFormSSHPort(source))},
+		{Key: "sshUser", Label: "ssh user", Value: source.SSHUser},
+		{Key: "sshKey", Label: "ssh key", Value: source.SSHKey},
+		{
+			Key: "sshKeyPassphraseEnv", Label: "ssh passphrase env",
+			Value: source.SSHKeyPassphraseEnv,
+		},
+		{Key: "sshPasswordEnv", Label: "ssh password env", Value: source.SSHPasswordEnv},
+		{Key: "sshKnownHosts", Label: "ssh known hosts", Value: source.SSHKnownHosts},
+		{
 			Key: "confirmWrites", Label: "confirm", Value: string(source.ConfirmWrites),
 			Choices: listModeNames(ConfirmModes),
 		},
@@ -129,9 +174,11 @@ func FindShownFields(fields []FormField) []FormField {
 	if known && core.OpensFile(engine) {
 		kept := make([]FormField, 0, len(fields))
 		for _, field := range fields {
-			if !serverFields[field.Key] {
-				kept = append(kept, field)
+			if serverFields[field.Key] || sshFields[field.Key] ||
+				field.Key == sshToggleKey {
+				continue
 			}
+			kept = append(kept, field)
 		}
 		return kept
 	}
@@ -144,9 +191,13 @@ func FindShownFields(fields []FormField) []FormField {
 	}
 	read := passwordFields[auth]
 
+	opensTunnel := ReadField(fields, sshToggleKey) == toggleOn
 	kept := make([]FormField, 0, len(fields))
 	for _, field := range fields {
 		if everyPasswordField[field.Key] && !read[field.Key] {
+			continue
+		}
+		if sshFields[field.Key] && !opensTunnel {
 			continue
 		}
 		kept = append(kept, field)
@@ -220,6 +271,11 @@ func BuildProfileFromFields(fields []FormField, source Profile, editing bool) (P
 		built.SSLMode = mode
 	}
 
+	built, tunnelErr := applyFormTunnel(built, read)
+	if tunnelErr != nil {
+		return Profile{}, tunnelErr
+	}
+
 	if built.Name == "" {
 		return Profile{}, FormError{Reason: "the profile name is missing"}
 	}
@@ -244,6 +300,38 @@ func BuildProfileFromFields(fields []FormField, source Profile, editing bool) (P
 		return Profile{}, FormError{
 			Reason: "auth = command requires a password command",
 		}
+	}
+	return built, nil
+}
+
+// applyFormTunnel writes the tunnel fields into the profile. An off toggle clears every
+// ssh setting.
+func applyFormTunnel(built Profile, read func(string) string) (Profile, error) {
+	built.SSHHost, built.SSHPort, built.SSHUser, built.SSHKey = "", 0, "", ""
+	built.SSHKeyPassphraseEnv, built.SSHPasswordEnv, built.SSHKnownHosts = "", "", ""
+	if read(sshToggleKey) != toggleOn {
+		return built, nil
+	}
+
+	port := tunnel.DefaultPort
+	if written := read("sshPort"); written != "" {
+		held, err := strconv.Atoi(written)
+		if err != nil || held <= 0 {
+			return Profile{}, FormError{Reason: "the ssh port must be a positive integer"}
+		}
+		port = held
+	}
+	built.SSHHost, built.SSHPort, built.SSHUser = read("sshHost"), port, read("sshUser")
+	built.SSHKey = read("sshKey")
+	built.SSHKeyPassphraseEnv = read("sshKeyPassphraseEnv")
+	built.SSHPasswordEnv = read("sshPasswordEnv")
+	built.SSHKnownHosts = read("sshKnownHosts")
+
+	if built.SSHHost == "" {
+		return Profile{}, FormError{Reason: "the ssh host is missing"}
+	}
+	if built.SSHUser == "" {
+		return Profile{}, FormError{Reason: "the ssh user is missing"}
 	}
 	return built, nil
 }

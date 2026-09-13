@@ -3,9 +3,12 @@ package cfg
 import (
 	"fmt"
 	"net"
+	"os"
 	"os/exec"
 	"syscall"
 	"time"
+
+	"github.com/turanmahmudov/masume/internal/tunnel"
 )
 
 // A pre-connect command starts a tunnel or proxy before the database connection opens.
@@ -19,16 +22,23 @@ const portDialTimeout = time.Second
 // stopGrace is the time the process group has to stop after SIGTERM before it is killed.
 const stopGrace = 2 * time.Second
 
-// PreConnectHandle is a running pre-connect command and the data needed to stop it.
+// PreConnectHandle is the running pre-connect command and the open SSH tunnel.
 type PreConnectHandle struct {
 	command *exec.Cmd
 	// exited closes after Wait. The process ID remains reserved until Wait returns.
 	exited chan struct{}
+	tunnel *tunnel.Handle
 }
 
-// Stop stops the command and its process group, including child processes such as ssh.
+// Stop closes the SSH tunnel and stops the command with its process group, including child
+// processes such as ssh.
 func (handle *PreConnectHandle) Stop() {
-	if handle == nil || handle.command == nil || handle.command.Process == nil {
+	if handle == nil {
+		return
+	}
+	handle.tunnel.Stop()
+	handle.tunnel = nil
+	if handle.command == nil || handle.command.Process == nil {
 		return
 	}
 	command := handle.command
@@ -112,4 +122,43 @@ func StartPreConnectCommand(profile Profile) (*PreConnectHandle, error) {
 	return nil, fmt.Errorf(
 		"the pre-connect command for %s did not open port %d within %.0fs: %s",
 		profile.Name, profile.WaitForPort, profile.CommandTimeout.Seconds(), profile.Command)
+}
+
+// StartPreConnect starts the pre-connect command and the SSH tunnel. It returns the profile
+// with the tunnel endpoint. The caller stops the handle when the connection closes.
+func StartPreConnect(profile Profile) (Profile, *PreConnectHandle, error) {
+	handle, err := StartPreConnectCommand(profile)
+	if err != nil {
+		return profile, nil, err
+	}
+	if !profile.OpensTunnel() {
+		return profile, handle, nil
+	}
+
+	open, err := tunnel.Open(buildTunnelSettings(profile), profile.Host, profile.Port)
+	if err != nil {
+		handle.Stop()
+		return profile, nil, err
+	}
+	handle.tunnel = open
+	profile.DialHost, profile.DialPort = open.Address()
+	return profile, handle, nil
+}
+
+// buildTunnelSettings maps the profile to tunnel settings. The passphrase and the password
+// come from the environment.
+func buildTunnelSettings(profile Profile) tunnel.Settings {
+	passphrase := ""
+	if profile.SSHKeyPassphraseEnv != "" {
+		passphrase = os.Getenv(profile.SSHKeyPassphraseEnv)
+	}
+	password := ""
+	if profile.SSHPasswordEnv != "" {
+		password = os.Getenv(profile.SSHPasswordEnv)
+	}
+	return tunnel.Settings{
+		Host: profile.SSHHost, Port: profile.SSHPort, User: profile.SSHUser,
+		KeyPath: profile.SSHKey, KeyPassphrase: passphrase, Password: password,
+		KnownHosts: profile.SSHKnownHosts,
+	}
 }

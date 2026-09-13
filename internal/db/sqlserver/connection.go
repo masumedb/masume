@@ -40,8 +40,9 @@ func buildEncryption(profile cfg.Profile) (msdsn.Encryption, *tls.Config) {
 // buildSqlserverConfig returns the connection as the driver takes it.
 func buildSqlserverConfig(profile cfg.Profile, password string) msdsn.Config {
 	encryption, tlsConfig := buildEncryption(profile)
+	dialHost, dialPort := profile.DialAddress()
 	return msdsn.Config{
-		Host: profile.Host, Port: uint64(profile.Port), Database: profile.Database,
+		Host: dialHost, Port: uint64(dialPort), Database: profile.Database,
 		User: profile.User, Password: password,
 		Encryption: encryption, TLSConfig: tlsConfig,
 		TrustServerCertificate: tlsConfig != nil && tlsConfig.InsecureSkipVerify,

@@ -97,19 +97,29 @@ func buildProfileKeys(profile Profile) ([]string, map[string]any, map[string]boo
 		"mode":           string(profile.AccessMode),
 		"confirm_writes": string(profile.ConfirmWrites),
 		// Saving removes any existing password key.
-		"password":         "",
-		"password_env":     profile.PasswordEnv,
-		"password_command": profile.PasswordCommand,
-		"secret":           profile.Secret,
-		"secret_ref":       profile.SecretRef,
-		"sslmode":          string(profile.SSLMode),
-		"description":      profile.Description,
-		"ai_instructions":  profile.AiInstructions,
+		"password":               "",
+		"password_env":           profile.PasswordEnv,
+		"password_command":       profile.PasswordCommand,
+		"secret":                 profile.Secret,
+		"secret_ref":             profile.SecretRef,
+		"sslmode":                string(profile.SSLMode),
+		"description":            profile.Description,
+		"ai_instructions":        profile.AiInstructions,
+		"ssh_host":               profile.SSHHost,
+		"ssh_user":               profile.SSHUser,
+		"ssh_key":                profile.SSHKey,
+		"ssh_key_passphrase_env": profile.SSHKeyPassphraseEnv,
+		"ssh_password_env":       profile.SSHPasswordEnv,
+		"ssh_known_hosts":        profile.SSHKnownHosts,
 	} {
 		managed[key] = true
 		if value != "" {
 			written[key] = value
 		}
+	}
+	managed["ssh_port"] = true
+	if profile.OpensTunnel() {
+		written["ssh_port"] = profile.SSHPort
 	}
 
 	// A fixed order that is easy to read, not the order of a map.
@@ -117,6 +127,8 @@ func buildProfileKeys(profile Profile) ([]string, map[string]any, map[string]boo
 		"engine", "host", "port", "database", "user", "auth",
 		"password", "password_env", "password_command", "secret", "secret_ref",
 		"env", "mode", "sslmode", "confirm_writes", "description", "ai_instructions",
+		"ssh_host", "ssh_port", "ssh_user", "ssh_key", "ssh_key_passphrase_env",
+		"ssh_password_env", "ssh_known_hosts",
 	}
 	kept := make([]string, 0, len(order))
 	for _, key := range order {

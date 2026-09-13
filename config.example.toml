@@ -45,6 +45,21 @@ sslmode              = "verify-full"
 statement_timeout_ms = 30000
 mcp                  = "read-only"
 
+# A database server reachable only from the ssh server. masume opens the tunnel, and the ssh
+# server connects to host and port.
+[profile.shop-ssh]
+engine   = "postgres"
+host     = "db.internal"
+port     = 5432
+database = "shop"
+user     = "reader"
+auth     = "prompt"
+env      = "prod"
+mode     = "read-only"
+ssh_host = "ssh.example.com"
+ssh_user = "ada"
+ssh_key  = "~/.ssh/id_ed25519"
+
 # A server behind a jump host. The command stays in the foreground. The client checks host:wait_for_port before connection.
 # Closing the connection stops the running process group. Detached processes are not reliably cleaned up.
 [profile.shop-tunnel]
@@ -86,7 +101,8 @@ paths = []
 # A secret store is a reusable password command. Each {{ref}} is an unquoted, standalone placeholder for one shell-quoted argument.
 # Templates accept literal arguments, quoted flags and pipelines. Shell expansion, redirects, command lists and multiline templates require a script.
 # Password commands have no stdin. Commands must exit successfully within 30 seconds and print a non-empty first line.
-# Secret stores and password commands belong in the user file. Project profiles cannot set command, password_command, password_env, secret or secret_ref.
+# Secret stores and password commands belong in the user file. Project profiles cannot set command, password_command,
+# password_env, secret, secret_ref, ssh_password_env or ssh_key_passphrase_env.
 #
 # [secret.work]
 # command = "op read {{ref}}"
@@ -120,6 +136,14 @@ paths = []
 # statement_timeout_ms = 0            # time limit per statement. 0 uses the server default
 # keepalive_s          = 30           # seconds between connection checks. 0 disables the keepalive
 # page_size            = 200          # rows the grid loads per page
+# ssh_host             = "ssh.example.com"   # ssh server host. set to open a tunnel
+# ssh_port             = 22
+# ssh_user             = "ada"        # ssh server user. required with ssh_host
+# ssh_key              = "~/.ssh/id_ed25519"   # private key path. without it the tunnel uses the ssh agent
+# ssh_key_passphrase_env = "MASUME_SSH_PASSPHRASE"   # env var with the ssh_key passphrase
+# ssh_password_env     = "MASUME_SSH_PASSWORD"   # env var with the ssh password
+# ssh_known_hosts      = "~/.ssh/known_hosts"   # known hosts path with the ssh host key
+# With ssh_host, the ssh server connects to host and port.
 # command              = "ssh -N -L 5432:db:5432 jump"   # run before the connection opens
 # command_timeout      = 10           # seconds to wait for the command to open its port
 # wait_for_port        = 5432         # The readiness port on host. The database connection still uses port.

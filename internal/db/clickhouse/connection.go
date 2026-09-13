@@ -44,8 +44,9 @@ func buildOptions(profile cfg.Profile, password string) *driver.Options {
 		// answers, so the grid reads the row back as it now stands.
 		settings["mutations_sync"] = 1
 	}
+	dialHost, dialPort := profile.DialAddress()
 	return &driver.Options{
-		Addr: []string{fmt.Sprintf("%s:%d", profile.Host, profile.Port)},
+		Addr: []string{fmt.Sprintf("%s:%d", dialHost, dialPort)},
 		Auth: driver.Auth{
 			Database: profile.Database, Username: profile.User, Password: password,
 		},

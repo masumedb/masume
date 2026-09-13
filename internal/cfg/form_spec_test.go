@@ -353,3 +353,108 @@ func TestDescribeAuthModeNamesEverySource(t *testing.T) {
 		t.Errorf("a name that is no source reads %q", held)
 	}
 }
+
+// The ssh toggle shows the tunnel fields. A profile without a tunnel hides them.
+func TestFindShownFieldsHidesTheTunnelBehindTheToggle(t *testing.T) {
+	fields := cfg.BuildFormFields(buildFormProfile(), true, nil)
+	shown := map[string]bool{}
+	for _, field := range cfg.FindShownFields(fields) {
+		shown[field.Key] = true
+	}
+	if !shown["ssh"] {
+		t.Fatal("the form has no ssh toggle")
+	}
+	if shown["sshHost"] || shown["sshUser"] {
+		t.Error("a profile without a tunnel is asked for an ssh host")
+	}
+
+	opened := map[string]bool{}
+	for _, field := range cfg.FindShownFields(cfg.ApplyFieldChange(fields, "ssh", "on")) {
+		opened[field.Key] = true
+	}
+	for _, key := range []string{
+		"sshHost", "sshPort", "sshUser", "sshKey",
+		"sshKeyPassphraseEnv", "sshPasswordEnv", "sshKnownHosts",
+	} {
+		if !opened[key] {
+			t.Errorf("the open toggle hides %s", key)
+		}
+	}
+}
+
+// A file engine opens no tunnel, so the form hides the toggle and the fields.
+func TestFindShownFieldsHidesTheTunnelForAFileEngine(t *testing.T) {
+	fields := cfg.BuildFormFields(cfg.Profile{
+		Name: "notes", Engine: core.EngineSqlite, Database: "/tmp/notes.db",
+		SSHHost: "ssh.example.com", SSHUser: "ada",
+	}, true, nil)
+
+	for _, field := range cfg.FindShownFields(fields) {
+		if strings.HasPrefix(field.Key, "ssh") {
+			t.Errorf("a file engine is asked for %s", field.Key)
+		}
+	}
+}
+
+// The tunnel fields build a profile. An empty port reads 22.
+func TestBuildProfileFromFieldsTakesTheTunnel(t *testing.T) {
+	fields := cfg.BuildFormFields(buildFormProfile(), true, nil)
+	for key, value := range map[string]string{
+		"ssh": "on", "sshHost": "ssh.example.com", "sshPort": "",
+		"sshUser": "ada", "sshKey": "~/.ssh/id_ed25519",
+		"sshKeyPassphraseEnv": "MASUME_SSH_PASSPHRASE",
+		"sshKnownHosts":       "~/.ssh/known_hosts",
+	} {
+		fields = cfg.ApplyFieldChange(fields, key, value)
+	}
+
+	built, err := cfg.BuildProfileFromFields(fields, buildFormProfile(), true)
+	if err != nil {
+		t.Fatalf("the form reported %v", err)
+	}
+	for _, held := range []struct {
+		field string
+		got   any
+		want  any
+	}{
+		{"ssh host", built.SSHHost, "ssh.example.com"},
+		{"ssh port", built.SSHPort, 22},
+		{"ssh user", built.SSHUser, "ada"},
+		{"ssh key", built.SSHKey, "~/.ssh/id_ed25519"},
+		{"passphrase env", built.SSHKeyPassphraseEnv, "MASUME_SSH_PASSPHRASE"},
+		{"known hosts", built.SSHKnownHosts, "~/.ssh/known_hosts"},
+	} {
+		if held.got != held.want {
+			t.Errorf("the %s reads %v, wanted %v", held.field, held.got, held.want)
+		}
+	}
+}
+
+// An off toggle clears the tunnel of the profile it edits.
+func TestBuildProfileFromFieldsClearsTheTunnelTheToggleCloses(t *testing.T) {
+	source := buildFormProfile()
+	source.SSHHost, source.SSHPort, source.SSHUser = "ssh.example.com", 22, "ada"
+	fields := cfg.ApplyFieldChange(
+		cfg.BuildFormFields(source, true, nil), "ssh", "off")
+
+	built, err := cfg.BuildProfileFromFields(fields, source, true)
+	if err != nil {
+		t.Fatalf("the form reported %v", err)
+	}
+	if built.OpensTunnel() || built.SSHUser != "" || built.SSHPort != 0 {
+		t.Errorf("the profile keeps %s@%s:%d", built.SSHUser, built.SSHHost, built.SSHPort)
+	}
+}
+
+// An on toggle needs a host and a user.
+func TestBuildProfileFromFieldsReportsATunnelWithoutAUser(t *testing.T) {
+	fields := cfg.ApplyFieldChange(cfg.ApplyFieldChange(
+		cfg.BuildFormFields(buildFormProfile(), true, nil),
+		"ssh", "on"), "sshHost", "ssh.example.com")
+
+	if _, err := cfg.BuildProfileFromFields(fields, buildFormProfile(), true); err == nil {
+		t.Fatal("a tunnel without a user was taken")
+	} else if !strings.Contains(err.Error(), "ssh user") {
+		t.Errorf("the form reported %q", err)
+	}
+}

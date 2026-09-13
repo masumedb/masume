@@ -147,7 +147,7 @@ func checkPassword(options Options) int {
 func openSession(
 	ctx context.Context, adapters engines.Adapters, options Options,
 ) (db.Session, *cfg.PreConnectHandle, int) {
-	preConnect, err := cfg.StartPreConnectCommand(options.Profile)
+	dialed, preConnect, err := cfg.StartPreConnect(options.Profile)
 	if err != nil {
 		options.report("%s", err)
 		return nil, nil, CodeConnection
@@ -156,7 +156,7 @@ func openSession(
 	opening, stop := context.WithTimeout(ctx, connectTimeout)
 	defer stop()
 
-	session, err := adapters.Open(opening, options.Profile, options.Password)
+	session, err := adapters.Open(opening, dialed, options.Password)
 	if err != nil {
 		preConnect.Stop()
 		options.report("%s", db.DescribeError(err))

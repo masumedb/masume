@@ -71,6 +71,13 @@ mode     = "write"
 | `keepalive_s` | `30` | Seconds between connection checks. `0` disables the keepalive |
 | `page_size` | `200` | Rows the grid loads per page, and rows one page of `masume run` holds. Must be above zero |
 | `autocommit` | `true` | `false` starts a transaction on TUI statement execution and keeps the transaction open until commit or rollback |
+| `ssh_host` | | SSH server host. Without it masume connects to `host` directly. See [SSH tunnel](#ssh-tunnel) |
+| `ssh_port` | `22` | SSH server port |
+| `ssh_user` | required with `ssh_host` | SSH server user |
+| `ssh_key` | | Private key path. Without it the tunnel uses the SSH agent |
+| `ssh_key_passphrase_env` | | Environment variable with the `ssh_key` passphrase |
+| `ssh_password_env` | | Environment variable with the SSH password |
+| `ssh_known_hosts` | `~/.ssh/known_hosts` | Known hosts path with the SSH host key |
 | `command` | | A shell command started before connect and stopped when the connection closes, for example an SSH tunnel. See [Connection command](#connection-command) |
 | `wait_for_port` | | The TCP port checked on `host` before connection. Without this key, masume connects immediately after starting `command` |
 | `command_timeout` | `10` | Seconds to wait for `wait_for_port`. Must be above zero |
@@ -303,6 +310,35 @@ A missing store skips the profile and produces a report. A missing command or in
 Secret stores belong in the user configuration file. Project files cannot declare or reference secret stores.
 
 MongoDB credentials require a user. A server without authentication can reject supplied credentials.
+
+## SSH tunnel
+
+A profile can reach its database server through an SSH tunnel. masume opens the tunnel in process and runs no `ssh` binary. The SSH server connects to `host` and `port`.
+
+```toml
+[profile.prod]
+engine     = "postgres"
+host       = "db.internal"
+port       = 5432
+database   = "shop"
+user       = "reader"
+auth       = "prompt"
+ssh_host   = "ssh.example.com"
+ssh_user   = "ada"
+ssh_key    = "~/.ssh/id_ed25519"
+```
+
+masume opens a local forward: a listener on `127.0.0.1` with an ephemeral port, forwarded to `host:port` over the SSH connection. The listener and the SSH client close with the database connection. The picker and the title bar show `host:port`, not the local endpoint.
+
+Authentication order: `ssh_key`, then `ssh_password_env`, then the agent on `$SSH_AUTH_SOCK`. An encrypted `ssh_key` needs `ssh_key_passphrase_env`, or the key loaded in the agent.
+
+Host key verification is strict. An unknown host key or a missing known hosts file fails the connection with an error naming the path. `ssh-keyscan` appends a host key.
+
+TLS certificates are verified against `host`, so `sslmode = "verify-full"` works through the tunnel. A tunneled MongoDB connection is direct, so masume uses no other replica set member.
+
+The connection form has an `ssh tunnel` toggle. Set it to `on` and the form shows the SSH fields, writes them to the profile, and `Ctrl+T` tests the connection through the tunnel. Set it to `off` and saving removes every `ssh_` key from the profile.
+
+Project files cannot set `ssh_password_env` or `ssh_key_passphrase_env`.
 
 ## Connection command
 

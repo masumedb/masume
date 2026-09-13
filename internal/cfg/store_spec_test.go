@@ -389,3 +389,26 @@ func TestSaveProfileToFileLeavesNoHalfWrittenFile(t *testing.T) {
 		}
 	}
 }
+
+// The form writes the tunnel of a profile. An off toggle takes every ssh key out of the
+// file again.
+func TestSaveProfileToFileWritesAndClearsTheTunnel(t *testing.T) {
+	profile := buildStoredProfile()
+	profile.SSHHost, profile.SSHPort, profile.SSHUser = "ssh.example.com", 2222, "ada"
+	profile.SSHKey = "~/.ssh/id_ed25519"
+
+	written := saveProfile(t, "", profile)
+	for _, wanted := range []string{
+		`ssh_host = "ssh.example.com"`, "ssh_port = 2222",
+		`ssh_user = "ada"`, `ssh_key = "~/.ssh/id_ed25519"`,
+	} {
+		if !strings.Contains(written, wanted) {
+			t.Errorf("the file holds no %s:\n%s", wanted, written)
+		}
+	}
+
+	cleared := saveProfile(t, written, buildStoredProfile())
+	if strings.Contains(cleared, "ssh_") {
+		t.Errorf("the file keeps an ssh key:\n%s", cleared)
+	}
+}

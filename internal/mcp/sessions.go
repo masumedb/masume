@@ -157,11 +157,11 @@ func openProfileConnection(
 	if err != nil {
 		return nil, err
 	}
-	preConnect, err := cfg.StartPreConnectCommand(profile)
+	dialed, preConnect, err := cfg.StartPreConnect(profile)
 	if err != nil {
 		return nil, err
 	}
-	session, err := adapters.Open(ctx, profile, password)
+	session, err := adapters.Open(ctx, dialed, password)
 	if err != nil {
 		preConnect.Stop()
 		return nil, err

@@ -38,6 +38,16 @@ func resolveMysqlTLS(profile cfg.Profile) (string, error) {
 		// Preferred mode uses TLS if available and otherwise connects without encryption.
 		return "preferred", nil
 	case core.PolicyVerifyFull:
+		// The driver verifies the certificate against the dial address. This config
+		// sets ServerName to the database host.
+		if profile.OpensTunnel() {
+			name := mysqlTLSName + "-verify-full"
+			if err := driver.RegisterTLSConfig(name, &tls.Config{
+				ServerName: profile.Host, MinVersion: tls.VersionTLS12}); err != nil {
+				return "", err
+			}
+			return name, nil
+		}
 		return "true", nil
 	case core.PolicyVerifyCa:
 		name := mysqlTLSName + "-verify-ca"
@@ -65,7 +75,8 @@ func buildMysqlDsn(profile cfg.Profile, password string) (string, error) {
 	config.User = profile.User
 	config.Passwd = password
 	config.Net = "tcp"
-	config.Addr = fmt.Sprintf("%s:%d", profile.Host, profile.Port)
+	dialHost, dialPort := profile.DialAddress()
+	config.Addr = fmt.Sprintf("%s:%d", dialHost, dialPort)
 	config.DBName = profile.Database
 	config.Timeout = mysqlConnectTimeout
 	config.TLSConfig = tlsName

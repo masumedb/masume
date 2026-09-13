@@ -43,8 +43,7 @@ const (
 	pickerCardChrome = 6
 )
 
-// pickerListActions are the list scope actions the picker reads while the filter field has
-// the focus.
+// The picker reads these list scope actions while the filter field has the focus.
 var pickerListActions = collectScopeActions(cfg.ScopeList)
 
 // pickerActions are the actions the profile picker handles. The dialog scope binds `n` to
@@ -229,8 +228,8 @@ func measureLongestEngineName(profiles []cfg.Profile) int {
 	return longest
 }
 
-// pickerFilterHint is the placeholder of the unfocused filter field. The focused field is
-// empty, with the caret.
+// The unfocused filter field shows this placeholder. The focused field is empty, with the
+// caret.
 const pickerFilterHint = "press / to filter"
 
 // renderPickerFilter draws the filter field above the rows. renderCard pads every line, so

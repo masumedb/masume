@@ -85,11 +85,13 @@ func LoadProjectConfig(path string) ProjectConfig {
 
 // refusedProjectKeys are forbidden project settings and their operations. All config files ignore the password key.
 var refusedProjectKeys = map[string]string{
-	"command":          "shell commands are forbidden in project files",
-	"password_command": "shell commands are forbidden in project files",
-	"password_env":     "environment password access is forbidden in project files",
-	"secret":           "secret store access is forbidden in project files",
-	"secret_ref":       "secret store access is forbidden in project files",
+	"command":                "shell commands are forbidden in project files",
+	"password_command":       "shell commands are forbidden in project files",
+	"password_env":           "environment password access is forbidden in project files",
+	"ssh_password_env":       "environment password access is forbidden in project files",
+	"ssh_key_passphrase_env": "environment password access is forbidden in project files",
+	"secret":                 "secret store access is forbidden in project files",
+	"secret_ref":             "secret store access is forbidden in project files",
 }
 
 // findRefusedProjectKeys returns the keys of one profile a project file must not set, sorted.

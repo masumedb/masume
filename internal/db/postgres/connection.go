@@ -41,8 +41,9 @@ func buildPostgresConfig(profile cfg.Profile, password string) *pgx.ConnConfig {
 	if err != nil {
 		config = &pgx.ConnConfig{}
 	}
-	config.Host = profile.Host
-	config.Port = uint16(profile.Port)
+	dialHost, dialPort := profile.DialAddress()
+	config.Host = dialHost
+	config.Port = uint16(dialPort)
 	config.Database = profile.Database
 	config.User = profile.User
 	config.Password = password
@@ -62,7 +63,7 @@ func buildPostgresConfig(profile cfg.Profile, password string) *pgx.ConnConfig {
 	// Unset and prefer modes permit a retry without TLS.
 	if tlsConfig != nil && mayFallBack {
 		config.Fallbacks = []*pgconn.FallbackConfig{
-			{Host: profile.Host, Port: uint16(profile.Port), TLSConfig: nil},
+			{Host: dialHost, Port: uint16(dialPort), TLSConfig: nil},
 		}
 	}
 	// Proxies can lack named prepared statement support. Exec mode avoids the statement cache.
