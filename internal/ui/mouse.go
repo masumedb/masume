@@ -704,15 +704,16 @@ func (model *Model) pressPicker(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 		model.frame.flashKey(key)
 		return model.runPickerAction(Match{Action: action, Scope: scope})
 	}
+	profiles := model.shownProfiles()
 	row, found := model.layout.pickerRows.holds(mouse.X, mouse.Y)
-	if !found || row >= len(model.profiles) {
+	if !found || row >= len(profiles) {
 		return model, nil
 	}
-	model.picker.focus(row, len(model.profiles))
+	model.picker.focus(row, len(profiles))
 	if model.clicks.count("picker-"+strconv.Itoa(row), time.Now()) < 2 {
 		return model, nil
 	}
-	return model.chooseProfile(model.profiles[row])
+	return model.chooseProfile(profiles[row])
 }
 
 // pressWorkspace returns a press on the workspace: the tab row, the tree, the panes, or the

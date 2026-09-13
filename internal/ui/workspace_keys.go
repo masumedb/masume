@@ -295,6 +295,7 @@ func (model *Model) runGlobalAction(
 	case ActionOpenPicker:
 		model.screen = ScreenPickingProfile
 		model.picker.problem = ""
+		model.picker.clearFilter()
 	case ActionCloseConnection:
 		return model.requestCloseConnection(connection)
 

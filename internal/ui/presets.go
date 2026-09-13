@@ -246,6 +246,7 @@ var defaultChords = map[string][]string{
 	"dialog:new-connection":       {"n"},
 	"dialog:edit-connection":      {"e"},
 	"dialog:delete-connection":    {"d"},
+	"dialog:filter-connections":   {"/"},
 	"dialog:save-form":            {"ctrl+s"},
 	"dialog:test-connection":      {"ctrl+t"},
 	"dialog:save-cell":            {"ctrl+s"},

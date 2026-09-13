@@ -43,13 +43,21 @@ const (
 	pickerCardChrome = 6
 )
 
+// pickerListActions are the list scope actions the picker reads while the filter field has
+// the focus.
+var pickerListActions = collectScopeActions(cfg.ScopeList)
+
 // pickerActions are the actions the profile picker handles. The dialog scope binds `n` to
 // `answer-no` as well as to `new-connection`, so the screen names the ones it takes.
-var pickerActions = append(collectScopeActions(cfg.ScopeList),
-	ActionClose, ActionNewConnection, ActionEditConnection, ActionDeleteConnection)
+var pickerActions = append(slices.Clone(pickerListActions),
+	ActionClose, ActionNewConnection, ActionEditConnection, ActionDeleteConnection,
+	ActionFilterConnections)
 
 // readPickerKey returns what one press does in the profile picker.
 func (model *Model) readPickerKey(key tea.Key) (tea.Model, tea.Cmd) {
+	if model.picker.filtersList() {
+		return model.readPickerFilterKey(key)
+	}
 	// Escape belongs to no action. It closes the picker and goes back to the connection
 	// that is open.
 	if key.Code == tea.KeyEscape {
@@ -66,10 +74,42 @@ func (model *Model) readPickerKey(key tea.Key) (tea.Model, tea.Cmd) {
 	return model.runPickerAction(match)
 }
 
+// readPickerFilterKey handles one key press while the filter field has the focus. List keys
+// move the cursor, and every other press goes into the field.
+func (model *Model) readPickerFilterKey(key tea.Key) (tea.Model, tea.Cmd) {
+	if key.Code == tea.KeyEscape {
+		model.picker.stopFilter()
+		return model, nil
+	}
+	if match, matched := model.keymap.MatchOnly(
+		key, pickerListActions, cfg.ScopeList); matched {
+		return model.runPickerAction(match)
+	}
+	switch key.Code {
+	case tea.KeyBackspace:
+		model.picker.filter.DeleteBackward()
+	case tea.KeyDelete:
+		model.picker.filter.DeleteForward()
+	case tea.KeyLeft:
+		model.picker.filter.MoveCaret(-1, false)
+		return model, nil
+	case tea.KeyRight:
+		model.picker.filter.MoveCaret(1, false)
+		return model, nil
+	default:
+		if key.Text == "" || key.Mod.Contains(uv.ModCtrl) || key.Mod.Contains(uv.ModAlt) {
+			return model, nil
+		}
+		model.picker.filter.Insert(key.Text)
+	}
+	model.picker.cursor = 0
+	return model, nil
+}
+
 // runPickerAction runs one action of the connection picker, whether a key or a press asked
 // for it.
 func (model *Model) runPickerAction(match Match) (tea.Model, tea.Cmd) {
-	count := len(model.profiles)
+	count := len(model.shownProfiles())
 	switch match.Action {
 	case ActionCursorUp:
 		model.picker.step(-1, count)
@@ -87,6 +127,8 @@ func (model *Model) runPickerAction(match Match) (tea.Model, tea.Cmd) {
 		if profile, found := model.pickedProfile(); found {
 			return model.chooseProfile(profile)
 		}
+	case ActionFilterConnections:
+		model.picker.startFilter()
 	case ActionNewConnection:
 		model.form = NewFormState(cfg.Profile{}, false, model.secretStoreNames())
 		model.screen = ScreenEditingConnection
@@ -160,7 +202,19 @@ func (model *Model) isProfileOpen(name string) bool {
 
 // pickedProfile returns the profile the cursor stands on.
 func (model *Model) pickedProfile() (cfg.Profile, bool) {
-	return model.picker.pick(model.profiles)
+	return model.picker.pick(model.shownProfiles())
+}
+
+// shownProfiles returns the profiles the list draws after the filter.
+func (model *Model) shownProfiles() []cfg.Profile {
+	return model.picker.keepFilteredProfiles(model.profiles)
+}
+
+// focusProfile selects the profile of that name. An unlisted name selects the first row.
+func (model *Model) focusProfile(name string) {
+	shown := model.shownProfiles()
+	at, _ := findProfileIndex(shown, name)
+	model.picker.focus(at, len(shown))
 }
 
 // renderPicker draws the connections of the config file and of the project file, one row
@@ -175,8 +229,29 @@ func measureLongestEngineName(profiles []cfg.Profile) int {
 	return longest
 }
 
+// pickerFilterHint is the placeholder of the unfocused filter field. The focused field is
+// empty, with the caret.
+const pickerFilterHint = "press / to filter"
+
+// renderPickerFilter draws the filter field above the rows. renderCard pads every line, so
+// the field is two columns narrower than the card. The match count is drawn beside a filter
+// that is set.
+func (model *Model) renderPickerFilter(cardWidth, count int) string {
+	kept := count
+	if model.picker.readFilterTerm() == "" {
+		kept = -1
+	}
+	placeholder := pickerFilterHint
+	if model.picker.filtersList() {
+		placeholder = ""
+	}
+	return model.renderFilterLine(model.picker.filter, cardWidth-2, placeholder, kept,
+		" "+model.icons.Icon(cfg.IconPrompt)+" ", model.picker.filtersList())
+}
+
 func (model *Model) renderPicker() string {
 	theme := model.styles.Theme
+	profiles := model.shownProfiles()
 	cardWidth := present.ResolveCardWidth(widestPickerCard, narrowestPickerCard, model.width)
 	// The source column stands empty where no connection comes from a project file, so a
 	// user without one loses no room to it.
@@ -188,8 +263,9 @@ func (model *Model) renderPicker() string {
 	}
 	fixedWidth := pickerChrome + pickerOpenWidth + pickerNameWidth + pickerEnvWidth +
 		pickerModeWidth + sourceWidth + pickerGap*3
-	// The engine column is as wide as the longest engine name in the list, and it stands
-	// only where the target keeps its own room beside it.
+	// The engine column is as wide as the longest engine name of every profile, filtered
+	// out ones included, so no column moves while the filter changes. It stands only where
+	// the target keeps its own room beside it.
 	room := cardWidth - fixedWidth
 	engineWidth := measureLongestEngineName(model.profiles)
 	if room-engineWidth-pickerGap < pickerTargetWidth {
@@ -199,17 +275,21 @@ func (model *Model) renderPicker() string {
 	}
 	targetWidth := max(room, pickerTargetWidth)
 
-	lines := []string{}
-	if len(model.profiles) == 0 {
-		lines = append(lines, model.styles.Muted().Render(present.TruncateText(
-			"no connection in "+core.ShortenHomePath(cfg.ResolveConfigPath()),
-			cardWidth-4)))
+	// The filter field and a blank row stand above the list.
+	lines := []string{model.renderPickerFilter(cardWidth, len(profiles)), ""}
+	if len(profiles) == 0 {
+		empty := "no connection in " + core.ShortenHomePath(cfg.ResolveConfigPath())
+		if model.picker.readFilterTerm() != "" {
+			empty = "no match"
+		}
+		lines = append(lines, model.styles.Muted().Render(
+			present.TruncateText(empty, cardWidth-4)))
 	}
 
 	// Where the rows land on the screen, so a press opens the row it looks like. The card
 	// stands in the middle of everything under the title bar, with a blank row inside its
 	// border.
-	cardRows := len(model.profiles) + pickerCardChrome +
+	cardRows := len(profiles) + len(lines) + pickerCardChrome +
 		len(describePickerProblems(model.problems))
 	if model.picker.problem != "" {
 		cardRows += 2
@@ -224,12 +304,12 @@ func (model *Model) renderPicker() string {
 	// The card stands under the title bar, which takes the first row of the screen.
 	cardTop := titleBarRows + halfRoundedUp(model.height-2-cardRows)
 	model.layout.pickerRows = rowsHit{
-		top:   cardTop + cardBodyRow,
-		count: len(model.profiles),
+		top:   cardTop + cardBodyRow + len(lines),
+		count: len(profiles),
 		from:  left + 1, to: left + cardWidth - 2,
 	}
 
-	for index, profile := range model.profiles {
+	for index, profile := range profiles {
 		selected := index == model.picker.cursor
 		name := present.FitText(profile.Name, pickerNameWidth)
 		environment := present.FitText(string(profile.Environment), pickerEnvWidth)
@@ -298,7 +378,7 @@ func (model *Model) renderPicker() string {
 	}
 	if model.connections.count() > 0 {
 		text := model.icons.Icon(cfg.IconDot) + " already open"
-		if model.showsKeyHints() {
+		if model.showsKeyHints() && !model.picker.filtersList() {
 			text += " · Esc returns to the workspace"
 		}
 		lines = append(lines, model.styles.Muted().Render(text))

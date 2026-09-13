@@ -226,6 +226,9 @@ const (
 
 	ActionChooseRow ActionID = "choose-row"
 
+	// The filter over the list of the connection picker.
+	ActionFilterConnections ActionID = "filter-connections"
+
 	// The cell list of a notebook.
 	ActionEditCellSource    ActionID = "edit-cell-source"
 	ActionRunCell           ActionID = "run-cell"
@@ -470,6 +473,7 @@ var dialogActions = []ActionDefinition{
 	{ID: ActionReplaceInStatement},
 	{ID: ActionClose, MainHint: true}, {ID: ActionAnswerYes, MainHint: true}, {ID: ActionAnswerNo, MainHint: true},
 	{ID: ActionNewConnection}, {ID: ActionEditConnection}, {ID: ActionDeleteConnection},
+	{ID: ActionFilterConnections},
 	{ID: ActionSaveForm, MainHint: true}, {ID: ActionTestConnection},
 	{ID: ActionSaveCell, MainHint: true}, {ID: ActionPrettifyJSON},
 	{ID: ActionSetNull}, {ID: ActionSetEmpty}, {ID: ActionSetDefault},

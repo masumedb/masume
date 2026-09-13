@@ -4,7 +4,7 @@ This guide covers the interactive terminal client. The [key reference](keys.md) 
 
 ## First connection
 
-Run `masume` to open the connection picker. Select a profile with Up and Down, then press Enter. `n` opens a new connection form; `e` edits the selected connection. In the form, `Ctrl+T` tests the connection and `Ctrl+S` saves the profile.
+Run `masume` to open the connection picker. Select a profile with Up and Down, then press Enter. `n` opens a new connection form; `e` edits the selected connection. The picker has a filter field above the list. `/` focuses it, and the filter matches the name, environment, engine and target. Up, Down and Enter keep working while the field has the focus. Esc unfocuses the field and keeps the filter. In the form, `Ctrl+T` tests the connection and `Ctrl+S` saves the profile.
 
 An explicit target or `$DATABASE_URL` can open a connection directly. See [connection targets](#connection-targets), [container detection](#databases-in-a-container), and [passwords](configuration.md#passwords).
 

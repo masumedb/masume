@@ -330,9 +330,7 @@ func (model *Model) saveForm() (tea.Model, tea.Cmd) {
 	// it again.
 	model.unsaved = dropProfile(model.unsaved, replacing)
 	model.unsaved = dropProfile(model.unsaved, profile.Name)
-	// A profile the list does not hold leaves the cursor on the first row.
-	at, _ := findProfileIndex(model.profiles, profile.Name)
-	model.picker.focus(at, len(model.profiles))
+	model.focusProfile(profile.Name)
 	model.screen = ScreenPickingProfile
 	model.form = nil
 	return model, nil
@@ -435,7 +433,7 @@ func (model *Model) askDeleteProfile(profile cfg.Profile) (tea.Model, tea.Cmd) {
 			}
 			model.profiles = dropProfile(model.profiles, profile.Name)
 			model.unsaved = dropProfile(model.unsaved, profile.Name)
-			model.picker.focus(model.picker.cursor, len(model.profiles))
+			model.picker.focus(model.picker.cursor, len(model.shownProfiles()))
 			return nil
 		},
 	}

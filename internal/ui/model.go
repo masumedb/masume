@@ -162,7 +162,9 @@ func NewModel(
 		profiles: loaded.Profiles, project: loaded.Project,
 		secrets: loaded.Secrets, problems: found,
 		screen: ScreenPickingProfile,
-		picker: pickerState{password: app.NewEditorBuffer("", 0)},
+		picker: pickerState{
+			password: app.NewEditorBuffer("", 0), filter: app.NewEditorBuffer("", 0),
+		},
 		// A theme that follows the terminal has no colours until the terminal returns, so
 		// the first frame waits for it.
 		terminal: newTerminalColorState(styles.FollowsTerminal()),

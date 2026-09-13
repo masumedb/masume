@@ -649,7 +649,7 @@ func (model *Model) readOverlayTerm(overlay app.Overlay) string {
 func (model *Model) renderSearchField(
 	overlay app.Overlay, width int, placeholder string,
 ) string {
-	return model.renderFilterLine(overlay, width, placeholder, -1, " / ")
+	return model.renderFilterLine(overlay.Draft, width, placeholder, -1, " / ", fieldHasCaret)
 }
 
 // renderFilterFieldOf draws the same field with the word it asks for, and the count of
@@ -657,23 +657,30 @@ func (model *Model) renderSearchField(
 func (model *Model) renderFilterFieldOf(
 	overlay app.Overlay, width int, placeholder string, count int,
 ) string {
-	return model.renderFilterLine(overlay, width, placeholder, count,
-		" "+model.icons.Icon(cfg.IconPrompt)+" ")
+	return model.renderFilterLine(overlay.Draft, width, placeholder, count,
+		" "+model.icons.Icon(cfg.IconPrompt)+" ", fieldHasCaret)
 }
 
+// fieldHasCaret draws the field as focused, with the caret.
+const fieldHasCaret = true
+
 func (model *Model) renderFilterLine(
-	overlay app.Overlay, width int, placeholder string, count int, mark string,
+	draft *app.EditorBuffer, width int, placeholder string, count int, mark string,
+	focused bool,
 ) string {
 	theme := model.styles.Theme
-	if overlay.Draft == nil {
+	if draft == nil {
 		return ""
 	}
-	written := overlay.Draft.Text
+	written := draft.Text
 	body := paintText(theme.Text, theme.Header, written)
 	if written == "" {
 		body = model.styles.Muted().Background(theme.Header).Render(placeholder)
 	}
 	caret := paintOn(theme.Accent, " ")
+	if !focused {
+		caret = paintOn(theme.Header, " ")
+	}
 	counted := ""
 	if count >= 0 {
 		counted = model.styles.Muted().Background(theme.Header).

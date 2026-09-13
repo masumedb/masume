@@ -390,9 +390,13 @@ var (
 	pickerKeySpecs = []keySpec{
 		takesKey(cfg.ScopeDialog, ActionClose),
 		keyOf(cfg.ScopeList, ActionChooseRow, "or double click connects"),
-		keyOf(cfg.ScopeDialog, ActionNewConnection, "new"),
-		keyOf(cfg.ScopeDialog, ActionEditConnection, "edit"),
-		keyOf(cfg.ScopeDialog, ActionDeleteConnection, "delete"),
+		keyOf(cfg.ScopeDialog, ActionNewConnection, "new").onlyWhen(listsConnections),
+		keyOf(cfg.ScopeDialog, ActionEditConnection, "edit").onlyWhen(listsConnections),
+		keyOf(cfg.ScopeDialog, ActionDeleteConnection, "delete").onlyWhen(listsConnections),
+		keyOf(cfg.ScopeDialog, ActionFilterConnections, "filter").
+			onlyWhen(listsConnections),
+		keyOf(cfg.ScopeDialog, ActionClose, "stops the filter").
+			onlyWhen(filtersConnections),
 	}
 	passwordKeySpecs = []keySpec{
 		keyOf(cfg.ScopeList, ActionChooseRow, "").withLabel(describePasswordUse),
@@ -546,6 +550,16 @@ func describePasswordUse(scene keyScene) string {
 		return "test"
 	}
 	return "connect"
+}
+
+// listsConnections is true while the filter field has no focus, so the letter keys run the
+// actions of the card.
+func listsConnections(scene keyScene) bool {
+	return !scene.model.picker.filtersList()
+}
+
+func filtersConnections(scene keyScene) bool {
+	return scene.model.picker.filtersList()
 }
 
 func offersKeyring(scene keyScene) bool {

@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"strings"
+
 	"github.com/turanmahmudov/masume/internal/app"
 	"github.com/turanmahmudov/masume/internal/cfg"
 	"github.com/turanmahmudov/masume/internal/secret"
@@ -20,6 +22,51 @@ type pickerState struct {
 	// True where the typed password tests the connection form instead of opening a
 	// connection.
 	testsForm bool
+	// Filter field. The card always draws it, and filtering is true while it has the
+	// focus.
+	filter    *app.EditorBuffer
+	filtering bool
+}
+
+// filtersList is true while the filter field has the focus.
+func (picker *pickerState) filtersList() bool { return picker.filtering }
+
+// startFilter focuses the field and selects the first row.
+func (picker *pickerState) startFilter() {
+	picker.filtering, picker.cursor = true, 0
+}
+
+// stopFilter unfocuses the field and keeps the filter.
+func (picker *pickerState) stopFilter() {
+	picker.filtering = false
+}
+
+// clearFilter empties the field and unfocuses it.
+func (picker *pickerState) clearFilter() {
+	picker.filtering, picker.cursor = false, 0
+	if picker.filter != nil {
+		picker.filter.SetText("")
+	}
+}
+
+// readFilterTerm returns the filter text.
+func (picker *pickerState) readFilterTerm() string {
+	if picker.filter == nil {
+		return ""
+	}
+	return strings.TrimSpace(picker.filter.Text)
+}
+
+// keepFilteredProfiles returns the profiles that match the filter. An empty filter keeps
+// every profile.
+func (picker *pickerState) keepFilteredProfiles(profiles []cfg.Profile) []cfg.Profile {
+	return keepMatchingRows(profiles, picker.readFilterTerm(), describeProfileRow)
+}
+
+// describeProfileRow returns the row text the filter matches.
+func describeProfileRow(profile cfg.Profile) string {
+	return profile.Name + " " + string(profile.Environment) + " " +
+		string(profile.Engine) + " " + cfg.DescribeProfileTarget(profile)
 }
 
 func (picker *pickerState) step(by, count int) {

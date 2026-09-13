@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/turanmahmudov/masume/internal/cfg"
 	"github.com/turanmahmudov/masume/internal/core"
 	"github.com/turanmahmudov/masume/internal/present"
@@ -154,5 +156,127 @@ func TestThePickerRowFitsTheNarrowCard(t *testing.T) {
 			t.Errorf("a row of %d columns does not fit the screen: %q",
 				present.MeasureText(line), line)
 		}
+	}
+}
+
+// The filter keeps the matching profiles, and the letters reach the field instead of the
+// actions of the card.
+func TestThePickerFilterKeepsTheMatchingConnections(t *testing.T) {
+	model := NewModel(loadedConfigForTest("tokyonight"), nil, nil, nil)
+	model.screen = ScreenPickingProfile
+	model.profiles = []cfg.Profile{
+		{Name: "alpha", Engine: core.EngineMysql},
+		{Name: "beta", Engine: core.EnginePostgres},
+		{Name: "tenant", Engine: core.EnginePostgres},
+	}
+
+	pressKey(t, model, tea.KeyPressMsg{Code: '/', Text: "/"})
+	if !model.picker.filtersList() {
+		t.Fatal("the slash did not open the filter")
+	}
+	for _, key := range []tea.KeyPressMsg{
+		{Code: 'n', Text: "n"}, {Code: 'a', Text: "a"},
+	} {
+		pressKey(t, model, key)
+	}
+	if model.screen != ScreenPickingProfile {
+		t.Errorf("a typed letter left the screen on %q", model.screen)
+	}
+	if model.picker.filter.Text != "na" {
+		t.Errorf("the field holds %q", model.picker.filter.Text)
+	}
+
+	shown := model.shownProfiles()
+	if len(shown) != 1 || shown[0].Name != "tenant" {
+		t.Errorf("the filter kept %+v", shown)
+	}
+	if profile, found := model.pickedProfile(); !found || profile.Name != "tenant" {
+		t.Errorf("the cursor stands on %+v, found=%v", profile, found)
+	}
+}
+
+// Escape unfocuses the field, keeps the filter and leaves the picker open. The letter keys
+// run the actions again.
+func TestEscapeStopsThePickerFilter(t *testing.T) {
+	model := NewModel(loadedConfigForTest("tokyonight"), nil, nil, nil)
+	model.screen = ScreenPickingProfile
+	model.profiles = []cfg.Profile{{Name: "alpha"}, {Name: "beta"}}
+
+	pressKey(t, model, tea.KeyPressMsg{Code: '/', Text: "/"})
+	pressKey(t, model, tea.KeyPressMsg{Code: 'b', Text: "b"})
+	pressKey(t, model, tea.KeyPressMsg{Code: tea.KeyEscape})
+
+	if model.picker.filtersList() {
+		t.Error("escape left the keyboard in the field")
+	}
+	if model.screen != ScreenPickingProfile {
+		t.Errorf("escape left the screen on %q", model.screen)
+	}
+	if model.picker.readFilterTerm() != "b" {
+		t.Errorf("escape left the term on %q", model.picker.readFilterTerm())
+	}
+	if len(model.shownProfiles()) != 1 {
+		t.Errorf("the list holds %d rows", len(model.shownProfiles()))
+	}
+
+	pressKey(t, model, tea.KeyPressMsg{Code: 'n', Text: "n"})
+	if model.screen != ScreenEditingConnection {
+		t.Errorf("the new connection key left the screen on %q", model.screen)
+	}
+}
+
+// The card always draws the field, and the unfocused placeholder names the filter key.
+func TestThePickerDrawsTheFilterFieldAtAllTimes(t *testing.T) {
+	model := buildOfflineModel(t, 120, 30)
+	model.screen = ScreenPickingProfile
+	model.profiles = []cfg.Profile{{Name: "shop", Engine: core.EngineMysql}}
+
+	drawn := stripEscapes(model.renderPicker())
+	if !strings.Contains(drawn, pickerFilterHint) {
+		t.Errorf("the card does not name the filter key:\n%s", drawn)
+	}
+	if !strings.Contains(drawn, "shop") {
+		t.Errorf("the card drops a row of the list:\n%s", drawn)
+	}
+}
+
+// List keys still move the cursor while the field has the focus.
+func TestThePickerFilterKeepsTheListKeys(t *testing.T) {
+	model := NewModel(loadedConfigForTest("tokyonight"), nil, nil, nil)
+	model.screen = ScreenPickingProfile
+	model.profiles = []cfg.Profile{
+		{Name: "alpha"}, {Name: "beta"}, {Name: "banana"},
+	}
+
+	pressKey(t, model, tea.KeyPressMsg{Code: '/', Text: "/"})
+	pressKey(t, model, tea.KeyPressMsg{Code: 'b', Text: "b"})
+	pressKey(t, model, tea.KeyPressMsg{Code: tea.KeyDown})
+
+	if model.picker.cursor != 1 {
+		t.Errorf("down left the cursor on %d", model.picker.cursor)
+	}
+	if profile, found := model.pickedProfile(); !found || profile.Name != "banana" {
+		t.Errorf("the cursor stands on %+v, found=%v", profile, found)
+	}
+	pressKey(t, model, tea.KeyPressMsg{Code: tea.KeyBackspace})
+	if model.picker.filter.Text != "" || model.picker.cursor != 0 {
+		t.Errorf("backspace left %q and the cursor on %d",
+			model.picker.filter.Text, model.picker.cursor)
+	}
+}
+
+// The card draws the filter text and reports an empty result.
+func TestThePickerDrawsTheFilterField(t *testing.T) {
+	model := buildOfflineModel(t, 120, 30)
+	model.screen = ScreenPickingProfile
+	model.profiles = []cfg.Profile{{Name: "shop", Engine: core.EngineMysql}}
+
+	model.picker.filter.SetText("none")
+	drawn := stripEscapes(model.renderPicker())
+	if !strings.Contains(drawn, "none") || !strings.Contains(drawn, "no match") {
+		t.Errorf("the card does not draw the filter:\n%s", drawn)
+	}
+	if strings.Contains(drawn, "shop") {
+		t.Errorf("the card draws a row the term dropped:\n%s", drawn)
 	}
 }

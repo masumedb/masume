@@ -71,6 +71,7 @@ One card returns only its own actions, so two rows of this table can carry the s
 | `delete-connection` | `d` |
 | `discard-changes` | `x` |
 | `edit-connection` | `e` |
+| `filter-connections` | `/` |
 | `fold-row` | `left` |
 | `insert-ai-sql` | `ctrl+j` |
 | `keep-all-values` | `a` |
