@@ -184,6 +184,9 @@ type Profile struct {
 	ProjectFile string
 }
 
+// UsesSocket is true for a profile that connects over a unix socket.
+func (profile Profile) UsesSocket() bool { return core.IsSocketHost(profile.Host) }
+
 // OpensTunnel is true for a profile with an SSH tunnel.
 func (profile Profile) OpensTunnel() bool { return profile.SSHHost != "" }
 
@@ -399,6 +402,9 @@ func buildProfile(name string, source Table) (Profile, error) {
 	} else if host, err = readRequiredString(source, "host"); err != nil {
 		return Profile{}, err
 	}
+	if core.IsSocketHost(host) && !core.TakesSocket(engine) {
+		return Profile{}, failProfile("%s does not connect over a unix socket", engine)
+	}
 
 	user := ""
 	if core.NeedsUser(engine) {
@@ -564,10 +570,21 @@ func DescribeProfileTarget(profile Profile) string {
 	if core.OpensFile(profile.Engine) {
 		return profile.Database
 	}
-	if profile.Database == "" {
-		return fmt.Sprintf("%s@%s:%d", profile.User, profile.Host, profile.Port)
+	if profile.UsesSocket() {
+		return fmt.Sprintf("%s@%s", profile.User, profile.Host) +
+			describeDatabaseSuffix(profile.Database)
 	}
-	return fmt.Sprintf("%s@%s:%d/%s", profile.User, profile.Host, profile.Port, profile.Database)
+	return fmt.Sprintf("%s@%s:%d", profile.User, profile.Host, profile.Port) +
+		describeDatabaseSuffix(profile.Database)
+}
+
+// describeDatabaseSuffix returns the database of a target, or nothing for a connection
+// without one.
+func describeDatabaseSuffix(database string) string {
+	if database == "" {
+		return ""
+	}
+	return "/" + database
 }
 
 // FindConfiguredValue returns the direct value, or the value of the named environment

@@ -52,7 +52,7 @@ mode     = "write"
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `engine` | `postgres` | See [engines.md](engines.md) for the list |
-| `host` | required | The form defaults to `127.0.0.1`. Ignored for SQLite |
+| `host` | required | The form defaults to `127.0.0.1`. A path or `socket` connects over a unix socket; see [Unix socket](#unix-socket). Ignored for SQLite |
 | `port` | per engine | The server port |
 | `database` | required, except on MySQL-protocol engines | The database name, or the SQLite file path |
 | `user` | required if the engine needs one | Ignored for SQLite. Optional for MongoDB |
@@ -310,6 +310,30 @@ A missing store skips the profile and produces a report. A missing command or in
 Secret stores belong in the user configuration file. Project files cannot declare or reference secret stores.
 
 MongoDB credentials require a user. A server without authentication can reject supplied credentials.
+
+## Unix socket
+
+PostgreSQL and MySQL also listen on a unix socket. A `host` that starts with `/` or `~/` is a socket path, the same convention as libpq and psql. `host = "socket"` resolves the default path of a local server.
+
+```toml
+[profile.local]
+engine   = "postgres"
+host     = "socket"       # or "/var/run/postgresql"
+port     = 5432
+database = "shop"
+user     = "turan"
+```
+
+`socket` resolves to the first of these paths that exists:
+
+| Engine | Paths |
+| --- | --- |
+| PostgreSQL | `/var/run/postgresql`, `/run/postgresql`, `/tmp`, each holding `.s.PGSQL.<port>` |
+| MySQL | `/var/run/mysqld/mysqld.sock`, `/run/mysqld/mysqld.sock`, `/tmp/mysql.sock`, `/var/lib/mysql/mysql.sock` |
+
+A PostgreSQL client dials the socket directory and `port` selects the file in it, so `/var/run/postgresql` and `/var/run/postgresql/.s.PGSQL.5432` resolve to the same connection. A MySQL client dials the file, and a directory resolves to `mysqld.sock` or `mysql.sock` in it. A path that resolves to no socket fails the connection, and the error lists the checked paths.
+
+A socket carries no TLS, so `sslmode` is ignored. A socket with `ssh_host` is refused: an SSH tunnel forwards TCP only. The PostgreSQL-protocol and MySQL-protocol engines take a socket; the rest do not. SQLite opens a file and needs no host.
 
 ## SSH tunnel
 

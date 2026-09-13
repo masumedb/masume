@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/turanmahmudov/masume/internal/core"
 	"github.com/turanmahmudov/masume/internal/tunnel"
 )
 
@@ -130,6 +131,21 @@ func StartPreConnect(profile Profile) (Profile, *PreConnectHandle, error) {
 	handle, err := StartPreConnectCommand(profile)
 	if err != nil {
 		return profile, nil, err
+	}
+	if profile.UsesSocket() {
+		if profile.OpensTunnel() {
+			handle.Stop()
+			return profile, nil, fmt.Errorf(
+				"%s reaches a unix socket through an ssh tunnel; "+
+					"write a host and a port, or drop ssh_host", profile.Name)
+		}
+		path, err := core.FindSocketPath(profile.Engine, profile.Host, profile.Port)
+		if err != nil {
+			handle.Stop()
+			return profile, nil, err
+		}
+		profile.DialHost, profile.DialPort = path, profile.Port
+		return profile, handle, nil
 	}
 	if !profile.OpensTunnel() {
 		return profile, handle, nil

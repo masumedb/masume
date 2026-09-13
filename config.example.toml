@@ -45,6 +45,15 @@ sslmode              = "verify-full"
 statement_timeout_ms = 30000
 mcp                  = "read-only"
 
+# A local server over its unix socket. "socket" reads the default path of the engine.
+[profile.local]
+engine   = "postgres"
+host     = "socket"
+port     = 5432
+database = "shop"
+user     = "turan"
+auth     = "prompt"
+
 # A database server reachable only from the ssh server. masume opens the tunnel, and the ssh
 # server connects to host and port.
 [profile.shop-ssh]
@@ -136,6 +145,8 @@ paths = []
 # statement_timeout_ms = 0            # time limit per statement. 0 uses the server default
 # keepalive_s          = 30           # seconds between connection checks. 0 disables the keepalive
 # page_size            = 200          # rows the grid loads per page
+# host = "socket" or a path connects over a unix socket.
+# postgres takes the socket directory, mysql the socket file.
 # ssh_host             = "ssh.example.com"   # ssh server host. set to open a tunnel
 # ssh_port             = 22
 # ssh_user             = "ada"        # ssh server user. required with ssh_host

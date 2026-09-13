@@ -77,6 +77,10 @@ func buildMysqlDsn(profile cfg.Profile, password string) (string, error) {
 	config.Net = "tcp"
 	dialHost, dialPort := profile.DialAddress()
 	config.Addr = fmt.Sprintf("%s:%d", dialHost, dialPort)
+	// A unix socket carries no TLS, and the driver dials the file itself.
+	if core.IsSocketHost(dialHost) {
+		config.Net, config.Addr, tlsName = "unix", dialHost, "false"
+	}
 	config.DBName = profile.Database
 	config.Timeout = mysqlConnectTimeout
 	config.TLSConfig = tlsName

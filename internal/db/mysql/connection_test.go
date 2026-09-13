@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/turanmahmudov/masume/internal/cfg"
@@ -44,5 +45,23 @@ func TestResolveMysqlTLSNeverFallsBackWhereTheProfileRequiresTLS(t *testing.T) {
 				t.Errorf("%q asks for %q, which may connect in the clear", mode, answered)
 			}
 		}
+	}
+}
+
+// A socket host dials the file over the unix network, without TLS.
+func TestBuildMysqlDsnDialsTheSocket(t *testing.T) {
+	written, err := buildMysqlDsn(cfg.Profile{
+		Host: "/var/run/mysqld/mysqld.sock", Port: 3306, User: "root",
+		SSLMode: core.SSLVerifyFull,
+	}, "secret")
+	if err != nil {
+		t.Fatalf("the dsn answered %v", err)
+	}
+
+	if !strings.Contains(written, "unix(/var/run/mysqld/mysqld.sock)") {
+		t.Errorf("the dsn reads %q", written)
+	}
+	if !strings.Contains(written, "tls=false") {
+		t.Errorf("the socket connection carries TLS: %q", written)
 	}
 }

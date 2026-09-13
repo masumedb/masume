@@ -1,10 +1,13 @@
 package cfg_test
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/turanmahmudov/masume/internal/cfg"
+	"github.com/turanmahmudov/masume/internal/core"
 )
 
 func TestLoadConfigReadsTheSSHTunnel(t *testing.T) {
@@ -139,5 +142,47 @@ func TestStartPreConnectReportsATunnelItCannotOpen(t *testing.T) {
 
 	if _, _, err := cfg.StartPreConnect(profile); err == nil {
 		t.Fatal("a tunnel to a closed port opened")
+	}
+}
+
+// A profile with a socket path resolves it before the driver dials, and the profile keeps
+// the path it names.
+func TestStartPreConnectResolvesTheSocket(t *testing.T) {
+	directory := t.TempDir()
+	// A file where the server would open its socket: the path is read with a stat, and a
+	// real socket would not fit the path limit of a temporary directory on macOS.
+	if err := os.WriteFile(filepath.Join(directory, ".s.PGSQL.5432"), nil, 0o600); err != nil {
+		t.Fatalf("cannot write the socket file: %v", err)
+	}
+
+	profile := cfg.Profile{
+		Name: "local", Engine: core.EnginePostgres, Host: directory, Port: 5432,
+	}
+	dialed, handle, err := cfg.StartPreConnect(profile)
+	if err != nil {
+		t.Fatalf("the socket did not resolve: %v", err)
+	}
+	defer handle.Stop()
+
+	host, port := dialed.DialAddress()
+	if host != directory || port != 5432 {
+		t.Errorf("the driver dials %s:%d", host, port)
+	}
+	if !profile.UsesSocket() {
+		t.Error("the profile does not read as a socket")
+	}
+}
+
+// An ssh tunnel cannot reach a unix socket, so the pair is refused.
+func TestStartPreConnectRefusesASocketBehindATunnel(t *testing.T) {
+	profile := cfg.Profile{
+		Name: "local", Engine: core.EnginePostgres, Host: "/var/run/postgresql", Port: 5432,
+		SSHHost: "ssh.example.com", SSHUser: "ada",
+	}
+
+	if _, _, err := cfg.StartPreConnect(profile); err == nil {
+		t.Fatal("a socket opened through a tunnel")
+	} else if !strings.Contains(err.Error(), "ssh_host") {
+		t.Errorf("the error reads %q", err)
 	}
 }

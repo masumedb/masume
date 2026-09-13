@@ -288,6 +288,11 @@ func BuildProfileFromFields(fields []FormField, source Profile, editing bool) (P
 	if !opensFile && built.Host == "" {
 		return Profile{}, FormError{Reason: "the host is missing"}
 	}
+	if built.UsesSocket() && !core.TakesSocket(engine) {
+		return Profile{}, FormError{
+			Reason: string(engine) + " does not connect over a unix socket",
+		}
+	}
 	if core.NeedsUser(engine) && built.User == "" {
 		return Profile{}, FormError{Reason: "the user is missing"}
 	}

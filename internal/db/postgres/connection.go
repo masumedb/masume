@@ -60,6 +60,11 @@ func buildPostgresConfig(profile cfg.Profile, password string) *pgx.ConnConfig {
 
 	tlsConfig, mayFallBack := buildPostgresTLS(profile)
 	config.TLSConfig = tlsConfig
+	// A unix socket carries no TLS, and the server refuses a client that offers it.
+	if core.IsSocketHost(dialHost) {
+		config.TLSConfig = nil
+		return config
+	}
 	// Unset and prefer modes permit a retry without TLS.
 	if tlsConfig != nil && mayFallBack {
 		config.Fallbacks = []*pgconn.FallbackConfig{

@@ -80,3 +80,18 @@ func TestBuildPostgresConfigDialsTheTunnel(t *testing.T) {
 		t.Errorf("the certificate is checked against %+v", config.TLSConfig)
 	}
 }
+
+// A socket host dials the directory without TLS, because the server refuses TLS on a socket.
+func TestBuildPostgresConfigDialsTheSocket(t *testing.T) {
+	profile := cfg.Profile{
+		Host: "/var/run/postgresql", Port: 5432, SSLMode: core.SSLVerifyFull,
+	}
+
+	config := buildPostgresConfig(profile, "")
+	if config.Host != "/var/run/postgresql" || config.Port != 5432 {
+		t.Errorf("the driver dials %s:%d", config.Host, config.Port)
+	}
+	if config.TLSConfig != nil || len(config.Fallbacks) != 0 {
+		t.Error("the socket connection carries TLS")
+	}
+}
