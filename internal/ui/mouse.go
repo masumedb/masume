@@ -134,6 +134,7 @@ type frameLayout struct {
 
 	// The rows of a card of a screen, and of the list inside an overlay.
 	pickerRows  rowsHit
+	builderRows rowsHit
 	overlayRows rowsHit
 
 	// The rows of the fields of a form: the connection form, and the export card.
@@ -412,7 +413,9 @@ func (model *Model) dragSplit(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 	// A drag brings the result back, because a line that is dragged is a line between two
 	// panes and not the foot of one.
 	connection.ResultVisible = true
-	connection.EditorHeight = rows
+	if tab := connection.Active(); tab != nil {
+		tab.PaneHeight = rows
+	}
 	model.drag.moved = true
 	return model, nil
 }
@@ -524,18 +527,33 @@ func (model *Model) pressForm(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 	return model, nil
 }
 
-// wheelRows is how many rows one turn of the wheel moves a view.
-const wheelRows = 1
+// wheelRows is how many rows one turn of the wheel moves a view, and wheelColumns how many
+// columns one turn of its other axis moves one.
+const (
+	wheelRows    = 1
+	wheelColumns = 4
+)
 
 // readMouseWheel returns one turn of the wheel. It moves the rows the view under the pointer
 // shows, and leaves the cursor where it stands.
 func (model *Model) readMouseWheel(turned tea.MouseWheelMsg) (tea.Model, tea.Cmd) {
 	mouse := turned.Mouse()
-	switch mouse.Button {
-	case tea.MouseWheelUp:
+	// Shift with the wheel turns it sideways. A pointer that scrolls sideways of its own,
+	// such as a trackpad, sends the two buttons below instead.
+	sideways := mouse.Mod.Contains(uv.ModShift)
+	switch {
+	case mouse.Button == tea.MouseWheelUp && sideways:
+		return model.rollWheelSideways(mouse, -wheelColumns)
+	case mouse.Button == tea.MouseWheelDown && sideways:
+		return model.rollWheelSideways(mouse, wheelColumns)
+	case mouse.Button == tea.MouseWheelUp:
 		return model.rollWheel(mouse, -wheelRows)
-	case tea.MouseWheelDown:
+	case mouse.Button == tea.MouseWheelDown:
 		return model.rollWheel(mouse, wheelRows)
+	case mouse.Button == tea.MouseWheelLeft:
+		return model.rollWheelSideways(mouse, -wheelColumns)
+	case mouse.Button == tea.MouseWheelRight:
+		return model.rollWheelSideways(mouse, wheelColumns)
 	}
 	return model, nil
 }
@@ -656,6 +674,10 @@ func (model *Model) rollWheel(mouse tea.Mouse, step int) (tea.Model, tea.Cmd) {
 	}
 	if mouse.Y >= model.layout.editorTop &&
 		mouse.Y < model.layout.editorTop+model.layout.editorRows {
+		if tab.BuildsQuery() {
+			tab.Builder.Roll(step, 0)
+			return model, nil
+		}
 		if tab.ListsCells() {
 			tab.Notebook.Offset += step
 			tab.Notebook.Rolled = true
@@ -760,6 +782,9 @@ func (model *Model) pressWorkspace(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 	}
 	if row, found := model.layout.cellRows.holds(mouse.X, mouse.Y); found {
 		return model.pressCellRow(connection, tab, mouse, row)
+	}
+	if row, found := model.layout.builderRows.holds(mouse.X, mouse.Y); found {
+		return model.pressBuilderRow(connection, tab, mouse, row)
 	}
 	if mouse.X <= model.layout.treeTo && mouse.X >= model.layout.treeFrom {
 		// The right border of the tree is the line between it and the panes: a drag on it
@@ -954,6 +979,10 @@ func (model *Model) pressOverlayFormRow(
 		return model, model.runIDAnswer(answer, chosen)
 	case app.OverlayExport, app.OverlayDump:
 		overlay.Field = row
+	case app.OverlayBuilderField:
+		overlay.Field = clamp(row, builderFieldRows)
+	case app.OverlayBuilderJoin:
+		overlay.List.Cursor = clamp(row, builderJoinRows)
 	}
 	return model, nil
 }
@@ -961,7 +990,7 @@ func (model *Model) pressOverlayFormRow(
 // pressExportChoice steps a field of the export card or of the dump card that runs through a
 // list of values, and reports whether the press landed on one of its marks.
 func (model *Model) pressExportChoice(
-	overlay *app.Overlay, mouse tea.Mouse,
+	connection *app.Connection, overlay *app.Overlay, mouse tea.Mouse,
 ) bool {
 	field, step, onMark := findChoiceMark(model.layout.formChoices, mouse.X, mouse.Y)
 	if !onMark {
@@ -974,6 +1003,20 @@ func (model *Model) pressExportChoice(
 	case app.OverlayDump:
 		overlay.Field = field
 		StepDumpChoice(overlay, step)
+	case app.OverlayBuilderField:
+		tab := connection.Active()
+		if !tab.BuildsQuery() {
+			return false
+		}
+		overlay.Field = field
+		stepBuilderField(tab.Builder, field, step)
+	case app.OverlayBuilderJoin:
+		tab := connection.Active()
+		if !tab.BuildsQuery() {
+			return false
+		}
+		overlay.List.Cursor = builderJoinKindRow
+		stepJoinKind(tab.Builder, overlay.Field, step)
 	default:
 		return false
 	}
@@ -1075,7 +1118,7 @@ func (model *Model) pressOverlay(
 	}
 	// A field that steps through a list of values draws a mark on each side, and a press
 	// on one steps it.
-	if model.pressExportChoice(overlay, mouse) {
+	if model.pressExportChoice(connection, overlay, mouse) {
 		return model, nil
 	}
 	// A card with a form or a list of returns marks the row the press landed on.
@@ -1169,4 +1212,23 @@ func (model *Model) resolveEditorOffset(tab *app.Tab, x, y int) (int, bool) {
 	}
 	line := layout.editorFirstLine + (y - layout.editorTextTop)
 	return tab.Editor.FindOffsetAt(line, column), true
+}
+
+// rollWheelSideways returns one turn of the other axis of the wheel. The diagram of a
+// builder scrolls along its boxes, and the grid along its columns.
+func (model *Model) rollWheelSideways(mouse tea.Mouse, step int) (tea.Model, tea.Cmd) {
+	connection := model.Active()
+	if model.screen != ScreenWorking || connection == nil || connection.Overlay.IsOpen() {
+		return model, nil
+	}
+	tab := connection.Active()
+	if tab == nil || !tab.BuildsQuery() {
+		return model, nil
+	}
+	if mouse.Y < model.layout.editorTop ||
+		mouse.Y >= model.layout.editorTop+model.layout.editorRows {
+		return model, nil
+	}
+	tab.Builder.Roll(0, step)
+	return model, nil
 }

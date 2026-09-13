@@ -42,6 +42,10 @@ type SavedTabState struct {
 	// The cell of a notebook the list stood on, and the cells that were folded away.
 	Cell   int      `json:"cell,omitempty"`
 	Folded []string `json:"folded,omitempty"`
+	// The rows the pane above the result took in this tab.
+	PaneHeight int `json:"paneHeight,omitempty"`
+	// The tables and the joins of a query builder tab.
+	Builder *SavedBuilder `json:"builder,omitempty"`
 }
 
 // SavedTab is a stored query buffer, table reference, or object reference. Table and object tabs use generated statements.
@@ -57,6 +61,41 @@ type SavedTab struct {
 	// The handle the server uses to find the definition. A name is not sufficient.
 	Identity string        `json:"identity,omitempty"`
 	State    SavedTabState `json:"state"`
+}
+
+// SavedBuilderColumn is one picked column of a stored query builder.
+type SavedBuilderColumn struct {
+	Name      string `json:"name"`
+	Aggregate string `json:"aggregate,omitempty"`
+	As        string `json:"as,omitempty"`
+	Sort      string `json:"sort,omitempty"`
+}
+
+// SavedBuilderTable is one table of a stored query builder. The columns of the server are
+// read again at the next connect, so only the picked ones are stored.
+type SavedBuilderTable struct {
+	Schema  string               `json:"schema"`
+	Name    string               `json:"name"`
+	Alias   string               `json:"alias"`
+	Columns []SavedBuilderColumn `json:"columns,omitempty"`
+}
+
+// SavedBuilderJoin is one join of a stored query builder.
+type SavedBuilderJoin struct {
+	Kind       string `json:"kind"`
+	Table      int    `json:"table"`
+	Base       int    `json:"base"`
+	Column     string `json:"column,omitempty"`
+	BaseColumn string `json:"baseColumn,omitempty"`
+	On         string `json:"on,omitempty"`
+}
+
+// SavedBuilder is the tables, the joins and the filters of a stored query builder.
+type SavedBuilder struct {
+	Tables  []SavedBuilderTable `json:"tables,omitempty"`
+	Joins   []SavedBuilderJoin  `json:"joins,omitempty"`
+	Filters []string            `json:"filters,omitempty"`
+	Limit   int                 `json:"limit,omitempty"`
 }
 
 // SavedWorkspace is the stored set of open tabs and the active tab index.
@@ -323,6 +362,10 @@ type savedTabPayload struct {
 	Caret   int               `json:"caret"`
 	Sort    []core.SortState  `json:"sort"`
 	Filter  []core.FilterStep `json:"filter"`
+	// The rows the pane above the result took in this tab.
+	PaneHeight int `json:"paneHeight,omitempty"`
+	// The tables and the joins of a query builder tab.
+	Builder *SavedBuilder `json:"builder,omitempty"`
 }
 
 // SaveWorkspace replaces stored tabs in one transaction. Saves are serialized, and older numbered snapshots are skipped.
@@ -355,6 +398,7 @@ func (store *Store) SaveWorkspace(profileName string, workspace SavedWorkspace) 
 		payload, marshalErr := json.Marshal(savedTabPayload{
 			Version: tabStateVersion, Caret: tab.State.Caret,
 			Sort: tab.State.Sort, Filter: tab.State.Filter,
+			PaneHeight: tab.State.PaneHeight, Builder: tab.State.Builder,
 		})
 		if marshalErr != nil {
 			return marshalErr
@@ -494,7 +538,10 @@ func readSavedTabState(payload string) SavedTabState {
 		return SavedTabState{}
 	}
 	caret := max(read.Caret, 0)
-	return SavedTabState{Caret: caret, Sort: read.Sort, Filter: read.Filter}
+	return SavedTabState{
+		Caret: caret, Sort: read.Sort, Filter: read.Filter,
+		PaneHeight: read.PaneHeight, Builder: read.Builder,
+	}
 }
 
 // SaveCatalog stores the last catalog read of a profile.

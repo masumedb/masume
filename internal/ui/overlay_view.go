@@ -104,38 +104,41 @@ func (model *Model) placeCardHits(left, top, placedBars, placedKeys int) {
 // rather than a fixed width. A card that lists statements is wide; one that asks a
 // question is not.
 var overlayShares = map[app.OverlayKind]int{
-	app.OverlayPalette:     70,
-	app.OverlayHistory:     92,
-	app.OverlaySaved:       86,
-	app.OverlayNotebooks:   86,
-	app.OverlayChart:       66,
-	app.OverlayActivity:    92,
-	app.OverlayDiagram:     92,
-	app.OverlayChanges:     86,
-	app.OverlayWritePlan:   86,
-	app.OverlayCellEdit:    80,
-	app.OverlayCell:        80,
-	app.OverlayValueFilter: 60,
-	app.OverlayParameters:  60,
-	app.OverlayThemePicker: 52,
-	app.OverlayAiChat:      80,
-	app.OverlayAiChats:     88,
+	app.OverlayPalette:       70,
+	app.OverlayHistory:       92,
+	app.OverlaySaved:         86,
+	app.OverlayNotebooks:     86,
+	app.OverlayChart:         66,
+	app.OverlayActivity:      92,
+	app.OverlayDiagram:       92,
+	app.OverlayChanges:       86,
+	app.OverlayWritePlan:     86,
+	app.OverlayCellEdit:      80,
+	app.OverlayCell:          80,
+	app.OverlayValueFilter:   60,
+	app.OverlayBuilderTables: 60,
+	app.OverlayParameters:    60,
+	app.OverlayThemePicker:   52,
+	app.OverlayAiChat:        80,
+	app.OverlayAiChats:       88,
 }
 
 // overlayWidths name the cards that keep one width, whatever the screen is.
 var overlayWidths = map[app.OverlayKind]int{
-	app.OverlayHelp:       78,
-	app.OverlayExport:     76,
-	app.OverlayImport:     84,
-	app.OverlayDump:       84,
-	app.OverlayConfirm:    76,
-	app.OverlayChoice:     76,
-	app.OverlayPrompt:     76,
-	app.OverlayMessage:    72,
-	app.OverlayObjectMenu: 72,
-	app.OverlayActionMenu: 72,
-	app.OverlayCopyMenu:   70,
-	app.OverlayRowDetail:  92,
+	app.OverlayHelp:         78,
+	app.OverlayExport:       76,
+	app.OverlayImport:       84,
+	app.OverlayDump:         84,
+	app.OverlayConfirm:      76,
+	app.OverlayChoice:       76,
+	app.OverlayPrompt:       76,
+	app.OverlayBuilderJoin:  72,
+	app.OverlayBuilderField: 72,
+	app.OverlayMessage:      72,
+	app.OverlayObjectMenu:   72,
+	app.OverlayActionMenu:   72,
+	app.OverlayCopyMenu:     70,
+	app.OverlayRowDetail:    92,
 }
 
 // resolveOverlayWidth returns how wide this card draws. The screen is the limit,
@@ -304,6 +307,12 @@ func (model *Model) renderOverlay(
 		return model.renderPrompt(overlay, width)
 	case app.OverlayChoice:
 		return model.renderChoice(overlay, width)
+	case app.OverlayBuilderTables:
+		return model.renderBuilderTables(overlay, width)
+	case app.OverlayBuilderJoin:
+		return model.renderBuilderJoin(tab, overlay, width)
+	case app.OverlayBuilderField:
+		return model.renderBuilderField(tab, overlay, width)
 	}
 	return ""
 }
@@ -1824,7 +1833,8 @@ func fitFieldLabel(written string, width int) string {
 
 // promptHints name what each prompt does, which the field alone cannot show.
 var promptHints = map[app.PromptKind]string{
-	app.PromptSearch: "filters loaded rows · no server query",
+	app.PromptBuilderFilter: "one condition of the where clause",
+	app.PromptSearch:        "filters loaded rows · no server query",
 	app.PromptWhere: "the server filters, then the statement limit applies · " +
 		"the editor query stays unchanged",
 	app.PromptGoToColumn: "goes to the first column whose name matches",

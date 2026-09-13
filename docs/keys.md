@@ -176,6 +176,7 @@ See [editing SQL](usage.md#editing-sql) for search, replacement, completion, and
 | `focus-result` | `alt+p r` |
 | `focus-sidebar` | `alt+p s` |
 | `name-tab` | `alt+t` |
+| `new-builder-tab` | `alt+j` |
 | `new-notebook-tab` | `alt+b` or `alt+shift+n` |
 | `new-query-tab` | `alt+n` |
 | `next-connection` | `}` or `alt+right` |
@@ -336,6 +337,25 @@ The cell list takes no typed text, so single letters are free there. `Enter` put
 | `toggle-cell-output` | `o` |
 | `toggle-every-output` | `O` |
 | `undo-cell-change` | `u` |
+
+## Builder
+
+`[keys.builder]`
+
+The diagram of a query builder tab. It takes no typed text, so single letters are free there.
+
+| Action | Key |
+| --- | --- |
+| `add-filter` | `w` |
+| `add-table` | `t` |
+| `cursor-down` | `down` or `j` |
+| `cursor-up` | `up` or `k` |
+| `drop-row` | `x` |
+| `edit-row` | `return` |
+| `next-table` | `right` or `l` |
+| `pick-column` | `space` |
+| `previous-table` | `left` or `h` |
+| `send-to-editor` | `e` |
 
 ## Tree
 

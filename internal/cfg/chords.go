@@ -10,7 +10,7 @@ import (
 // KeyScope is the interface area for a binding. Focus selects the active scope; dialogs receive all keys while open.
 type KeyScope string
 
-// The nine scopes a chord can be bound to.
+// The ten scopes a chord can be bound to.
 const (
 	ScopeGlobal KeyScope = "global"
 	ScopeGrid   KeyScope = "grid"
@@ -21,14 +21,16 @@ const (
 	ScopeEditor   KeyScope = "editor"
 	// ScopeNotebook is the cell list of a notebook tab.
 	ScopeNotebook KeyScope = "notebook"
-	ScopeList     KeyScope = "list"
-	ScopeDialog   KeyScope = "dialog"
+	// ScopeBuilder is the diagram of a query builder tab.
+	ScopeBuilder KeyScope = "builder"
+	ScopeList    KeyScope = "list"
+	ScopeDialog  KeyScope = "dialog"
 )
 
 // KeyScopes lists the scopes a config file can use.
 var KeyScopes = []KeyScope{
 	ScopeGlobal, ScopeGrid, ScopePlan, ScopeDocument, ScopeTree, ScopeEditor,
-	ScopeNotebook, ScopeList, ScopeDialog,
+	ScopeNotebook, ScopeBuilder, ScopeList, ScopeDialog,
 }
 
 // PresetID is the name of one key preset.

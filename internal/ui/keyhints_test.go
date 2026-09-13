@@ -224,6 +224,8 @@ func TestAnUnsetKeyHintsModeShowsEveryKeyHint(t *testing.T) {
 // and the cards show in it. A key that joins or leaves the list is a change to what the mode
 // draws, so it is written here as well.
 var mainHintActions = []string{
+	"builder/add-table", "builder/edit-row", "builder/pick-column",
+	"builder/send-to-editor",
 	"dialog/answer-no", "dialog/answer-yes", "dialog/apply-changes", "dialog/apply-step",
 	"dialog/close", "dialog/copy-value", "dialog/discard-changes", "dialog/insert-ai-sql",
 	"dialog/next-row", "dialog/previous-row", "dialog/run-with-values", "dialog/save-cell",

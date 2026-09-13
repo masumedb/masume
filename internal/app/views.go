@@ -31,7 +31,7 @@ const DefaultView = ViewData
 // TabKind is the binding of a tab.
 type TabKind string
 
-// The three kinds of tab.
+// The five kinds of tab.
 const (
 	// TabTable is bound to one table, so it can describe that table.
 	TabTable TabKind = "table"
@@ -41,6 +41,8 @@ const (
 	TabQuery TabKind = "query"
 	// TabNotebook holds an ordered list of cells that share one connection.
 	TabNotebook TabKind = "notebook"
+	// TabBuilder holds the tables and the joins of a query the user builds.
+	TabBuilder TabKind = "builder"
 )
 
 // The views of each kind of tab, before the plan is removed.

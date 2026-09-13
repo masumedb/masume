@@ -36,6 +36,9 @@ const (
 	editorRows = 8
 	// notebookHeightShare is the percentage of the pane a cell list opens with.
 	notebookHeightShare = 60
+	// builderHeightShare is the percentage of the pane a query builder opens with. It
+	// draws the diagram, the joins, the filters and the SQL, one under the other.
+	builderHeightShare = 74
 )
 
 // renderWorkspace draws the tab row, the tree, the editor and the result.
@@ -47,7 +50,13 @@ func (model *Model) renderWorkspace(height int) []string {
 	tab := connection.Active()
 
 	treeWidth := 0
-	if connection.SidebarVisible {
+	// A builder tab takes the whole width: its own picker lists the tables, so the tree
+	// has nothing to add beside it. The keyboard follows, or it would stand in a pane
+	// that is not drawn.
+	if tab.BuildsQuery() && tab.Focus == app.PaneSidebar {
+		tab.Focus = app.PaneEditor
+	}
+	if connection.SidebarVisible && !tab.BuildsQuery() {
 		wanted := sidebarWidth
 		if connection.SidebarWidth > 0 {
 			wanted = connection.SidebarWidth
@@ -113,10 +122,14 @@ func (model *Model) renderWorkspace(height int) []string {
 
 	right := make([]string, 0, editorHeight+resultHeight)
 	if editorHeight > 0 {
-		if tab.ListsCells() {
+		switch {
+		case tab.BuildsQuery():
+			right = append(right,
+				model.renderBuilder(connection, tab, paneWidth, editorHeight)...)
+		case tab.ListsCells():
 			right = append(right,
 				model.renderNotebook(connection, tab, paneWidth, editorHeight)...)
-		} else {
+		default:
 			right = append(right,
 				model.renderEditor(connection, tab, paneWidth, editorHeight)...)
 		}
@@ -168,11 +181,15 @@ func (model *Model) planPaneHeights(
 	// the rows the editor takes by itself. A cell list is the whole document, so it opens
 	// with more of the height than one statement needs.
 	editor := editorRows
-	if tab.Kind == app.TabNotebook {
+	switch tab.Kind {
+	case app.TabNotebook:
 		editor = max(height*notebookHeightShare/100, editorRows)
+	case app.TabBuilder:
+		editor = max(height*builderHeightShare/100, editorRows)
 	}
-	if connection.EditorHeight > 0 {
-		editor = connection.EditorHeight
+	// The height is of the tab, so a drag in one tab leaves every other tab as it was.
+	if tab.PaneHeight > 0 {
+		editor = tab.PaneHeight
 	}
 	if editor > height-minPaneHeight {
 		editor = height - minPaneHeight

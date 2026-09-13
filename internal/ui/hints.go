@@ -451,6 +451,9 @@ func (model *Model) BuildHints(context HintContext) []Hint {
 			capabilities, context.TreeRow, context.SystemSchemasHidden))
 	}
 	if context.Pane == app.PaneEditor {
+		if context.TabKind == app.TabBuilder {
+			return closeBar(model.buildBuilderHints(capabilities))
+		}
 		if context.ListsCells {
 			return closeBar(model.buildNotebookHints(context))
 		}

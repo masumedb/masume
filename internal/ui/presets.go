@@ -64,6 +64,7 @@ var defaultChords = map[string][]string{
 	"global:focus-result":          {"alt+p r"},
 	"global:show-themes":           {"alt+o t"},
 	"global:show-notebooks":        {"alt+o n"},
+	"global:new-builder-tab":       {"alt+j"},
 	"global:notebook-run-policy":   {"alt+o p"},
 	"global:write-notebook-report": {"alt+o r"},
 
@@ -194,6 +195,19 @@ var defaultChords = map[string][]string{
 	"notebook:toggle-every-output": {"O"},
 	"notebook:mark-cell":           {"space"},
 	"notebook:name-cell":           {"t"},
+
+	// The diagram of a query builder tab. Single letters are free there, because the
+	// diagram takes no typed text.
+	"builder:cursor-up":      {"up", "k"},
+	"builder:cursor-down":    {"down", "j"},
+	"builder:previous-table": {"left", "h"},
+	"builder:next-table":     {"right", "l"},
+	"builder:pick-column":    {"space"},
+	"builder:edit-row":       {"return"},
+	"builder:add-table":      {"t"},
+	"builder:add-filter":     {"w"},
+	"builder:drop-row":       {"x"},
+	"builder:send-to-editor": {"e"},
 
 	"document:clear-rewrites":   {"c"},
 	"document:copy-path":        {"shift+y"},

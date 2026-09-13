@@ -83,6 +83,8 @@ func (model *Model) readWorkspaceKey(key tea.Key) (next tea.Model, command tea.C
 		scopes = append(scopes, cfg.ScopeEditor)
 	case tab.Focus == app.PaneEditor && tab.ListsCells():
 		scopes = append(scopes, cfg.ScopeNotebook)
+	case tab.Focus == app.PaneEditor && tab.BuildsQuery():
+		scopes = append(scopes, cfg.ScopeBuilder)
 	default:
 		switch tab.Focus {
 		case app.PaneSidebar:
@@ -116,6 +118,8 @@ func (model *Model) readWorkspaceKey(key tea.Key) (next tea.Model, command tea.C
 	match, matched := model.keymap.MatchExcept(key, []ActionID{ActionChooseRow}, scopes...)
 	if matched {
 		switch match.Scope {
+		case cfg.ScopeBuilder:
+			return model.runBuilderAction(connection, tab, match)
 		case cfg.ScopeDocument:
 			return model.runDocumentTreeAction(connection, tab, match)
 		case cfg.ScopeList:
@@ -265,6 +269,13 @@ func (model *Model) runGlobalAction(
 		connection.OpenQueryTab("").Focus = app.PaneEditor
 	case ActionNewNotebookTab:
 		return model.openNewNotebook(connection)
+	case ActionNewBuilderTab:
+		if !AnswersFor(connection.Session.Capabilities(), NeedsJoinsTables) {
+			connection.ShowError(string(connection.Profile().Engine) +
+				" joins no tables in one statement, so it has no query builder")
+			return model, nil
+		}
+		return model.openNewBuilder(connection)
 	case ActionShowNotebooks:
 		return model.showNotebooks(connection)
 	case ActionNotebookRunPolicy:
@@ -386,7 +397,7 @@ func (model *Model) runGlobalAction(
 // stepPane moves the caret to the next pane that is drawn.
 func (model *Model) stepPane(connection *app.Connection, tab *app.Tab, step int) {
 	order := []app.Pane{}
-	if connection.SidebarVisible {
+	if connection.SidebarVisible && !tab.BuildsQuery() {
 		order = append(order, app.PaneSidebar)
 	}
 	if tab.EditorVisible() {

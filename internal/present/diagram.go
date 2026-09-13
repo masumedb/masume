@@ -303,3 +303,263 @@ func CollectDiagramNeighbours(
 	}
 	return names
 }
+
+// The query builder draws its tables with the same boxes and the same connector, with a
+// tick before every column and the type after it.
+
+// BuilderColumnBox is one column of a box of the builder diagram.
+type BuilderColumnBox struct {
+	Name string
+	// Kind is the short mark of the type of the column.
+	Kind   string
+	Picked bool
+	// Note is the aggregate or the sort drawn after the name.
+	Note string
+}
+
+// BuilderBox is one table of the builder diagram.
+type BuilderBox struct {
+	Title   string
+	Columns []BuilderColumnBox
+	// Reason stands in place of the columns while the server has not answered.
+	Reason string
+}
+
+// BuilderLink joins two boxes on one column each.
+type BuilderLink struct {
+	From       int
+	FromColumn string
+	To         int
+	ToColumn   string
+}
+
+// BuilderCell is where one column of the diagram was drawn.
+type BuilderCell struct {
+	Box    int
+	Column int
+	X      int
+	Y      int
+	Width  int
+}
+
+// BuilderDiagram is the drawn diagram: its lines, and where each column landed.
+type BuilderDiagram struct {
+	Lines  []string
+	Cells  []BuilderCell
+	Titles []BuilderCell
+}
+
+// The size of one box of the builder diagram.
+const (
+	builderBoxWidth = 28
+	builderBoxGap   = 6
+	// builderHeaderLines are the top border and the title of a box.
+	builderHeaderLines = 2
+)
+
+// RenderBuilderDiagram draws the tables left to right and connects every join.
+func RenderBuilderDiagram(boxes []BuilderBox, links []BuilderLink) BuilderDiagram {
+	canvas := &diagramCanvas{}
+	drawn := BuilderDiagram{}
+	if len(boxes) == 0 {
+		return drawn
+	}
+
+	for index, box := range boxes {
+		x := index * (builderBoxWidth + builderBoxGap)
+		for row, line := range buildBuilderBox(box) {
+			canvas.set(x, row, line)
+		}
+		drawn.Titles = append(drawn.Titles, BuilderCell{
+			Box: index, Column: -1, X: x + 1, Y: 1, Width: builderBoxWidth - 2,
+		})
+		for at := range box.Columns {
+			drawn.Cells = append(drawn.Cells, BuilderCell{
+				Box: index, Column: at, X: x + 1, Y: builderHeaderLines + at,
+				Width: builderBoxWidth - 2,
+			})
+		}
+	}
+
+	lane := countDiagramHeight(boxes)
+	for _, link := range links {
+		left, right := link.From, link.To
+		leftColumn, rightColumn := link.FromColumn, link.ToColumn
+		if right < left {
+			left, right = right, left
+			leftColumn, rightColumn = rightColumn, leftColumn
+		}
+		leftRow, hasLeft := findBuilderColumnRow(boxes, left, leftColumn)
+		rightRow, hasRight := findBuilderColumnRow(boxes, right, rightColumn)
+		if !hasLeft || !hasRight {
+			continue
+		}
+
+		fromX := left*(builderBoxWidth+builderBoxGap) + builderBoxWidth
+		toX := right * (builderBoxWidth + builderBoxGap)
+		if right-left == 1 {
+			connectDiagram(canvas, fromX, leftRow, toX, rightRow)
+			continue
+		}
+		connectBuilderLane(canvas, fromX, leftRow, toX, rightRow, lane)
+	}
+
+	drawn.Lines = canvas.toLines()
+	return drawn
+}
+
+// countDiagramHeight returns the row under every box, which is the lane a long connector
+// runs along.
+func countDiagramHeight(boxes []BuilderBox) int {
+	height := 0
+	for _, box := range boxes {
+		height = max(height, len(buildBuilderBox(box)))
+	}
+	return height
+}
+
+// connectBuilderLane draws a connector between two boxes that do not stand side by side. It
+// leaves the left box, runs along the lane under every box, and comes up into the right box.
+func connectBuilderLane(canvas *diagramCanvas, fromX, fromY, toX, toY, lane int) {
+	leftChannel, rightChannel := fromX+2, toX-3
+	for x := fromX; x < leftChannel; x++ {
+		canvas.setSoft(x, fromY, '─')
+	}
+	canvas.set(leftChannel, fromY, "╮")
+	for y := fromY + 1; y < lane; y++ {
+		canvas.setSoft(leftChannel, y, '│')
+	}
+	canvas.set(leftChannel, lane, "╰")
+	for x := leftChannel + 1; x < rightChannel; x++ {
+		canvas.setSoft(x, lane, '─')
+	}
+	canvas.set(rightChannel, lane, "╯")
+	for y := toY + 1; y < lane; y++ {
+		canvas.setSoft(rightChannel, y, '│')
+	}
+	canvas.set(rightChannel, toY, "╭")
+	for x := rightChannel + 1; x < toX-1; x++ {
+		canvas.setSoft(x, toY, '─')
+	}
+	canvas.set(toX-1, toY, "▶")
+}
+
+// buildBuilderBox returns the lines of one table: the name, then the columns with the tick
+// of each one.
+func buildBuilderBox(box BuilderBox) []string {
+	inner := builderBoxWidth - 2
+	lines := []string{
+		"╭" + strings.Repeat("─", inner) + "╮",
+		"│" + padDiagramCell(" "+box.Title, inner) + "│",
+	}
+	if box.Reason != "" {
+		lines = append(lines, "│"+padDiagramCell(" "+box.Reason, inner)+"│")
+	}
+	for _, column := range box.Columns {
+		lines = append(lines, "│"+padDiagramCell(buildBuilderColumn(column, inner), inner)+"│")
+	}
+	return append(lines, "╰"+strings.Repeat("─", inner)+"╯")
+}
+
+// buildBuilderColumn writes one column row: the tick, the name, the note and the type.
+func buildBuilderColumn(column BuilderColumnBox, inner int) string {
+	tick := "[ ] "
+	if column.Picked {
+		tick = "[x] "
+	}
+	right := column.Kind
+	if column.Note != "" {
+		right = column.Note + " " + column.Kind
+	}
+	room := inner - len(tick) - len([]rune(right)) - 2
+	if room < 1 {
+		room = 1
+	}
+	return " " + tick + padDiagramCell(column.Name, room) + " " + right
+}
+
+// findBuilderColumnRow returns the row of a box that holds that column.
+func findBuilderColumnRow(boxes []BuilderBox, box int, column string) (int, bool) {
+	if box < 0 || box >= len(boxes) {
+		return 0, false
+	}
+	offset := builderHeaderLines
+	if boxes[box].Reason != "" {
+		offset++
+	}
+	for at, held := range boxes[box].Columns {
+		if strings.EqualFold(held.Name, column) {
+			return offset + at, true
+		}
+	}
+	return 1, true
+}
+
+// ScrollBuilderDiagram returns the diagram windowed to the width of the pane, drawn from
+// that column. Every cell it reports moves with the lines.
+func ScrollBuilderDiagram(drawn BuilderDiagram, offset, width int) BuilderDiagram {
+	offset = max(offset, 0)
+	if offset == 0 && measureDiagramWidth(drawn.Lines) <= width {
+		return drawn
+	}
+
+	held := BuilderDiagram{}
+	for _, line := range drawn.Lines {
+		runes := []rune(line)
+		if offset >= len(runes) {
+			held.Lines = append(held.Lines, "")
+			continue
+		}
+		held.Lines = append(held.Lines, string(runes[offset:]))
+	}
+	held.Cells = moveBuilderCells(drawn.Cells, offset, width)
+	held.Titles = moveBuilderCells(drawn.Titles, offset, width)
+	return held
+}
+
+// FindBuilderColumnOffset returns the column the diagram is drawn from, so the box of that
+// index stands whole inside the width of the pane. A diagram that fits is drawn from its
+// first column.
+func FindBuilderColumnOffset(offset, box, boxes, width int) int {
+	if width <= 0 || boxes <= 0 {
+		return 0
+	}
+	widest := boxes*(builderBoxWidth+builderBoxGap) - builderBoxGap
+	offset = min(max(offset, 0), max(widest-width, 0))
+	// A diagram the wheel moved follows no cursor until the cursor moves again.
+	if box < 0 {
+		return offset
+	}
+
+	left := box * (builderBoxWidth + builderBoxGap)
+	if left < offset {
+		return left
+	}
+	if right := left + builderBoxWidth; right > offset+width {
+		return right - width
+	}
+	return offset
+}
+
+// moveBuilderCells returns the cells the window draws whole, at the columns they moved to.
+// A cell the window cuts is left out, so a press never lands on half a column.
+func moveBuilderCells(cells []BuilderCell, offset, width int) []BuilderCell {
+	moved := make([]BuilderCell, 0, len(cells))
+	for _, cell := range cells {
+		cell.X -= offset
+		if cell.X < 0 || cell.X+cell.Width > width {
+			continue
+		}
+		moved = append(moved, cell)
+	}
+	return moved
+}
+
+// measureDiagramWidth returns the columns the widest line of a diagram takes.
+func measureDiagramWidth(lines []string) int {
+	width := 0
+	for _, line := range lines {
+		width = max(width, len([]rune(line)))
+	}
+	return width
+}

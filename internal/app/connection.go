@@ -156,8 +156,6 @@ type Connection struct {
 	SidebarWidth int
 	// False while the result is hidden and the editor has the whole pane.
 	ResultVisible bool
-	// The editor height in rows. Zero uses the default height.
-	EditorHeight int
 	// True when statements use autocommit mode.
 	Autocommit bool
 
@@ -361,6 +359,12 @@ func (connection *Connection) OpenNotebookInNewTab(
 ) *Tab {
 	connection.nextTabID++
 	return connection.showTab(NewNotebookTab(connection.nextTabID, book, path, origin))
+}
+
+// OpenBuilder opens a query builder tab.
+func (connection *Connection) OpenBuilder() *Tab {
+	connection.nextTabID++
+	return connection.showTab(NewBuilderTab(connection.nextTabID))
 }
 
 // OpenTable focuses an existing table tab or opens a new table tab.

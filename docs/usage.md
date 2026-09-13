@@ -329,6 +329,28 @@ Restoration uses stored tab identities, query text, notebook text, active tab, c
 
 `Alt+B` opens a notebook. `Alt+O n` lists the notebooks of the project and of the user. Opening one runs no cell. See the [notebook guide](notebooks.md) for cell kinds, run policy, the file format, and `masume nb run`.
 
+## Query builder
+
+`Alt+J` opens a query builder tab. It draws the tables as boxes, the joins as lines between them, and the SQL under both. The builder writes SQL and never reads it back.
+
+`t` adds a table from the catalog. Every table after the first is joined: masume reads the foreign keys of both sides and fills the condition in, and the card takes the kind (`inner`, `left`, `right`, `full`) and the condition itself. Two tables with no key between them open the card with an empty condition.
+
+Left and Right move between tables; Up and Down move down the columns and on into the filters. `Space` takes the column under the cursor into the select list. `Enter` opens the card of that column: the aggregate, the name of the result column, and the sort. Any picked column without an aggregate goes into `group by`.
+
+`w` adds one condition of the `where` clause, with the column under the cursor already written into it. `Enter` on a filter row edits it. `x` drops the table or the filter under the cursor, and a table takes every table joined through it with it.
+
+`Ctrl+R` runs the statement into the result pane below. `e` sends it to a query tab, where the editor owns it from then on.
+
+The pointer works everywhere the keys do: a press on a column picks it, on the name of a box marks that table, and on a join, a field or a filter row opens its card. In a card, a press marks a row and the `‹ ›` marks step its value.
+
+A builder tab is stored with the other tabs, so the next connect opens it with its tables, its joins, its filters and everything it had picked. The columns of each table are read from the server again.
+
+A table with no foreign key to the ones already there opens the card with an empty condition. A join left without one is written as a `cross join`, which every server reads.
+
+A diagram wider than the pane scrolls sideways with the cursor, and a table taller than the pane scrolls with it. The wheel moves the pane down its rows, and `Shift` with the wheel moves the diagram along its boxes. A pointer that scrolls sideways of its own, such as a trackpad or a tilting wheel, moves it the same way. The next key that moves the cursor brings the pane back to it.
+
+The builder writes one flat select. A subquery, a union, a window function or a CTE starts here and is finished in the editor. MongoDB joins no tables in one statement, so it has no builder.
+
 ## Server activity
 
 `Alt+O a` opens Server activity. The dashboard refreshes about every two seconds. The dashboard shows sessions and available load, blocking, and slow-statement panels.

@@ -41,6 +41,10 @@ func (model *Model) runStatementAtCursor(
 		}
 		return model.runNotebook(connection, tab, app.RunCell)
 	}
+	if tab.BuildsQuery() {
+		tab.View = resolveRowView(tab.View)
+		return model.runBuilderQuery(connection, tab)
+	}
 	tab.View = resolveRowView(tab.View)
 	if !tab.EditorVisible() {
 		return model.runTabRead(connection, tab)
@@ -69,6 +73,10 @@ func (model *Model) runWholeBuffer(
 	if tab.Kind == app.TabNotebook {
 		return model.runNotebook(connection, tab, app.RunEveryCell)
 	}
+	if tab.BuildsQuery() {
+		tab.View = resolveRowView(tab.View)
+		return model.runBuilderQuery(connection, tab)
+	}
 	tab.View = resolveRowView(tab.View)
 	if !tab.EditorVisible() {
 		return model.runTabRead(connection, tab)
@@ -94,6 +102,9 @@ func (model *Model) runTabRead(
 	// parameter cells and writes the results onto the cell they belong to.
 	if tab.Kind == app.TabNotebook {
 		return model.runNotebook(connection, tab, app.RunCell)
+	}
+	if tab.BuildsQuery() {
+		return model, model.readBuilderTables(connection, tab)
 	}
 	if tab.Kind == app.TabObject {
 		return model, readObjectDDL(
@@ -257,8 +268,9 @@ func (model *Model) startRun(
 	// The list of names belongs to the editor, so it closes with the move.
 	connection.ResultVisible = true
 	tab.Focus = app.PaneResult
-	// The cell list keeps the keyboard, so the next cell is one key away.
-	if tab.Kind == app.TabNotebook {
+	// The cell list and the diagram of a builder keep the keyboard, so the next change is
+	// one key away.
+	if tab.Kind == app.TabNotebook || tab.Kind == app.TabBuilder {
 		tab.Focus = app.PaneEditor
 	}
 	tab.Completion.Close()

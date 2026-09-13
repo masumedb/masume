@@ -148,6 +148,21 @@ var HelpSections = []HelpSection{
 		},
 	},
 	{
+		Title: "query builder",
+		Entries: []HelpEntry{
+			{Scope: cfg.ScopeGlobal, Actions: []ActionID{ActionNewBuilderTab}, Text: "new query builder tab"},
+			{Scope: cfg.ScopeBuilder, Actions: []ActionID{ActionAddBuilderTable}, Text: "add a table, joined on its foreign key"},
+			{Scope: cfg.ScopeBuilder, Actions: []ActionID{ActionPreviousTable, ActionNextTable}, Text: "move between tables"},
+			{Scope: cfg.ScopeBuilder, Actions: []ActionID{ActionCursorUp, ActionCursorDown}, Text: "move between columns and filters"},
+			{Scope: cfg.ScopeBuilder, Actions: []ActionID{ActionPickColumn}, Text: "take the column into the select list"},
+			{Scope: cfg.ScopeBuilder, Actions: []ActionID{ActionEditBuilderRow}, Text: "the aggregate, the name and the sort of a column"},
+			{Scope: cfg.ScopeBuilder, Actions: []ActionID{ActionAddBuilderFilter}, Text: "add one condition of the where clause"},
+			{Scope: cfg.ScopeBuilder, Actions: []ActionID{ActionDropBuilderRow}, Text: "drop the table or the filter under the cursor"},
+			{Scope: cfg.ScopeGlobal, Actions: []ActionID{ActionRunAtCursor}, Text: "run the statement the builder wrote"},
+			{Scope: cfg.ScopeBuilder, Actions: []ActionID{ActionSendToEditor}, Text: "send the statement to a query tab"},
+		},
+	},
+	{
 		Title: "editing rows",
 		Entries: []HelpEntry{
 			{Scope: cfg.ScopeGrid, Actions: []ActionID{ActionEditCell}, Text: "edit the cell under the cursor"},

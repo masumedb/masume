@@ -351,6 +351,39 @@ func readTableDetail(connectionID int, session db.CatalogReader, table db.TableR
 	}
 }
 
+// builderTableMsg returns the columns and the keys of one table of a builder tab.
+type builderTableMsg struct {
+	ConnectionID int
+	TabID        int
+	// Table is the index of the table in the builder.
+	Table   int
+	Detail  db.TableDetail
+	Problem string
+	// Joins is true where the table was added to be joined to the ones already there.
+	Joins bool
+}
+
+// readBuilderTable asks the server for the columns and the keys of one table of a builder.
+func readBuilderTable(
+	connectionID, tabID, table int, session db.CatalogReader, ref db.TableRef, joins bool,
+) tea.Cmd {
+	return func() tea.Msg {
+		ctx, stop := context.WithTimeout(context.Background(), readTimeout)
+		defer stop()
+
+		answered := builderTableMsg{
+			ConnectionID: connectionID, TabID: tabID, Table: table, Joins: joins,
+		}
+		detail, err := session.DescribeTable(ctx, ref)
+		if err != nil {
+			answered.Problem = db.DescribeError(err)
+			return answered
+		}
+		answered.Detail = detail
+		return answered
+	}
+}
+
 // runStatements asks the server for one statement of a buffer. The answer dispatches the
 // next, so a statement that failed stops the batch: the ones after it were written for a
 // state the server no longer holds.

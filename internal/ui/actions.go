@@ -23,6 +23,8 @@ const (
 	NeedsTruncatesTable Capability = "truncatesTable"
 	NeedsWritesDDL      Capability = "writesDdl"
 	NeedsPlansWrites    Capability = "plansWrites"
+	// NeedsJoinsTables is the capability of a server that joins tables in one statement.
+	NeedsJoinsTables Capability = "joinsTables"
 )
 
 // AnswersFor is true if the server has the capability the action needs. An action that needs
@@ -47,6 +49,8 @@ func AnswersFor(capabilities core.Capabilities, needs Capability) bool {
 		return capabilities.TruncatesTable
 	case NeedsWritesDDL:
 		return capabilities.WritesDDL
+	case NeedsJoinsTables:
+		return capabilities.JoinsTables
 	case NeedsPlansWrites:
 		return capabilities.PlansWrites
 	}
@@ -224,6 +228,17 @@ const (
 	ActionToggleFavourite     ActionID = "toggle-favourite"
 	ActionToggleSystemSchemas ActionID = "toggle-system-schemas"
 
+	// The query builder.
+	ActionAddBuilderTable  ActionID = "add-table"
+	ActionAddBuilderFilter ActionID = "add-filter"
+	ActionPickColumn       ActionID = "pick-column"
+	ActionEditBuilderRow   ActionID = "edit-row"
+	ActionDropBuilderRow   ActionID = "drop-row"
+	ActionPreviousTable    ActionID = "previous-table"
+	ActionNextTable        ActionID = "next-table"
+	ActionSendToEditor     ActionID = "send-to-editor"
+	ActionNewBuilderTab    ActionID = "new-builder-tab"
+
 	ActionChooseRow ActionID = "choose-row"
 
 	// The filter over the list of the connection picker.
@@ -327,7 +342,7 @@ var globalActions = []ActionDefinition{
 	{ID: ActionShowActivity, Needs: NeedsServerSessions, WhileRunning: true},
 	{ID: ActionUndoWrite, Needs: NeedsPlansWrites, WhileRunning: true},
 	{ID: ActionShowThemes, WhileRunning: true},
-	{ID: ActionNewNotebookTab, WhileRunning: true},
+	{ID: ActionNewNotebookTab, WhileRunning: true}, {ID: ActionNewBuilderTab, WhileRunning: true},
 	{ID: ActionShowNotebooks, WhileRunning: true},
 	{ID: ActionNotebookRunPolicy, WhileRunning: true},
 	{ID: ActionWriteNotebookReport, WhileRunning: true},
@@ -456,6 +471,18 @@ var notebookActions = []ActionDefinition{
 	{ID: ActionMarkCell}, {ID: ActionNameCell},
 }
 
+// builderActions move the diagram of a query builder tab.
+var builderActions = []ActionDefinition{
+	{ID: ActionCursorUp}, {ID: ActionCursorDown},
+	{ID: ActionPreviousTable}, {ID: ActionNextTable},
+	{ID: ActionPickColumn, MainHint: true},
+	{ID: ActionEditBuilderRow, MainHint: true},
+	{ID: ActionAddBuilderTable, MainHint: true},
+	{ID: ActionAddBuilderFilter},
+	{ID: ActionDropBuilderRow},
+	{ID: ActionSendToEditor, MainHint: true},
+}
+
 // listActions move any list moved by keys that is not the grid or the tree: palette,
 // history, saved queries, connections, column values. One preset moves them all.
 var listActions = []ActionDefinition{
@@ -516,6 +543,7 @@ var ActionCatalog = func() []ActionDefinition {
 	add(cfg.ScopeTree, treeActions)
 	add(cfg.ScopeEditor, editorActions)
 	add(cfg.ScopeNotebook, notebookActions)
+	add(cfg.ScopeBuilder, builderActions)
 	add(cfg.ScopeList, listActions)
 	add(cfg.ScopeDialog, dialogActions)
 	return catalog

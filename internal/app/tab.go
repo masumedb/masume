@@ -74,6 +74,11 @@ type Tab struct {
 	Object db.SchemaObject
 	// The cells a notebook tab holds. Only a notebook tab has one.
 	Notebook *Notebook
+	// The tables and the joins a builder tab holds. Only a builder tab has one.
+	Builder *Builder
+	// The rows the pane above the result takes in this tab. Zero uses the height of the
+	// kind of the tab.
+	PaneHeight int
 
 	Editor  *EditorBuffer
 	Results *ResultStore
@@ -168,6 +173,15 @@ func NewTableTab(id int, table db.TableRef, preview string) *Tab {
 	return tab
 }
 
+// NewBuilderTab returns a tab that builds one query from tables and joins. The keyboard
+// opens in the diagram, because a builder tab draws no tree.
+func NewBuilderTab(id int) *Tab {
+	tab := newTab(id, TabBuilder, "")
+	tab.Builder = NewBuilder()
+	tab.Focus = PaneEditor
+	return tab
+}
+
 // NewObjectTab returns a tab that shows the definition of one schema object.
 func NewObjectTab(id int, object db.SchemaObject) *Tab {
 	tab := newTab(id, TabObject, "")
@@ -196,7 +210,12 @@ func (tab *Tab) IsBlank() bool {
 // EditorVisible is true while the pane above the result is drawn. A query tab draws the
 // editor there, and a notebook tab draws its cells.
 func (tab *Tab) EditorVisible() bool {
-	return tab.Kind == TabQuery || tab.Kind == TabNotebook
+	return tab.Kind == TabQuery || tab.Kind == TabNotebook || tab.Kind == TabBuilder
+}
+
+// BuildsQuery is true for a builder tab that holds its state.
+func (tab *Tab) BuildsQuery() bool {
+	return tab.Kind == TabBuilder && tab.Builder != nil
 }
 
 // EditsText is true while the pane above the result takes typed characters.
@@ -264,6 +283,11 @@ func (tab *Tab) Label() string {
 		return tab.Object.Name
 	case TabNotebook:
 		return present.TruncateText(tab.NotebookName(), tabLabelWidth+2)
+	case TabBuilder:
+		if tab.Builder == nil {
+			return "builder"
+		}
+		return present.TruncateText(tab.Builder.DescribeTitle(), tabLabelWidth+2)
 	}
 	if named := statement.FindQueryName(tab.Editor.Text); named != "" {
 		return present.TruncateText(named, tabLabelWidth+2)

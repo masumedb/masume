@@ -79,6 +79,8 @@ type Model struct {
 
 	screen ScreenKind
 	picker pickerState
+	// builderRows is what every drawn row of a builder pane stands for.
+	builderRows []builderRow
 	// The connection form, which is a screen of its own.
 	form *FormState
 
@@ -442,6 +444,9 @@ func (model *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tableDetailMsg:
 		return model.readTableDetailAnswer(held)
+
+	case builderTableMsg:
+		return model.readBuilderTableAnswer(held)
 
 	case queryRanMsg:
 		return model.readQueryAnswer(held)

@@ -8,6 +8,7 @@ import (
 	"github.com/turanmahmudov/masume/internal/db"
 	"github.com/turanmahmudov/masume/internal/hist"
 	"github.com/turanmahmudov/masume/internal/notebook"
+	"github.com/turanmahmudov/masume/internal/query/statement"
 )
 
 // Workspace persistence restores tab state. Table and object tabs load data on first display.
@@ -57,6 +58,11 @@ func buildRestoredTab(id int, saved hist.SavedTab, buildPreview PreviewBuilder) 
 		applySavedState(tab, saved.State)
 		applySavedCells(tab, saved.State)
 		return tab
+	case "builder":
+		tab := NewBuilderTab(id)
+		tab.Builder = buildRestoredBuilder(saved.State.Builder)
+		applySavedState(tab, saved.State)
+		return tab
 	case "table":
 		table := db.TableRef{
 			Schema: saved.Schema, Name: saved.Name,
@@ -95,6 +101,7 @@ func applySavedCells(tab *Tab, state hist.SavedTabState) {
 func applySavedState(tab *Tab, state hist.SavedTabState) {
 	tab.Sort = state.Sort
 	tab.Filter = state.Filter
+	tab.PaneHeight = state.PaneHeight
 	if state.Caret > 0 && state.Caret <= len(tab.Editor.Text) {
 		tab.Editor.Caret = state.Caret
 		tab.Editor.Anchor = state.Caret
@@ -127,6 +134,7 @@ func (connection *Connection) BuildWorkspaceSnapshot() hist.SavedWorkspace {
 func buildSavedTab(tab *Tab) hist.SavedTab {
 	state := hist.SavedTabState{
 		Caret: tab.Editor.Caret, Sort: tab.Sort, Filter: tab.Filter,
+		PaneHeight: tab.PaneHeight,
 	}
 	switch tab.Kind {
 	case TabTable:
@@ -140,6 +148,10 @@ func buildSavedTab(tab *Tab) hist.SavedTab {
 			ObjectKind: string(tab.Object.Kind), Identity: tab.Object.Identity, State: state,
 		}
 	}
+	if tab.Kind == TabBuilder && tab.Builder != nil {
+		state.Builder = buildSavedBuilder(tab.Builder)
+		return hist.SavedTab{Kind: "builder", State: state}
+	}
 	if tab.Kind == TabNotebook && tab.Notebook != nil {
 		state.Cell = tab.Notebook.Focused
 		state.Folded = tab.Notebook.ListFoldedCells()
@@ -152,6 +164,88 @@ func buildSavedTab(tab *Tab) hist.SavedTab {
 	return hist.SavedTab{Kind: "query", SQL: tab.Editor.Text, State: state}
 }
 
+// describeBuilderSignature returns the text signature of a builder, so a change to its
+// tables, its joins or its filters is stored.
+func describeBuilderSignature(builder *Builder) string {
+	var written strings.Builder
+	for _, table := range builder.Tables {
+		written.WriteString("\x00" + table.Ref.Schema + "." + table.Ref.Name + "\x00" + table.Alias)
+		for _, column := range table.Columns {
+			if !column.Picked {
+				continue
+			}
+			written.WriteString("\x00" + column.Name + "\x00" + string(column.Aggregate) +
+				"\x00" + column.As + "\x00" + string(column.Sort))
+		}
+	}
+	for _, join := range builder.Joins {
+		written.WriteString("\x00" + string(join.Kind) + "\x00" + strconv.Itoa(join.Table) +
+			"\x00" + strconv.Itoa(join.Base) + "\x00" + join.Column +
+			"\x00" + join.BaseColumn + "\x00" + join.On)
+	}
+	written.WriteString("\x00" + strings.Join(builder.Filters, "\x00"))
+	return written.String()
+}
+
+// buildSavedBuilder returns the builder in the form the history file stores. The columns of
+// the server are read again at the next connect, so only the picked ones are stored.
+func buildSavedBuilder(builder *Builder) *hist.SavedBuilder {
+	saved := &hist.SavedBuilder{Filters: builder.Filters, Limit: builder.Limit}
+	for _, table := range builder.Tables {
+		held := hist.SavedBuilderTable{
+			Schema: table.Ref.Schema, Name: table.Ref.Name, Alias: table.Alias,
+		}
+		for _, column := range table.Columns {
+			if !column.Picked {
+				continue
+			}
+			held.Columns = append(held.Columns, hist.SavedBuilderColumn{
+				Name: column.Name, Aggregate: string(column.Aggregate),
+				As: column.As, Sort: string(column.Sort),
+			})
+		}
+		saved.Tables = append(saved.Tables, held)
+	}
+	for _, join := range builder.Joins {
+		saved.Joins = append(saved.Joins, hist.SavedBuilderJoin{
+			Kind: string(join.Kind), Table: join.Table, Base: join.Base,
+			Column: join.Column, BaseColumn: join.BaseColumn, On: join.On,
+		})
+	}
+	return saved
+}
+
+// buildRestoredBuilder returns the builder of a stored tab. Every table waits for its
+// columns, which the connection reads again.
+func buildRestoredBuilder(saved *hist.SavedBuilder) *Builder {
+	builder := NewBuilder()
+	if saved == nil {
+		return builder
+	}
+	builder.Filters, builder.Limit = saved.Filters, saved.Limit
+	for _, table := range saved.Tables {
+		held := BuilderTable{
+			Ref:   db.TableRef{Schema: table.Schema, Name: table.Name},
+			Alias: table.Alias, Reading: true,
+		}
+		for _, column := range table.Columns {
+			held.Columns = append(held.Columns, BuilderColumn{
+				Name: column.Name, Picked: true,
+				Aggregate: statement.Aggregate(column.Aggregate), As: column.As,
+				Sort: core.SortDirection(column.Sort),
+			})
+		}
+		builder.Tables = append(builder.Tables, held)
+	}
+	for _, join := range saved.Joins {
+		builder.Joins = append(builder.Joins, BuilderJoin{
+			Kind: statement.JoinKind(join.Kind), Table: join.Table, Base: join.Base,
+			Column: join.Column, BaseColumn: join.BaseColumn, On: join.On,
+		})
+	}
+	return builder
+}
+
 // DescribeTabs returns a text signature of the active index, tab identities, and editor contents.
 func (connection *Connection) DescribeTabs() string {
 	var written strings.Builder
@@ -160,6 +254,9 @@ func (connection *Connection) DescribeTabs() string {
 		written.WriteString("\x00" + strconv.Itoa(tab.ID) + "\x00" + string(tab.Kind) + "\x00" +
 			tab.Table.Schema + "." + tab.Table.Name + "\x00" +
 			tab.Object.Schema + "." + tab.Object.Name + "\x00" + tab.Editor.Text)
+		if tab.Builder != nil {
+			written.WriteString(describeBuilderSignature(tab.Builder))
+		}
 		if tab.Notebook == nil {
 			continue
 		}

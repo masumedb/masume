@@ -48,7 +48,13 @@ const (
 	OverlayWritePlan OverlayKind = "write-plan"
 	OverlayChoice    OverlayKind = "choice"
 	OverlayExport    OverlayKind = "export"
-	OverlayImport    OverlayKind = "import"
+	// OverlayBuilderTables lists the tables a query builder tab can add.
+	OverlayBuilderTables OverlayKind = "builder-tables"
+	// OverlayBuilderField is the card of one picked column of a query builder tab.
+	OverlayBuilderField OverlayKind = "builder-field"
+	// OverlayBuilderJoin is the card of one join of a query builder tab.
+	OverlayBuilderJoin OverlayKind = "builder-join"
+	OverlayImport      OverlayKind = "import"
 	// OverlayDump writes a dump file, or runs one back into the server.
 	OverlayDump   OverlayKind = "dump"
 	OverlayPrompt OverlayKind = "prompt"
@@ -108,6 +114,8 @@ const (
 	// PromptNotebookRename is the new name of a notebook file.
 	PromptNotebookRename PromptKind = "notebook-rename"
 	PromptReplace        PromptKind = "replace"
+	// PromptBuilderFilter is one condition of the where clause of a query builder tab.
+	PromptBuilderFilter PromptKind = "builder-filter"
 )
 
 // ListState is the shared selection, scroll, and filter state for overlay lists.

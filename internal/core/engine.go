@@ -79,6 +79,8 @@ type Capabilities struct {
 	TakesReadOnlyMode bool
 	// True if staged changes support atomic application. The connected deployment can change this capability.
 	AppliesChangesTogether bool
+	// True if the server joins tables in one statement, which the query builder writes.
+	JoinsTables bool
 }
 
 // EngineInfo is the engine metadata available before connection. Query support adds the dialect and language.
@@ -132,6 +134,7 @@ var postgresCapabilities = Capabilities{
 	WritesDDL:           true,
 	PlansWrites:         true,
 	TakesReadOnlyMode:   true,
+	JoinsTables:         true,
 
 	AppliesChangesTogether: true,
 }
@@ -159,6 +162,7 @@ var sqlserverCapabilities = Capabilities{
 	PlansWrites:         true,
 	// The server has no read-only session, so this client blocks the write.
 	TakesReadOnlyMode:      true,
+	JoinsTables:            true,
 	AppliesChangesTogether: true,
 }
 
@@ -182,6 +186,7 @@ var clickhouseCapabilities = Capabilities{
 	PlansWrites: false,
 	// `set readonly = 1` refuses every write on the server.
 	TakesReadOnlyMode: true,
+	JoinsTables:       true,
 	// Without a transaction, every change stands on its own.
 	AppliesChangesTogether: false,
 }
@@ -310,6 +315,7 @@ var engineRegistry = map[Engine]EngineInfo{
 			WritesDDL:              true,
 			PlansWrites:            true,
 			TakesReadOnlyMode:      true,
+			JoinsTables:            true,
 			AppliesChangesTogether: true,
 		},
 		// A file is opened locally, so there is no port and no URL scheme.

@@ -178,6 +178,23 @@ var cardKeySpecs = map[app.OverlayKind][]keySpec{
 		readout("type to search").onlyWhen(notFilters(filtersHelp)),
 		keyOf(cfg.ScopeDialog, ActionClose, "close"),
 	},
+	app.OverlayBuilderTables: {
+		readout("type to filter"),
+		keyOf(cfg.ScopeList, ActionChooseRow, "add"),
+		keyOf(cfg.ScopeDialog, ActionClose, "cancel"),
+	},
+	app.OverlayBuilderJoin: {
+		pairOf(cfg.ScopeDialog, ActionPreviousField, ActionNextField, "row", ""),
+		pairOf(cfg.ScopeDialog, ActionPreviousValue, ActionNextValue, "change", ""),
+		keyOf(cfg.ScopeDialog, ActionApplyStep, "join"),
+		keyOf(cfg.ScopeDialog, ActionClose, "cancel"),
+	},
+	app.OverlayBuilderField: {
+		pairOf(cfg.ScopeDialog, ActionPreviousField, ActionNextField, "row", ""),
+		pairOf(cfg.ScopeDialog, ActionPreviousValue, ActionNextValue, "change", ""),
+		keyOf(cfg.ScopeDialog, ActionApplyStep, "apply"),
+		keyOf(cfg.ScopeDialog, ActionClose, "cancel"),
+	},
 	app.OverlayPalette: {
 		readout("type to filter"),
 		keyOf(cfg.ScopeList, ActionChooseRow, "run"),
@@ -383,6 +400,22 @@ var dumpFormKeySpecs = []keySpec{
 	keyOf(cfg.ScopeDialog, ActionApplyStep, "").withLabel(describeDumpStepOf),
 	keyOf(cfg.ScopeDialog, ActionClose, "cancel"),
 }
+
+// The keys of a query builder tab: the ones on the border of the pane, and the ones an
+// empty builder names in its body.
+var (
+	builderBorderKeySpecs = []keySpec{
+		keyOf(cfg.ScopeBuilder, ActionPickColumn, "pick"),
+		keyOf(cfg.ScopeBuilder, ActionEditBuilderRow, "edit"),
+		keyOf(cfg.ScopeBuilder, ActionAddBuilderTable, "table or join"),
+		keyOf(cfg.ScopeBuilder, ActionAddBuilderFilter, "where"),
+		keyOf(cfg.ScopeBuilder, ActionDropBuilderRow, "drop"),
+		keyOf(cfg.ScopeBuilder, ActionSendToEditor, "to editor"),
+	}
+	builderEmptyKeySpecs = []keySpec{
+		keyOf(cfg.ScopeBuilder, ActionAddBuilderTable, "add a table"),
+	}
+)
 
 // The keys of the two screens that have no connection: the picker of the profiles, and the
 // field the password is typed into.
@@ -651,6 +684,21 @@ func (model *Model) buildNotebookHints(context HintContext) []Hint {
 
 // buildCellEditorHints returns the keys of the status bar while one cell of a notebook holds
 // the caret.
+// buildBuilderHints returns the bar of a builder tab: the keys of the diagram, and the run.
+func (model *Model) buildBuilderHints(capabilities core.Capabilities) []Hint {
+	keys := hintList{}
+	keys.add(model.buildHint(
+		capabilities, cfg.ScopeBuilder, ActionAddBuilderTable, "table or join"))
+	keys.add(model.buildHint(capabilities, cfg.ScopeBuilder, ActionPickColumn, "pick"))
+	keys.add(model.buildHint(
+		capabilities, cfg.ScopeBuilder, ActionEditBuilderRow, "aggregate and sort"))
+	keys.add(model.buildHint(capabilities, cfg.ScopeBuilder, ActionAddBuilderFilter, "where"))
+	keys.add(model.buildHint(capabilities, cfg.ScopeBuilder, ActionDropBuilderRow, "drop"))
+	keys.add(model.buildHint(capabilities, cfg.ScopeGlobal, ActionRunAtCursor, "run"))
+	keys.add(model.buildHint(capabilities, cfg.ScopeBuilder, ActionSendToEditor, "to editor"))
+	return keys.build()
+}
+
 func (model *Model) buildCellEditorHints(context HintContext) []Hint {
 	return keepServerHints(model.buildKeyLineOf(cellEditorHintSpecs, keyScene{
 		cellKind: context.CellKind,

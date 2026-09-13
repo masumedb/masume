@@ -81,6 +81,10 @@ func (model *Model) readOverlayKey(
 // the card of the overlay is a form.
 func stepOverlayField(model *Model, tab *app.Tab, overlay *app.Overlay, step int) bool {
 	switch overlay.Kind {
+	case app.OverlayBuilderField:
+		overlay.Field = wrap(overlay.Field+step, builderFieldRows)
+	case app.OverlayBuilderJoin:
+		overlay.List.Cursor = wrap(overlay.List.Cursor+step, builderJoinRows)
 	case app.OverlayImport:
 		StepImportField(overlay, step)
 	case app.OverlayChart:
@@ -99,6 +103,17 @@ func stepOverlayField(model *Model, tab *app.Tab, overlay *app.Overlay, step int
 // field and not a choice keeps the key, which moves the caret in it.
 func stepOverlayValue(model *Model, tab *app.Tab, overlay *app.Overlay, step int) bool {
 	switch overlay.Kind {
+	case app.OverlayBuilderJoin:
+		// The condition is a field, so the arrows move its caret rather than the kind.
+		if !tab.BuildsQuery() || overlay.List.Cursor != builderJoinKindRow {
+			return false
+		}
+		stepJoinKind(tab.Builder, overlay.Field, step)
+	case app.OverlayBuilderField:
+		if !tab.BuildsQuery() || overlay.Field == builderFieldAlias {
+			return false
+		}
+		stepBuilderField(tab.Builder, overlay.Field, step)
 	case app.OverlayImport:
 		if len(BuildImportFields(*overlay)[overlay.Field].Choices) == 0 {
 			return false
@@ -160,7 +175,8 @@ func takesListKeys(overlay app.Overlay) bool {
 	case app.OverlayParameters, app.OverlayExport, app.OverlayImport, app.OverlayDump,
 		app.OverlayPrompt,
 		app.OverlayChart, app.OverlayChoice, app.OverlayMessage, app.OverlayConfirm,
-		app.OverlayAiChat:
+		app.OverlayAiChat,
+		app.OverlayBuilderJoin, app.OverlayBuilderField:
 		return false
 	}
 	return true
@@ -286,6 +302,8 @@ func (model *Model) overlayRowCount(connection *app.Connection, overlay app.Over
 		return len(model.filterNotebooks(overlay))
 	case app.OverlayPalette:
 		return len(model.filterPalette(overlay))
+	case app.OverlayBuilderTables:
+		return len(model.filterBuilderTables(overlay))
 	case app.OverlayObjectMenu, app.OverlayCopyMenu, app.OverlayActionMenu:
 		return len(model.filterMenu(overlay))
 	case app.OverlayChoice:
@@ -720,6 +738,30 @@ func (model *Model) chooseOverlayRow(
 	case app.OverlayChart:
 		return model.applyChartForm(connection, tab, *overlay)
 
+	case app.OverlayBuilderJoin:
+		if tab.BuildsQuery() {
+			model.applyJoinCard(connection, tab, overlay.Field, overlay.Draft.Text)
+		}
+		return model, nil
+
+	case app.OverlayBuilderField:
+		if tab.BuildsQuery() {
+			model.applyBuilderField(connection, tab, overlay.Draft.Text)
+		}
+		return model, nil
+
+	case app.OverlayBuilderTables:
+		tables := model.filterBuilderTables(*overlay)
+		if overlay.List.Cursor >= len(tables) || !tab.BuildsQuery() {
+			return model, nil
+		}
+		picked, found := findBuilderTable(
+			connection.Catalog.Tables, tables[overlay.List.Cursor].ID)
+		if !found {
+			return model, nil
+		}
+		return model.addBuilderTable(connection, tab, picked)
+
 	case app.OverlayNotebooks:
 		return model.openNotebookRow(connection, overlay, inNewTab)
 
@@ -1049,6 +1091,13 @@ func (model *Model) answerPrompt(
 		connection.Chat.NotebookSubject = written
 		return model.sendNotebookRequest(connection, tab, written)
 
+	case app.PromptBuilderFilter:
+		if !tab.BuildsQuery() {
+			return model, nil
+		}
+		model.writeBuilderFilter(connection, tab, overlay.Field, written)
+		return model, nil
+
 	case app.PromptSaveName:
 		if written == "" {
 			return model, nil
@@ -1344,11 +1393,23 @@ func (model *Model) readOverlayField(
 	}
 
 	if key.Text != "" && !key.Mod.Contains(uv.ModCtrl) && !key.Mod.Contains(uv.ModAlt) {
+		markTypedCardRow(overlay)
 		buffer.Insert(key.Text)
 		model.resetOverlayCursor(connection, overlay)
 	}
 	readFormField(overlay, buffer.Text)
 	return model, nil
+}
+
+// markTypedCardRow moves the marker of a builder card onto the row that takes text, so a
+// typed character lands where the caret is drawn.
+func markTypedCardRow(overlay *app.Overlay) {
+	switch overlay.Kind {
+	case app.OverlayBuilderJoin:
+		overlay.List.Cursor = builderJoinOnRow
+	case app.OverlayBuilderField:
+		overlay.Field = builderFieldAlias
+	}
 }
 
 // readFormField writes what the field under the cursor holds back into the card.
@@ -1435,7 +1496,7 @@ func (model *Model) scrollChatFromField(
 func (model *Model) resetOverlayCursor(connection *app.Connection, overlay *app.Overlay) {
 	switch overlay.Kind {
 	case app.OverlayHistory, app.OverlaySaved, app.OverlayNotebooks,
-		app.OverlayPalette, app.OverlayHelp,
+		app.OverlayPalette, app.OverlayHelp, app.OverlayBuilderTables,
 		app.OverlayThemePicker, app.OverlayActionMenu, app.OverlayObjectMenu,
 		app.OverlayCopyMenu, app.OverlayAiChats:
 		overlay.List.Cursor, overlay.List.Offset, overlay.List.Rolled = 0, 0, false
