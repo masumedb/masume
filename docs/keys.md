@@ -2,11 +2,11 @@
 
 Default bindings and their configuration names. The [user guide](usage.md) describes the workflows.
 
-`?` outside text entry opens help. `Ctrl+K` opens the command palette. Help shows the current bindings of every configurable action, including overrides. Keys a pane or field handles itself, such as `Tab`, `Esc`, and the Shift selection keys, are fixed and appear in help with those names. The palette searches commands by name.
+`?` outside text entry opens help. `Ctrl+K` opens the command palette. Help shows the current bindings of every configurable action. This includes overrides. Keys a pane or field handles itself are fixed. These include `Tab`, `Esc`, and the Shift selection keys. They appear in help with those names. The palette searches commands by name.
 
 ## Scopes
 
-A scope is the pane or card where a binding applies. Cards and input fields handle their own keys. Actions the engine does not support are hidden.
+A scope is the pane or card where a binding applies. Cards handle their own keys. Input fields handle their own keys. The client hides the actions the engine does not support.
 
 | Scope | Focus |
 | --- | --- |
@@ -20,17 +20,17 @@ A scope is the pane or card where a binding applies. Cards and input fields hand
 | `list` | Lists in cards, and scrolling in detail views |
 | `dialog` | The active card, connection picker, or form |
 
-Plain global keys type characters while the editor has focus. These include `?`, digits, brackets, braces, commas, periods, semicolons, and apostrophes. Use a modified binding or the palette during text entry.
+Plain global keys type characters while the editor has focus. These include `?`. They include digits, brackets, braces, commas, periods, semicolons, and apostrophes. Use a modified binding during text entry. Or use the palette.
 
-`return` is Enter. `digit` is any number from `1` through `9`. Uppercase letters require Shift: `F` differs from `f`.
+`return` is Enter. `digit` is any number from `1` through `9`. Uppercase letters need Shift. `F` differs from `f`.
 
-`alt`, `meta`, and `option` are the same modifier. This reference and the help screen use Alt. Spaces separate key presses: `alt+p s` is Alt+P, then lowercase `s`. `C c` is uppercase C, then lowercase c.
+`alt`, `meta`, and `option` are the same modifier. This reference uses Alt. The help screen uses Alt. Spaces separate key presses. `alt+p s` is Alt+P, then lowercase `s`. `C c` is uppercase C, then lowercase c.
 
-`Ctrl+C` copies an editor or mouse text selection and clears the selection. Without a selection, `Ctrl+C` quits. It asks first about staged changes and open transactions, then about a connection that is in no config file. `Esc` closes a card, dismisses completion, or clears a workspace selection.
+`Ctrl+C` copies an editor or mouse text selection. It clears the selection. Without a selection, `Ctrl+C` quits. It asks first about staged changes and open transactions. Then it asks about a connection that is in no config file. `Esc` closes a card. `Esc` dismisses completion. `Esc` clears a workspace selection.
 
 `Tab` accepts a listed completion. Otherwise `Tab` moves focus. `Enter` inserts a newline in the editor. `Ctrl+V` pastes the last text copied inside masume. The terminal paste command pastes the operating system clipboard.
 
-Some terminals merge `Ctrl+I` with Tab, `Ctrl+H` with Backspace, and `Ctrl+M` with Enter. They can also merge `Ctrl+[` with Escape and `Ctrl+Shift+Z` with `Ctrl+Z`. Extended keyboard support depends on the terminal and any multiplexer. Use `Alt+Z` for editor redo, `Z` for grid redo, or the palette for those commands.
+Some terminals merge `Ctrl+I` with Tab. They merge `Ctrl+H` with Backspace. They merge `Ctrl+M` with Enter. They can also merge `Ctrl+[` with Escape. They can merge `Ctrl+Shift+Z` with `Ctrl+Z`. Extended keyboard support depends on the terminal. It depends on any multiplexer. Use `Alt+Z` for editor redo. Use `Z` for grid redo. Or use the palette for those commands.
 
 ## Rebinding
 
@@ -48,7 +48,7 @@ run-at-cursor = ["ctrl+r", "f5"]
 sort-column = ["o"]
 ```
 
-The example removes the default F5 refresh binding before assigning F5 to execution. The palette still offers refresh.
+The example removes the default F5 refresh binding. Then it assigns F5 to execution. The palette still lists refresh.
 
 Every registered action has a default binding. Some palette operations have no registered action or binding. See [palette operations](usage.md#palette-operations).
 
@@ -56,7 +56,7 @@ Every registered action has a default binding. Some palette operations have no r
 
 `[keys.dialog]`
 
-One card returns only its own actions, so two rows of this table can carry the same key without a conflict.
+One card returns only its own actions. Two rows of this table can carry the same key without a conflict.
 
 | Action | Key |
 | --- | --- |
@@ -286,7 +286,7 @@ See [editing SQL](usage.md#editing-sql) for search, replacement, completion, and
 
 `[keys.document]`
 
-The Tree view opens result values with fields or elements, including MongoDB documents and SQL JSON values. See [result views](usage.md#result-views).
+The Tree view opens result values with fields or elements. These include MongoDB documents and SQL JSON values. See [result views](usage.md#result-views).
 
 | Action | Key |
 | --- | --- |
@@ -310,7 +310,7 @@ The Tree view opens result values with fields or elements, including MongoDB doc
 
 `[keys.notebook]`
 
-The cell list takes no typed text, so single letters are free there. `Enter` puts the caret in the focused cell, and `Esc` brings it back to the list.
+The cell list takes no typed text. Single letters are free there. `Enter` puts the caret in the focused cell. `Esc` returns it to the list.
 
 | Action | Key |
 | --- | --- |
@@ -342,7 +342,7 @@ The cell list takes no typed text, so single letters are free there. `Enter` put
 
 `[keys.builder]`
 
-The diagram of a query builder tab. It takes no typed text, so single letters are free there.
+The diagram of a query builder tab. It takes no typed text. Single letters are free there.
 
 | Action | Key |
 | --- | --- |
