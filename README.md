@@ -1,10 +1,6 @@
 <h1 align="center">升目 masume</h1>
 
-<h3 align="center">A database client for the terminal</h3>
-
-<p align="center">
-  <em>Browse and query databases in the terminal. Share selected connection profiles with an AI agent.</em>
-</p>
+<h3 align="center">A keyboard-first terminal database client with AI chat and an MCP server</h3>
 
 <p align="center">
   <a href="https://github.com/turanmahmudov/masume/actions/workflows/check.yml"><img src="https://github.com/turanmahmudov/masume/actions/workflows/check.yml/badge.svg" alt="check"></a>
