@@ -1,13 +1,13 @@
 # Themes
 
-`Alt+O t` opens the theme picker. Movement previews a theme. Enter applies it. It writes `[ui] theme` in the user configuration file. Esc cancels. A save error appears in the client.
+`Alt+O t` opens the theme picker. Movement previews a theme, and Enter applies it. It writes `[ui] theme` in the user configuration file. Esc cancels. A save error appears in the client.
 
 ```toml
 [ui]
 theme = "tokyonight"
 ```
 
-The value is the file name without `.toml`. `ayu-dark` is the default. It is the fallback parent.
+The value is the file name without `.toml`; `ayu-dark` is the default and the fallback parent.
 
 ## Built-in themes
 
@@ -38,11 +38,11 @@ The value is the file name without `.toml`. `ayu-dark` is the default. It is the
 theme = "system"
 ```
 
-masume uses the terminal background. It uses the foreground. It uses the sixteen palette colours. It queries those colours about every two seconds. Updates need terminal support for colour queries.
+masume uses the terminal background, the foreground, and the sixteen palette colours. It queries those colours about every two seconds; updates need terminal support for colour queries.
 
 ## Custom themes
 
-A custom theme is a TOML file in `$XDG_CONFIG_HOME/masume/themes/`. The normal path is `~/.config/masume/themes/`. The file name without `.toml` is the `[ui] theme` value. A custom file with a built-in name replaces that theme. `system` is reserved. masume reports `system.toml`. It ignores it.
+A custom theme is a TOML file in `$XDG_CONFIG_HOME/masume/themes/`, normally `~/.config/masume/themes/`. The file name without `.toml` is the `[ui] theme` value. A custom file with a built-in name replaces that theme. `system` is reserved; masume reports `system.toml` and ignores it.
 
 ```toml
 title = "My Theme"
@@ -67,11 +67,11 @@ accent       = "blue"
 | `appearance` | `dark` or `light`. An absent value inherits from the parent, with `dark` as the final fallback |
 | `extends` | The parent theme. A built-in or custom theme, not `system`. An absent parent uses `ayu-dark`, except in `ayu-dark` itself |
 
-Child values override inherited palette entries. They override inherited colours. They override inherited syntax properties. Missing parents produce reports. Inheritance cycles produce reports. The inheritance chain is at most eight themes.
+Child values override inherited palette entries, colours, and syntax properties. Missing parents and inheritance cycles produce reports. The inheritance chain is at most eight themes.
 
 `[palette]` holds named hex colours. Palette values cannot reference other names. Hex colours are `#RGB`, `#RGBA`, `#RRGGBB`, or `#RRGGBBAA`.
 
-`[colors]` holds the colour roles. A value is a hex colour. It can be a palette name. It can be another colour role. Examples are `border_focus = "blue"` and `border_focus = "accent"`.
+`[colors]` holds the colour roles. A value is a hex colour, a palette name, or another colour role. Examples are `border_focus = "blue"` and `border_focus = "accent"`.
 
 `[ui.palette]`, `[ui.colors]`, and `[ui.syntax]` in the user configuration overlay the selected theme. The overlay remains after a theme change.
 

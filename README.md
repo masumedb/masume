@@ -26,19 +26,19 @@ The object tree lists the database objects of the engine. Table views show data,
 
 ### Diagram
 
-An ER diagram shows a table. It shows the tables that its foreign keys link to it.
+An ER diagram shows a table and the tables that its foreign keys link to it.
 
 ![An ER diagram of a table and its related tables](vhs/shots/07-er-diagram.png)
 
 ### Query
 
-The editor gives syntax highlighting and completion from the database catalog. Local checks mark detected errors. Supported server checks also mark them. The client marks the errors before execution. A statement without a diagnostic can still fail.
+The editor gives syntax highlighting and completion from the database catalog. Local checks and supported server checks mark detected errors before execution. A statement without a diagnostic can still fail.
 
 ![The SQL editor with the completion menu open](vhs/shots/08-completion.png)
 
 ### Results
 
-You can sort, filter, follow a foreign key, or freeze a column. Grid edits stay staged until SQL review and execution. Masking hides the columns that have sensitive names. This applies to the grid display only. Copies, exports, and value viewers show the original values.
+You can sort, filter, follow a foreign key, or freeze a column. Grid edits stay staged until SQL review and execution. Masking hides the columns that have sensitive names in the grid display only; copies, exports, and value viewers show the original values.
 
 ![A result grid](vhs/shots/09-result.png)
 
@@ -50,15 +50,15 @@ Query plans appear as a tree. The tree shows estimated or measured costs.
 
 ### Notebooks
 
-A notebook holds cells of prose, values, statements, and charts over one connection. Each cell keeps its result. Each cell keeps its view. A notebook is a Markdown file. `masume nb run` runs the file.
+A notebook holds cells of prose, values, statements, and charts over one connection. Each cell keeps its result and its view. A notebook is a Markdown file, and `masume nb run` runs the file.
 
-![A notebook of prose, values, statements and a chart](vhs/shots/13-notebook.png)
+![A notebook of prose, values, statements, and a chart](vhs/shots/13-notebook.png)
 
 ### Agents
 
-masume has a built-in AI chat. It has an MCP server over stdio. The AI chat uses the current connection. It asks before each query. This includes reads. MCP opens separate connections to the profiles you allow. MCP access levels apply to its queries. Profile settings also apply to its queries and write confirmations.
+masume has a built-in AI chat and an MCP server over stdio. The AI chat uses the current connection and asks before each query, including reads. MCP opens separate connections to the profiles you allow; its access levels and profile settings apply to its queries and write confirmations.
 
-Both interfaces share database tools. Their policies differ. See [AI data sharing](docs/ai.md), [MCP access](docs/mcp.md), and [security limits](SECURITY.md).
+Both interfaces share database tools, but their policies differ. See [AI data sharing](docs/ai.md), [MCP access](docs/mcp.md), and [security limits](SECURITY.md).
 
 ---
 
@@ -78,7 +78,7 @@ Both interfaces share database tools. Their policies differ. See [AI data sharin
 
 **Import:** CSV or JSON into an existing or new SQL table. See [importing files](docs/usage.md#importing-files).
 
-**Query history and saved queries:** History of statements and named queries. Restored tabs keep query text and settings. They do not keep result rows.
+**Query history and saved queries:** History of statements and named queries. Restored tabs keep query text and settings, not result rows.
 
 **Write plans:** Counts and reverse SQL for supported writes. See [write plans](docs/configuration.md#write-plans).
 
@@ -90,9 +90,9 @@ Both interfaces share database tools. Their policies differ. See [AI data sharin
 
 **Read-only profiles:** Client checks, with extra protection on engines that support it. See [read-only access](docs/engines.md#read-only-access).
 
-**MCP server:** `masume --mcp` serves selected profiles over stdio. It gives an access level per profile. It gives one for the whole server as well.
+**MCP server:** `masume --mcp` serves selected profiles over stdio. It gives an access level per profile and one for the whole server as well.
 
-**AI chat:** Questions about a statement, its error, or its query plan. Anthropic and OpenAI. `[ai] enabled = false` hides the chat.
+**AI chat:** Questions about a statement, its error, or its query plan. It supports Anthropic and OpenAI. `[ai] enabled = false` hides the chat.
 
 **MongoDB:** A [subset of shell syntax](docs/engines.md#mongodb).
 
@@ -227,7 +227,7 @@ The quickest first connection is a URL on the command line:
 masume postgres://ada@127.0.0.1:5432/shop
 ```
 
-The first interactive run creates a starter configuration file if none exists. In the picker, `n` adds a profile. `Ctrl+N` returns to the picker from a connection. Profiles can also be written directly:
+The first interactive run creates a starter configuration file if none exists. In the picker, `n` adds a profile, and `Ctrl+N` returns to the picker from a connection. Profiles can also be written directly:
 
 ```toml
 [profile.shop]
@@ -252,7 +252,7 @@ mode     = "write"
 | [Configuration](docs/configuration.md) | Settings, defaults, profiles, and password sources |
 | [Engines](docs/engines.md) | Protocols and capabilities |
 | [Keys](docs/keys.md) | Default bindings, scopes, and overrides |
-| [Themes](docs/themes.md) | Built-in themes, and how to write a custom one |
+| [Themes](docs/themes.md) | Built-in themes and how to write a custom one |
 | [AI chat](docs/ai.md) | Providers, tools, what is sent to the provider |
 | [MCP server](docs/mcp.md) | Tools, limits, confirming a write |
 | [Headless mode](docs/headless.md) | `masume run` for scripts and CI |
