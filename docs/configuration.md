@@ -4,7 +4,7 @@ The user configuration file is `$XDG_CONFIG_HOME/masume/config.toml`. The defaul
 
 [`config.example.toml`](../config.example.toml) lists the settings and sample profiles. The example values are not all defaults. The tables below give the defaults. [Usage](usage.md) covers the client workflows.
 
-On the first run, masume creates a starter file if none exists. The client, `masume --detect` and `masume --mcp` create the file; `masume run` does not. The connection form saves profiles in the user configuration file. Text outside the edited profile block stays unchanged. Rewritten assignments can lose inline comments.
+On the first run, masume creates a starter file if none exists. The client, `masume --detect`, and `masume --mcp` create the file, but `masume run` does not. The connection form saves profiles in the user configuration file. Text outside the edited profile block stays unchanged, but rewritten assignments can lose inline comments.
 
 ## Sections
 
@@ -22,7 +22,7 @@ A committed [`.masume.toml`](#project-file) accepts only `[profile.NAME]` and `[
 
 Every key is optional unless the table marks the key `required`. Invalid TOML prevents the whole file from loading. masume reports the file error and uses default settings without the profiles from that file. The user file and project file load separately.
 
-An invalid value in valid TOML can skip a profile or use a default. Some invalid values produce reports; others silently use defaults. For example, a non-boolean `autocommit` uses `true`, and a non-positive AI timeout uses `30000`.
+An invalid value in valid TOML can skip a profile or use a default. Some invalid values produce reports, while others silently use defaults. For example, a non-boolean `autocommit` uses `true`, and a non-positive AI timeout uses `30000`.
 
 Reports appear here:
 
@@ -83,19 +83,19 @@ mode     = "write"
 | `command_timeout` | `10` | Seconds to wait for `wait_for_port`. Must be above zero |
 | `mcp` | the `[mcp]` level | The profile access limit: `off`, `read-only`, `read-write` or `full`. The global limit and profile mode still apply. See [mcp.md](mcp.md) |
 | `description` | | Profile text stored and edited in the connection form. The picker does not display this text |
-| `ai_instructions` | | Database context sent to the AI model with AI chat requests on this connection |
+| `ai_instructions` | | Database context sent to the AI model with AI chat calls on this connection |
 
-A missing required key skips the profile and produces a report. Other valid profiles still load.
+A profile skips when a key it needs is missing. The client produces a report, and other valid profiles still load.
 
-A leading `~` in `database` expands to the home directory. Relative SQLite paths in `.masume.toml` use the project file directory. Relative paths in the user file or command line use the startup directory. `:memory:` opens an in-memory database.
+A leading `~` in `database` expands to the home directory. Relative SQLite paths in `.masume.toml` use the project file directory; relative paths in the user file and on the command line use the startup directory. `:memory:` opens an in-memory database.
 
 Environment defaults apply when `confirm_writes` or `write_plan` is absent from a profile file. Changing `env` in the connection form does not change the confirmation setting. A new form starts with confirmation `off`. [Usage](usage.md) covers connection forms and transaction commands.
 
-Headless commands use `statement_timeout_ms`, `mode`, `page_size` and `command`. They do not use `autocommit`, `confirm_writes`, `write_plan` or undo, and they cannot prompt for a password. See [headless.md](headless.md).
+Headless commands use `statement_timeout_ms`, `mode`, `page_size`, and `command`. They do not use `autocommit`, `confirm_writes`, `write_plan`, or undo. They cannot prompt for a password. See [headless.md](headless.md).
 
 ### TLS
 
-Redshift, Neon, Supabase and PlanetScale default to `require`. Other PostgreSQL-family and MySQL-family engines default to TLS with an unencrypted fallback. MongoDB defaults to no TLS. SQLite does not use TLS.
+Redshift, Neon, Supabase, and PlanetScale default to `require`. Other PostgreSQL-family and MySQL-family engines default to TLS with an unencrypted fallback. MongoDB defaults to no TLS. SQLite does not use TLS.
 
 | Mode | Behaviour |
 | --- | --- |
@@ -105,13 +105,13 @@ Redshift, Neon, Supabase and PlanetScale default to `require`. Other PostgreSQL-
 | `verify-ca` | TLS with certificate authority checks |
 | `verify-full` | TLS with certificate authority and host name checks |
 
-An unknown non-empty `sslmode` string skips the profile and produces a report.
+An unknown non-empty `sslmode` string skips the profile. It produces a report.
 
 ## Project file
 
 A repository can contain `.masume.toml` with shared profiles and queries.
 
-masume searches the startup directory and then each parent directory. The nearest `.masume.toml` is the project file. The client, `masume run` and `masume --mcp` read the project file.
+masume searches the startup directory. Then it searches each parent directory. The nearest `.masume.toml` is the project file. The client, `masume run`, and `masume --mcp` read the project file.
 
 ```toml
 # .masume.toml, committed with the code
@@ -144,7 +144,7 @@ profiles = ["staging"]
 
 ### Project profiles
 
-A project profile accepts the connection keys of a user profile, except the keys below. A profile that sets one of these is skipped, even when the value is empty:
+A project profile accepts the connection keys of a user profile but not the keys below. A profile that sets one of these is skipped, even when the value is empty:
 
 | Key | Meaning |
 | --- | --- |
@@ -153,13 +153,13 @@ A project profile accepts the connection keys of a user profile, except the keys
 | `password_env` | An environment variable |
 | `secret`, `secret_ref` | A secret store |
 
-`auth = "prompt"` and `auth = "keyring"` are allowed. Other password sources require a user profile. Project profiles accept `env`, `mode`, `confirm_writes` and `write_plan`.
+`auth = "prompt"` and `auth = "keyring"` are allowed. Other password sources need a user profile. Project profiles accept `env`, `mode`, `confirm_writes`, and `write_plan`.
 
-Other sections, including `[secret]`, `[ui]`, `[keys]`, `[ai]` and `[mcp]`, are reported and ignored.
+Other sections are reported and ignored, including `[secret]`, `[ui]`, `[keys]`, `[ai]`, and `[mcp]`.
 
 ### Project queries
 
-`[query.NAME]` is a shared query, listed under `Ctrl+Q`:
+`[query.NAME]` is a shared query. It is listed under `Ctrl+Q`:
 
 | Key | Type | Default | Meaning |
 | --- | --- | --- | --- |
@@ -171,27 +171,27 @@ Other sections, including `[secret]`, `[ui]`, `[keys]`, `[ai]` and `[mcp]`, are 
 
 A user profile replaces the project profile with the same name. A user query replaces the project query with the same name.
 
-The connection picker marks project profiles with `project` and displays the project path. `d` cannot remove a project profile. `e` opens a project profile in the connection form; `Ctrl+S` saves a user override. The override retains the profile settings, including settings absent from the form.
+The connection picker marks project profiles with `project` and displays the project path. `d` cannot remove a project profile. `e` opens a project profile in the connection form. `Ctrl+S` saves a user override. The override keeps the profile settings, including settings absent from the form.
 
-`Ctrl+Q` lists project and user queries, sorted by name. Project queries have a `project` label. `Enter` loads the selected query into the editor. `Ctrl+D` cannot remove a project query. Removal of a project profile or query requires a project file edit.
+`Ctrl+Q` lists project and user queries, sorted by name. Project queries have a `project` label. `Enter` loads the selected query into the editor. `Ctrl+D` cannot remove a project query; removal of a project profile or query needs a project file edit.
 
 ## Write plans
 
-`write_plan` measures an eligible single write before execution. PostgreSQL-family engines, MySQL-family engines and SQLite support write plans. MongoDB does not. The plan uses the target table and predicate from the statement. Unsupported statements, including joins, target aliases and batches, use the normal confirmation path.
+`write_plan` measures a single write before execution when the statement qualifies. PostgreSQL-family, MySQL-family, and SQLite engines support write plans, but MongoDB does not. The plan uses the target table and the predicate from the statement. Unsupported statements use the normal confirmation path, including joins, target aliases, and batches.
 
 The server counts matching rows with the write predicate. Counts can change before execution. An update plan also lists assigned columns. `cascades` lists trigger names and foreign key effects. The plan does not inspect trigger bodies or predict their effects. `blocked` lists foreign keys that can reject the delete.
 
-`write_plan = "undo"` prepares an undo for eligible updates, deletes and truncates. An update undo restores assigned columns by primary key. A delete or truncate undo inserts captured target rows. `Alt+U`, the `global.undo-write` action, asks for confirmation and applies the undo statements together. The connection retains only the latest recorded write outcome in memory.
+`write_plan = "undo"` prepares an undo for updates, deletes, and truncates. An update undo restores assigned columns by primary key. A delete or truncate undo inserts captured target rows. `Alt+U`, the `global.undo-write` action, asks for confirmation and applies the undo statements together. The connection keeps only the latest recorded write outcome in memory.
 
-Undo capture reads target rows inside the write transaction. Row locking follows the engine's transaction rules. The write joins an existing transaction without committing that transaction. Otherwise, masume starts and commits the transaction. Engine DDL rules still apply, including implicit commits for MySQL-family `TRUNCATE`.
+Undo capture reads target rows inside the write transaction. Row locking follows the engine's transaction rules. The write joins an existing transaction without committing it; otherwise, masume starts and commits the transaction. Engine DDL rules still apply; for example, MySQL-family `TRUNCATE` commits implicitly.
 
-Undo covers only captured target rows. Cascaded rows and trigger effects are excluded. Undo statements can run triggers again. A later undo can overwrite newer values in the restored columns. Restoring deleted rows can fail on key or constraint conflicts.
+Undo covers only captured target rows, excluding cascaded rows and trigger effects. Undo statements can run triggers again. A later undo can overwrite newer values in the restored columns. Restoring deleted rows can fail on key or constraint conflicts.
 
-Inserts, tables without primary keys, and updates that assign primary keys receive no undo. Plans with zero matching rows, failed counts, failed metadata reads, or counts above `undo_rows` also receive no undo. The plan gives the reason, and the write can still run after confirmation. Grid changes and imports do not retain an undo.
+Inserts, tables without primary keys, updates that assign primary keys, plans with zero matching rows, failed counts, failed metadata reads, and counts above `undo_rows` receive no undo. The plan gives the reason. The write can still run after confirmation. Grid changes and imports do not keep an undo.
 
-The default `undo_rows` is `1000`. `0` removes the configured limit but uses a capture ceiling of 1048576 rows. If a plan promises an undo, capture must succeed before execution. A capture error or truncated capture stops the write. A planning failure that offers a write without undo still allows the write after confirmation.
+The default `undo_rows` is `1000`; `0` removes the configured limit and uses a capture ceiling of 1048576 rows. If a plan promises an undo, capture must succeed before execution. A capture error or a truncated capture stops the write. A planning failure that results in a write without undo still allows the write after confirmation.
 
-A connection without transaction support runs without undo and reports the reason. The AI chat and MCP use the same planning code. MCP write responses include captured undo SQL when available. [Usage](usage.md) covers write confirmation and undo commands.
+A connection without transaction support runs without undo and reports the reason. The AI chat and MCP use the same planning code. MCP write responses include captured undo SQL when present. [Usage](usage.md) covers write confirmation and undo commands.
 
 ## Passwords
 
@@ -223,7 +223,7 @@ auth         = "password"
 password_env = "PGPASSWORD"
 ```
 
-A password command runs through `sh -c` with no stdin. The command must exit successfully within 30 seconds and print a non-empty first line. Later output is ignored.
+A password command runs through `sh -c` with no stdin. The command must exit successfully within 30 seconds. It must print a non-empty first line. Later output is ignored.
 
 masume ignores profile passwords in configuration files. A non-empty `password` string produces this warning:
 
@@ -233,13 +233,13 @@ select "remember in the keyring", or set password_env, password_command
 or a [secret] store
 ```
 
-Ignoring `password` does not change `auth`. The configured environment variable, command, secret store or keyring still applies. The client prompts only when the selected source and engine require a prompt. SQLite needs no password. MongoDB without a user does not prompt unless `auth = "prompt"`. A test from the connection form asks for the password through the same dialog, and keeps none of it.
+Ignoring `password` does not change `auth`; the configured environment variable, command, secret store, or keyring still applies. The client prompts only when the selected source and engine need a prompt. SQLite needs no password. MongoDB without a user does not prompt unless `auth = "prompt"`. A test from the connection form asks for the password through the same dialog but keeps none of it.
 
-`masume run` and `masume --mcp` cannot prompt. A required password must come from a non-interactive source. Saving a profile removes an existing `password` assignment from that profile block.
+`masume run` and `masume --mcp` cannot prompt. A password must come from a non-interactive source. Saving a profile removes an existing `password` assignment from that profile block.
 
 ### Keyring
 
-Linux keyring access uses Secret Service over D-Bus, supported by GNOME Keyring and KWallet. macOS uses Keychain. Keyring entries use service `masume` and the profile name.
+Linux keyring access uses Secret Service over D-Bus. GNOME Keyring and KWallet support it. macOS uses Keychain. Keyring entries use service `masume` and the profile name.
 
 On a machine with a keyring, the password dialog includes a checkbox:
 
@@ -256,11 +256,11 @@ On a machine with a keyring, the password dialog includes a checkbox:
 ╰───────────────────────────────────────────────╯
 ```
 
-`Tab` toggles the checkbox. After a successful connection, a checked box stores the password in the keyring. Saved profiles then use `auth = "keyring"`. A project profile requires a user override; masume does not edit the project file.
+`Tab` toggles the checkbox. After a successful connection, a checked box stores the password in the keyring. Saved profiles then use `auth = "keyring"`. A project profile needs a user override; masume does not edit the project file.
 
 An `auth = "keyring"` profile with a missing password opens the dialog with the checkbox checked. A successful connection can replace the missing entry.
 
-Command-line and detected passwords initially stay in memory. Saving a temporary profile can store its retained password in the keyring, even after selecting `auth = "prompt"`. Without a keyring, the saved profile uses `auth = "prompt"` and stores no password.
+Command-line and detected passwords initially stay in memory. Saving a temporary profile can store such a password in the keyring, even after selecting `auth = "prompt"`. Without a keyring, the saved profile uses `auth = "prompt"` and stores no password.
 
 Removing a saved connection with `d` also removes its keyring entry.
 
@@ -272,7 +272,7 @@ A secret store is a reusable password command under `[secret.NAME]`. `{{ref}}` i
 
 | Key | Type | Default | Meaning |
 | --- | --- | --- | --- |
-| `command` | string | required | The shell command that prints the secret on its first line. At least one unquoted, standalone `{{ref}}` argument is required |
+| `command` | string | required | The shell command that prints the secret on its first line. At least one unquoted, standalone `{{ref}}` argument must be given |
 
 ```toml
 [secret.work]
@@ -295,25 +295,25 @@ secret     = "infra"
 secret_ref = "secret/data/warehouse"
 ```
 
-A profile with `secret` and no `auth` uses `auth = "secret"`. The profile still requires `secret_ref` and normal connection fields.
+A profile with `secret` and no `auth` uses `auth = "secret"`. The profile still needs `secret_ref` and the normal connection fields.
 
-Each `{{ref}}` becomes one shell-quoted argument. The template must leave the placeholder unquoted and separate from other text. Invalid placeholder positions are refused. A reference can contain spaces, quotes and semicolons without becoming shell syntax. Commands that need multiple inputs can call a script.
+Each `{{ref}}` becomes one shell-quoted argument. The template must leave the placeholder unquoted and separate from other text; the client rejects an invalid placeholder position. A reference can contain spaces, quotes, and semicolons without becoming shell syntax. Commands that need multiple inputs can call a script.
 
-Templates accept literal arguments, quoted flags and pipelines. Shell expansion, escapes outside single quotes, redirects, command lists and multiline templates are refused. Complex commands require a script, with `{{ref}}` passed as an argument.
+Templates accept literal arguments, quoted flags, and pipelines. The client rejects shell expansion, escapes outside single quotes, redirects, command lists, and multiline templates. Complex commands need a script; pass `{{ref}}` as an argument.
 
 The invoked program still interprets its arguments. References must not be script text for `sh -c`, `eval`, or similar commands.
 
-A failed store command reports the exit code and first stderr line when available. Password command requirements also apply: successful exit within 30 seconds, non-empty first output line, and no stdin.
+A failed store command reports the exit code and the first stderr line when present. Password command requirements also apply: successful exit within 30 seconds, a non-empty first output line, and no stdin.
 
-A missing store skips the profile and produces a report. A missing command or invalid placeholder skips the store and produces a report.
+A missing store skips the profile and produces a report. A missing command or an invalid placeholder skips the store and produces a report.
 
 Secret stores belong in the user configuration file. Project files cannot declare or reference secret stores.
 
-MongoDB credentials require a user. A server without authentication can reject supplied credentials.
+MongoDB credentials need a user. A server without authentication can reject supplied credentials.
 
 ## Unix socket
 
-PostgreSQL and MySQL also listen on a unix socket. A `host` that starts with `/` or `~/` is a socket path, the same convention as libpq and psql. `host = "socket"` resolves the default path of a local server.
+PostgreSQL and MySQL also listen on a unix socket. A `host` that starts with `/` or `~/` is a socket path. This is the same convention as libpq and psql. `host = "socket"` resolves the default path of a local server.
 
 ```toml
 [profile.local]
@@ -331,9 +331,9 @@ user     = "turan"
 | PostgreSQL | `/var/run/postgresql`, `/run/postgresql`, `/tmp`, each holding `.s.PGSQL.<port>` |
 | MySQL | `/var/run/mysqld/mysqld.sock`, `/run/mysqld/mysqld.sock`, `/tmp/mysql.sock`, `/var/lib/mysql/mysql.sock` |
 
-A PostgreSQL client dials the socket directory and `port` selects the file in it, so `/var/run/postgresql` and `/var/run/postgresql/.s.PGSQL.5432` resolve to the same connection. A MySQL client dials the file, and a directory resolves to `mysqld.sock` or `mysql.sock` in it. A path that resolves to no socket fails the connection, and the error lists the checked paths.
+A PostgreSQL client dials the socket directory. `port` selects the file in it. `/var/run/postgresql` and `/var/run/postgresql/.s.PGSQL.5432` resolve to the same connection. A MySQL client dials the file; a directory resolves to `mysqld.sock` or `mysql.sock` in it. A path that resolves to no socket fails the connection, and the error lists the checked paths.
 
-A socket carries no TLS, so `sslmode` is ignored. A socket with `ssh_host` is refused: an SSH tunnel forwards TCP only. The PostgreSQL-protocol and MySQL-protocol engines take a socket; the rest do not. SQLite opens a file and needs no host.
+A socket carries no TLS, and `sslmode` is ignored. The client rejects a socket with `ssh_host`. An SSH tunnel forwards TCP only. The PostgreSQL- and MySQL-protocol engines take a socket, but the rest do not. SQLite opens a file and needs no host.
 
 ## SSH tunnel
 
@@ -352,21 +352,21 @@ ssh_user   = "ada"
 ssh_key    = "~/.ssh/id_ed25519"
 ```
 
-masume opens a local forward: a listener on `127.0.0.1` with an ephemeral port, forwarded to `host:port` over the SSH connection. The listener and the SSH client close with the database connection. The picker and the title bar show `host:port`, not the local endpoint.
+masume opens a local forward. A listener runs on `127.0.0.1` with an ephemeral port, forwarded to `host:port` over the SSH connection. The listener and the SSH client close with the database connection. The picker shows `host:port`, and so does the title bar; neither shows the local endpoint.
 
-Authentication order: `ssh_key`, then `ssh_password_env`, then the agent on `$SSH_AUTH_SOCK`. An encrypted `ssh_key` needs `ssh_key_passphrase_env`, or the key loaded in the agent.
+Authentication order: `ssh_key`. Then `ssh_password_env`. Then the agent on `$SSH_AUTH_SOCK`. An encrypted `ssh_key` needs `ssh_key_passphrase_env` unless the key loads in the agent.
 
-Host key verification is strict. An unknown host key or a missing known hosts file fails the connection with an error naming the path. `ssh-keyscan` appends a host key.
+Host key verification is strict. An unknown host key or a missing known hosts file fails the connection; the error names the path. `ssh-keyscan` appends a host key.
 
-TLS certificates are verified against `host`, so `sslmode = "verify-full"` works through the tunnel. A tunneled MongoDB connection is direct, so masume uses no other replica set member.
+TLS certificates are verified against `host`. `sslmode = "verify-full"` works through the tunnel. A tunneled MongoDB connection is direct. masume uses no other replica set member.
 
-The connection form has an `ssh tunnel` toggle. Set it to `on` and the form shows the SSH fields, writes them to the profile, and `Ctrl+T` tests the connection through the tunnel. Set it to `off` and saving removes every `ssh_` key from the profile.
+The connection form has an `ssh tunnel` toggle. Set it to `on`, and the form shows the SSH fields and writes them to the profile. `Ctrl+T` tests the connection through the tunnel. Set it to `off`, and saving removes every `ssh_` key from the profile.
 
-Project files cannot set `ssh_password_env` or `ssh_key_passphrase_env`.
+Project files cannot set `ssh_password_env`. They cannot set `ssh_key_passphrase_env`.
 
 ## Connection command
 
-A profile can start a shell command before connection, such as an SSH tunnel. The command must stay in the foreground. masume stops the running process group when the connection closes or connection setup fails. Detached or daemonized processes are not reliably cleaned up.
+A profile can start a shell command before connection. An SSH tunnel is an example. The command must stay in the foreground. masume stops the running process group when the connection closes or when connection setup fails. Detached or daemonized processes are not reliably cleaned up.
 
 ```toml
 [profile.shop-tunnel]
@@ -381,7 +381,7 @@ command_timeout = 10
 wait_for_port   = 15432
 ```
 
-masume checks `host:wait_for_port` for a TCP connection until the timeout. `wait_for_port` is a readiness check; `port` remains the database connection port. Without `wait_for_port`, masume connects immediately after starting the command. `command_timeout` is the readiness timeout, not the command lifetime. A profile without `command` performs no readiness check.
+masume checks `host:wait_for_port` for a TCP connection until the timeout. `wait_for_port` is a readiness check. `port` remains the database connection port. Without `wait_for_port`, masume connects immediately after starting the command. `command_timeout` is the readiness timeout, not the command lifetime. A profile without `command` performs no readiness check.
 
 ## Interface
 
@@ -404,7 +404,7 @@ key_hints           = "full"
 
 `icons = "plain"` is the default set. `icons = "ascii"` is ASCII-only. An unknown set produces a report and uses `plain`.
 
-`[ui.icon_glyphs]` overlays individual glyphs on that set. An empty string hides that kind. An unknown kind produces a report. A Nerd Font glyph belongs here; the shipped sets stay one column wide without that font.
+`[ui.icon_glyphs]` overlays individual glyphs on that set. An empty string hides that kind. An unknown kind produces a report. A Nerd Font glyph belongs here. The shipped sets stay one column wide without that font.
 
 ```toml
 [ui]
@@ -486,7 +486,7 @@ A terminal without a Nerd Font draws those example glyphs as empty boxes.
 | `banner` | A banner | `⚑` | `!` |
 | `new-tab` | A new tab | `+` | `+` |
 
-`[ui.palette]`, `[ui.colors]` and `[ui.syntax]` overlay the selected theme. See [themes.md](themes.md) for colour names, token kinds and inheritance.
+`[ui.palette]`, `[ui.colors]`, and `[ui.syntax]` overlay the selected theme. See [themes.md](themes.md) for colour names, token kinds, and inheritance.
 
 ### Key hint modes
 
@@ -496,11 +496,11 @@ A terminal without a Nerd Font draws those example glyphs as empty boxes.
 | `main` | The primary key hints only. See the list below |
 | `off` | No key hints. Every bar, strip, border and card keeps its readouts: the count of the statements, the place of the caret, the count of the faults, the rows of the result, what a card is for |
 
-`main` shows the primary keys: the key a pane is there for (open a tree row, run the statement, run all, run a notebook cell), the key that opens the menu of the row under the cursor, the keys a state raises (cancel a running read, run a failed one, fetch more rows, count the rows, edit a table as a query), and the keys no other key reaches (show a hidden tree, step through the connections). On a card it shows the keys that answer it and the key that closes it, without the extras. The chat card shows `ask`, `last reply query to editor` and `close`. The notebook card shows `open` and `close`. The title bar, the pane borders and the plan strip keep their keys. The tab row and the step keys of the result strips show none.
+`main` shows the primary keys, including the key a pane is there for (open a tree row, run the statement, run all, run a notebook cell), the key that opens the menu of the row under the cursor, the keys a state raises (cancel a running read, run a failed one, fetch more rows, count the rows, edit a table as a query), and the keys no other key reaches (show a hidden tree, step through the connections). On a card it shows the keys that answer it and the key that closes it, but no extras. The chat card shows `ask`, `last reply query to editor`, and `close`, and the notebook card shows `open` and `close`. The title bar, pane borders, and plan strip keep their keys; the tab row and the step keys of the result strips show none.
 
 `full` and `main` show the keys that reach the model: `ask ai` on the title bar, the one key of the model on the border of the editor, and `ask ai` on the strip of the plan. `off` hides all three.
 
-Every mode shows the chords in a menu row, the palette and the help card, the answer chips of a question, and a report that carries the key it is answered with, such as the key that undoes a write. A key a mode hides still works, and the palette (`^K`) and the help card (`?`) reach every action in every mode.
+Every mode shows the chords in a menu row, the palette, and the help card. It shows the answer chips of a question and a report that carries the key it is answered with, such as the key that undoes a write. A key a mode hides still works. The palette (`^K`) and the help card (`?`) reach every action in every mode.
 
 ## Keys
 
@@ -520,7 +520,7 @@ copy-menu = "alt+y"
 | --- | --- | --- | --- |
 | `preset` | string | `default` | The initial key set. `default` is the only preset |
 
-Each table below `[keys]` is a scope. Each scope entry binds an action to one chord or a chord list. An empty list removes the binding. Unlisted actions retain the preset bindings.
+Each table below `[keys]` is a scope. Each scope entry binds an action to one chord. It can bind it to a chord list. An empty list removes the binding. Unlisted actions keep the preset bindings.
 
 | Scope | Where its keys apply |
 | --- | --- |
@@ -534,7 +534,7 @@ Each table below `[keys]` is a scope. Each scope entry binds an action to one ch
 | `list` | Any list inside a card: the history, the saved queries, the palette |
 | `dialog` | A card that asks a question, and the connection picker |
 
-`alt`, `meta` and `option` are names for the same modifier. Unknown actions and invalid chords produce reports and retain the preset binding. [Keys](keys.md) lists the actions and defaults. [Usage](usage.md) covers the corresponding workflows.
+`alt`, `meta`, and `option` are names for the same modifier. Unknown actions and invalid chords produce reports and keep the preset binding. [Keys](keys.md) lists the actions and defaults. [Usage](usage.md) covers the corresponding workflows.
 
 ## AI
 
@@ -565,7 +565,7 @@ One table per provider, `[ai.providers.anthropic]` and `[ai.providers.openai]`:
 | `base_url` | string | empty | The provider or proxy address. A non-empty value takes priority over `base_url_env` |
 | `base_url_env` | string | empty | The environment variable with the provider or proxy address. No variable name is assumed by default |
 
-Without a configured address, Anthropic uses `https://api.anthropic.com/v1` and OpenAI uses `https://api.openai.com/v1`. masume removes trailing slashes and appends `/v1` unless the configured address already ends with `/v1`. Requests then use `/messages` for Anthropic or `/responses` for OpenAI.
+Without a configured address, Anthropic uses `https://api.anthropic.com/v1` and OpenAI uses `https://api.openai.com/v1`. masume removes trailing slashes and appends `/v1` unless the configured address already ends with `/v1`. The client then uses `/messages` for Anthropic and `/responses` for OpenAI.
 
 Unknown provider tables produce reports and are ignored. See [ai.md](ai.md) for provider data and credential sources.
 
@@ -586,13 +586,13 @@ timeout_ms = 30000
 | `row_limit` | integer above zero | `500` | Maximum returned rows for `run_query`. Catalog results, undo rows and changed rows are outside this limit |
 | `timeout_ms` | integer above zero | `30000` | Execution timeout for MCP `run_query`, in milliseconds. Other tools and undo capture are outside this timeout |
 
-An unknown `access` level and a `row_limit` or `timeout_ms` that is not above zero keep the default without a report.
+An unknown `access` level, a `row_limit` not above zero, and a `timeout_ms` not above zero keep the default; no report appears.
 
 See [mcp.md](mcp.md) for tools and write confirmation.
 
 ## Notebooks
 
-`[notebooks]` adds directories to the notebook list. The list always holds `<project root>/.masume/notebooks` and `$XDG_STATE_HOME/masume/notebooks`.
+`[notebooks]` adds directories to the notebook list. The list always holds `<project root>/.masume/notebooks`. It also holds `$XDG_STATE_HOME/masume/notebooks`.
 
 ```toml
 [notebooks]
@@ -611,4 +611,4 @@ See the [notebook guide](notebooks.md) for the file format and the run policy.
 | `$XDG_STATE_HOME/masume/mcp.log`, `mcp.log.1` | Partial MCP diagnostics and one rotated backup |
 | `$XDG_STATE_HOME/masume/ai-chat.log`, `ai-chat.log.1` | Partial chat diagnostics and one rotated backup |
 
-`XDG_CONFIG_HOME` is the configuration base directory. `XDG_STATE_HOME` is the state base directory, normally `~/.local/state`. Keyring entries are separate from these files. See [security](../SECURITY.md#stored-data) for permissions, retention and diagnostic limits.
+`XDG_CONFIG_HOME` is the configuration base directory, and `XDG_STATE_HOME` is the state base directory, normally `~/.local/state`. Keyring entries are separate from these files. See [security](../SECURITY.md#stored-data) for permissions, retention, and diagnostic limits.

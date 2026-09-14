@@ -20,43 +20,43 @@
 
 ### Browse
 
-The object tree lists database objects supported by the engine. Table views include data, columns, indexes, constraints, DDL and query plans.
+The object tree lists the database objects of the engine. Table views show data, columns, indexes, constraints, DDL, and query plans.
 
 ![The object tree](vhs/shots/01-object-tree.png)
 
 ### Diagram
 
-An ER diagram shows a table and the tables it is linked to by foreign keys.
+An ER diagram shows a table and the tables that its foreign keys link to it.
 
 ![An ER diagram of a table and its related tables](vhs/shots/07-er-diagram.png)
 
 ### Query
 
-The editor has syntax highlighting and completion from the database catalog. Local checks and supported server checks mark detected errors before execution. A statement without a diagnostic can still fail.
+The editor gives syntax highlighting and completion from the database catalog. Local checks and supported server checks mark detected errors before execution. A statement without a diagnostic can still fail.
 
 ![The SQL editor with the completion menu open](vhs/shots/08-completion.png)
 
 ### Results
 
-Sort, filter, follow a foreign key, or freeze a column. Grid edits stay staged until SQL review and execution. Masking hides matching columns in the grid only; copies, exports and value viewers retain original values.
+You can sort, filter, follow a foreign key, or freeze a column. Grid edits stay staged until SQL review and execution. Masking hides the columns that have sensitive names in the grid display only; copies, exports, and value viewers show the original values.
 
 ![A result grid](vhs/shots/09-result.png)
 
 ### Explain
 
-Query plans are displayed as a tree, with estimated or measured costs.
+Query plans appear as a tree. The tree shows estimated or measured costs.
 
 ![A query plan drawn as a tree](vhs/shots/10-plan.png)
 
 ### Notebooks
 
-Cells of prose, values, statements and charts over one connection. Each cell keeps its own result and its own view. A notebook is a Markdown file, and `masume nb run` runs the file.
+A notebook holds cells of prose, values, statements, and charts over one connection. Each cell keeps its result and its view. A notebook is a Markdown file, and `masume nb run` runs the file.
 
-![A notebook of prose, values, statements and a chart](vhs/shots/13-notebook.png)
+![A notebook of prose, values, statements, and a chart](vhs/shots/13-notebook.png)
 
 ### Agents
 
-masume has a built-in AI chat and an MCP server over stdio. The AI chat uses the current connection and asks before each query, including reads. MCP opens separate connections to explicitly allowed profiles. MCP access levels and profile settings apply to its queries and write confirmations.
+masume has a built-in AI chat and an MCP server over stdio. The AI chat uses the current connection and asks before each query, including reads. MCP opens separate connections to the profiles you allow; its access levels and profile settings apply to its queries and write confirmations.
 
 Both interfaces share database tools, but their policies differ. See [AI data sharing](docs/ai.md), [MCP access](docs/mcp.md), and [security limits](SECURITY.md).
 
@@ -64,41 +64,41 @@ Both interfaces share database tools, but their policies differ. See [AI data sh
 
 ## Features
 
-**Multiple engines:** PostgreSQL, MySQL, SQL Server, ClickHouse, SQLite and MongoDB, plus hosted services based on them
+**Multiple engines:** PostgreSQL, MySQL, SQL Server, ClickHouse, SQLite, and MongoDB. Hosted services based on them also work.
 
-**Staged edits:** insert, edit, duplicate and delete supported table rows, then review the SQL. See [editing rows](docs/usage.md#editing-rows).
+**Staged edits:** Insert, edit, duplicate, and delete supported table rows. Then review the SQL. See [editing rows](docs/usage.md#editing-rows).
 
-**Filters:** server predicates and filters on loaded rows. See [sorting and filters](docs/usage.md#sorting-and-filters).
+**Filters:** Server predicates and filters on loaded rows. See [sorting and filters](docs/usage.md#sorting-and-filters).
 
-**Named parameters:** a statement with `:name` placeholders opens a form for the values
+**Named parameters:** A statement with `:name` placeholders opens a form for the values.
 
-**Export and copy:** CSV and JSON files. Clipboard formats also include Markdown, `INSERT` statements, row JSON and column `IN` clauses. See [copy and export](docs/usage.md#copy-and-export).
+**Export and copy:** CSV and JSON files. Clipboard formats also include Markdown, `INSERT` statements, row JSON, and column `IN` clauses. See [copy and export](docs/usage.md#copy-and-export).
 
-**Dump and restore:** schema and data as a SQL file. See [dump and restore](docs/usage.md#dump-and-restore).
+**Dump and restore:** Schema and data as a SQL file. See [dump and restore](docs/usage.md#dump-and-restore).
 
 **Import:** CSV or JSON into an existing or new SQL table. See [importing files](docs/usage.md#importing-files).
 
-**Query history and saved queries:** history of statements and named queries. Restored tabs keep query text and settings, not result rows.
+**Query history and saved queries:** History of statements and named queries. Restored tabs keep query text and settings, not result rows.
 
-**Write plans:** counts and reverse SQL for eligible writes. See [write plans](docs/configuration.md#write-plans).
+**Write plans:** Counts and reverse SQL for supported writes. See [write plans](docs/configuration.md#write-plans).
 
-**Transactions:** begin, commit and rollback, or automatic begin with autocommit disabled
+**Transactions:** Begin, commit, and rollback. Automatic begin with autocommit disabled also works.
 
-**Server dashboard:** sessions and metrics the engine supports. See [server activity](docs/usage.md#server-activity).
+**Server dashboard:** Sessions and metrics the engine supports. See [server activity](docs/usage.md#server-activity).
 
-**Password sources:** prompt, keyring, environment variables, commands and named secret stores. Profile files do not store database passwords. See [credentials](SECURITY.md#credentials).
+**Password sources:** Prompt, keyring, environment variables, commands, and named secret stores. Profile files do not store database passwords. See [credentials](SECURITY.md#credentials).
 
-**Read-only profiles:** client checks, with extra protection on engines that support it. See [read-only access](docs/engines.md#read-only-access).
+**Read-only profiles:** Client checks, with extra protection on engines that support it. See [read-only access](docs/engines.md#read-only-access).
 
-**MCP server:** `masume --mcp` serves selected profiles over stdio, with an access level per profile and for the whole server
+**MCP server:** `masume --mcp` serves selected profiles over stdio. It gives an access level per profile and one for the whole server as well.
 
-**AI chat:** questions about a statement, its error, or its query plan. Anthropic and OpenAI. `[ai] enabled = false` hides the chat.
+**AI chat:** Questions about a statement, its error, or its query plan. It supports Anthropic and OpenAI. `[ai] enabled = false` hides the chat.
 
-**MongoDB:** a [subset of shell syntax](docs/engines.md#mongodb)
+**MongoDB:** A [subset of shell syntax](docs/engines.md#mongodb).
 
-**Themes:** built-in themes, custom themes, or terminal colours
+**Themes:** Built-in themes, custom themes, or terminal colours.
 
-**Project profiles:** the nearest `.masume.toml` shares connections and saved queries. See [project file](docs/configuration.md#project-file).
+**Project profiles:** The nearest `.masume.toml` shares connections and saved queries. See [project file](docs/configuration.md#project-file).
 
 ---
 
@@ -142,7 +142,7 @@ sudo rpm -i masume_0.0.4_linux_amd64.rpm  # adapt the version and the architectu
 
 ### Alpine
 
-The packages are unsigned, so `apk` needs `--allow-untrusted`.
+The packages are unsigned. `apk` needs `--allow-untrusted`.
 
 ```sh
 sudo apk add --allow-untrusted masume_0.0.4_linux_amd64.apk  # adapt the version and the architecture
@@ -150,7 +150,7 @@ sudo apk add --allow-untrusted masume_0.0.4_linux_amd64.apk  # adapt the version
 
 ### Archive
 
-Unpack the `tar.gz` for the platform and put `masume` on the PATH.
+Unpack the `tar.gz` for the platform. Put `masume` on the PATH.
 
 ### Go
 
@@ -198,7 +198,7 @@ masume run -p shop -e ./reports/daily.sql --param day=2026-09-02
 masume run ./notes.db -f csv 'select * from notes limit 100000' > notes.csv
 ```
 
-See [headless mode](docs/headless.md) for formats, exit codes, dump, restore and notebooks.
+See [headless mode](docs/headless.md) for formats, exit codes, dump, restore, and notebooks.
 
 ### For teams
 
@@ -227,7 +227,7 @@ The quickest first connection is a URL on the command line:
 masume postgres://ada@127.0.0.1:5432/shop
 ```
 
-The first interactive run creates a starter configuration file if none exists. In the picker, `n` adds a profile. `Ctrl+N` returns to the picker from a connection. Profiles can also be written directly:
+The first interactive run creates a starter configuration file if none exists. In the picker, `n` adds a profile, and `Ctrl+N` returns to the picker from a connection. Profiles can also be written directly:
 
 ```toml
 [profile.shop]
@@ -247,16 +247,16 @@ mode     = "write"
 
 | Page | About |
 | --- | --- |
-| [User guide](docs/usage.md) | Workflows, navigation, editing, data transfer and troubleshooting |
-| [Notebooks](docs/notebooks.md) | Cells, charts, run policy, the file format and `masume nb run` |
-| [Configuration](docs/configuration.md) | Settings, defaults, profiles and password sources |
+| [User guide](docs/usage.md) | Workflows, navigation, editing, data transfer, and troubleshooting |
+| [Notebooks](docs/notebooks.md) | Cells, charts, run policy, the file format, and `masume nb run` |
+| [Configuration](docs/configuration.md) | Settings, defaults, profiles, and password sources |
 | [Engines](docs/engines.md) | Protocols and capabilities |
-| [Keys](docs/keys.md) | Default bindings, scopes and overrides |
-| [Themes](docs/themes.md) | Built-in themes, and how to write a custom one |
+| [Keys](docs/keys.md) | Default bindings, scopes, and overrides |
+| [Themes](docs/themes.md) | Built-in themes and how to write a custom one |
 | [AI chat](docs/ai.md) | Providers, tools, what is sent to the provider |
 | [MCP server](docs/mcp.md) | Tools, limits, confirming a write |
 | [Headless mode](docs/headless.md) | `masume run` for scripts and CI |
-| [Security](SECURITY.md) | Storage, data sharing and protection limits |
+| [Security](SECURITY.md) | Storage, data sharing, and protection limits |
 
 ## Contributing
 

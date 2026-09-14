@@ -1,6 +1,6 @@
 # MCP server
 
-`masume --mcp` serves database tools to an external agent over stdin and stdout. The protocol is JSON-RPC 2.0, one message per line.
+`masume --mcp` serves database tools to an external agent over stdin and stdout. The protocol is JSON-RPC 2.0. It sends one message per line.
 
 The process opens its own database connections, separate from a running terminal client. Each profile connects on its first database tool call.
 
@@ -10,7 +10,7 @@ masume --mcp --profile=shop
 masume --mcp --check
 ```
 
-Protocol output goes to stdout. Startup reports and errors go to stderr, usually with the prefix `masume mcp: `. Check result lines and some argument help omit that prefix.
+Protocol output goes to stdout, and startup reports and errors go to stderr. They usually have the prefix `masume mcp: `. Check result lines omit that prefix. Some argument help omits it.
 
 ## Allowed profiles
 
@@ -21,23 +21,23 @@ Protocol output goes to stdout. Startup reports and errors go to stderr, usually
 profiles = ["shop"]
 ```
 
-`--profile=shop` restricts the server to `shop` among the allowed profiles and access settings. Connection tools then omit the `profile` argument. Without this option, every connection tool requires that argument, including when only one profile is allowed.
+`--profile=shop` restricts the server to `shop` among the allowed profiles. Access settings still apply. Connection tools then omit the `profile` argument. Without this option, every connection tool needs that argument, even when only one profile is allowed.
 
-`list_profiles` returns profiles with effective access above `off`: names, engines, targets, configured databases, environments, descriptions, and access levels. A profile that needs a password prompt can appear as `unreachable`.
+`list_profiles` returns profiles with effective access above `off`. It shows names, engines, targets, configured databases, environments, descriptions, and access levels. A profile that needs a password prompt can appear as `unreachable`.
 
-`--check` connects those same profiles and runs table discovery. Exit `1` means no profile was available or a checked connection failed. Exit `0` means every checked profile connected.
+`--check` connects those same profiles and runs table discovery. Exit `1` means no profile was present or a checked connection failed. Exit `0` means every checked profile connected.
 
 ## Config files
 
-The server reads the global config and the nearest `.masume.toml` in or above its working directory. A global profile replaces a project profile with the same name. Other project profiles join the list.
+The server reads the global config and the nearest `.masume.toml` in or above its working directory. A global profile replaces a project profile with the same name; other project profiles join the list.
 
 Only the global config supplies `[mcp]` and `[ai]`. A project file cannot add itself to `[mcp] profiles`. An allowed name can still match a project profile from the server's working directory.
 
 The working directory is the process directory of the agent client. Project profiles permit `auth = "keyring"`. Keyring entries use the service `masume` and the profile name, with no host or project identifier.
 
-The server has no password prompt. Available sources are environment variables, keyring entries, password commands, and named secret stores. Missing credentials that need a terminal prompt leave the profile unavailable. A literal profile `password` in a config file is ignored.
+The server has no password prompt; the sources are environment variables, keyring entries, password commands, and named secret stores. Missing credentials that need a terminal prompt leave the profile unusable. A literal profile `password` in a config file is ignored.
 
-MCP stays available when `[ai] enabled = false`. MCP does not use the AI chat's provider credentials.
+MCP still works when `[ai] enabled = false`. MCP does not use the AI chat's provider credentials.
 
 See [configuration](configuration.md#mcp) for the `[mcp]` key table.
 
@@ -53,7 +53,7 @@ claude mcp add --scope user masume -- masume --mcp
 
 ### opencode
 
-The server entry belongs under `mcp` in `opencode.json`. The global file is `~/.config/opencode/opencode.json`. Project settings merge with global settings and override matching keys.
+The server entry belongs under `mcp` in `opencode.json`. The global file is `~/.config/opencode/opencode.json`. Project settings merge with global settings. They override matching keys.
 
 ```json
 {
@@ -86,22 +86,22 @@ Cursor reads `~/.cursor/mcp.json`. Claude Desktop uses its own config file. Thes
 claude mcp add --scope user masume-shop -- masume --mcp --profile=shop
 ```
 
-`list_profiles` and `--check` then cover that profile alone, subject to the access settings.
+`list_profiles` and `--check` then cover that profile alone. Access settings still apply.
 
 ## Tools and results
 
 | Tool | Result |
 | --- | --- |
 | `list_profiles` | Allowed profiles and their effective access levels |
-| `list_tables` | Table or collection names, kinds, and available row estimates |
-| `describe_table` | Columns or fields, types, defaults, choices, and foreign keys where available |
+| `list_tables` | Table or collection names, kinds, and row estimates |
+| `describe_table` | Columns or fields, types, defaults, choices, and foreign keys where they exist |
 | `list_indexes` | Index names and definitions |
 | `list_constraints` | Constraint names and definitions |
 | `get_table_ddl` | Table or collection creation statements |
 | `list_relationships` | Foreign keys into and out of tables |
 | `validate_query` | Adapter diagnostics |
 | `explain_query` | An estimated or analyzed plan |
-| `plan_write` | Available row counts, assigned columns, trigger names, foreign-key effects, and undo information |
+| `plan_write` | Row counts, assigned columns, trigger names, foreign-key effects, and undo information |
 | `run_query` | Execution status, returned rows, and optional undo statements |
 
 `initialize` returns protocol version, server information, and tool capabilities. `tools/list` returns tool definitions. Profile and catalog data come from later tool calls.
@@ -113,20 +113,20 @@ Tool answers use text content. Successful answers are JSON text.
 | nonempty `error` | MCP `isError: true` |
 | handler failure | Plain error text with `isError: true` |
 | denied `run_query` | `ran: false` and `reason`, with `isError` unset |
-| execution failure | `ran: true` and `error`. `ran: true` is an attempt |
-| `undo` | Reversal statements when available |
+| execution failure | `ran: true` and `error`. `ran: true` means the statement was tried |
+| `undo` | Reversal statements when present |
 | `undo_reason` | Optional, when undo is unavailable |
 | unknown tool or bad protocol | JSON-RPC error |
 
-`validate_query` uses SQL preparation where available, and local diagnostics on MongoDB. An open transaction returns `checked: false`.
+`validate_query` uses SQL preparation where the engine supports it. It uses local diagnostics on MongoDB. An open transaction returns `checked: false`.
 
-The [AI chat](ai.md) uses the same database tools, without `list_profiles`.
+The [AI chat](ai.md) uses the same database tools. It does not use `list_profiles`.
 
 ## Notebooks
 
-`list_notebooks` returns the notebooks of the project and of the user: name, title, origin, cell count, and how many cells write. `read_notebook` returns one notebook with its run policy and every cell: id, kind, title, and text.
+`list_notebooks` returns the notebooks of the project and of the user, with name, title, origin, cell count, and how many cells write. `read_notebook` returns one notebook with its run policy and every cell; each cell shows id, kind, title, and text.
 
-Both tools run no cell. A notebook whose front matter names profiles is listed only where one of those profiles is served. An agent runs a cell by sending its text through `run_query`, where the access level and the confirmation apply. See the [notebook guide](notebooks.md).
+Both tools run no cell. A notebook whose front matter names profiles is listed only where one of those profiles is served. An agent runs a cell by sending its text through `run_query`, where the access level and confirmation apply. See the [notebook guide](notebooks.md).
 
 ## Access limits
 
@@ -150,10 +150,10 @@ timeout_ms = 30000
 The classifier uses statement structure. Effects it misses include:
 
 - An `UPDATE` without `WHERE` needs `full`, even when the statement changes no rows.
-- Creating a routine is a write, regardless of its body.
+- Creating a routine is a write. Its body does not change this.
 - MongoDB `runCommand` uses the command inside its document.
 - Unrecognized `SET` and `RESET` settings are writes. Recognized settings such as `search_path`, time zones, and timeouts can be reads.
-- Disabling read-only transactions and `BEGIN READ WRITE` are writes.
+- Disabling read-only transactions is a write. `BEGIN READ WRITE` is a write.
 - MySQL and MariaDB executable comments use the statement inside the comment.
 
 A profile can lower the global access level:
@@ -165,13 +165,13 @@ mcp = "read-only"
 
 `mode = "read-only"` also limits effective MCP access to reads. That profile mode applies outside MCP too.
 
-MCP requests a read-only connection when effective access is read-only and the engine supports that profile mode. TiDB is the exception: MCP `access = "read-only"` on a writable profile keeps the writable session and applies client checks. An explicit `mode = "read-only"` TiDB profile still fails to connect. See [read-only access](engines.md#read-only-access).
+MCP asks for a read-only connection when effective access is read-only, and the engine must support that profile mode. TiDB is the exception. MCP `access = "read-only"` on a writable profile keeps the writable session and applies client checks. An explicit `mode = "read-only"` TiDB profile still fails to connect. See [read-only access](engines.md#read-only-access).
 
-`explain_query` with `analyze: true` executes a statement classified as a read. A write receives an estimated plan only, subject to access and confirmation. `plan_write` runs counts that evaluate the write predicate.
+`explain_query` with `analyze: true` executes a statement classified as a read; a write receives an estimated plan only, subject to access and confirmation. `plan_write` runs counts that evaluate the write predicate.
 
-`row_limit` is the maximum returned rows for `run_query`. A call can request fewer rows. Catalog results, undo rows, changed rows, and plan results sit outside this cap.
+`row_limit` is the maximum returned rows for `run_query`. A call can ask for fewer rows, and catalog results, undo rows, changed rows, and plan results sit outside this cap.
 
-`timeout_ms` is the execution timeout for `run_query`. Connection setup, confirmation, catalog calls, validation, explain, write-plan measurement, and undo capture sit outside it. A profile timeout can apply separately. Cancellation can fail, and a statement can remain active after a timeout.
+`timeout_ms` is the execution timeout for `run_query`. Connection setup, confirmation, catalog calls, validation, explain, write-plan measurement, and undo capture sit outside it. A profile timeout can apply separately. Cancellation can fail. A statement can remain active after a timeout.
 
 ## Confirming a write
 
@@ -186,15 +186,15 @@ MCP uses the profile `confirm_writes` setting after its access check. Statements
 
 When unset, the defaults are `off` on `dev`, `delete` on `test`, and `write` on `prod`.
 
-A client with elicitation support receives `elicitation/create` when confirmation is required. An accepted answer must contain `confirm: true`. The answer timeout is 120 seconds. A refusal or timeout leaves the statement unrun.
+A client with elicitation support receives `elicitation/create` when confirmation is needed. An accepted answer must contain `confirm: true`; the answer timeout is 120 seconds. An answer without `confirm: true`, or a timeout, leaves the statement unrun.
 
-`write_plan` adds available measurements to the question. See [write plans](configuration.md#write-plans).
+`write_plan` adds the measurements to the question. See [write plans](configuration.md#write-plans).
 
-When undo is available, `run_query` returns reversal statements read inside the write transaction. The server leaves those statements unrun. Undo statements can hold old row values.
+When an undo exists, `run_query` returns reversal statements, which it reads inside the write transaction. The server leaves those statements unrun. Undo statements can hold old row values.
 
 ## Clients without elicitation
 
-A client without elicitation is refused a statement that needs confirmation under `write` or `delete`. Statements that need no confirmation still run.
+For a client without elicitation, the server rejects a statement that needs confirmation under `write` or `delete`. Statements that need no confirmation still run.
 
 `confirm_writes = "agent"` issues a plan token when the client has no elicitation. Token issuance needs:
 
@@ -228,26 +228,26 @@ write_plan = "count"
 The agent flow is:
 
 1. Call `plan_write` with the statement.
-2. Present the plan and request human approval.
+2. Present the plan and ask for human approval.
 3. After approval, call `run_query` with the returned `token` as `plan_token`.
 
 masume does not verify that a human saw the plan or approved the statement.
 
-A token belongs to one profile and statement within one server process. It is single-use and expires after 10 minutes. Matching ignores outer whitespace after statement splitting. A change inside the statement fails to match, and the token stays available for the original statement.
+A token belongs to one profile and one statement within one server process, is single-use, and expires after 10 minutes. Matching ignores outer whitespace after statement splitting; a change inside the statement fails to match. The token stays valid for the original statement.
 
-A token stores no row snapshot and holds no lock. Data can change before execution. The access check still applies when the token returns.
+A token stores no row snapshot and holds no lock, so data can change before execution. The access check still applies when the token returns.
 
-A client with elicitation support receives no token. A supplied token is ignored, and required confirmation still uses elicitation. Profiles with `write` or `delete` issue no tokens.
+A client with elicitation support receives no token; a supplied token is ignored, and confirmation still uses elicitation. Profiles with `write` or `delete` issue no tokens.
 
 ## Data and logs
 
-The external agent receives tool results and can send those results to its provider or gateway. The external client has its own storage and sharing rules.
+The external agent receives tool results and can send them to its provider or gateway. The external client has its own storage and sharing rules.
 
 Results are unmasked. Schema definitions, plans, errors, rows, and undo statements can hold secrets. MongoDB collection descriptions sample up to 100 documents and return inferred field names and types.
 
-`$XDG_STATE_HOME/masume/mcp.log` records MCP traffic. Tool arguments and results are truncated after 500 Unicode characters. Rotation uses a 2,000,000-byte threshold and one `.1` backup. The initialize log reports elicitation support. See [SECURITY.md](../SECURITY.md#diagnostic-logs).
+`$XDG_STATE_HOME/masume/mcp.log` records MCP traffic. Tool arguments and results are truncated after 500 Unicode characters. Rotation uses a 2,000,000-byte threshold and keeps one `.1` backup. The initialize log reports elicitation support. See [SECURITY.md](../SECURITY.md#diagnostic-logs).
 
-`run_query` attempts also enter query history, including failures. `Ctrl+T` opens that history in the terminal client.
+Runs of `run_query`, including failures, also enter query history. `Ctrl+T` opens that history in the terminal client.
 
 ## Testing
 

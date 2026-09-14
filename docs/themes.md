@@ -1,13 +1,13 @@
 # Themes
 
-`Alt+O t` opens the theme picker. Movement previews a theme. Enter applies it and writes `[ui] theme` in the user configuration file. Esc cancels. A save error appears in the client.
+`Alt+O t` opens the theme picker. Movement previews a theme, and Enter applies it. It writes `[ui] theme` in the user configuration file. Esc cancels. A save error appears in the client.
 
 ```toml
 [ui]
 theme = "tokyonight"
 ```
 
-The value is the file name without `.toml`. `ayu-dark` is the default and the fallback parent.
+The value is the file name without `.toml`; `ayu-dark` is the default and the fallback parent.
 
 ## Built-in themes
 
@@ -38,11 +38,11 @@ The value is the file name without `.toml`. `ayu-dark` is the default and the fa
 theme = "system"
 ```
 
-masume uses the terminal background, foreground, and sixteen palette colours. It queries those colours about every two seconds. Updates need terminal support for colour queries.
+masume uses the terminal background, the foreground, and the sixteen palette colours. It queries those colours about every two seconds; updates need terminal support for colour queries.
 
 ## Custom themes
 
-A custom theme is a TOML file in `$XDG_CONFIG_HOME/masume/themes/`, normally `~/.config/masume/themes/`. The file name without `.toml` is the `[ui] theme` value. A custom file with a built-in name replaces that theme. `system` is reserved; masume reports and ignores `system.toml`.
+A custom theme is a TOML file in `$XDG_CONFIG_HOME/masume/themes/`, normally `~/.config/masume/themes/`. The file name without `.toml` is the `[ui] theme` value. A custom file with a built-in name replaces that theme. `system` is reserved; masume reports `system.toml` and ignores it.
 
 ```toml
 title = "My Theme"
@@ -71,9 +71,9 @@ Child values override inherited palette entries, colours, and syntax properties.
 
 `[palette]` holds named hex colours. Palette values cannot reference other names. Hex colours are `#RGB`, `#RGBA`, `#RRGGBB`, or `#RRGGBBAA`.
 
-`[colors]` holds the colour roles. A value is a hex colour, a palette name, or another colour role, such as `border_focus = "blue"` or `border_focus = "accent"`.
+`[colors]` holds the colour roles. A value is a hex colour, a palette name, or another colour role. Examples are `border_focus = "blue"` and `border_focus = "accent"`.
 
-`[ui.palette]`, `[ui.colors]` and `[ui.syntax]` in the user configuration overlay the selected theme. The overlay remains after a theme change.
+`[ui.palette]`, `[ui.colors]`, and `[ui.syntax]` in the user configuration overlay the selected theme. The overlay remains after a theme change.
 
 ## Colour names
 
