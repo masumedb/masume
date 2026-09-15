@@ -177,7 +177,7 @@ func (model *Model) buildRuns(
 		written := statement.BuildParameterForm(names, kept)
 		asked, after := statements[at], at+1
 		held := reads
-		connection.Overlay = app.Overlay{
+		connection.Open(app.Overlay{
 			Kind: app.OverlayParameters, Names: names,
 			Draft:       app.NewEditorBuffer(written, statement.FindFirstFormValue(written)),
 			ContentRows: strings.Count(written, "\n") + 1,
@@ -192,7 +192,7 @@ func (model *Model) buildRuns(
 					append(held, read), then)
 				return carryAnswer(command)
 			}},
-		}
+		})
 		return model, nil
 	}
 	return then(reads)
@@ -230,7 +230,7 @@ func (model *Model) askPlainWriteQuestion(
 	risk := language.ResolveBatchRisk(kept, connection.Session.Language())
 	question := statement.BuildConfirmation(connection.Profile().Name,
 		string(connection.Profile().Environment), risk, kept)
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind: app.OverlayConfirm, Title: " " + question.Title + " ", Body: question.Body,
 		Answers: app.OverlayAnswers{Answer: func(confirmed bool) app.AnswerCommand {
 			if !confirmed {
@@ -239,7 +239,7 @@ func (model *Model) askPlainWriteQuestion(
 			return carryAnswer(model.startRun(
 				connection, tab, kept, reads, writeplan.UndoPlan{}))
 		}},
-	}
+	})
 	return model, nil
 }
 
@@ -896,7 +896,7 @@ func (model *Model) readChangesAnswer(answered changesAppliedMsg) (tea.Model, te
 	}
 
 	tab.DiscardChanges()
-	connection.Overlay = app.Overlay{}
+	connection.CloseEveryOverlay()
 	connection.Show(present.FormatCountOf(
 		int64(answered.Applied), "change", "changes") + " applied")
 	if tab.ClosingAfterApply {
@@ -935,9 +935,9 @@ func (model *Model) readCancelAnswer(answered cancelledMsg) (tea.Model, tea.Cmd)
 		return model, nil
 	}
 	if answered.Problem != "" {
-		connection.Overlay = app.Overlay{
+		connection.Open(app.Overlay{
 			Kind: app.OverlayMessage, Title: " cancel failed ", Body: answered.Problem,
-		}
+		})
 		return model, nil
 	}
 	if answered.Stopped {
@@ -981,7 +981,7 @@ func (model *Model) askToApplyOneAtATime(
 	connection *app.Connection, tab *app.Tab, changes []db.Change,
 ) (tea.Model, tea.Cmd) {
 	id, tabID, session := model.ActiveID(), tab.ID, connection.Session
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind:  app.OverlayConfirm,
 		Title: " apply one at a time ",
 		Body: "This server cannot apply these " + strconv.Itoa(len(changes)) +
@@ -994,7 +994,7 @@ func (model *Model) askToApplyOneAtATime(
 			tab.Applying = true
 			return carryAnswer(applyChanges(id, tabID, session, changes, connection.Autocommit))
 		}},
-	}
+	})
 	return model, nil
 }
 

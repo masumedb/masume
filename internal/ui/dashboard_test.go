@@ -206,7 +206,7 @@ func TestTheDashboardReadsOnlyWhileItIsOpen(t *testing.T) {
 	}
 	connection.Overlay.View.Reading = false
 
-	connection.Overlay = app.Overlay{}
+	connection.CloseEveryOverlay()
 	if command := model.refreshDashboard(stale); command != nil {
 		t.Error("a closed card read the server")
 	}

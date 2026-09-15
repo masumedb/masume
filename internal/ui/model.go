@@ -1248,10 +1248,10 @@ func (model *Model) readHistoryAnswer(answered historyReadMsg) (tea.Model, tea.C
 	if !found {
 		return model, nil
 	}
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind: app.OverlayHistory, Entries: answered.Entries,
 		Draft: app.NewEditorBuffer("", 0),
-	}
+	})
 	return model, nil
 }
 
@@ -1261,12 +1261,12 @@ func (model *Model) readSavedAnswer(answered savedReadMsg) (tea.Model, tea.Cmd) 
 	if !found {
 		return model, nil
 	}
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind: app.OverlaySaved,
 		Saved: app.BuildSavedRows(
 			answered.Queries, model.project, connection.Profile().Name),
 		Draft: app.NewEditorBuffer("", 0),
-	}
+	})
 	return model, nil
 }
 

@@ -267,11 +267,11 @@ func (model *Model) runDocumentTreeAction(
 	case ActionCountRows:
 		return model.countRows(connection, tab)
 	case ActionSearchColumns:
-		connection.Overlay = app.Overlay{
+		connection.Open(app.Overlay{
 			Kind: app.OverlayPrompt, Prompt: app.PromptSearch, Title: "search",
 			Hint:  "searches the rows on screen; empty clears it",
 			Draft: app.NewEditorBuffer(tab.Screen.Search, len(tab.Screen.Search)),
-		}
+		})
 		return model, nil
 	case ActionClearRewrites:
 		return model.clearRewrites(connection, tab)

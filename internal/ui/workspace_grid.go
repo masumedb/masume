@@ -438,23 +438,23 @@ func (model *Model) runGridAction(
 				written = step.Text
 			}
 		}
-		connection.Overlay = app.Overlay{
+		connection.Open(app.Overlay{
 			Kind: app.OverlayPrompt, Prompt: app.PromptWhere, Title: "where",
 			Hint:  "a WHERE condition; leave empty to remove it",
 			Draft: app.NewEditorBuffer(written, len(written)),
-		}
+		})
 	case ActionSearchColumns:
-		connection.Overlay = app.Overlay{
+		connection.Open(app.Overlay{
 			Kind: app.OverlayPrompt, Prompt: app.PromptSearch, Title: "search",
 			Hint:  "searches the rows on screen; empty clears it",
 			Draft: app.NewEditorBuffer(tab.Screen.Search, len(tab.Screen.Search)),
-		}
+		})
 	case ActionGoToColumn:
-		connection.Overlay = app.Overlay{
+		connection.Open(app.Overlay{
 			Kind: app.OverlayPrompt, Prompt: app.PromptGoToColumn, Title: "column",
 			Hint:  "a column name in this result",
 			Draft: app.NewEditorBuffer("", 0),
-		}
+		})
 	case ActionFilterByValues:
 		return model.askValueFilter(connection, tab, shape)
 
@@ -474,13 +474,13 @@ func (model *Model) runGridAction(
 		if rowCount == 0 {
 			return model, nil
 		}
-		connection.Overlay = app.Overlay{
+		connection.Open(app.Overlay{
 			Kind: app.OverlayRowDetail,
 			Window: app.RowWindow{
 				Columns: shape.Columns, Rows: shape.Rows,
 				Index: shape.RowIndexes[clamp(tab.GridRow, rowCount)],
 			},
-		}
+		})
 	case ActionEditCell:
 		return model.editCell(connection, tab, shape)
 	case ActionToggleDelete:
@@ -502,10 +502,10 @@ func (model *Model) runGridAction(
 	case ActionFollowForeignKey:
 		return model.followForeignKey(connection, tab, shape)
 	case ActionCopyMenu:
-		connection.Overlay = app.Overlay{
+		connection.Open(app.Overlay{
 			Kind: app.OverlayCopyMenu, Title: " copy to clipboard ", Actions: buildCopyMenuActions(),
 			Draft: app.NewEditorBuffer("", 0),
-		}
+		})
 	case ActionCopyCSV:
 		return model.runCopy(connection, tab, copyResultCSV)
 	case ActionCopyJSON:
@@ -517,11 +517,11 @@ func (model *Model) runGridAction(
 	case ActionDiscardChanges:
 		return model.requestDiscardChanges(connection, tab)
 	case ActionOpenMenu:
-		connection.Overlay = app.Overlay{
+		connection.Open(app.Overlay{
 			Kind: app.OverlayActionMenu, Title: model.describeGridMenuTitle(tab, shape),
 			Draft:   app.NewEditorBuffer("", 0),
 			Actions: model.buildGridMenu(connection, tab, shape),
-		}
+		})
 	}
 
 	// A move towards the foot of the grid reads the next page before the cursor gets
@@ -679,9 +679,9 @@ func (model *Model) viewCell(
 	if !found {
 		return model, nil
 	}
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind: app.OverlayCell, Cell: app.CellTarget{Column: column, Value: value},
-	}
+	})
 	return model, nil
 }
 
@@ -722,13 +722,13 @@ func (model *Model) editCell(
 		initial = ""
 	}
 
-	connection.Overlay = buildCellEditor(app.Overlay{
+	connection.Open(buildCellEditor(app.Overlay{
 		Kind: app.OverlayCellEdit,
 		Cell: app.CellTarget{
 			Column: column, RowIndex: rowIndex, ColumnIndex: columnIndex,
 			Choices: tab.Target.FindColumnChoices(column.Name),
 		},
-	}, initial)
+	}, initial))
 	return model, nil
 }
 
@@ -842,13 +842,13 @@ func (model *Model) insertRow(
 	}
 	written := statement.BuildParameterForm(names, form)
 
-	connection.Overlay = buildCellEditor(app.Overlay{
+	connection.Open(buildCellEditor(app.Overlay{
 		Kind: app.OverlayCellEdit,
 		Cell: app.CellTarget{
 			RowIndex: app.WholeRow, ColumnIndex: app.WholeRow,
 			Column: db.ResultColumn{Name: "new row", DataType: "json"},
 		},
-	}, written)
+	}, written))
 	return model, nil
 }
 
@@ -865,9 +865,9 @@ func (model *Model) reviewChanges(
 		connection.ShowError(db.DescribeError(err))
 		return model, nil
 	}
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind: app.OverlayChanges, Title: " review the changes ", Changes: changes,
-	}
+	})
 	return model, nil
 }
 
@@ -922,11 +922,11 @@ func (model *Model) askValueFilter(
 		}
 	}
 
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind: app.OverlayValueFilter, Title: " " + names[tab.GridColumn] + " ",
 		Values: values, Kept: kept,
 		Cell: app.CellTarget{ColumnIndex: tab.GridColumn},
-	}
+	})
 	return model, nil
 }
 
@@ -1109,14 +1109,14 @@ func (model *Model) openExport(
 		path = filepath.Join(directory, path)
 	}
 
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind: app.OverlayExport, Title: " export ",
 		Export: app.ExportRequest{
 			Path: path, Format: format, CSV: result.DefaultCSVOptions(),
 			RowCount: len(active.State.Result.Rows),
 		},
 		Draft: app.NewEditorBuffer(path, len(path)),
-	}
+	})
 	return model, nil
 }
 
@@ -1143,21 +1143,21 @@ func (model *Model) writeExport(
 	path := core.ExpandHomePath(strings.TrimSpace(overlay.Export.Path))
 	// An existing file is never written over without a yes.
 	if _, err := os.Stat(path); err == nil {
-		connection.Overlay = app.Overlay{
+		connection.Open(app.Overlay{
 			Kind: app.OverlayConfirm, Title: " overwrite the file ",
 			Body: path + " already exists. Overwrite the file?",
 			Answers: app.OverlayAnswers{Answer: func(confirmed bool) app.AnswerCommand {
 				if !confirmed {
 					return nil
 				}
-				connection.Overlay = app.Overlay{}
+				connection.CloseEveryOverlay()
 				return carryAnswer(model.startExport(connection, tab, path, overlay))
 			}},
-		}
+		})
 		return model, nil
 	}
 
-	connection.Overlay = app.Overlay{}
+	connection.CloseEveryOverlay()
 	return model, model.startExport(connection, tab, path, overlay)
 }
 

@@ -297,7 +297,7 @@ var paletteViews = []app.ResultView{
 func (model *Model) runPaletteAction(
 	connection *app.Connection, id string,
 ) (tea.Model, tea.Cmd) {
-	connection.Overlay = app.Overlay{}
+	connection.CloseEveryOverlay()
 	tab := connection.Active()
 
 	for _, view := range paletteViews {
@@ -334,10 +334,10 @@ func (model *Model) runPaletteAction(
 		return model.askAi(connection, connection.Active(),
 			"Suggest how to make the query in the editor faster or clearer, and explain why.")
 	case configProblemsAction:
-		connection.Overlay = app.Overlay{
+		connection.Open(app.Overlay{
 			Kind: app.OverlayMessage, Title: " config problems ",
 			Body: strings.Join(model.problems, "\n"),
-		}
+		})
 		return model, nil
 	}
 

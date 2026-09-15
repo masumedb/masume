@@ -108,7 +108,7 @@ func TestNoRowOfTheFrameLetsItsGroundGo(t *testing.T) {
 			connection.Overlay = app.Overlay{Kind: app.OverlayHelp}
 		}},
 	} {
-		connection.Overlay = app.Overlay{}
+		connection.CloseEveryOverlay()
 		held.open()
 		for at, row := range strings.Split(model.View().Content, "\n") {
 			if mark := findDroppedGround(row); mark >= 0 {

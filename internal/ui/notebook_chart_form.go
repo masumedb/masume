@@ -35,14 +35,14 @@ func (model *Model) openChartForm(
 	cell := tab.Notebook.GetFocusedCell()
 	spec := notebook.ReadChart(notebook.Cell{Attrs: cell.Attrs})
 	shape := string(spec.Shape)
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind: app.OverlayChart,
 		Chart: app.ChartRequest{
 			Cell: cell.ID, Source: spec.Source, Label: spec.Label, Value: spec.Value,
 			Shape: shape, SortsByValue: spec.SortsByValue, Top: spec.Top,
 		},
 		Draft: app.NewEditorBuffer("", 0),
-	}
+	})
 	return model, nil
 }
 
@@ -217,14 +217,14 @@ func (model *Model) applyChartForm(
 	}
 	at := tab.Notebook.FindCellIndex(overlay.Chart.Cell)
 	if at < 0 {
-		connection.Overlay = app.Overlay{}
+		connection.CloseEveryOverlay()
 		return model, nil
 	}
 	cell := tab.Notebook.Cells[at]
 	cell.Attrs = buildChartAttrs(overlay.Chart, cell.Attrs)
 	cell.Folded = false
 	tab.Notebook.Dirty = true
-	connection.Overlay = app.Overlay{}
+	connection.CloseEveryOverlay()
 	connection.Show("chart of " + overlay.Chart.Value + " from cell " +
 		strconv.Itoa(tab.Notebook.FindCellIndex(overlay.Chart.Source)+1))
 	return model, nil

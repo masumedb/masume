@@ -57,10 +57,10 @@ func (model *Model) askWithWritePlan(
 	connection *app.Connection, tab *app.Tab, written string, read db.ComposedRead,
 ) (tea.Model, tea.Cmd) {
 	profile := connection.Profile()
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind: app.OverlayMessage, Title: measuringPlanTitle,
 		Body: "checking affected rows…\n\n" + read.Display,
-	}
+	})
 	return model, buildWritePlan(model.ActiveID(), tab.ID, written, connection.Session,
 		writeplan.Request{
 			SQL: read.Display, Tables: connection.Catalog.Tables, Mode: profile.WritePlan,
@@ -83,7 +83,7 @@ func (model *Model) readWritePlanAnswer(answered writePlanBuiltMsg) (tea.Model, 
 	statements := []string{answered.Written}
 	reads, built := model.composeStatementReads(connection, tab, statements)
 	if !built {
-		connection.Overlay = app.Overlay{}
+		connection.CloseEveryOverlay()
 		return model, nil
 	}
 	if !answered.Measured {
@@ -91,7 +91,7 @@ func (model *Model) readWritePlanAnswer(answered writePlanBuiltMsg) (tea.Model, 
 	}
 
 	plan := answered.Plan
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind: app.OverlayWritePlan, Plan: plan,
 		Title: " write plan · " + connection.Profile().Name + " ",
 		Answers: app.OverlayAnswers{Answer: func(confirmed bool) app.AnswerCommand {
@@ -101,7 +101,7 @@ func (model *Model) readWritePlanAnswer(answered writePlanBuiltMsg) (tea.Model, 
 			return carryAnswer(model.startRun(
 				connection, tab, statements, reads, plan.Undo))
 		}},
-	}
+	})
 	return model, nil
 }
 
@@ -160,7 +160,7 @@ func (model *Model) undoLastWrite(connection *app.Connection) (tea.Model, tea.Cm
 	}
 
 	id, session := model.ActiveID(), connection.Session
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind: app.OverlayConfirm, Title: " undo the write ",
 		Body: describeUndoQuestion(*held),
 		Answers: app.OverlayAnswers{Answer: func(confirmed bool) app.AnswerCommand {
@@ -169,7 +169,7 @@ func (model *Model) undoLastWrite(connection *app.Connection) (tea.Model, tea.Cm
 			}
 			return carryAnswer(applyUndo(id, session, held.Undo, connection.Autocommit))
 		}},
-	}
+	})
 	return model, nil
 }
 
@@ -229,7 +229,7 @@ func (model *Model) readUndoAnswer(answered undoWrittenMsg) (tea.Model, tea.Cmd)
 	}
 
 	connection.Undo = nil
-	connection.Overlay = app.Overlay{}
+	connection.CloseEveryOverlay()
 	connection.Show("the write was undone, " +
 		present.FormatCountOf(int64(answered.Rows), "row", "rows"))
 

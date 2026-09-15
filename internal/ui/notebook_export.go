@@ -41,12 +41,12 @@ func (model *Model) askNotebookReport(
 		return model, nil
 	}
 	held := model.resolveReportPath(tab)
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind: app.OverlayPrompt, Prompt: app.PromptNotebookReport,
 		Title: "write a report",
 		Hint:  "the rows of every cell that ran, as one Markdown file",
 		Draft: app.NewEditorBuffer(held, len(held)),
-	}
+	})
 	return model, nil
 }
 

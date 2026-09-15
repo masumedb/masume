@@ -47,10 +47,10 @@ func (model *Model) openActionMenu(
 	if len(actions) == 0 {
 		return model, nil
 	}
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind: app.OverlayActionMenu, Title: title, Scope: scope,
 		Draft: app.NewEditorBuffer("", 0), Actions: actions,
-	}
+	})
 	return model, nil
 }
 

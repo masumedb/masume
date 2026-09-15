@@ -614,13 +614,13 @@ func TestBuilderPressOpensTheRowUnderThePointer(t *testing.T) {
 	if connection.Overlay.Kind != app.OverlayBuilderJoin {
 		t.Errorf("the join row opened %q", connection.Overlay.Kind)
 	}
-	connection.Overlay = app.Overlay{}
+	connection.CloseEveryOverlay()
 
 	press(pressesField, builderFieldStride*0+1)
 	if connection.Overlay.Kind != app.OverlayBuilderField {
 		t.Errorf("the field row opened %q", connection.Overlay.Kind)
 	}
-	connection.Overlay = app.Overlay{}
+	connection.CloseEveryOverlay()
 
 	press(pressesFilter, 0)
 	if connection.Overlay.Prompt != app.PromptBuilderFilter {
@@ -635,7 +635,7 @@ func TestBuilderPressMarksTheTableOfTheTitle(t *testing.T) {
 	writeBuilderTable(t, model, tab, 0, "customers", []string{"id"})
 	tab.Builder.AddTable(db.TableRef{Schema: "shop", Name: "orders"})
 	writeBuilderTable(t, model, tab, 1, "orders", []string{"id"})
-	connection.Overlay = app.Overlay{}
+	connection.CloseEveryOverlay()
 	tab.Builder.Table = 0
 
 	model.renderBuilder(connection, tab, 118, 30)
@@ -852,7 +852,7 @@ func TestBuilderWheelScrollsBothWays(t *testing.T) {
 		tab.Builder.AddTable(db.TableRef{Schema: "shop", Name: name})
 		writeBuilderTable(t, model, tab, len(tab.Builder.Tables)-1, name,
 			[]string{"id", "a", "b", "c", "d", "e"})
-		connection.Overlay = app.Overlay{}
+		connection.CloseEveryOverlay()
 	}
 	tab.Builder.MoveCursor(0, 0)
 	model.View()
@@ -912,7 +912,7 @@ func TestBuilderWheelScrollsItsOwnRows(t *testing.T) {
 		columns = append(columns, string(at))
 	}
 	writeBuilderTable(t, model, tab, 0, "wide", columns)
-	connection.Overlay = app.Overlay{}
+	connection.CloseEveryOverlay()
 	model.View()
 
 	model.Update(tea.MouseWheelMsg{
@@ -933,7 +933,7 @@ func TestBuilderShiftWheelScrollsSideways(t *testing.T) {
 	for _, name := range []string{"customers", "orders", "order_items"} {
 		tab.Builder.AddTable(db.TableRef{Schema: "shop", Name: name})
 		writeBuilderTable(t, model, tab, len(tab.Builder.Tables)-1, name, []string{"id", "a"})
-		connection.Overlay = app.Overlay{}
+		connection.CloseEveryOverlay()
 	}
 	tab.Builder.MoveCursor(0, 0)
 	model.View()

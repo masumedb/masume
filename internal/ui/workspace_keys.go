@@ -221,14 +221,14 @@ func (model *Model) runGlobalAction(
 
 	switch match.Action {
 	case ActionShowHelp:
-		connection.Overlay = app.Overlay{
+		connection.Open(app.Overlay{
 			Kind: app.OverlayHelp, Draft: app.NewEditorBuffer("", 0),
-		}
+		})
 	case ActionShowPalette:
-		connection.Overlay = app.Overlay{
+		connection.Open(app.Overlay{
 			Kind: app.OverlayPalette, Palette: model.buildPaletteActions(connection),
 			Draft: app.NewEditorBuffer("", 0),
-		}
+		})
 	case ActionShowHistory:
 		return model, readHistory(id, model.log, connection.Profile().Name, historyLimit)
 	case ActionShowSaved:
@@ -366,21 +366,21 @@ func (model *Model) runGlobalAction(
 		if tab.Kind == app.TabNotebook {
 			return model.saveNotebook(connection, tab)
 		}
-		connection.Overlay = app.Overlay{
+		connection.Open(app.Overlay{
 			Kind: app.OverlayPrompt, Prompt: app.PromptSaveName, Title: "save as",
 			Draft: app.NewEditorBuffer("", 0),
-		}
+		})
 	case ActionShowActivity:
 		return model, readActivity(id, connection.Session, readAsked)
 	case ActionUndoWrite:
 		return model.undoLastWrite(connection)
 	case ActionShowThemes:
-		connection.Overlay = app.Overlay{
+		connection.Open(app.Overlay{
 			// The theme the picker opened on, so a walk that is cancelled goes back
 			// to it and the row it is on carries the mark.
 			Kind: app.OverlayThemePicker, List: app.ListState{Cursor: model.themeCursor()},
 			Body: model.styles.Theme.Name, Draft: app.NewEditorBuffer("", 0),
-		}
+		})
 	case ActionFocusSidebar:
 		return model.focusPane(connection, tab, app.PaneSidebar)
 	case ActionFocusEditor:
@@ -436,19 +436,19 @@ func (model *Model) startNaming(
 
 	if tab.Kind == app.TabNotebook {
 		held := tab.NotebookName()
-		connection.Overlay = app.Overlay{
+		connection.Open(app.Overlay{
 			Kind: app.OverlayPrompt, Prompt: app.PromptTabName, Title: "notebook title",
 			Draft: app.NewEditorBuffer(held, len(held)),
-		}
+		})
 		return model, nil
 	}
 
 	named := statement.FindQueryName(tab.Editor.Text)
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind: app.OverlayPrompt, Prompt: app.PromptTabName, Title: "name",
 		Hint:  "written as a comment on the first line of the query",
 		Draft: app.NewEditorBuffer(named, len(named)),
-	}
+	})
 	return model, nil
 }
 
@@ -513,7 +513,7 @@ func (model *Model) requestCloseTab(connection *app.Connection) (tea.Model, tea.
 		one = "it"
 	}
 	index := connection.ActiveIndex
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind:  app.OverlayChoice,
 		Title: " close tab ",
 		Body:  "This tab has " + present.DescribeStagedChanges(staged) + ".",
@@ -530,7 +530,7 @@ func (model *Model) requestCloseTab(connection *app.Connection) (tea.Model, tea.
 		Answers: app.OverlayAnswers{ID: func(chosen string) app.AnswerCommand {
 			return carryAnswer(model.closeTabAnswer(connection, tab, index, chosen))
 		}},
-	}
+	})
 	return model, nil
 }
 
@@ -576,7 +576,7 @@ func (model *Model) requestCloseConnection(connection *app.Connection) (tea.Mode
 		body += holds + present.DescribeStagedChanges(staged) + "."
 		question = " Close the connection? All tabs will close and all staged changes will be discarded."
 	}
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind:  app.OverlayConfirm,
 		Title: " close connection ",
 		Body:  body + question,
@@ -589,7 +589,7 @@ func (model *Model) requestCloseConnection(connection *app.Connection) (tea.Mode
 			_, command := model.closeConnection()
 			return carryAnswer(command)
 		}},
-	}
+	})
 	return model, nil
 }
 
@@ -891,10 +891,10 @@ func (model *Model) startFinding(
 		// A selection of one line is what the reader is looking at, so the field opens on it.
 		written = tab.Editor.Selection()
 	}
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind: app.OverlayPrompt, Prompt: kind, Title: title,
 		Draft: app.NewEditorBuffer(written, len(written)),
-	}
+	})
 	return model, nil
 }
 
@@ -909,7 +909,7 @@ func (model *Model) turnFindIntoReplace(
 		return model, nil
 	}
 	tab.Find.Term = term
-	connection.Overlay = app.Overlay{}
+	connection.CloseEveryOverlay()
 	return model.startFinding(connection, tab, app.PromptReplace)
 }
 
@@ -1207,11 +1207,11 @@ func (model *Model) runTreeAction(
 		if len(actions) == 0 {
 			return model, nil
 		}
-		connection.Overlay = app.Overlay{
+		connection.Open(app.Overlay{
 			Kind: app.OverlayObjectMenu, Title: app.BuildObjectTitle(row.Node),
 			Draft:   app.NewEditorBuffer("", 0),
 			Actions: actions,
-		}
+		})
 	}
 	return model, nil
 }
@@ -1376,7 +1376,7 @@ func (model *Model) requestDiscardChanges(
 		connection.Show("no staged changes")
 		return model, nil
 	}
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind:  app.OverlayConfirm,
 		Title: " discard changes ",
 		Body:  "Discard " + present.DescribeStagedChanges(staged) + "?",
@@ -1388,7 +1388,7 @@ func (model *Model) requestDiscardChanges(
 			connection.Show("discarded " + present.FormatStagedChanges(staged))
 			return nil
 		}},
-	}
+	})
 	return model, nil
 }
 

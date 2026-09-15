@@ -109,10 +109,10 @@ func (model *Model) runNotebookAction(
 
 	case ActionNameCell:
 		named := statement.FindQueryName(book.GetFocusedCell().Editor.Text)
-		connection.Overlay = app.Overlay{
+		connection.Open(app.Overlay{
 			Kind: app.OverlayPrompt, Prompt: app.PromptCellName, Title: "name",
 			Draft: app.NewEditorBuffer(named, len(named)),
-		}
+		})
 	}
 	return model, nil
 }
@@ -225,10 +225,10 @@ func (model *Model) openCellKindMenu(
 			ID: prefix + string(kind), Label: string(kind), Detail: detail,
 		})
 	}
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind: app.OverlayActionMenu, Title: title, Actions: actions,
 		Draft: app.NewEditorBuffer("", 0),
-	}
+	})
 	return model, nil
 }
 
@@ -372,7 +372,7 @@ func (model *Model) askNotebookPolicy(
 		}
 		return ""
 	}
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind: app.OverlayActionMenu, Title: " run policy ", Actions: []app.MenuAction{
 			{
 				ID:    policyTransactionPrefix + notebook.TransactionAutocommit,
@@ -394,7 +394,7 @@ func (model *Model) askNotebookPolicy(
 			},
 		},
 		Draft: app.NewEditorBuffer("", 0),
-	}
+	})
 	return model, nil
 }
 

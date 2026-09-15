@@ -53,14 +53,14 @@ func (model *Model) openDump(
 		options.Content = dump.ContentAll
 	}
 
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind: app.OverlayDump, Title: " dump ",
 		Dump: app.DumpRequest{
 			Mode: app.DumpWrite, Stage: app.DumpForm, Path: path,
 			Target: target, Options: options,
 		},
 		Draft: app.NewEditorBuffer(path, len(path)),
-	}
+	})
 	return model, nil
 }
 
@@ -74,11 +74,11 @@ func (model *Model) openRestore(connection *app.Connection) (tea.Model, tea.Cmd)
 		connection.ShowError(dumpTransactionProblem)
 		return model, nil
 	}
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind: app.OverlayDump, Title: " restore ",
 		Dump:  app.DumpRequest{Mode: app.DumpRestore, Stage: app.DumpPick},
 		Draft: app.NewEditorBuffer("", 0),
-	}
+	})
 	return model, model.openFilePicker(model.ActiveID(), dump.FileExtensions)
 }
 
@@ -116,7 +116,7 @@ func (model *Model) stepDump(
 	// An existing file is never written over without a yes.
 	if _, err := os.Stat(path); err == nil {
 		options, target := held.Options, held.Target
-		connection.Overlay = app.Overlay{
+		connection.Open(app.Overlay{
 			Kind: app.OverlayConfirm, Title: " overwrite the file ",
 			Body: path + " already exists. Overwrite the file?",
 			Answers: app.OverlayAnswers{Answer: func(confirmed bool) app.AnswerCommand {
@@ -126,7 +126,7 @@ func (model *Model) stepDump(
 				_, command := model.startDump(connection, path, target, options)
 				return carryAnswer(command)
 			}},
-		}
+		})
 		return model, nil
 	}
 	return model.startDump(connection, path, held.Target, held.Options)
@@ -136,14 +136,14 @@ func (model *Model) stepDump(
 func (model *Model) startDump(
 	connection *app.Connection, path, name string, options dump.Options,
 ) (tea.Model, tea.Cmd) {
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind: app.OverlayDump, Title: " dump ",
 		Dump: app.DumpRequest{
 			Mode: app.DumpWrite, Stage: app.DumpForm, Path: path,
 			Target: name, Options: options, Running: true,
 		},
 		Draft: app.NewEditorBuffer(path, len(path)),
-	}
+	})
 	session := connection.Session
 	autocommit := connection.Autocommit
 	id := model.ActiveID()
@@ -302,7 +302,7 @@ func (model *Model) readDumpWritten(answered dumpWrittenMsg) (tea.Model, tea.Cmd
 		return model, nil
 	}
 
-	connection.Overlay = app.Overlay{}
+	connection.CloseEveryOverlay()
 	connection.Show("dumped " + answered.Report.Describe() + " to " + answered.Path)
 	return model, nil
 }
@@ -329,7 +329,7 @@ func (model *Model) readRestoreRan(answered restoreRanMsg) (tea.Model, tea.Cmd) 
 		return model, readCatalog(id, connection.Session, quietCatalogRead)
 	}
 
-	connection.Overlay = app.Overlay{}
+	connection.CloseEveryOverlay()
 	connection.Show("ran " + ran)
 	return model, readCatalog(id, connection.Session, quietCatalogRead)
 }

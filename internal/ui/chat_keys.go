@@ -20,9 +20,9 @@ func (model *Model) openAiChat(
 	connection *app.Connection, asked string,
 ) (tea.Model, tea.Cmd) {
 	connection.Chat.Notice = ""
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind: app.OverlayAiChat, Draft: app.NewEditorBuffer(asked, len(asked)),
-	}
+	})
 	model.readConversations(connection)
 	return model, nil
 }
@@ -94,7 +94,7 @@ func (model *Model) runChatAction(
 	chat := connection.Chat
 	switch match.Action {
 	case ActionClose:
-		connection.Overlay = app.Overlay{}
+		connection.CloseEveryOverlay()
 		return true, model, nil
 	case ActionAnswerYes, ActionAnswerNo:
 		if chat.Pending == nil {
@@ -147,9 +147,9 @@ func (model *Model) runChatAction(
 		chat.HasTurn, chat.Offset, chat.Follow = false, 0, true
 		return true, model, nil
 	case ActionShowAiChats:
-		connection.Overlay = app.Overlay{
+		connection.OpenOver(app.Overlay{
 			Kind: app.OverlayAiChats, Draft: app.NewEditorBuffer("", 0),
-		}
+		})
 		model.readConversations(connection)
 		return true, model, nil
 	case ActionScrollBack:
@@ -227,7 +227,7 @@ func (model *Model) insertAiSQL(
 		return model, nil
 	}
 
-	connection.Overlay = app.Overlay{}
+	connection.CloseEveryOverlay()
 	// A notebook takes the statement as a cell of its own, under the focused one.
 	if tab.Kind == app.TabNotebook && tab.Notebook != nil {
 		cell := tab.Notebook.AddCell(true)
@@ -254,11 +254,11 @@ const notebookRequest = "Build a notebook of this database for: %s\n\n" +
 
 // askAiForNotebook asks what the notebook is to cover.
 func (model *Model) askAiForNotebook(connection *app.Connection) (tea.Model, tea.Cmd) {
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind: app.OverlayPrompt, Prompt: app.PromptAiNotebook, Title: "build a notebook",
 		Hint:  "the model answers with one cell per query, and runs nothing",
 		Draft: app.NewEditorBuffer("", 0),
-	}
+	})
 	return model, nil
 }
 
@@ -289,7 +289,7 @@ func (model *Model) openReplyNotebook(connection *app.Connection) (tea.Model, te
 		chat.Notice = "the reply holds no cell to keep"
 		return model, nil
 	}
-	connection.Overlay = app.Overlay{}
+	connection.CloseEveryOverlay()
 	tab := connection.OpenNotebook(book, "", "")
 	tab.Focus = app.PaneEditor
 	tab.Notebook.Dirty = true
@@ -307,7 +307,7 @@ func (model *Model) buildNotebookOfChat(
 		chat.Notice = "this conversation holds nothing to keep yet"
 		return model, nil
 	}
-	connection.Overlay = app.Overlay{}
+	connection.CloseEveryOverlay()
 	tab := connection.OpenNotebook(book, "", "")
 	tab.Focus = app.PaneEditor
 	tab.Notebook.Dirty = true

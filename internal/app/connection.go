@@ -167,6 +167,9 @@ type Connection struct {
 
 	// The overlay on top, which owns the keyboard while it is open.
 	Overlay Overlay
+	// covered holds the cards this one was opened over, the outermost first. A card raised
+	// from another card returns to it when it closes.
+	covered []Overlay
 	// The tree of this connection: which rows are folded, and where the cursor is.
 	Tree TreeState
 	// The connection chat and current response state.
@@ -497,4 +500,45 @@ func (connection *Connection) CompletionSources() (schemas, tables, functions []
 		functions = append(functions, object.Name, object.Schema+"."+object.Name)
 	}
 	return schemas, tables, functions
+}
+
+// Open opens a card in place of whatever is on show, and of everything under it. It is what
+// a pane, a menu or a finished piece of work opens a card with.
+func (connection *Connection) Open(overlay Overlay) {
+	connection.covered = nil
+	connection.Overlay = overlay
+}
+
+// OpenOver opens a card over the one on show, which returns when this one closes. It is what
+// a card raises another card with. A card opened over nothing has nothing to return to.
+func (connection *Connection) OpenOver(overlay Overlay) {
+	// A card of the same kind takes the place of the one on show, so opening one twice
+	// stacks nothing.
+	if connection.Overlay.IsOpen() && connection.Overlay.Kind != overlay.Kind {
+		connection.covered = append(connection.covered, connection.Overlay)
+	}
+	connection.Overlay = overlay
+}
+
+// CloseOverlay closes the card on show and returns to the one it was opened over, or to the
+// workspace where it covered nothing.
+func (connection *Connection) CloseOverlay() {
+	at := len(connection.covered) - 1
+	if at < 0 {
+		connection.Overlay = Overlay{}
+		return
+	}
+	connection.Overlay = connection.covered[at]
+	connection.covered = connection.covered[:at]
+}
+
+// CloseEveryOverlay closes the card on show and every card under it.
+func (connection *Connection) CloseEveryOverlay() {
+	connection.covered = nil
+	connection.Overlay = Overlay{}
+}
+
+// CoversAnotherOverlay is true where the card on show was opened over another one.
+func (connection *Connection) CoversAnotherOverlay() bool {
+	return len(connection.covered) > 0
 }

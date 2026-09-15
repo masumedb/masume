@@ -111,9 +111,9 @@ func (model *Model) openNewNotebook(connection *app.Connection) (tea.Model, tea.
 
 // showNotebooks opens the card that lists the notebooks.
 func (model *Model) showNotebooks(connection *app.Connection) (tea.Model, tea.Cmd) {
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind: app.OverlayNotebooks, Draft: app.NewEditorBuffer("", 0),
-	}
+	})
 	return model, listNotebooks(
 		model.ActiveID(), model.project.Path, model.notebooks.Paths)
 }
@@ -144,14 +144,14 @@ func (model *Model) renameNotebookRow(
 		return model, nil
 	}
 	entry := entries[overlay.List.Cursor]
-	connection.Overlay = app.Overlay{
+	connection.OpenOver(app.Overlay{
 		Kind: app.OverlayPrompt, Prompt: app.PromptNotebookRename,
 		Title: "rename " + entry.Name,
 		Hint:  "the file is renamed in " + core.ShortenHomePath(filepath.Dir(entry.Path)),
 		// The file the rename acts on. No card draws this line.
 		Body:  entry.Path,
 		Draft: app.NewEditorBuffer(entry.Name, len(entry.Name)),
-	}
+	})
 	return model, nil
 }
 
@@ -282,7 +282,7 @@ func (model *Model) openNotebookRow(
 		return model, nil
 	}
 	entry := entries[overlay.List.Cursor]
-	connection.Overlay = app.Overlay{}
+	connection.CloseEveryOverlay()
 	return model, readNotebookFile(model.ActiveID(), entry.Path, inNewTab)
 }
 
@@ -295,19 +295,19 @@ func (model *Model) deleteNotebookRow(
 		return model, nil
 	}
 	entry := entries[overlay.List.Cursor]
-	held := *overlay
-	connection.Overlay = app.Overlay{
+	connection.OpenOver(app.Overlay{
 		Kind: app.OverlayConfirm, Title: " delete this notebook ",
 		Body: "The file " + core.ShortenHomePath(entry.Path) + " is deleted.",
 		Answers: app.OverlayAnswers{Answer: func(confirmed bool) app.AnswerCommand {
 			if !confirmed {
-				connection.Overlay = held
+				// The question closes on its own, and the list it was asked over
+				// returns with it.
 				return nil
 			}
 			return carryAnswer(removeNotebookFile(
 				model.ActiveID(), entry.Name, entry.Path))
 		}},
-	}
+	})
 	return model, nil
 }
 
@@ -411,12 +411,12 @@ func (model *Model) saveNotebook(
 			model.ActiveID(), tab.ID, book.Path, book.BuildDocument())
 	}
 	held := book.Title
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind: app.OverlayPrompt, Prompt: app.PromptNotebookName, Title: "save as",
 		Hint: "a plain name goes to " +
 			core.ShortenHomePath(model.resolveNotebookDirectory()),
 		Draft: app.NewEditorBuffer(held, len(held)),
-	}
+	})
 	return model, nil
 }
 

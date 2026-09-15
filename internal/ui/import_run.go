@@ -60,7 +60,7 @@ func (model *Model) openImport(
 		return model, nil
 	}
 
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind: app.OverlayImport, Title: " import ",
 		Import: app.ImportRequest{
 			Stage: app.ImportPick,
@@ -70,7 +70,7 @@ func (model *Model) openImport(
 			},
 		},
 		Draft: app.NewEditorBuffer("", 0),
-	}
+	})
 	// The card opens on the picker, and the path can still be typed on the row it fills in.
 	return model, model.openFilePicker(model.ActiveID(), load.ListFileExtensions())
 }
@@ -386,7 +386,7 @@ func (model *Model) readImportRun(answered importRanMsg) (tea.Model, tea.Cmd) {
 
 	creating := connection.Overlay.Kind == app.OverlayImport &&
 		connection.Overlay.Import.Plan.CreatesTable
-	connection.Overlay = app.Overlay{}
+	connection.CloseEveryOverlay()
 	connection.Show("imported " + present.FormatCountOf(int64(answered.Written), "row", "rows"))
 	if creating {
 		return model, readCatalog(id, connection.Session, quietCatalogRead)

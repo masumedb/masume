@@ -960,7 +960,7 @@ func (model *Model) answerOverlayChip(
 		return model.chooseOverlayRow(connection, tab, overlay, chooseInSameTab)
 	}
 	answer := overlay.Answers.Answer
-	connection.Overlay = app.Overlay{}
+	connection.CloseEveryOverlay()
 	return model, model.runAnswer(answer, false)
 }
 
@@ -975,7 +975,7 @@ func (model *Model) pressOverlayFormRow(
 			return model, nil
 		}
 		answer, chosen := overlay.Answers.ID, overlay.Choices[row].ID
-		connection.Overlay = app.Overlay{}
+		connection.CloseEveryOverlay()
 		return model, model.runIDAnswer(answer, chosen)
 	case app.OverlayExport, app.OverlayDump:
 		overlay.Field = row

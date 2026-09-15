@@ -39,7 +39,7 @@ func (model *Model) readOverlayKey(
 	if overlay.Kind == app.OverlayChoice {
 		if chosen, found := findChoiceKey(overlay.Choices, key); found {
 			answer := overlay.Answers.ID
-			connection.Overlay = app.Overlay{}
+			connection.CloseEveryOverlay()
 			return model, model.runIDAnswer(answer, chosen)
 		}
 	}
@@ -197,7 +197,9 @@ func (model *Model) cancelOverlay(connection *app.Connection, overlay *app.Overl
 		model.styles.ApplyThemeByName(overlay.Body)
 	}
 	model.answerNothing(overlay)
-	connection.Overlay = app.Overlay{}
+	// The card returns to the one it was opened over, so a card raised from another closes
+	// alone and the key that closed it closes the next one.
+	connection.CloseOverlay()
 }
 
 // previewTheme applies the theme the cursor of the picker stands on, so the app itself is
@@ -238,7 +240,7 @@ func (model *Model) answerParameters(
 		return nil
 	}
 	answer := overlay.Answers.Values
-	connection.Overlay = app.Overlay{}
+	connection.CloseEveryOverlay()
 	if answer == nil {
 		return nil
 	}
@@ -550,23 +552,24 @@ func (model *Model) runOverlayAction(
 		switch match.Action {
 		case ActionAnswerYes:
 			answer := overlay.Answers.Answer
-			connection.Overlay = app.Overlay{}
+			// The question closes and the card it was asked over returns.
+			connection.CloseOverlay()
 			return true, model, model.runAnswer(answer, true)
 		case ActionAnswerNo:
 			model.answerNothing(overlay)
-			connection.Overlay = app.Overlay{}
+			connection.CloseOverlay()
 			return true, model, nil
 		}
 
 	case app.OverlayChanges:
 		switch match.Action {
 		case ActionApplyChanges:
-			connection.Overlay = app.Overlay{}
+			connection.CloseEveryOverlay()
 			held, command := model.applyStagedChanges(connection, tab)
 			return true, held, command
 		case ActionDiscardChanges:
 			tab.DiscardChanges()
-			connection.Overlay = app.Overlay{}
+			connection.CloseEveryOverlay()
 			connection.Show("the staged changes were discarded")
 			return true, model, nil
 		}
@@ -675,7 +678,7 @@ func (model *Model) runOverlayAction(
 			held, command := model.renameNotebookRow(connection, overlay)
 			return true, held, command
 		case ActionNewConnection:
-			connection.Overlay = app.Overlay{}
+			connection.CloseEveryOverlay()
 			held, command := model.openNewNotebook(connection)
 			return true, held, command
 		case ActionDeleteConnection:
@@ -732,7 +735,7 @@ func (model *Model) chooseOverlayRow(
 			return model, nil
 		}
 		statement := entries[overlay.List.Cursor].SQL
-		connection.Overlay = app.Overlay{}
+		connection.CloseEveryOverlay()
 		return model.loadSQL(connection, tab, statement, inNewTab)
 
 	case app.OverlayChart:
@@ -771,7 +774,7 @@ func (model *Model) chooseOverlayRow(
 			return model, nil
 		}
 		statement := queries[overlay.List.Cursor].SQL
-		connection.Overlay = app.Overlay{}
+		connection.CloseEveryOverlay()
 		return model.loadSQL(connection, tab, statement, inNewTab)
 
 	case app.OverlayPalette:
@@ -787,7 +790,7 @@ func (model *Model) chooseOverlayRow(
 			return model, nil
 		}
 		chosen := actions[overlay.List.Cursor]
-		connection.Overlay = app.Overlay{}
+		connection.CloseEveryOverlay()
 		return model.runObjectAction(connection, tab, chosen)
 
 	case app.OverlayCopyMenu:
@@ -796,7 +799,7 @@ func (model *Model) chooseOverlayRow(
 			return model, nil
 		}
 		chosen := actions[overlay.List.Cursor].ID
-		connection.Overlay = app.Overlay{}
+		connection.CloseEveryOverlay()
 		return model.runCopy(connection, tab, chosen)
 
 	case app.OverlayActionMenu:
@@ -805,7 +808,7 @@ func (model *Model) chooseOverlayRow(
 			return model, nil
 		}
 		chosen := actions[overlay.List.Cursor].ID
-		connection.Overlay = app.Overlay{}
+		connection.CloseEveryOverlay()
 		if strings.HasPrefix(chosen, cellKindPrefix) ||
 			strings.HasPrefix(chosen, newCellKindPrefix) {
 			return model.applyCellKind(connection, tab, chosen)
@@ -831,7 +834,7 @@ func (model *Model) chooseOverlayRow(
 		kept := overlay.Kept
 		columnIndex := overlay.Cell.ColumnIndex
 		available := len(overlay.Values)
-		connection.Overlay = app.Overlay{}
+		connection.CloseEveryOverlay()
 		tab.Screen = present.ApplyValueFilter(tab.Screen, columnIndex, kept, available)
 		tab.GridRow = 0
 		return model, nil
@@ -842,7 +845,7 @@ func (model *Model) chooseOverlayRow(
 			return model, nil
 		}
 		name := choices[overlay.List.Cursor].Name
-		connection.Overlay = app.Overlay{}
+		connection.CloseEveryOverlay()
 		return model.keepTheme(connection, name)
 
 	case app.OverlayActivity:
@@ -854,7 +857,7 @@ func (model *Model) chooseOverlayRow(
 			connection.Show("no statement is available for this session")
 			return model, nil
 		}
-		connection.Overlay = app.Overlay{}
+		connection.CloseEveryOverlay()
 		return model.loadSQL(connection, tab, statement, inNewTab)
 
 	case app.OverlayPrompt:
@@ -862,7 +865,7 @@ func (model *Model) chooseOverlayRow(
 
 	case app.OverlayConfirm:
 		answer := overlay.Answers.Answer
-		connection.Overlay = app.Overlay{}
+		connection.CloseEveryOverlay()
 		return model, model.runAnswer(answer, true)
 
 	case app.OverlayCellEdit:
@@ -972,7 +975,7 @@ func (model *Model) askStopBackend(
 			"asked the server to end session "+named
 	}
 
-	connection.Overlay = app.Overlay{
+	connection.OpenOver(app.Overlay{
 		Kind: app.OverlayConfirm, Title: title,
 		Body: question + "\n\n" + present.TruncateText(session.Query, 60),
 		Answers: app.OverlayAnswers{Answer: func(confirmed bool) app.AnswerCommand {
@@ -982,7 +985,7 @@ func (model *Model) askStopBackend(
 			connection.Show(text)
 			return carryAnswer(stopBackend(id, held, pid, ends))
 		}},
-	}
+	})
 	return model, nil
 }
 
@@ -1015,7 +1018,7 @@ func (model *Model) answerPrompt(
 	if overlay.Prompt == app.PromptFind || overlay.Prompt == app.PromptReplace {
 		written = overlay.Draft.Text
 	}
-	connection.Overlay = app.Overlay{}
+	connection.CloseEveryOverlay()
 
 	switch overlay.Prompt {
 	case app.PromptTabName:
@@ -1128,7 +1131,7 @@ func (model *Model) saveCell(
 			connection.ShowError(describeStageRefusal(tab))
 			return model, nil
 		}
-		connection.Overlay = app.Overlay{}
+		connection.CloseEveryOverlay()
 		connection.Show("a new row is staged")
 		return model, nil
 	}
@@ -1190,7 +1193,7 @@ func (model *Model) stageCellValue(
 		connection.ShowError(describeStageRefusal(tab))
 		return model, nil
 	}
-	connection.Overlay = app.Overlay{}
+	connection.CloseEveryOverlay()
 	connection.Show(present.FormatStagedChanges(core.CountChanges(tab.Pending)))
 	return model, nil
 }
@@ -1300,9 +1303,9 @@ func (model *Model) buildInsertTemplate(
 func (model *Model) showDiagram(
 	connection *app.Connection, table db.TableRef,
 ) (tea.Model, tea.Cmd) {
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind: app.OverlayMessage, Title: " diagram ", Body: "reading the catalog…",
-	}
+	})
 	return model, readDiagram(
 		model.ActiveID(), connection.Session, table, connection.Catalog.Tables)
 }
@@ -1317,18 +1320,18 @@ func (model *Model) readDiagramAnswer(answered diagramMsg) (tea.Model, tea.Cmd) 
 		return model, nil
 	}
 	if answered.Problem != "" {
-		connection.Overlay = app.Overlay{
+		connection.Open(app.Overlay{
 			Kind: app.OverlayMessage, Title: " diagram failed ", Body: answered.Problem,
-		}
+		})
 		return model, nil
 	}
 	lines := answered.Lines
 	if len(lines) == 0 {
 		lines = []string{"no foreign-key relationships to show"}
 	}
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind: app.OverlayDiagram, Title: " diagram · " + answered.Title + " ", Lines: lines,
-	}
+	})
 	return model, nil
 }
 

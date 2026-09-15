@@ -210,7 +210,7 @@ func TestFrameHoldsNothingATerminalCannotDraw(t *testing.T) {
 			opened.Focus = app.PaneEditor
 		}},
 	} {
-		connection.Overlay = app.Overlay{}
+		connection.CloseEveryOverlay()
 		held.open()
 		for at, drawn := range readFrameRows(model.View().Content) {
 			if measured := present.MeasureText(drawn); measured != width {

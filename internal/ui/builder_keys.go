@@ -140,10 +140,10 @@ func (model *Model) askBuilderTable(
 			ID: present.BuildTableID(table), Label: table.Schema + "." + table.Name,
 		})
 	}
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind: app.OverlayBuilderTables, Title: title, Palette: rows,
 		Draft: app.NewEditorBuffer("", 0),
-	}
+	})
 	return model, nil
 }
 
@@ -154,7 +154,7 @@ func (model *Model) addBuilderTable(
 ) (tea.Model, tea.Cmd) {
 	builder := tab.Builder
 	at := builder.AddTable(table)
-	connection.Overlay = app.Overlay{}
+	connection.CloseEveryOverlay()
 	return model, readBuilderTable(model.ActiveID(), tab.ID, at, connection.Session, table,
 		len(builder.Tables) > 1)
 }
@@ -174,10 +174,10 @@ func (model *Model) openBuilderRow(
 	if !column.Picked {
 		column.Picked = true
 	}
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind: app.OverlayBuilderField, Title: " " + model.describeFieldTitle(builder) + " ",
 		Field: 0, Draft: app.NewEditorBuffer(column.As, len(column.As)),
-	}
+	})
 	return model, nil
 }
 
@@ -199,11 +199,11 @@ func (model *Model) describeFieldTitle(builder *app.Builder) string {
 func (model *Model) askBuilderFilter(
 	connection *app.Connection, builder *app.Builder,
 ) (tea.Model, tea.Cmd) {
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind: app.OverlayPrompt, Prompt: app.PromptBuilderFilter, Title: "where",
 		Hint: "one condition of the where clause", Field: -1,
 		Draft: app.NewEditorBuffer("", 0),
-	}
+	})
 	return model, nil
 }
 
@@ -215,11 +215,11 @@ func (model *Model) askBuilderFilterAt(
 		return model, nil
 	}
 	written := builder.Filters[row]
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind: app.OverlayPrompt, Prompt: app.PromptBuilderFilter, Title: "where",
 		Hint: "one condition of the where clause", Field: row,
 		Draft: app.NewEditorBuffer(written, len(written)),
-	}
+	})
 	return model, nil
 }
 
@@ -389,11 +389,11 @@ func (model *Model) openJoinCard(
 	if proposed {
 		note = "from the foreign key"
 	}
-	connection.Overlay = app.Overlay{
+	connection.Open(app.Overlay{
 		Kind: app.OverlayBuilderJoin, Field: table, Body: note,
 		Title: " join " + builder.Tables[table].Ref.Name + " ",
 		Draft: app.NewEditorBuffer(written, len(written)),
-	}
+	})
 	return model, nil
 }
 
@@ -411,7 +411,7 @@ func (model *Model) applyJoinCard(
 		written = ""
 	}
 	join.On = written
-	connection.Overlay = app.Overlay{}
+	connection.CloseEveryOverlay()
 }
 
 // applyBuilderField takes the name the field card holds and closes it.
@@ -421,7 +421,7 @@ func (model *Model) applyBuilderField(
 	if column, found := tab.Builder.ActiveColumn(); found {
 		column.As = strings.TrimSpace(written)
 	}
-	connection.Overlay = app.Overlay{}
+	connection.CloseEveryOverlay()
 }
 
 // findBuilderTable returns the table of that row id.
