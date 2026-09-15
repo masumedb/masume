@@ -271,6 +271,7 @@ const (
 	ActionNewConnection    ActionID = "new-connection"
 	ActionEditConnection   ActionID = "edit-connection"
 	ActionDeleteConnection ActionID = "delete-connection"
+	ActionListModels       ActionID = "list-models"
 	ActionSaveForm         ActionID = "save-form"
 	ActionTestConnection   ActionID = "test-connection"
 	ActionSaveCell         ActionID = "save-cell"
@@ -503,6 +504,7 @@ var dialogActions = []ActionDefinition{
 	{ID: ActionClose, MainHint: true}, {ID: ActionAnswerYes, MainHint: true}, {ID: ActionAnswerNo, MainHint: true},
 	{ID: ActionNewConnection}, {ID: ActionEditConnection}, {ID: ActionDeleteConnection},
 	{ID: ActionFilterConnections},
+	{ID: ActionListModels},
 	{ID: ActionSaveForm, MainHint: true}, {ID: ActionTestConnection},
 	{ID: ActionSaveCell, MainHint: true}, {ID: ActionPrettifyJSON},
 	{ID: ActionSetNull}, {ID: ActionSetEmpty}, {ID: ActionSetDefault},

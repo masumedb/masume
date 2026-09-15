@@ -17,6 +17,7 @@ A scope is the pane or card where a binding applies. Cards and input fields hand
 | `document` | The result document tree |
 | `plan` | The plan view |
 | `notebook` | The cell list of a notebook tab |
+| `builder` | The diagram of a query builder tab |
 | `list` | Lists in cards, and scrolling in detail views |
 | `dialog` | The active card, connection picker, or form |
 
@@ -79,6 +80,7 @@ One card returns only its own actions. Two rows of this table can carry the same
 | `keep-all-values` | `a` |
 | `keep-only-value` | `o` |
 | `leave-directory` | `left` |
+| `list-models` | `ctrl+t` |
 | `list-secondary` | `ctrl+d` |
 | `new-ai-chat` | `ctrl+l` |
 | `new-connection` | `n` |

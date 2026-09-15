@@ -371,11 +371,44 @@ MongoDB lists operations instead of SQL sessions. Both stop actions use `killOp`
 
 `Ctrl+K` opens the searchable command palette. Type a command name. Select a row. Press Enter. Commands need their target state, such as a result for copying.
 
-Palette-only operations include Reload the theme files, AI provider selection, AI agent selection, Ask AI: explain this query, Ask AI: optimize this query, and Ask AI: build a notebook. Config problems appears when configuration reports exist. None of these have a default direct binding.
+Palette-only operations include Reload the theme files, Settings, AI provider selection, AI agent selection, Ask AI: explain this query, Ask AI: optimize this query, and Ask AI: build a notebook. Config problems appears when configuration reports exist. None of these have a default direct binding.
 
 `Alt+O t` opens the theme picker. Movement previews themes. Enter saves the selection. Esc cancels. See [themes](themes.md).
 
 `Ctrl+I` opens AI chat. `Alt+I` fills the chat input with the editor buffer without sending. `Ctrl+H` immediately asks for help with an editor error or a failed check. Terminal collisions can affect these keys. The palette has alternatives. See the [AI guide](ai.md) for chat controls, providers, write confirmation, and shared data.
+
+## Settings
+
+The palette row Settings opens the settings screen. No chord opens it.
+
+The sections are on the left, the rows of the section under the caret on the right. A change is written to the config file as it is made. The status bar reports `Saved`, or says why a value was refused.
+
+| Section | What it holds |
+| --- | --- |
+| AI | the chat, the source it sends to, and the pages of the providers and the agents |
+| Appearance | theme, icons, key hints, hide system schemas |
+| Keys | the key preset, and a page of the keys of each scope |
+| MCP | the access level and the limits of that server, and the page of the connections |
+| Notebooks | the page of the notebook directories |
+
+A row marked `›` opens a page of its own.
+
+| Key | Where | What it does |
+| --- | --- | --- |
+| `↑` `↓` `Home` `End` | either pane | move between the rows |
+| `→` | the sections | move to the rows |
+| `Tab` | either pane | move to the other pane |
+| `Enter` `→` | a row marked `›` | open its page |
+| `←` `→` | a row that steps through values | change it |
+| `Enter` `Space` | a row that is on or off | change it |
+| `Enter` | a row of text | type into it, and write it |
+| `Enter` | an action row | run it |
+| `Esc` `←` | a page, a pane, the screen | go back one step |
+| `Ctrl+T` | the page of an agent | read the models that agent offers |
+
+A key row takes a chord in the spelling the config file uses, such as `ctrl+alt+f`. A comma separates two chords that each run the action, a space separates the presses of one chord, and `none` binds none. The row opens empty, and a row left empty takes back the chord of the preset. A chord no terminal reports is refused, and a chord two actions of one scope hold is written and reported.
+
+Every change writes the table of that row alone, and every line outside it stays unchanged, including an `api_key` the screen never writes. A change applies at once. A provider cannot be removed, because masume brings it.
 
 ## Mouse controls
 

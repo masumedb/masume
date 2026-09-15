@@ -176,7 +176,7 @@ var cardKeySpecs = map[app.OverlayKind][]keySpec{
 	app.OverlayHelp: {
 		readoutOf(describeHelpMatches).onlyWhen(filtersHelp),
 		readout("type to search").onlyWhen(notFilters(filtersHelp)),
-		keyOf(cfg.ScopeDialog, ActionClose, "close"),
+		keyOf(cfg.ScopeDialog, ActionClose, "").withLabel(describeSettingsClose),
 	},
 	app.OverlayBuilderTables: {
 		readout("type to filter"),
@@ -198,18 +198,18 @@ var cardKeySpecs = map[app.OverlayKind][]keySpec{
 	app.OverlayPalette: {
 		readout("type to filter"),
 		keyOf(cfg.ScopeList, ActionChooseRow, "run"),
-		keyOf(cfg.ScopeDialog, ActionClose, "close"),
+		keyOf(cfg.ScopeDialog, ActionClose, "").withLabel(describeSettingsClose),
 	},
 	app.OverlayHistory: {
 		keyOf(cfg.ScopeList, ActionChooseRow, "load in this tab"),
 		keyOf(cfg.ScopeDialog, ActionOpenInNewTab, "load in a new tab"),
-		keyOf(cfg.ScopeDialog, ActionClose, "close"),
+		keyOf(cfg.ScopeDialog, ActionClose, "").withLabel(describeSettingsClose),
 	},
 	app.OverlaySaved: {
 		takesKey(cfg.ScopeDialog, ActionOpenInNewTab),
 		keyOf(cfg.ScopeList, ActionChooseRow, "load"),
 		keyOf(cfg.ScopeDialog, ActionListSecondary, "delete"),
-		keyOf(cfg.ScopeDialog, ActionClose, "close"),
+		keyOf(cfg.ScopeDialog, ActionClose, "").withLabel(describeSettingsClose),
 	},
 	app.OverlayNotebooks: {
 		keyOf(cfg.ScopeList, ActionChooseRow, "open"),
@@ -217,19 +217,19 @@ var cardKeySpecs = map[app.OverlayKind][]keySpec{
 		keyOf(cfg.ScopeDialog, ActionNewConnection, "new"),
 		keyOf(cfg.ScopeDialog, ActionEditConnection, "rename"),
 		keyOf(cfg.ScopeDialog, ActionDeleteConnection, "delete"),
-		keyOf(cfg.ScopeDialog, ActionClose, "close"),
+		keyOf(cfg.ScopeDialog, ActionClose, "").withLabel(describeSettingsClose),
 	},
 	app.OverlayActionMenu: {
 		keyOf(cfg.ScopeList, ActionChooseRow, "run"),
-		keyOf(cfg.ScopeDialog, ActionClose, "close"),
+		keyOf(cfg.ScopeDialog, ActionClose, "").withLabel(describeSettingsClose),
 	},
 	app.OverlayCopyMenu: {
 		keyOf(cfg.ScopeList, ActionChooseRow, "copy"),
-		keyOf(cfg.ScopeDialog, ActionClose, "close"),
+		keyOf(cfg.ScopeDialog, ActionClose, "").withLabel(describeSettingsClose),
 	},
 	app.OverlayObjectMenu: {
 		keyOf(cfg.ScopeList, ActionChooseRow, "run the action"),
-		keyOf(cfg.ScopeDialog, ActionClose, "close"),
+		keyOf(cfg.ScopeDialog, ActionClose, "").withLabel(describeSettingsClose),
 	},
 	app.OverlayConfirm: {
 		takesKey(cfg.ScopeList, ActionChooseRow),
@@ -246,12 +246,12 @@ var cardKeySpecs = map[app.OverlayKind][]keySpec{
 		keyOf(cfg.ScopeDialog, ActionClose, "stay here"),
 	},
 	app.OverlayMessage: {
-		keyOf(cfg.ScopeDialog, ActionClose, "close"),
+		keyOf(cfg.ScopeDialog, ActionClose, "").withLabel(describeSettingsClose),
 	},
 	app.OverlayDiagram: {
 		pairOf(cfg.ScopeList, ActionCursorUp, ActionCursorDown, "scroll", ""),
 		pairOf(cfg.ScopeDialog, ActionScrollLeft, ActionScrollRight, "scroll", ""),
-		keyOf(cfg.ScopeDialog, ActionClose, "close"),
+		keyOf(cfg.ScopeDialog, ActionClose, "").withLabel(describeSettingsClose),
 	},
 	app.OverlayCell: {
 		readoutOf(readOverlayNotice),
@@ -259,7 +259,7 @@ var cardKeySpecs = map[app.OverlayKind][]keySpec{
 		readoutOf(describeCellType),
 		readoutOf(countCellLines),
 		keyOf(cfg.ScopeDialog, ActionCopyValue, "copy"),
-		keyOf(cfg.ScopeDialog, ActionClose, "close"),
+		keyOf(cfg.ScopeDialog, ActionClose, "").withLabel(describeSettingsClose),
 	},
 	app.OverlayParameters: {
 		readoutOf(readOverlayNotice),
@@ -283,12 +283,12 @@ var cardKeySpecs = map[app.OverlayKind][]keySpec{
 	app.OverlayRowDetail: {
 		pairOf(cfg.ScopeDialog, ActionPreviousRow, ActionNextRow, "another row", ""),
 		pairOf(cfg.ScopeList, ActionCursorUp, ActionCursorDown, "scroll", ""),
-		keyOf(cfg.ScopeDialog, ActionClose, "close"),
+		keyOf(cfg.ScopeDialog, ActionClose, "").withLabel(describeSettingsClose),
 	},
 	app.OverlayChanges: {
 		keyOf(cfg.ScopeDialog, ActionApplyChanges, "apply"),
 		keyOf(cfg.ScopeDialog, ActionDiscardChanges, "discard"),
-		keyOf(cfg.ScopeDialog, ActionClose, "close"),
+		keyOf(cfg.ScopeDialog, ActionClose, "").withLabel(describeSettingsClose),
 	},
 	app.OverlayValueFilter: {
 		keyOf(cfg.ScopeDialog, ActionToggleValue, "pick"),
@@ -308,7 +308,7 @@ var cardKeySpecs = map[app.OverlayKind][]keySpec{
 		keyOf(cfg.ScopeDialog, ActionListSecondary, "end session"),
 		keyOf(cfg.ScopeDialog, ActionFoldRow, "fold").onlyWhen(showsLocks),
 		keyOf(cfg.ScopeDialog, ActionUnfoldRow, "open").onlyWhen(showsLocks),
-		keyOf(cfg.ScopeDialog, ActionClose, "close"),
+		keyOf(cfg.ScopeDialog, ActionClose, "").withLabel(describeSettingsClose),
 	},
 	app.OverlayExport: {
 		pairOf(cfg.ScopeDialog, ActionPreviousField, ActionNextField, "field", ""),
@@ -348,7 +348,7 @@ var cardKeySpecs = map[app.OverlayKind][]keySpec{
 	app.OverlayAiChats: {
 		keyOf(cfg.ScopeList, ActionChooseRow, "open"),
 		keyOf(cfg.ScopeDialog, ActionListSecondary, "delete"),
-		keyOf(cfg.ScopeDialog, ActionClose, "close"),
+		keyOf(cfg.ScopeDialog, ActionClose, "").withLabel(describeSettingsClose),
 	},
 }
 
@@ -364,6 +364,9 @@ const (
 	dumpPickGroup = "dump-pick"
 	dumpFormGroup = "dump"
 )
+
+// settingsGroup is the name of the key group of the settings screen.
+const settingsGroup = "settings"
 
 // The keys of the three stages of an import: the file picker, the form, and the review.
 var (
@@ -431,6 +434,25 @@ var (
 		keyOf(cfg.ScopeList, ActionChooseRow, "").withLabel(describePasswordUse),
 		keyOf(cfg.ScopeDialog, ActionClose, "cancel"),
 		keyOf(cfg.ScopeDialog, ActionUseKeyring, "keyring").onlyWhen(offersKeyring),
+	}
+	settingsKeySpecs = []keySpec{
+		pairOf(cfg.ScopeList, ActionCursorUp, ActionCursorDown, "move", ""),
+		keyOf(cfg.ScopeDialog, ActionNextValue, "the rows").onlyWhen(showsSections),
+		pairOf(cfg.ScopeDialog, ActionPreviousValue, ActionNextValue, "change", "").
+			onlyWhen(stepsSettingValue),
+		keyOf(cfg.ScopeDialog, ActionPreviousValue, "back").
+			onlyWhen(leavesSettingPage),
+		keyOf(cfg.ScopeDialog, ActionPreviousValue, "the sections").
+			onlyWhen(leavesSettingRows),
+		keyOf(cfg.ScopeList, ActionChooseRow, "").
+			withLabel(describeSettingsChoose).onlyWhen(opensSettingRow),
+		takesKey(cfg.ScopeDialog, ActionNextField),
+		takesKey(cfg.ScopeDialog, ActionPreviousField),
+		takesKey(cfg.ScopeDialog, ActionToggleValue),
+		takesKey(cfg.ScopeList, ActionCursorFirstRow),
+		takesKey(cfg.ScopeList, ActionCursorLastRow),
+		keyOf(cfg.ScopeDialog, ActionListModels, "models").onlyWhen(picksAgentModel),
+		keyOf(cfg.ScopeDialog, ActionClose, "").withLabel(describeSettingsClose),
 	}
 	connectionFormKeySpecs = []keySpec{
 		pairOf(cfg.ScopeDialog, ActionPreviousField, ActionNextField, "field", ""),
@@ -620,6 +642,83 @@ func holdsChatQuery(scene keyScene) bool {
 	return held
 }
 
+// picksAgentModel is true while the chat of the settings screen sends to an agent, which is
+// the only source with a model list to read.
+func picksAgentModel(scene keyScene) bool {
+	held := scene.model.settingsForm
+	return held != nil && held.EditedAgent() != ""
+}
+
+// showsSections is true while the sections have the keyboard.
+func showsSections(scene keyScene) bool {
+	held := scene.model.settingsForm
+	return held != nil && held.Pane == paneSections
+}
+
+// stepsSettingValue is true where the row under the caret steps through a list of values.
+func stepsSettingValue(scene keyScene) bool {
+	held := scene.model.settingsForm
+	if held == nil || held.Pane != paneItems {
+		return false
+	}
+	item, found := held.FocusedItem()
+	return found && item.Kind == cfg.SettingChoice
+}
+
+// leavesSettingRows is true where the arrow that steps a value gives the keyboard back to
+// the sections.
+func leavesSettingRows(scene keyScene) bool {
+	held := scene.model.settingsForm
+	return held != nil && held.Pane == paneItems && len(held.Path) == 0 &&
+		!stepsSettingValue(scene)
+}
+
+// opensSettingRow is true where Enter has something to do: a section to open, or a row to
+// change, to type into or to run.
+func opensSettingRow(scene keyScene) bool {
+	held := scene.model.settingsForm
+	if held == nil || held.Pane == paneSections {
+		return held != nil
+	}
+	return !stepsSettingValue(scene)
+}
+
+// describeSettingsChoose returns what Enter does to the row under the caret.
+func describeSettingsChoose(scene keyScene) string {
+	held := scene.model.settingsForm
+	if held == nil || held.Pane == paneSections {
+		return "open the section"
+	}
+	item, found := held.FocusedItem()
+	if !found {
+		return "open"
+	}
+	switch item.Kind {
+	case cfg.SettingToggle, cfg.SettingChoice:
+		return "change"
+	case cfg.SettingAction:
+		return "run"
+	case cfg.SettingGroup:
+		return "open"
+	}
+	return "type"
+}
+
+// describeSettingsClose returns what Escape does from the page on show.
+func describeSettingsClose(scene keyScene) string {
+	held := scene.model.settingsForm
+	if held != nil && (len(held.Path) > 0 || held.Pane == paneItems) {
+		return "back"
+	}
+	return "close"
+}
+
+// leavesSettingPage is true where the arrow that steps a value back closes a page instead.
+func leavesSettingPage(scene keyScene) bool {
+	held := scene.model.settingsForm
+	return held != nil && len(held.Path) > 0 && !stepsSettingValue(scene)
+}
+
 func offersKeyring(scene keyScene) bool {
 	return scene.model.picker.offersKeyring()
 }
@@ -736,6 +835,7 @@ var keyGroups = func() map[string][]keySpec {
 	groups := map[string][]keySpec{
 		"picker":          pickerKeySpecs,
 		"form":            connectionFormKeySpecs,
+		settingsGroup:     settingsKeySpecs,
 		"password":        passwordKeySpecs,
 		importPickGroup:   importPickKeySpecs,
 		importFormGroup:   importFormKeySpecs,

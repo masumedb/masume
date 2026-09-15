@@ -19,6 +19,7 @@ func TestEveryPaletteEntryRunsSomething(t *testing.T) {
 		"ai-explain-query": true, "ai-optimize-query": true,
 		"ai-build-notebook":  true,
 		configProblemsAction: true,
+		settingsAction:       true,
 	}
 	// The rows that move the result pane to one of its views, which the palette resolves
 	// against the views themselves and not against an action.
@@ -115,7 +116,7 @@ func TestThePaletteLeavesOutWhatTheStateCannotRun(t *testing.T) {
 	}
 	// Every row that stands on no state is still offered.
 	for _, id := range []string{
-		"show-history", "show-saved", "new-query-tab", "open-picker", "show-help",
+		"show-history", "show-saved", "new-query-tab", "open-picker", settingsAction,
 	} {
 		if !offered[id] {
 			t.Errorf("the palette does not offer %q", id)

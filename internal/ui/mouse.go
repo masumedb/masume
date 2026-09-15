@@ -133,9 +133,11 @@ type frameLayout struct {
 	viewChips      []chipHit
 
 	// The rows of a card of a screen, and of the list inside an overlay.
-	pickerRows  rowsHit
-	builderRows rowsHit
-	overlayRows rowsHit
+	pickerRows       rowsHit
+	builderRows      rowsHit
+	overlayRows      rowsHit
+	settingsRows     rowsHit
+	settingsSections rowsHit
 
 	// The rows of the fields of a form: the connection form, and the export card.
 	formRows rowsHit
@@ -355,6 +357,8 @@ func (model *Model) readPress(press tea.MouseClickMsg) (tea.Model, tea.Cmd) {
 		return model.pressPicker(mouse)
 	case ScreenEditingConnection:
 		return model.pressForm(mouse)
+	case ScreenSettings:
+		return model.pressSettings(mouse)
 	case ScreenWorking:
 		return model.pressWorkspace(mouse)
 	}

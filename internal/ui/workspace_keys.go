@@ -1401,6 +1401,9 @@ func (model *Model) readPaste(written string) (tea.Model, tea.Cmd) {
 	if model.screen == ScreenEditingConnection {
 		return model.pasteIntoForm(written)
 	}
+	if model.screen == ScreenSettings {
+		return model.pasteIntoSettings(written)
+	}
 	if model.screen == ScreenPromptingPassword {
 		return model.pasteIntoPassword(written)
 	}

@@ -42,6 +42,8 @@ func (model *Model) render() string {
 		middle = model.styles.CenterRowsOn(model.renderPassword(), model.width, body)
 	case ScreenEditingConnection:
 		middle = model.styles.CenterRowsOn(model.renderForm(), model.width, body)
+	case ScreenSettings:
+		middle = model.renderSettingsOver(body)
 	case ScreenConnecting:
 		middle = model.styles.CenterRowsOn(model.renderConnecting(), model.width, body)
 	}
@@ -59,6 +61,25 @@ func (model *Model) render() string {
 	rows = append(rows, middle...)
 	rows = append(rows, model.renderScreenStatusBar())
 	return strings.Join(rows, "\n")
+}
+
+// renderSettingsOver draws the settings over the workspace, the way every card is drawn, so
+// the panes keep standing around it. A client with no connection open has no workspace to
+// draw, and the card stands on the ground of the screen.
+func (model *Model) renderSettingsOver(body int) []string {
+	frame := model.renderWorkspace(body)
+	// The settings own the pointer while they are open, so the keys and the bars of the
+	// panes behind them are dropped.
+	model.layout.buttons = nil
+	model.layout.scrollbars = nil
+	card := model.renderSettings()
+	if len(frame) == 0 {
+		return model.styles.CenterRowsOn(card, model.width, body)
+	}
+	rows := strings.Split(card, "\n")
+	return placeOver(frame, card,
+		halfRoundedUp(model.width-measureStyledWidth(card)),
+		halfRoundedUp(body-len(rows)), model.styles.Theme.Background)
 }
 
 // renderConnecting draws the line that says which server the client is waiting for.
@@ -309,7 +330,7 @@ func (model *Model) renderScreenStatusBar() string {
 	switch model.screen {
 	case ScreenConnecting:
 		hints = model.BuildConnectingHints(model.holdsSelection())
-	case ScreenEditingConnection, ScreenPromptingPassword:
+	case ScreenEditingConnection, ScreenSettings, ScreenPromptingPassword:
 		hints = model.BuildCardScreenHints(model.holdsSelection())
 	default:
 		hints = model.BuildPickerHints(model.holdsSelection())
@@ -318,6 +339,13 @@ func (model *Model) renderScreenStatusBar() string {
 	// A copy the reader just made is reported first, because it returns what they did.
 	if model.copied != "" {
 		return model.renderStatusBar(hints, model.copied, app.NoticeInfo)
+	}
+	// The settings screen writes the config file as each row is changed, and the bar is
+	// where it reports that.
+	if model.screen == ScreenSettings {
+		if written, tone := model.describeSettingsNotice(); written != "" {
+			return model.renderStatusBar(hints, written, tone)
+		}
 	}
 	// A screen without a connection has no notice of its own, so the count of the faults in
 	// the config goes here. The palette names each one.

@@ -247,6 +247,7 @@ var HelpSections = []HelpSection{
 			{Scope: cfg.ScopeDialog, Actions: []ActionID{ActionNewConnection}, Text: "add a connection in the picker"},
 			{Scope: cfg.ScopeDialog, Actions: []ActionID{ActionEditConnection}, Text: "edit the selected connection"},
 			{Scope: cfg.ScopeDialog, Actions: []ActionID{ActionDeleteConnection}, Text: "delete the selected connection"},
+			{Scope: cfg.ScopeDialog, Actions: []ActionID{ActionListModels}, Text: "read the models of the agent, in the settings"},
 			{Scope: cfg.ScopeDialog, Actions: []ActionID{ActionTestConnection}, Text: "test the connection, in the form"},
 			{Scope: cfg.ScopeDialog, Actions: []ActionID{ActionSaveForm}, Text: "save the connection form"},
 			{Scope: cfg.ScopeDialog, Actions: []ActionID{ActionSaveCell}, Text: "stage the cell edit"},

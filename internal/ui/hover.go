@@ -107,6 +107,8 @@ func (model *Model) resolveHover(x, y int) hoverTarget {
 	case ScreenEditingConnection:
 		return resolveRowHover(
 			model.layout.formRows, model.countFormFields(), noFilledRow, x, y)
+	case ScreenSettings:
+		return model.resolveSettingsHover(x, y)
 	case ScreenWorking:
 		return model.resolveWorkspaceHover(x, y)
 	}
@@ -119,6 +121,27 @@ func (model *Model) countFormFields() int {
 		return 0
 	}
 	return len(model.form.Shown())
+}
+
+// resolveSettingsHover returns the row of the settings screen the pointer stands on.
+func (model *Model) resolveSettingsHover(x, y int) hoverTarget {
+	held := model.settingsForm
+	if held == nil {
+		return hoverTarget{}
+	}
+	filled := noFilledRow
+	if held.Pane == paneSections {
+		filled = held.Section
+	}
+	if found := resolveRowHover(model.layout.settingsSections,
+		len(held.Sections), filled, x, y); found.kind != hoverNothing {
+		return found
+	}
+	filled = noFilledRow
+	if held.Pane == paneItems {
+		filled = held.Item
+	}
+	return resolveRowHover(model.layout.settingsRows, len(held.Items), filled, x, y)
 }
 
 // resolveRowHover returns the row of a block the pointer stands on, and nothing where the row

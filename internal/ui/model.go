@@ -24,12 +24,13 @@ import (
 // ScreenKind is the active screen type.
 type ScreenKind string
 
-// The five screens the client draws.
+// The six screens the client draws.
 const (
 	ScreenPickingProfile    ScreenKind = "picking-profile"
 	ScreenPromptingPassword ScreenKind = "prompting-password"
 	ScreenConnecting        ScreenKind = "connecting"
 	ScreenEditingConnection ScreenKind = "editing-connection"
+	ScreenSettings          ScreenKind = "settings"
 	ScreenWorking           ScreenKind = "working"
 )
 
@@ -85,6 +86,12 @@ type Model struct {
 	picker pickerState
 	// builderRows is what every drawn row of a builder pane stands for.
 	builderRows []builderRow
+	// The settings screen, and the screen it was opened from.
+	settingsForm     *SettingsState
+	settingsCameFrom ScreenKind
+	// The key preset and chords of the config file, which are applied again when the AI
+	// settings switch the chat off or on.
+	keys cfg.KeySettings
 	// The connection form, which is a screen of its own.
 	form *FormState
 
@@ -166,6 +173,7 @@ func NewModel(
 		notebooks: loaded.Notebooks,
 		ai:        loaded.Ai, aiProvider: loaded.Ai.DefaultProvider,
 		aiAgent: loaded.Ai.DefaultAgent, mcp: loaded.Mcp,
+		keys:     loaded.Keys,
 		profiles: loaded.Profiles, project: loaded.Project,
 		secrets: loaded.Secrets, problems: found,
 		screen: ScreenPickingProfile,
@@ -381,6 +389,9 @@ func (model *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		return model, nil
+
+	case agentModelsRead:
+		return model.keepAgentModels(held)
 
 	case transactionRanMsg:
 		return model.readTransactionAnswer(held)
@@ -713,6 +724,8 @@ func (model *Model) readKey(key tea.Key) (tea.Model, tea.Cmd) {
 		return model, nil
 	case ScreenEditingConnection:
 		return model.readFormKey(key)
+	case ScreenSettings:
+		return model.readSettingsKey(key)
 	case ScreenWorking:
 		return model.readWorkspaceKey(key)
 	}

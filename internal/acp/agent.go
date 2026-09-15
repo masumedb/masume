@@ -266,6 +266,45 @@ type ModelOption struct {
 	Name  string
 }
 
+// ListModels returns the models this agent offers. It opens a session and closes it, so it
+// asks nothing and spends nothing.
+func ListModels(ctx context.Context, settings cfg.AiAgentSettings) ([]ModelOption, error) {
+	held := Open(settings, nil, resolveListDirectory(), nil)
+	// The list is read from the session, so the agent is started without a model set.
+	held.settings.Model = ""
+
+	child, open, err := held.start(RunLogHooks())
+	if err != nil {
+		return nil, err
+	}
+	defer closeChild(child)
+
+	if err := held.startSession(ctx, open); err != nil {
+		return nil, err
+	}
+	if !open.models.offersModels() {
+		return nil, fmt.Errorf("%s offers no model list", settings.Name)
+	}
+	return open.models.values, nil
+}
+
+// RunLogHooks returns hooks that only write to the log, for a run with nothing to draw.
+func RunLogHooks() ai.RunHooks {
+	return ai.RunHooks{
+		StartTextBlock: func() {}, AppendText: func(string) {},
+		StartToolStep: func(string) {}, FinishToolStep: func() {},
+		LogEvent: ai.LogEvent,
+	}
+}
+
+// resolveListDirectory returns a directory for a session that only reads the model list.
+func resolveListDirectory() string {
+	if held, err := os.Getwd(); err == nil {
+		return held
+	}
+	return os.TempDir()
+}
+
 // describeLogin returns how to log this agent in, and an empty string where the failure is
 // not one a login answers.
 func describeLogin(reason error, methods []authMethod) string {

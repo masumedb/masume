@@ -23,6 +23,8 @@ const (
 	keyPresetPrefix  = "key-preset:"
 	// configProblemsAction is available when configuration problems exist.
 	configProblemsAction = "config-problems"
+	// settingsAction opens the settings screen.
+	settingsAction = "show-settings"
 )
 
 // paletteEntry is one row of the palette. Scope and Action name the action, so the row
@@ -196,6 +198,7 @@ var paletteEntries = []paletteEntry{
 		scope:  cfg.ScopeGlobal, action: ActionShowThemes},
 	{id: "reload-themes", label: "Reload the theme files",
 		detail: "read the theme files again"},
+	{id: settingsAction, label: "Settings", detail: "the client settings, written to config.toml"},
 	{id: "show-help", label: "Help", scope: cfg.ScopeGlobal, action: ActionShowHelp},
 	{id: "show-ai-chat", label: "Ask AI", detail: "ask about this database, or for a query",
 		scope: cfg.ScopeGlobal, action: ActionShowAiChat},
@@ -457,6 +460,9 @@ func (model *Model) runPaletteAction(
 		return model, model.keepOnClipboard(tab.ViewData.Plan.Raw)
 	case "reload-themes":
 		return model.reloadThemeFiles(connection)
+	case settingsAction:
+		model.settingsCameFrom = ScreenWorking
+		return model.showSettings()
 	case "ai-explain-query":
 		return model.askAi(connection, connection.Active(),
 			"Explain what the query in the editor does, in plain terms.")

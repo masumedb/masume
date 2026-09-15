@@ -589,9 +589,11 @@ Without a configured address, Anthropic uses `https://api.anthropic.com/v1`, Ope
 
 Unknown provider tables produce reports and are ignored. See [ai.md](ai.md) for provider data and credential sources.
 
+The [settings screen](usage.md#settings) writes `[ai]` and the table of the one source it saved. It does not write `api_key`, so a key already in the file survives a save. It writes `[ui]`, `[keys]`, `[mcp]` and `[notebooks]` from their own pages.
+
 ### AI agents
 
-One table per agent, `[ai.agents.NAME]`. The name is the name the palette shows.
+One table per agent, `[ai.agents.NAME]`. The name is the name the palette and the settings screen show.
 
 The config file holds `claude`, `codex`, `gemini` and `opencode`. A table of any other name adds an agent. An agent with no `command` is reported and left out.
 

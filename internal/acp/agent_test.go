@@ -550,7 +550,7 @@ func TestAnAgentAsksTheReaderForItsOwnTools(t *testing.T) {
 // The agent therefore leads a process group, and the group is what ends.
 func TestAnAgentLeadsItsOwnProcessGroup(t *testing.T) {
 	held := openFakeAgent(t, scriptWaits)
-	child, open, err := held.start(buildHooks(&collectedReply{}, false))
+	child, open, err := held.start(RunLogHooks())
 	if err != nil {
 		t.Fatalf("the agent did not start: %v", err)
 	}

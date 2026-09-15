@@ -30,15 +30,11 @@ const (
 
 // FormState contains connection fields, focus, and test status.
 type FormState struct {
-	Fields []cfg.FormField
+	fieldEditor
 	// The profile the form edits, so the fields it does not show survive a save.
 	Source cfg.Profile
 	// True while an existing profile is being edited rather than a new one written.
 	Editing bool
-	// Which of the shown fields holds the caret.
-	Cursor int
-	// The text of the field under the caret.
-	Draft *app.EditorBuffer
 	// How the last test of the connection went.
 	Test    TestStateKind
 	Message string
@@ -47,84 +43,16 @@ type FormState struct {
 // NewFormState opens the form on a profile, or on a blank one for a new connection.
 func NewFormState(profile cfg.Profile, editing bool, secretStoreNames []string) *FormState {
 	form := &FormState{
-		Fields: cfg.BuildFormFields(profile, editing, secretStoreNames),
+		fieldEditor: fieldEditor{
+			Fields: cfg.BuildFormFields(profile, editing, secretStoreNames),
+			shown:  cfg.FindShownFields,
+			apply:  cfg.ApplyFieldChange,
+		},
 		Source: profile, Editing: editing,
 		Test: TestIdle,
 	}
 	form.openField()
 	return form
-}
-
-// Shown returns the fields the form draws now, which follow the engine and the auth mode.
-func (form *FormState) Shown() []cfg.FormField {
-	return cfg.FindShownFields(form.Fields)
-}
-
-// openField puts the text of the field under the caret into the draft.
-func (form *FormState) openField() {
-	shown := form.Shown()
-	if len(shown) == 0 {
-		form.Draft = app.NewEditorBuffer("", 0)
-		return
-	}
-	if form.Cursor >= len(shown) {
-		form.Cursor = len(shown) - 1
-	}
-	if form.Cursor < 0 {
-		form.Cursor = 0
-	}
-	value := shown[form.Cursor].Value
-	form.Draft = app.NewEditorBuffer(value, len(value))
-}
-
-// findFocusedField returns the field under the caret, and false where the form shows none.
-func (form *FormState) findFocusedField() (cfg.FormField, bool) {
-	shown := form.Shown()
-	if form.Cursor < 0 || form.Cursor >= len(shown) {
-		return cfg.FormField{}, false
-	}
-	return shown[form.Cursor], true
-}
-
-// keepField writes the draft back into the field under the caret.
-func (form *FormState) keepField() {
-	shown := form.Shown()
-	if form.Cursor < 0 || form.Cursor >= len(shown) {
-		return
-	}
-	form.Fields = cfg.ApplyFieldChange(form.Fields, shown[form.Cursor].Key, form.Draft.Text)
-}
-
-// StepField moves the caret to another field, and keeps what was typed into this one.
-func (form *FormState) StepField(step int) {
-	form.keepField()
-	shown := form.Shown()
-	form.Cursor = wrap(form.Cursor+step, len(shown))
-	form.openField()
-}
-
-// StepChoice steps a field that offers a list of values through them.
-func (form *FormState) StepChoice(step int) bool {
-	shown := form.Shown()
-	if form.Cursor < 0 || form.Cursor >= len(shown) {
-		return false
-	}
-	field := shown[form.Cursor]
-	if len(field.Choices) == 0 {
-		return false
-	}
-
-	at := 0
-	for index, choice := range field.Choices {
-		if choice == form.Draft.Text {
-			at = index
-			break
-		}
-	}
-	wanted := field.Choices[wrap(at+step, len(field.Choices))]
-	form.Fields = cfg.ApplyFieldChange(form.Fields, field.Key, wanted)
-	form.openField()
-	return true
 }
 
 // BuildProfile returns the profile the form now describes, and refuses a wrong value.

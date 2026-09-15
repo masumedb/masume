@@ -60,13 +60,15 @@ base_url = "http://localhost:11434"
 
 `base_url` and `base_url_env` set a gateway, where the direct value takes priority. The gateway receives the API key and the request content. See [configuration](configuration.md#ai) for defaults, `/v1` rewriting, and the key table.
 
+The [settings screen](usage.md#settings) writes these settings without an editor. The palette row Settings opens it.
+
 `enabled = false` hides the chat and its actions. The loader still reads `[ai]` and its API keys. `[mcp]` is separate. A project file cannot set `[ai]`.
 
 ## Agents
 
 An agent is a coding agent masume reaches over the [Agent Client Protocol](https://agentclientprotocol.com/), such as Claude Code, Codex, Gemini CLI, OpenCode, Goose or Qwen Code. The agent uses its own subscription and its own model, and masume sends it no API key.
 
-One table per agent. The config file holds `claude`, `codex`, `gemini` and `opencode`. `claude` and `codex` are started with `npx`, which comes with Node; `gemini` and `opencode` are started directly. The chat says so before the first question where the command of an agent is not on the PATH. An agent with no command is reported and left out.
+One table per agent. The config file holds `claude`, `codex`, `gemini` and `opencode`. `claude` and `codex` are started with `npx`, which comes with Node; `gemini` and `opencode` are started directly. An agent whose command is not on the PATH is listed as not installed, and the chat says so before the first question. The [settings screen](usage.md#settings) adds an agent and removes one. An agent with no command is reported and left out.
 
 ```toml
 [ai]
@@ -87,11 +89,11 @@ One tool list answers a question whichever source reads it. A provider calls the
 
 The agent must read an MCP server over a URL. Claude Code, Codex and OpenCode all do. An agent that does not is refused at the handshake, with a message naming it.
 
-`model` under the agent table sets the model. masume reads the list the agent offers at session start and sets the model there, in whichever of the two shapes the agent uses. An empty `model` keeps the model the agent is configured with.
+`model` under the agent table sets the model. An empty `model` keeps the model the agent is configured with. `Ctrl+T` on the page of an agent reads the models it offers, and the model row then steps through them.
 
 Model names follow the agent. Claude Code uses `default`, `sonnet` and `haiku`. OpenCode uses a provider and a model, such as `opencode-go/deepseek-v4-flash`.
 
-`default_agent` sets the agent the chat sends to, and the client starts on it. The palette row AI agent changes it for the session alone.
+`default_agent` is the agent the chat sends to. `set as default` on the page of an agent in the [settings screen](usage.md#settings) writes it, and the palette row AI agent changes it for the session alone.
 
 Each question opens one session and closes it, so the agent keeps no history between questions. The prompt carries the same instructions, earlier turns and question that a provider receives.
 

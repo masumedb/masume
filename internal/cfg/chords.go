@@ -73,7 +73,7 @@ func DescribeChord(chord Chord) string {
 		parts = append(parts, "ctrl")
 	}
 	if chord.Meta {
-		parts = append(parts, "meta")
+		parts = append(parts, "alt")
 	}
 	if chord.Shift {
 		parts = append(parts, "shift")
@@ -88,6 +88,42 @@ func DescribeSequence(sequence ChordSequence) string {
 		written = append(written, DescribeChord(chord))
 	}
 	return strings.Join(written, " ")
+}
+
+// ParseChordChoice returns the chords one action is bound to. A comma separates two chords
+// that each run the action, and a space separates the presses of one chord. The word `none`
+// binds no chord at all.
+func ParseChordChoice(written string) ([]ChordSequence, bool) {
+	if strings.TrimSpace(written) == NoChord {
+		return []ChordSequence{}, true
+	}
+	sequences := []ChordSequence{}
+	for _, text := range strings.Split(written, ",") {
+		if strings.TrimSpace(text) == "" {
+			continue
+		}
+		sequence, parsed := ParseChordSequence(text)
+		if !parsed {
+			return nil, false
+		}
+		sequences = append(sequences, sequence)
+	}
+	return sequences, true
+}
+
+// NoChord is the word that binds no chord to an action.
+const NoChord = "none"
+
+// DescribeChordChoice returns the chords of one action as one row of the settings.
+func DescribeChordChoice(sequences []ChordSequence) string {
+	written := make([]string, 0, len(sequences))
+	for _, sequence := range sequences {
+		written = append(written, DescribeSequence(sequence))
+	}
+	if len(written) == 0 {
+		return NoChord
+	}
+	return strings.Join(written, ", ")
 }
 
 // BuildActionKey returns the key of an action in the `[keys]` table and in the choices
