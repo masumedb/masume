@@ -14,10 +14,13 @@ type AiProviderID string
 const (
 	ProviderAnthropic AiProviderID = "anthropic"
 	ProviderOpenai    AiProviderID = "openai"
+	// ProviderOpenaiCompatible is any server with the OpenAI chat completions endpoint,
+	// such as Ollama, LM Studio, llama.cpp or vLLM.
+	ProviderOpenaiCompatible AiProviderID = "openai_compatible"
 )
 
 // AiProviderIDs lists the providers a config file can use.
-var AiProviderIDs = []AiProviderID{ProviderAnthropic, ProviderOpenai}
+var AiProviderIDs = []AiProviderID{ProviderAnthropic, ProviderOpenai, ProviderOpenaiCompatible}
 
 // describeAiProviderIDs returns the supported provider names.
 func describeAiProviderIDs() string {
@@ -25,7 +28,9 @@ func describeAiProviderIDs() string {
 	for _, id := range AiProviderIDs {
 		written = append(written, string(id))
 	}
-	return "The providers are " + strings.Join(written, " and ") + "."
+	last := len(written) - 1
+	return "The providers are " + strings.Join(written[:last], ", ") + " and " +
+		written[last] + "."
 }
 
 // AiProviderSettings is the model, API key, and provider address configuration.
@@ -35,6 +40,40 @@ type AiProviderSettings struct {
 	APIKeyEnv  string
 	BaseURL    string
 	BaseURLEnv string
+	// MaxToolSteps is the maximum number of model responses per question.
+	MaxToolSteps int
+}
+
+// AiAgentSettings is one coding agent masume reaches over ACP. The agent runs as a child
+// process and reads the protocol on its standard input and output.
+type AiAgentSettings struct {
+	// Name is the name of the agent under `[ai.agents]`.
+	Name    string
+	Command string
+	Args    []string
+	// Model is the model of the agent, chosen from the list the agent offers. An empty
+	// name keeps the model the agent is configured with.
+	Model string
+	// Env is the extra environment of the child process, as NAME=VALUE entries.
+	Env []string
+}
+
+// BuiltInAgents returns the agents masume knows how to start. A config file can change any
+// of them under `[ai.agents]`, and can add agents of its own.
+func BuiltInAgents() map[string]AiAgentSettings {
+	return map[string]AiAgentSettings{
+		"claude": {
+			Name: "claude", Command: "npx",
+			Args: []string{"-y", "@zed-industries/claude-code-acp"},
+			// Claude Code refuses to run inside another Claude Code session.
+			Env: []string{"CLAUDECODE="},
+		},
+		"codex": {
+			Name: "codex", Command: "npx",
+			Args: []string{"-y", "@zed-industries/codex-acp"},
+		},
+		"opencode": {Name: "opencode", Command: "opencode", Args: []string{"acp"}},
+	}
 }
 
 // AiConfig is the configuration under `[ai]`.
@@ -43,6 +82,9 @@ type AiConfig struct {
 	Enabled         bool
 	DefaultProvider AiProviderID
 	Providers       map[AiProviderID]AiProviderSettings
+	// DefaultAgent is the agent the chat sends to. An empty name sends to DefaultProvider.
+	DefaultAgent string
+	Agents       map[string]AiAgentSettings
 	// The time one AI chat statement can run before it is cancelled.
 	StatementTimeout time.Duration
 	// Unsupported provider names under `[ai]`.
@@ -52,15 +94,22 @@ type AiConfig struct {
 // DefaultAiStatementTimeout is the default time limit for AI chat statements.
 const DefaultAiStatementTimeout = 30 * time.Second
 
+// DefaultMaxToolSteps is the default number of model responses per question.
+const DefaultMaxToolSteps = 25
+
 // DefaultAiConfig returns the default AI chat settings.
 func DefaultAiConfig() AiConfig {
 	return AiConfig{
 		Enabled:          true,
 		DefaultProvider:  ProviderAnthropic,
 		StatementTimeout: DefaultAiStatementTimeout,
+		Agents:           BuiltInAgents(),
 		Providers: map[AiProviderID]AiProviderSettings{
-			ProviderAnthropic: {Model: "claude-opus-5"},
-			ProviderOpenai:    {Model: "gpt-5"},
+			ProviderAnthropic: {Model: "claude-opus-5", MaxToolSteps: DefaultMaxToolSteps},
+			ProviderOpenai:    {Model: "gpt-5", MaxToolSteps: DefaultMaxToolSteps},
+			ProviderOpenaiCompatible: {
+				Model: "", MaxToolSteps: DefaultMaxToolSteps,
+			},
 		},
 	}
 }
@@ -85,6 +134,9 @@ func parseProviderSettings(table Table, fallback AiProviderSettings) AiProviderS
 	}
 	if written, present := FindString(table, "base_url_env"); present {
 		settings.BaseURLEnv = written
+	}
+	if steps, present := FindPositiveInteger(table, "max_tool_steps"); present {
+		settings.MaxToolSteps = steps
 	}
 	return settings
 }
@@ -127,5 +179,59 @@ func ParseAiConfig(document Table) AiConfig {
 	if milliseconds, named := FindPositiveInteger(ai, "statement_timeout_ms"); named {
 		config.StatementTimeout = time.Duration(milliseconds) * time.Millisecond
 	}
+
+	config.Agents, config.Problems = parseAiAgents(ai, config.Problems)
+	if written, named := FindString(ai, "default_agent"); named && written != "" {
+		if _, held := config.Agents[written]; held {
+			config.DefaultAgent = written
+		} else {
+			config.Problems = append(config.Problems,
+				"ai.default_agent: no agent named \""+written+"\" under [ai.agents]. "+
+					"Sending to the provider instead.")
+		}
+	}
 	return config
+}
+
+// parseAiAgents reads `[ai.agents]` over the agents masume knows. A table of a known agent
+// changes that agent, and a table of any other name adds one.
+func parseAiAgents(ai Table, problems []string) (map[string]AiAgentSettings, []string) {
+	agents := BuiltInAgents()
+	tables, _ := FindTable(ai["agents"])
+	for _, name := range sortedKeys(tables) {
+		table, isTable := FindTable(tables[name])
+		if !isTable {
+			problems = append(problems,
+				"ai.agents."+name+": not a table. Skipping this agent.")
+			continue
+		}
+
+		settings, known := agents[name]
+		settings.Name = name
+		if written, named := FindString(table, "command"); named &&
+			strings.TrimSpace(written) != "" {
+			settings.Command = written
+			// A command of the file replaces the arguments of the agent masume knows.
+			settings.Args = nil
+		}
+		if settings.Command == "" {
+			problems = append(problems,
+				"ai.agents."+name+": no command. Skipping this agent. Set command to the "+
+					"program that serves ACP on its standard input and output.")
+			if !known {
+				continue
+			}
+			delete(agents, name)
+			continue
+		}
+		if written, named := FindStringList(table, "args"); named {
+			settings.Args = written
+		}
+		if written, named := FindStringList(table, "env"); named {
+			settings.Env = written
+		}
+		settings.Model, _ = FindString(table, "model")
+		agents[name] = settings
+	}
+	return agents, problems
 }

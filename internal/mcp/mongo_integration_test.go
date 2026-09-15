@@ -40,7 +40,7 @@ func buildMongoTools(t *testing.T) []mcp.Tool {
 			context.Background(), "db.dropDatabase()", dbtest.ReadEverything, nil)
 	})
 
-	return mcp.BuildTools(mcp.ToolDeps{
+	return mcp.BuildTools(mcp.OpenProfiles(mcp.ToolDeps{
 		AccessDeps: mcp.AccessDeps{
 			Profiles: []cfg.Profile{profile},
 			Config: cfg.McpConfig{
@@ -51,7 +51,7 @@ func buildMongoTools(t *testing.T) []mcp.Tool {
 		},
 		Asker: mcp.CreateAsker(func(string) {}),
 		Plans: mcp.CreatePlanTokens(),
-	})
+	}))
 }
 
 // A read has nothing to take back, so it carries no undo note. A server without

@@ -10,7 +10,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/turanmahmudov/masume/internal/ai"
 	"github.com/turanmahmudov/masume/internal/app"
 	"github.com/turanmahmudov/masume/internal/cfg"
 	"github.com/turanmahmudov/masume/internal/core"
@@ -23,7 +22,7 @@ import (
 
 // The question field grows from three to six rows.
 const (
-	chatFieldRowsLeast = 3
+	chatFieldRowsLeast = 1
 	chatFieldRowsMost  = 6
 	chatNoticeRows     = 1
 )
@@ -91,7 +90,7 @@ func (model *Model) renderAiChat(
 	}
 	return model.renderTextCard(app.OverlayAiChat,
 		" "+model.icons.Prefix(cfg.IconAi)+"ai chat · "+
-			ai.DescribeActiveModel(model.ai, model.aiProvider)+" ",
+			model.describeChatSource()+" ",
 		width, lines, keys, 0, plainCard)
 }
 
@@ -175,7 +174,6 @@ type chatRowsKey struct {
 	// The steps, the label and the wheel belong to the reply being written, and are read
 	// only while one is.
 	streaming bool
-	steps     uint64
 	activity  string
 	startedAt int64
 	spinnerAt int
@@ -209,7 +207,6 @@ func (model *Model) buildChatRowsKey(
 	}
 	if chat.IsStreaming() && chat.Pending == nil {
 		key.streaming = true
-		key.steps = hashChatSteps(chat.Steps)
 		key.activity = chat.Activity
 		key.startedAt = chat.StartedAt.UnixNano()
 		key.spinnerAt = model.spinnerAt
@@ -217,24 +214,27 @@ func (model *Model) buildChatRowsKey(
 	return key
 }
 
-// hashChatMessages reads every turn of the conversation, so a turn whose text changed while
-// the count stayed the same is drawn again.
+// hashChatMessages reads every turn of the conversation, so a turn whose text or calls
+// changed while the count stayed the same is drawn again.
 func hashChatMessages(messages []app.ChatMessage) uint64 {
 	digest := fnv.New64a()
 	for _, message := range messages {
 		writeHashedText(digest, message.Role)
 		writeHashedText(digest, message.Content)
+		for _, part := range message.Parts {
+			writeHashedText(digest, part.Step)
+			digest.Write([]byte{markDoneStep(part.Done)})
+		}
 	}
 	return digest.Sum64()
 }
 
-// hashChatSteps reads the calls of the reply being written.
-func hashChatSteps(steps []string) uint64 {
-	digest := fnv.New64a()
-	for _, step := range steps {
-		writeHashedText(digest, step)
+// markDoneStep returns the byte that tells a call that finished from one that runs.
+func markDoneStep(done bool) byte {
+	if done {
+		return 1
 	}
-	return digest.Sum64()
+	return 0
 }
 
 // writeHashedText adds one piece of text to a digest, with its length, so two lists of pieces
@@ -251,7 +251,7 @@ func (model *Model) renderChatBody(
 	connection *app.Connection, chat *app.Chat, content, room int,
 ) []string {
 	if len(chat.Messages) == 0 {
-		return model.renderChatOpening(content, room)
+		return model.renderChatOpening(connection, content, room)
 	}
 
 	rows, _ := model.resolveChatRows(connection, model.resolveChatContent())
@@ -317,7 +317,9 @@ func resolveChatOffset(chat *app.Chat, rows, room int) int {
 }
 
 // renderChatOpening draws what the panel says before the first question.
-func (model *Model) renderChatOpening(content, room int) []string {
+func (model *Model) renderChatOpening(
+	connection *app.Connection, content, room int,
+) []string {
 	theme := model.styles.Theme
 	lines := []string{}
 	for _, line := range present.WrapWords(chatOpening, content) {
@@ -327,12 +329,11 @@ func (model *Model) renderChatOpening(content, room int) []string {
 	for _, asked := range chatExamples {
 		lines = append(lines, paintText(theme.Info, nil, "  "+asked))
 	}
-	// A provider without a key answers nothing, so the panel says so before the first
-	// question rather than after it.
-	if !ai.HasCredentials(model.ai, model.aiProvider) {
+	// A source that answers nothing is named before the first question rather than after
+	// it.
+	if missing := model.describeChatProblem(connection.Profile()); missing != "" {
 		lines = append(lines, "")
-		for _, line := range present.WrapWords(
-			ai.DescribeMissingKey(model.ai, model.aiProvider), content) {
+		for _, line := range present.WrapWords(missing, content) {
 			lines = append(lines, model.styles.Error().Render(line))
 		}
 	}
@@ -340,12 +341,6 @@ func (model *Model) renderChatOpening(content, room int) []string {
 		lines = append(lines, "")
 	}
 	return lines[:room]
-}
-
-// describeAiLog names the file the traffic of the chat is written to, with `~` for the home
-// directory of the user.
-func describeAiLog() string {
-	return "logged to " + core.ShortenHomePath(ai.ResolveLogPath())
 }
 
 // renderChatTurns draws every turn of the conversation, one row per line, and returns the row
@@ -378,21 +373,59 @@ func (model *Model) markChatRow(marked bool) string {
 		paintOn(model.styles.Theme.Panel, " ")
 }
 
-// renderChatTurn draws one turn: the speaker and the message. A statement is drawn as code.
+// renderChatTurn draws one turn: the speaker, and the message in the order it arrived. A
+// call of the model stands where it happened, between the blocks of text around it.
 func (model *Model) renderChatTurn(
 	chat *app.Chat, message app.ChatMessage, at, content int,
 ) []string {
+	writing := model.writesChatReply(chat, at)
+	parts := model.readChatParts(message)
+	running := false
+
 	lines := []string{model.renderChatRole(message.Role)}
-	for _, segment := range query.SplitMessageSegments(message.Content) {
+	for _, part := range parts {
+		if !part.IsStep() {
+			lines = append(lines, model.renderChatBlocks(part.Text, content)...)
+			continue
+		}
+		// The call that runs carries the wheel, so it is drawn once and not twice.
+		if writing && !part.Done {
+			running = true
+			lines = append(lines, model.renderThinkingLine(
+				part.Step, chat.StartedAt, model.styles.Theme.Panel))
+			continue
+		}
+		lines = append(lines, model.renderChatStep(part, content))
+	}
+	// A reply that runs no call is thinking, and says so on a row of its own.
+	if writing && !running {
+		lines = append(lines, model.renderThinkingLine(
+			"Thinking", chat.StartedAt, model.styles.Theme.Panel))
+	}
+	return lines
+}
+
+// readChatParts returns the pieces of one turn. A question, and a reply stored before the
+// pieces were kept, are one block of text.
+func (model *Model) readChatParts(message app.ChatMessage) []app.ChatPart {
+	if len(message.Parts) > 0 {
+		return message.Parts
+	}
+	if message.Content == "" {
+		return nil
+	}
+	return []app.ChatPart{{Text: message.Content}}
+}
+
+// renderChatBlocks draws one block of a turn, with a statement drawn as code.
+func (model *Model) renderChatBlocks(written string, content int) []string {
+	lines := []string{}
+	for _, segment := range query.SplitMessageSegments(written) {
 		if segment.Kind == query.SegmentSQL {
 			lines = append(lines, model.renderChatCode(segment.Content, content)...)
 			continue
 		}
 		lines = append(lines, model.renderChatText(segment.Content, content)...)
-	}
-	// The steps and the wheel belong to the reply being written, which is the last turn.
-	if model.writesChatReply(chat, at) {
-		lines = append(lines, model.renderChatSteps(chat, content)...)
 	}
 	return lines
 }
@@ -442,21 +475,15 @@ func (model *Model) renderChatCode(sql string, content int) []string {
 	return append(lines, "")
 }
 
-// renderChatSteps draws the calls of this reply that finished, and the wheel of the one running.
-func (model *Model) renderChatSteps(chat *app.Chat, content int) []string {
+// renderChatStep draws one call of a reply, where it happened.
+func (model *Model) renderChatStep(part app.ChatPart, content int) string {
 	theme := model.styles.Theme
-	lines := []string{}
-	for _, step := range chat.Steps {
-		lines = append(lines,
-			paintText(theme.Success, nil, "✓ ")+
-				paintText(theme.Faint, nil, present.TruncateText(step, content-2)))
+	mark, ink := "✓ ", theme.Success
+	if !part.Done {
+		mark, ink = "· ", theme.Faint
 	}
-	label := chat.Activity
-	if label == "" {
-		label = "Thinking"
-	}
-	return append(lines,
-		model.renderThinkingLine(label, chat.StartedAt, theme.Panel))
+	return paintText(ink, nil, mark) +
+		paintText(theme.Faint, nil, present.TruncateText(part.Step, content-2))
 }
 
 // renderChatBelow draws everything under the conversation: what failed, the statement that
@@ -496,17 +523,17 @@ func (model *Model) renderChatBelow(
 		lines = append(lines, paintOn(theme.Header, " ")+row)
 	}
 
-	// The faint line under the field shows the most recent report. An empty chat has no
-	// report and no cost. The line then shows the path of the traffic log.
-	notice := chat.Notice
-	if notice == "" {
-		notice = chat.DescribeUsage()
-	}
-	if notice == "" {
-		notice = describeAiLog()
-	}
 	return append(lines, model.styles.Faint().Render(
-		present.TruncateText(notice, content))), answersRow
+		present.TruncateText(model.describeChatNotice(chat), content))), answersRow
+}
+
+// describeChatNotice returns the faint line under the field: the most recent report, or what
+// the chat has spent. The row of the spinner says how long a reply has been writing.
+func (model *Model) describeChatNotice(chat *app.Chat) string {
+	if chat.Notice != "" {
+		return chat.Notice
+	}
+	return chat.DescribeUsage()
 }
 
 // chatPlaceholder is what the field says while nothing is typed into it.

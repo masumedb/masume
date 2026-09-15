@@ -7,6 +7,7 @@ import (
 
 	"github.com/turanmahmudov/masume/internal/app"
 	"github.com/turanmahmudov/masume/internal/cfg"
+	"github.com/turanmahmudov/masume/internal/hist"
 )
 
 // buildHintModeModel answers a model that ran two statements and draws its hints in that mode.
@@ -173,12 +174,18 @@ func TestTheKeyHintsModeReachesTheChatCard(t *testing.T) {
 		wanted []string
 		gone   []string
 	}{
-		{cfg.KeyHintsFull, []string{"ask", "newline", "turn", "chats", "close"}, nil},
-		{cfg.KeyHintsMain, []string{"ask", "last reply query to editor", "close"},
-			[]string{"newline", "turn", "page", "chats", "to a notebook"}},
-		{cfg.KeyHintsOff, nil, []string{"ask", "close", "last reply query to editor"}},
+		{cfg.KeyHintsFull, []string{"ask", "newline", "chats", "close"},
+			[]string{"turn", "page", "scroll", "to a notebook"}},
+		{cfg.KeyHintsMain, []string{"ask", "to editor", "close"},
+			[]string{"newline", "chats"}},
+		{cfg.KeyHintsOff, nil, []string{"ask", "close", "to editor"}},
 	} {
 		model, chat := buildChatModel(t)
+		// The key that fills the editor is offered where the chat wrote a statement.
+		chat.Messages = append(chat.Messages, app.ChatMessage{
+			Role:    hist.ChatRoleAssistant,
+			Content: "```sql\nselect * from orders;\n```",
+		})
 		model.settings.KeyHints = held.mode
 		said := stripEscapes(model.describeChatKeys(chat).buildText())
 

@@ -8,6 +8,7 @@ import (
 	"github.com/turanmahmudov/masume/internal/db"
 	"github.com/turanmahmudov/masume/internal/hist"
 	"github.com/turanmahmudov/masume/internal/present"
+	"github.com/turanmahmudov/masume/internal/query"
 	"github.com/turanmahmudov/masume/internal/writeplan"
 )
 
@@ -27,9 +28,24 @@ const (
 type ChatMessage struct {
 	Role    string
 	Content string
+	// Parts is the reply in the order it arrived: blocks of text and the calls between
+	// them. Content is the text of those blocks, which is what a later question sends.
+	Parts []ChatPart
 	// Context is the editor snapshot sent with the question and omitted from display.
 	Context string
 }
+
+// ChatPart is one piece of a reply: a block of text, or one call the model made.
+type ChatPart struct {
+	// Step is the call this part is. A part with none is a block of text.
+	Step string
+	Text string
+	// Done is true for a call that finished.
+	Done bool
+}
+
+// IsStep is true for a part that is a call rather than text.
+func (part ChatPart) IsStep() bool { return part.Step != "" }
 
 // ChatUsage is the connection token usage for the current client session.
 type ChatUsage struct {
@@ -99,9 +115,8 @@ type Chat struct {
 	Messages []ChatMessage
 	Status   ChatStatus
 	Problem  string
-	// Activity is the call that runs now, and Steps the ones that finished.
+	// Activity is the call that runs now. The calls that finished are in the reply.
 	Activity string
-	Steps    []string
 	Usage    ChatUsage
 	// Pending is the statement awaiting confirmation, or nil.
 	Pending *PendingRun
@@ -163,10 +178,16 @@ func (chat *Chat) StartTurn(prompt, context string) []ChatMessage {
 	return history
 }
 
-// AppendDelta writes what arrived into the reply.
+// AppendDelta writes what arrived into the block of text at the end of the reply.
 func (chat *Chat) AppendDelta(delta string) {
 	chat.writeReply(func(reply ChatMessage) (ChatMessage, bool) {
 		reply.Content += delta
+		at := len(reply.Parts) - 1
+		if at < 0 || reply.Parts[at].IsStep() {
+			reply.Parts = append(reply.Parts, ChatPart{Text: delta})
+			return reply, true
+		}
+		reply.Parts[at].Text += delta
 		return reply, true
 	})
 }
@@ -178,6 +199,10 @@ func (chat *Chat) StartTextBlock() {
 			return reply, false
 		}
 		reply.Content += "\n\n"
+		at := len(reply.Parts) - 1
+		if at >= 0 && !reply.Parts[at].IsStep() {
+			reply.Parts[at].Text += "\n\n"
+		}
 		return reply, true
 	})
 }
@@ -191,7 +216,7 @@ func (chat *Chat) DropEmptyReply() {
 		return
 	}
 	last := chat.Messages[len(chat.Messages)-1]
-	if last.Role == hist.ChatRoleAssistant && last.Content == "" {
+	if last.Role == hist.ChatRoleAssistant && last.Content == "" && len(last.Parts) == 0 {
 		chat.Messages = chat.Messages[:len(chat.Messages)-1]
 	}
 }
@@ -211,23 +236,43 @@ func (chat *Chat) writeReply(rewrite func(reply ChatMessage) (ChatMessage, bool)
 	}
 }
 
-// StartStep updates the current activity label.
+// StartStep puts the call that starts into the reply, where it happened.
 func (chat *Chat) StartStep(label string) {
 	chat.Activity = label
+	chat.writeReply(func(reply ChatMessage) (ChatMessage, bool) {
+		reply.Parts = append(reply.Parts, ChatPart{Step: label})
+		return reply, true
+	})
 }
 
-// FinishStep records the current activity as a completed step.
+// FinishStep marks the call at the end of the reply as one that finished.
 func (chat *Chat) FinishStep() {
-	if chat.Activity != "" {
-		chat.Steps = append(chat.Steps, chat.Activity)
-	}
+	chat.Activity = ""
+	chat.writeReply(func(reply ChatMessage) (ChatMessage, bool) {
+		at := len(reply.Parts) - 1
+		if at < 0 || !reply.Parts[at].IsStep() || reply.Parts[at].Done {
+			return reply, false
+		}
+		reply.Parts[at].Done = true
+		return reply, true
+	})
+}
+
+// ClearActivity drops the call that was running, which no longer is.
+func (chat *Chat) ClearActivity() {
 	chat.Activity = ""
 }
 
-// ClearSteps drops the steps, which belong to one reply and not to the conversation.
-func (chat *Chat) ClearSteps() {
-	chat.Steps = nil
-	chat.Activity = ""
+// DropUnfinishedStep removes a call the reply never finished, which a stopped run leaves.
+func (chat *Chat) DropUnfinishedStep() {
+	chat.writeReply(func(reply ChatMessage) (ChatMessage, bool) {
+		at := len(reply.Parts) - 1
+		if at < 0 || !reply.Parts[at].IsStep() || reply.Parts[at].Done {
+			return reply, false
+		}
+		reply.Parts = reply.Parts[:at]
+		return reply, true
+	})
 }
 
 // Ask keeps the statement that waits for a yes.
@@ -261,8 +306,10 @@ func (chat *Chat) Stopped() {
 		chat.stop = nil
 	}
 	chat.Run++
+	// A call that never finished is not a call the reply made.
+	chat.DropUnfinishedStep()
 	chat.DropEmptyReply()
-	chat.ClearSteps()
+	chat.ClearActivity()
 	chat.Status = ChatIdle
 }
 
@@ -274,7 +321,7 @@ func (chat *Chat) Begin(stop func()) (int, chan ChatEvent) {
 	chat.Follow = true
 	chat.Notice = ""
 	chat.Problem = ""
-	chat.ClearSteps()
+	chat.ClearActivity()
 	chat.Status = ChatStreaming
 	// Each response has a separate event channel.
 	return chat.Run, make(chan ChatEvent, ChatEventRoom)
@@ -315,11 +362,35 @@ func (chat *Chat) WriteTurns() []hist.ChatTurn {
 	return turns
 }
 
+// FindLastQuestion returns the last question of the conversation, and whether it has one.
+func (chat *Chat) FindLastQuestion() (string, bool) {
+	for at := len(chat.Messages) - 1; at >= 0; at-- {
+		if chat.Messages[at].Role == hist.ChatRoleUser {
+			return chat.Messages[at].Content, true
+		}
+	}
+	return "", false
+}
+
 // FindLastReply returns what the model last wrote, and whether it wrote anything.
 func (chat *Chat) FindLastReply() (string, bool) {
 	for _, v := range slices.Backward(chat.Messages) {
 		if v.Role == hist.ChatRoleAssistant {
 			return v.Content, true
+		}
+	}
+	return "", false
+}
+
+// FindLastQuery returns the most recent statement of the conversation, and whether it has
+// one. A reply that answered in prose does not hide the query of the reply before it.
+func (chat *Chat) FindLastQuery() (string, bool) {
+	for _, held := range slices.Backward(chat.Messages) {
+		if held.Role != hist.ChatRoleAssistant {
+			continue
+		}
+		if sql, wrote := query.FindSQLBlock(held.Content); wrote {
+			return sql, true
 		}
 	}
 	return "", false

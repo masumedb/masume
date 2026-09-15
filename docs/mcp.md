@@ -2,6 +2,8 @@
 
 `masume --mcp` serves database tools to an external agent over stdin and stdout. The protocol is JSON-RPC 2.0. It sends one message per line.
 
+These settings govern the agents that reach masume from outside. The AI chat of the client is not one of them: it serves its own tools, on the connection it is open on, to the agent it started. See [agents](ai.md#agents).
+
 The process opens its own database connections, separate from a running terminal client. Each profile connects on its first database tool call.
 
 ```sh

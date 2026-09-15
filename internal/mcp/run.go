@@ -35,12 +35,14 @@ func RunServer(argv []string, version string) int {
 		reportConfigLine(warning.DescribeWarning())
 	}
 
-	scoped, check, argumentErr := ReadServerArguments(argv)
+	read, argumentErr := ReadServerArguments(argv)
 	if argumentErr != nil {
 		fmt.Fprintf(os.Stderr, "%s mcp: %s\n", serverName, argumentErr.Error())
 		fmt.Fprintln(os.Stderr, "run masume --help for usage")
 		return 2
 	}
+	scoped := read.Profile
+
 	if scoped != "" && !namesProfile(loaded.Mcp, scoped) {
 		fmt.Fprintf(os.Stderr, "%s mcp: profile %q is not listed under [mcp] profiles\n",
 			serverName, scoped)
@@ -55,7 +57,7 @@ func RunServer(argv []string, version string) int {
 	}
 
 	ctx := context.Background()
-	if check {
+	if read.Check {
 		return reportCheck(ctx, deps)
 	}
 	return serveClient(ctx, deps, notebookSources{
@@ -81,7 +83,7 @@ func serveClient(
 	defer func() { _ = history.Close() }()
 
 	asker := CreateAsker(LogEvent)
-	tools := BuildTools(ToolDeps{
+	toolDeps := ToolDeps{
 		AccessDeps: deps,
 		Asker:      asker,
 		Plans:      CreatePlanTokens(),
@@ -89,7 +91,8 @@ func serveClient(
 		RecordQuery:   func(entry hist.HistoryEntry) { _ = history.Record(entry) },
 		ProjectFile:   sources.projectFile,
 		NotebookPaths: sources.paths,
-	})
+	}
+	tools := BuildTools(OpenProfiles(toolDeps))
 
 	// Serialize responses and confirmation requests on stdout.
 	writing := sync.Mutex{}
@@ -116,30 +119,37 @@ func serveClient(
 }
 
 // ReadServerArguments parses the optional profile and check mode. Unknown arguments are errors.
-func ReadServerArguments(argv []string) (string, bool, error) {
-	scoped, check := "", false
+func ReadServerArguments(argv []string) (ServerArguments, error) {
+	read := ServerArguments{}
 	for at := 0; at < len(argv); at++ {
 		argument := argv[at]
 		switch {
 		case argument == "--mcp":
 		case argument == "--check":
-			check = true
+			read.Check = true
 		case argument == "--profile":
 			if at+1 >= len(argv) || strings.HasPrefix(argv[at+1], "-") {
-				return "", false, errors.New("--profile requires a profile name")
+				return read, errors.New("--profile requires a profile name")
 			}
 			at++
-			scoped = argv[at]
+			read.Profile = argv[at]
 		case strings.HasPrefix(argument, "--profile="):
-			scoped = strings.TrimPrefix(argument, "--profile=")
-			if scoped == "" {
-				return "", false, errors.New("--profile requires a profile name")
+			read.Profile = strings.TrimPrefix(argument, "--profile=")
+			if read.Profile == "" {
+				return read, errors.New("--profile requires a profile name")
 			}
 		default:
-			return "", false, errors.New("unknown MCP argument: " + argument)
+			return read, errors.New("unknown MCP argument: " + argument)
 		}
 	}
-	return scoped, check, nil
+	return read, nil
+}
+
+// ServerArguments is what the command line asked the MCP server for.
+type ServerArguments struct {
+	// Profile is the only profile a scoped server serves.
+	Profile string
+	Check   bool
 }
 
 // describeServing returns the profiles of the server, in the form used by `list_profiles`.

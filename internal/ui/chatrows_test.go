@@ -113,7 +113,8 @@ func TestChatRowsAreDrawnAgainForEveryChange(t *testing.T) {
 		{
 			name: "a call of the reply finished", streaming: true,
 			change: func(_ *Model, chat *app.Chat) {
-				chat.Steps = []string{"read the catalog"}
+				chat.StartStep("read the catalog")
+				chat.FinishStep()
 			},
 		},
 		{
@@ -176,7 +177,6 @@ func TestChatRowsAreKeptWhileNoReplyIsWritten(t *testing.T) {
 
 	markKeptChatRows(model)
 	model.spinnerAt += 5
-	chat.Steps = []string{"a call of a reply that ended"}
 	chat.Activity = "something that ran before"
 	readChatRows(model, model.Active())
 	if !holdsMarkedChatRows(model) {
@@ -244,5 +244,60 @@ func TestTheChatSendsOnEnterAndWritesALineOnAModifier(t *testing.T) {
 	model.readOverlayKey(connection, tea.Key{Code: tea.KeyEnter})
 	if written := connection.Overlay.Draft.Text; written == "how many orders\n" {
 		t.Errorf("Enter wrote a line instead of sending, and the field holds %q", written)
+	}
+}
+
+// A call of the model stands where it happened, between the blocks of text around it, and a
+// turn that ended keeps its calls.
+func TestTheChatDrawsACallWhereItHappened(t *testing.T) {
+	model, chat := buildChatModel(t)
+	chat.StartTurn("how many orders are unpaid", "")
+	chat.AppendDelta("Let me look.")
+	chat.StartStep("listing the tables")
+	chat.FinishStep()
+	chat.StartTextBlock()
+	chat.AppendDelta("Two unpaid orders.")
+
+	rows := stripEscapes(strings.Join(readChatRows(model, model.Active()), "\n"))
+	look, call, answer := strings.Index(rows, "Let me look."),
+		strings.Index(rows, "listing the tables"), strings.Index(rows, "Two unpaid orders.")
+	if look < 0 || call < 0 || answer < 0 {
+		t.Fatalf("the turn reads:\n%s", rows)
+	}
+	if !(look < call && call < answer) {
+		t.Errorf("the call is not between the blocks:\n%s", rows)
+	}
+	// The turn ended, and the call it made is still there.
+	if !strings.Contains(rows, "✓ listing the tables") {
+		t.Errorf("the call that finished is not marked:\n%s", rows)
+	}
+}
+
+// The call that runs carries the wheel, so the panel draws it once and not twice.
+func TestTheRunningCallIsDrawnOnce(t *testing.T) {
+	model, chat := buildChatModel(t)
+	chat.StartTurn("how many orders are unpaid", "")
+	chat.Begin(func() {})
+	chat.AppendDelta("Let me look.")
+	chat.StartStep("running the query")
+
+	rows := stripEscapes(strings.Join(readChatRows(model, model.Active()), "\n"))
+	if strings.Count(rows, "running the query") != 1 {
+		t.Errorf("the call is drawn more than once:\n%s", rows)
+	}
+	if strings.Contains(rows, "Thinking") {
+		t.Errorf("the panel says it is thinking while a call runs:\n%s", rows)
+	}
+}
+
+// A reply that runs no call says it is thinking, on a row of its own.
+func TestAReplyWithNoCallSaysItIsThinking(t *testing.T) {
+	model, chat := buildChatModel(t)
+	chat.StartTurn("how many orders are unpaid", "")
+	chat.Begin(func() {})
+
+	rows := stripEscapes(strings.Join(readChatRows(model, model.Active()), "\n"))
+	if !strings.Contains(rows, "Thinking") {
+		t.Errorf("the panel says nothing while the model thinks:\n%s", rows)
 	}
 }

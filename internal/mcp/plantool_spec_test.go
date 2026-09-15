@@ -45,7 +45,7 @@ func buildPlanToolsAsking(
 	buildPlanFile(t, profile)
 
 	tokens := mcp.CreatePlanTokens()
-	tools := mcp.BuildTools(mcp.ToolDeps{
+	tools := mcp.BuildTools(mcp.OpenProfiles(mcp.ToolDeps{
 		AccessDeps: mcp.AccessDeps{
 			Profiles: []cfg.Profile{profile},
 			Config: cfg.McpConfig{
@@ -56,7 +56,7 @@ func buildPlanToolsAsking(
 		},
 		Asker: asker,
 		Plans: tokens,
-	})
+	}))
 
 	return tools, path, tokens
 }
@@ -317,7 +317,7 @@ func TestPlanWriteNamesTheSettingThatTurnedMeasurementOff(t *testing.T) {
 	}
 	buildPlanFile(t, profile)
 
-	tools := mcp.BuildTools(mcp.ToolDeps{
+	tools := mcp.BuildTools(mcp.OpenProfiles(mcp.ToolDeps{
 		AccessDeps: mcp.AccessDeps{
 			Profiles: []cfg.Profile{profile},
 			Config: cfg.McpConfig{
@@ -328,7 +328,7 @@ func TestPlanWriteNamesTheSettingThatTurnedMeasurementOff(t *testing.T) {
 		},
 		Asker: mcp.CreateAsker(func(string) {}),
 		Plans: mcp.CreatePlanTokens(),
-	})
+	}))
 
 	held := runTool(t, tools, "plan_write",
 		map[string]any{"profile": "shop", "sql": "delete from orders where id = 1"})

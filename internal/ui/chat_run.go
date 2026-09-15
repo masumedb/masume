@@ -13,6 +13,7 @@ import (
 	"github.com/turanmahmudov/masume/internal/cfg"
 	"github.com/turanmahmudov/masume/internal/db"
 	"github.com/turanmahmudov/masume/internal/hist"
+	"github.com/turanmahmudov/masume/internal/mcp"
 	"github.com/turanmahmudov/masume/internal/query/language"
 	"github.com/turanmahmudov/masume/internal/query/statement"
 	"github.com/turanmahmudov/masume/internal/writeplan"
@@ -81,33 +82,41 @@ func (model *Model) sendChatMessage(
 		return model, nil
 	}
 
-	if !ai.HasCredentials(model.ai, model.aiProvider) {
-		chat.Fail(ai.DescribeMissingKey(model.ai, model.aiProvider))
+	if missing := model.describeChatProblem(connection.Profile()); missing != "" {
+		chat.Fail(missing)
 		return model, nil
 	}
-	// The cache key names the profile, so the turns of one connection share a prefix.
-	cacheKey := "masume/" + connection.Profile().Name
-	held, err := ai.OpenModel(model.ai, model.aiProvider, cacheKey)
-	if err != nil {
-		chat.Fail(db.DescribeError(err))
-		return model, nil
-	}
-
 	editor := ai.EditorContext{SQL: tab.Editor.Text, LastError: findLastRunError(tab)}
 	history := chat.StartTurn(asked, ai.DescribeEditorContext(editor))
 
 	id := model.ActiveID()
 	ctx, stop := context.WithCancel(context.Background())
 	run, events := chat.Begin(stop)
+	deps := model.buildChatToolDeps(connection, run, events)
+	// One tool list answers the question, whether a provider or an agent reads it.
+	tools := mcp.BuildTools(mcp.BindConnection(deps))
+
+	// The cache key names the profile, so the turns of one connection share a prefix.
+	cacheKey := "masume/" + connection.Profile().Name
+	held, closeSource, err := model.openChatResponder(connection, cacheKey, tools)
+	if err != nil {
+		stop()
+		chat.Stopped()
+		chat.Fail(db.DescribeError(err))
+		return model, nil
+	}
 	ai.LogEvent("> " + held.Describe() + ": " + asked)
 
 	go runChatReply(ctx, chatRun{
-		model:    held,
-		request:  model.buildChatRequest(connection, history),
-		deps:     model.buildChatToolDeps(connection, run, events),
-		run:      run,
-		events:   events,
-		provider: held.Describe(),
+		responder: held,
+		request:   model.buildChatRequest(connection, history, tools),
+		tools:     tools,
+		run:       run,
+		events:    events,
+		provider:  held.Describe(),
+		profile:   connection.Profile(),
+		maxSteps:  model.resolveChatSteps(),
+		close:     closeSource,
 	})
 	return model, waitForChatEvents(id, run, events)
 }
@@ -125,7 +134,7 @@ func findLastRunError(tab *app.Tab) string {
 // buildChatRequest writes the request for the model: the prompt of this connection, and the
 // turns of the conversation so far.
 func (model *Model) buildChatRequest(
-	connection *app.Connection, history []app.ChatMessage,
+	connection *app.Connection, history []app.ChatMessage, tools []mcp.Tool,
 ) ai.Request {
 	session := connection.Session
 	profile := connection.Profile()
@@ -147,7 +156,7 @@ func (model *Model) buildChatRequest(
 			Instructions:  profile.AiInstructions,
 		}),
 		Messages: messages,
-		Tools:    ai.BuildToolSchemas(agent.Definitions()),
+		Tools:    buildToolSchemas(tools),
 	}
 }
 
@@ -359,21 +368,28 @@ func buildChatWritePlan(
 
 // chatRun is everything one run of the chat needs.
 type chatRun struct {
-	model    ai.Model
-	request  ai.Request
-	deps     agent.ToolDeps
-	run      int
-	events   chan app.ChatEvent
-	provider string
+	responder ai.Responder
+	request   ai.Request
+	tools     []mcp.Tool
+	run       int
+	events    chan app.ChatEvent
+	provider  string
+	profile   cfg.Profile
+	// maxSteps is the step limit of the tool loop of masume. An agent runs a loop of its
+	// own, so its limit is zero here.
+	maxSteps int
+	// close ends what the source of the answer needed, such as the tool server of an
+	// agent.
+	close func()
 }
 
 // runChatReply asks the model, runs what it asks for, and reports everything through the
 // channel. It closes the channel when it is done, whatever happened.
 func runChatReply(ctx context.Context, held chatRun) {
 	defer close(held.events)
+	defer held.close()
 
-	definitions := agent.Definitions()
-	result, err := ai.RunChat(ctx, held.model, held.request, ai.RunHooks{
+	result, err := held.responder.Reply(ctx, held.request, ai.RunHooks{
 		StartTextBlock: func() {
 			held.events <- app.ChatEvent{Run: held.run, Kind: app.ChatTextStarted}
 		},
@@ -393,7 +409,10 @@ func runChatReply(ctx context.Context, held chatRun) {
 		CallTool: func(
 			callCtx context.Context, name string, input map[string]any,
 		) string {
-			return ai.CallToolDefinition(callCtx, definitions, held.deps, name, input)
+			return callChatTool(callCtx, held.tools, name, input)
+		},
+		AskPermission: func(askCtx context.Context, title, detail string) bool {
+			return askAgentToAct(askCtx, held, title, detail)
 		},
 		LogEvent: ai.LogEvent,
 	})
@@ -412,7 +431,8 @@ func runChatReply(ctx context.Context, held chatRun) {
 	case err == nil:
 		ai.LogEvent("< " + result.FinishReason + " · " +
 			strconv.Itoa(result.ReceivedChars) + " chars")
-		ended.Problem = ai.FindEmptyReplyProblem(result.ReceivedChars, result.FinishReason)
+		ended.Problem = ai.FindEmptyReplyProblem(
+			result.ReceivedChars, result.FinishReason, held.maxSteps)
 	}
 	if usage := ended.Usage; usage.InputTokens > 0 || usage.OutputTokens > 0 {
 		ai.LogEvent("< usage: " + strconv.Itoa(usage.InputTokens) + " in (" +

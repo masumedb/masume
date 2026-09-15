@@ -8,6 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/turanmahmudov/masume/internal/acp"
 	"github.com/turanmahmudov/masume/internal/cfg"
 	"github.com/turanmahmudov/masume/internal/db/engines"
 	"github.com/turanmahmudov/masume/internal/hist"
@@ -49,6 +50,9 @@ The nearest .masume.toml in or above the working directory supplies project prof
 
 // Run reads the arguments of the process and returns the exit code.
 func Run(argv []string) int {
+	// An ACP agent requires the version of the client that opens the session.
+	acp.ClientVersion = ResolveVersion()
+
 	// Parse subcommand arguments before client flags.
 	if len(argv) > 0 && argv[0] == "run" {
 		return runHeadless(argv[1:])

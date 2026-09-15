@@ -11,7 +11,6 @@ import (
 	"github.com/turanmahmudov/masume/internal/core"
 	"github.com/turanmahmudov/masume/internal/db"
 	"github.com/turanmahmudov/masume/internal/present"
-	"github.com/turanmahmudov/masume/internal/query"
 )
 
 // Chat actions and event handlers.
@@ -109,6 +108,12 @@ func (model *Model) runChatAction(
 		}
 		held, command := model.submitChatQuestion(connection, tab)
 		return true, held, command
+	case ActionAskAiAgain:
+		if chat.Pending != nil || chat.IsStreaming() {
+			return false, model, nil
+		}
+		held, command := model.askChatAgain(connection, tab)
+		return true, held, command
 	case ActionWriteNewline:
 		if connection.Overlay.Draft == nil {
 			return false, model, nil
@@ -122,6 +127,12 @@ func (model *Model) runChatAction(
 		chat.Stopped()
 		chat.Notice = "reply stopped; received text is kept"
 		return true, model, model.keepConversation(connection)
+	case ActionCopyAiReply:
+		if chat.Pending != nil {
+			return false, model, nil
+		}
+		held, command := model.copyAiReply(connection)
+		return true, held, command
 	case ActionInsertAiSQL:
 		held, command := model.insertAiSQL(connection, tab)
 		return true, held, command
@@ -178,31 +189,57 @@ func (model *Model) submitChatQuestion(
 	return held, command
 }
 
-// insertAiSQL inserts the last reply's query into the editor.
+// askChatAgain sends the last question again, as a turn of its own. A reply that failed or
+// was stopped stays in the conversation, so the two attempts read in order.
+func (model *Model) askChatAgain(
+	connection *app.Connection, tab *app.Tab,
+) (tea.Model, tea.Cmd) {
+	chat := connection.Chat
+	asked, held := chat.FindLastQuestion()
+	if !held {
+		return model, nil
+	}
+	chat.Notice, chat.HasTurn, chat.Follow = "", false, true
+	return model.sendChatMessage(connection, tab, asked)
+}
+
+// copyAiReply puts what the model last wrote on the clipboard.
+func (model *Model) copyAiReply(connection *app.Connection) (tea.Model, tea.Cmd) {
+	chat := connection.Chat
+	reply, held := chat.FindLastReply()
+	if !held || strings.TrimSpace(reply) == "" {
+		chat.Notice = "the chat has written no reply yet"
+		return model, nil
+	}
+	chat.Notice = "the reply is on the clipboard"
+	return model, model.keepOnClipboard(reply)
+}
+
+// insertAiSQL inserts the most recent statement of the conversation into the editor. A
+// question answered in prose does not hide the query of the answer before it.
 func (model *Model) insertAiSQL(
 	connection *app.Connection, tab *app.Tab,
 ) (tea.Model, tea.Cmd) {
 	chat := connection.Chat
-	reply, found := chat.FindLastReply()
-	if found {
-		if sql, wrote := query.FindSQLBlock(reply); wrote {
-			connection.Overlay = app.Overlay{}
-			// A notebook takes the statement as a cell of its own, under the focused one.
-			if tab.Kind == app.TabNotebook && tab.Notebook != nil {
-				cell := tab.Notebook.AddCell(true)
-				cell.Editor.SetText(sql)
-				tab.Editor = cell.Editor
-				tab.Focus = app.PaneEditor
-				connection.Show("the statement is a new cell")
-				return model, nil
-			}
-			// A tab that shows a relation has no editor, so the statement opens a query
-			// tab of its own rather than a buffer nothing draws.
-			return model.loadSQL(connection, tab, sql, false)
-		}
+	sql, wrote := chat.FindLastQuery()
+	if !wrote {
+		chat.Notice = "the chat has written no query yet"
+		return model, nil
 	}
-	chat.Notice = "no query in the last reply yet"
-	return model, nil
+
+	connection.Overlay = app.Overlay{}
+	// A notebook takes the statement as a cell of its own, under the focused one.
+	if tab.Kind == app.TabNotebook && tab.Notebook != nil {
+		cell := tab.Notebook.AddCell(true)
+		cell.Editor.SetText(sql)
+		tab.Editor = cell.Editor
+		tab.Focus = app.PaneEditor
+		connection.Show("the statement is a new cell")
+		return model, nil
+	}
+	// A tab that shows a relation has no editor, so the statement opens a query tab of its
+	// own rather than a buffer nothing draws.
+	return model.loadSQL(connection, tab, sql, false)
 }
 
 // notebookRequest is what the model is asked for when it builds a notebook. The system

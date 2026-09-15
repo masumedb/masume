@@ -20,7 +20,9 @@ These are the default keys. See [keys.md](keys.md) for other bindings.
 | `Ctrl+L` | Start a new conversation |
 | `Ctrl+O` | Open the conversation list |
 | `Ctrl+D` in the list | Remove the selected conversation |
-| `Ctrl+J` | Insert SQL from the last reply into the editor, without execution |
+| `Ctrl+A` | Copy the last reply to the clipboard |
+| `Ctrl+J` | Insert the most recent statement of the conversation into the editor, without execution |
+| `Ctrl+R` | Ask the last question again |
 | `Ctrl+G` | Open the conversation as a notebook, without running cells |
 
 Closing the panel leaves a running reply and a pending statement in place. `Ctrl+X` does not undo a completed database operation.
@@ -42,15 +44,96 @@ api_key_env = "ANTHROPIC_API_KEY"
 [ai.providers.openai]
 model       = "gpt-5"
 api_key_env = "OPENAI_API_KEY"
+
+[ai.providers.openai_compatible]
+model    = "qwen3-coder:30b"
+base_url = "http://localhost:11434"
 ```
 
-`default_provider` is `anthropic` or `openai`. The palette changes the provider for the session. Switching providers keeps the conversation; the next question sends those messages to the new provider.
+`default_provider` is `anthropic`, `openai` or `openai_compatible`. The palette changes the provider for the session. Switching providers keeps the conversation; the next question sends those messages to the new provider.
 
 `api_key_env` is the environment variable for the API key; `api_key`, a key stored in the config file, takes priority. A file with `api_key` holds a secret.
 
 `base_url` and `base_url_env` set a gateway, where the direct value takes priority. The gateway receives the API key and the request content. See [configuration](configuration.md#ai) for defaults, `/v1` rewriting, and the key table.
 
 `enabled = false` hides the chat and its actions. The loader still reads `[ai]` and its API keys. `[mcp]` is separate. A project file cannot set `[ai]`.
+
+## Agents
+
+An agent is a coding agent masume reaches over the [Agent Client Protocol](https://agentclientprotocol.com/), such as Claude Code, Codex, Gemini CLI, OpenCode, Goose or Qwen Code. The agent uses its own subscription and its own model, and masume sends it no API key.
+
+masume knows how to start `claude`, `codex` and `opencode`, so a config file needs no table for those three. `claude` and `codex` are started with `npx`, which comes with Node; `opencode` is started directly. The chat says so before the first question where the command of an agent is not on the PATH. A table changes an agent masume knows, and a table of any other name adds one.
+
+```toml
+[ai]
+default_agent = "claude"
+
+[ai.agents.claude]
+command = "npx"
+args    = ["@zed-industries/claude-code-acp"]
+```
+
+masume runs the command as a child process and speaks JSON-RPC on its standard input and output, at protocol version 1.
+
+An agent runs in a process of its own and can only be given MCP servers, so masume serves the tools of the chat to it. The server stands on the loopback address for the length of one question, behind a bearer token, and it runs the tools on the connection the chat is open on. It refuses a request that carries an origin, which is how a page in a browser reaches a port, and the token is never written to the log.
+
+One tool list answers a question whichever source reads it. A provider calls the tools in the same process, and an agent calls the same list over the loopback server. `masume --mcp` serves that list too, with a `profile` argument and the tools that find a connection, because it serves several.
+
+`[mcp]` therefore does not reach the chat at all. That table governs `masume --mcp`, the server an agent outside masume connects to. The chat reads what the connection reads: `mode` sets whether the agent can write, and `confirm_writes` and `write_plan` still ask before a write runs. A profile that needs a password prompt works too, because the agent uses the connection that is already open rather than opening one of its own.
+
+The agent must read an MCP server over a URL. Claude Code, Codex and OpenCode all do. An agent that does not is refused at the handshake, with a message naming it.
+
+`model` under the agent table sets the model. masume reads the list the agent offers at session start and sets the model there, in whichever of the two shapes the agent uses. An empty `model` keeps the model the agent is configured with.
+
+Model names follow the agent. Claude Code uses `default`, `sonnet` and `haiku`. OpenCode uses a provider and a model, such as `opencode-go/deepseek-v4-flash`.
+
+`default_agent` sets the agent the chat sends to, and the client starts on it. The palette row AI agent changes it for the session alone.
+
+Each question opens one session and closes it, so the agent keeps no history between questions. The prompt carries the same instructions, earlier turns and question that a provider receives.
+
+Key differences from a provider:
+
+| Piece | Provider | Agent |
+| --- | --- | --- |
+| Model | `model` under the provider table | The agent chooses it |
+| Credentials | `api_key` or `api_key_env` | The subscription of the agent |
+| Tools | The tools of masume, run by masume | The MCP server of masume, plus the tools of the agent |
+| Step limit | `max_tool_steps` | The limit of the agent |
+| Token counts | Reported per question | Reported per question, where the agent sends them |
+| Writes | The write plan and its confirmation | The permission request of the agent |
+
+An entry of `env` is added to the environment of masume, and an entry with an empty value replaces what that environment holds. `CLAUDECODE=` clears the variable that stops Claude Code from running inside another Claude Code session.
+
+masume serves no file or terminal methods to an agent, so `fs/read_text_file`, `fs/write_text_file` and the terminal methods are refused. An agent that runs commands or reads files does so itself, under its own settings.
+
+An agent is not limited to the tools of masume. It brings its own system prompt, its own file and command tools, and the MCP servers of its own config file. `confirm_writes` and `write_plan` guard `run_query`; they do not guard a database command the agent runs in a shell of its own. A provider reaches the database through the tools of masume alone.
+
+An agent asks permission before it runs a tool it does not know. masume answers for its own tools itself, because it has rules for them: a read runs, and a write is asked about by the tool, which knows the profile and measures the rows. Every other action of the agent is put to the reader, since masume has no rules for it. The panel asks the same question the write plan asks, with the action and its input, and `n` refuses it.
+
+## Local models
+
+`openai_compatible` sends to `/chat/completions` on any server with the OpenAI chat endpoint, including Ollama, LM Studio, llama.cpp and vLLM. It has no default address, so `base_url` is required, and `model` is the model the server serves. `api_key` is optional; a request carries an `Authorization` header only when the config file has a key.
+
+| Server | `base_url` |
+| --- | --- |
+| Ollama | `http://localhost:11434` |
+| LM Studio | `http://localhost:1234/v1` |
+| llama.cpp | `http://localhost:8080` |
+| vLLM | `http://localhost:8000` |
+
+The chat sends the schema context and every tool schema with each question, and one answer can run 25 provider rounds. A small model reaches that limit more often than a hosted model does. `max_tool_steps` under the provider table sets a different limit.
+
+A local model needs tool calls to read the schema. A model served without tool support answers from the system prompt alone.
+
+## The panel
+
+A reply is drawn in the order the model worked: a block of text, then the call it made, then the next block. A call that finished carries a mark, and the one that runs carries the wheel and the time it has taken. A turn that ended keeps its calls, so the reply says what it read to answer.
+
+`Ctrl+R` asks the last question again, which a reply that failed or was stopped needs. The question stays in the conversation and the new answer follows it.
+
+`Ctrl+A` copies the last reply to the clipboard. `Ctrl+J` fills the editor with the most recent statement of the conversation. A question answered in prose does not hide the query of the answer before it, so a follow-up question costs nothing. The key is offered where the chat has written a statement.
+
+The field grows with the question, from one row to six. The faint line under it reports the last action, or what the conversation has spent.
 
 ## Request content
 
@@ -74,7 +157,7 @@ Tool results return to the provider in later rounds of the same reply. Later que
 
 ## Tools
 
-One question allows 25 provider rounds. Each round can ask for several tool calls. A run that hits the limit with no text reply stops.
+One question allows 25 provider rounds, or the `max_tool_steps` of the provider. Each round can ask for several tool calls. A run that hits the limit with no text reply stops.
 
 | Tool | Result |
 | --- | --- |
@@ -113,7 +196,7 @@ Read-only profiles use the same client checks and engine protection as the rest 
 
 **Ask AI: build a notebook** asks what the notebook is to cover and sends that question. It opens the reply as a notebook. Prose becomes text cells, and one statement cell comes per query. A parameter cell holds the `:name` marks the statements bind. Nothing runs.
 
-`Ctrl+J` inserts the statement of the last reply. On a notebook tab it becomes a new cell under the focused one, and on any other tab it goes into a query editor.
+`Ctrl+J` inserts the most recent statement of the conversation. On a notebook tab it becomes a new cell under the focused one, and on any other tab it goes into a query editor.
 
 `Ctrl+G` turns the conversation into a notebook. The prose of every turn becomes a text cell, and every statement the model wrote becomes a statement cell. The notebook opens unsaved and runs nothing. See the [notebook guide](notebooks.md).
 

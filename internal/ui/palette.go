@@ -16,6 +16,7 @@ import (
 // changes the key preset.
 const (
 	aiProviderPrefix = "ai-provider:"
+	aiAgentPrefix    = "ai-agent:"
 	keyPresetPrefix  = "key-preset:"
 	// configProblemsAction is available when configuration problems exist.
 	configProblemsAction = "config-problems"
@@ -194,8 +195,9 @@ var paletteEntries = []paletteEntry{
 // providerLabels name each provider the way a reader writes it, not the way the config
 // file keys it.
 var providerLabels = map[cfg.AiProviderID]string{
-	cfg.ProviderAnthropic: "Anthropic",
-	cfg.ProviderOpenai:    "OpenAI",
+	cfg.ProviderAnthropic:        "Anthropic",
+	cfg.ProviderOpenai:           "OpenAI",
+	cfg.ProviderOpenaiCompatible: "Local or OpenAI compatible",
 }
 
 // readEntryDetail returns the detail of a row, which can be the chord of another action. A
@@ -242,15 +244,26 @@ func (model *Model) buildPaletteActions(connection *app.Connection) []app.Palett
 		})
 	}
 
-	// One row per AI provider, with the model the config file set for it.
-	for _, id := range cfg.AiProviderIDs {
-		if !model.offersAi() {
-			break
+	// One row per AI provider, with the model the config file set for it, and one row per
+	// agent of the config file.
+	if model.offersAi() {
+		for _, id := range cfg.AiProviderIDs {
+			detail := model.ai.Providers[id].Model
+			if detail == "" {
+				detail = "not configured"
+			}
+			actions = append(actions, app.PaletteAction{
+				ID:     aiProviderPrefix + string(id),
+				Label:  "AI provider: " + providerLabels[id],
+				Detail: detail,
+			})
 		}
-		actions = append(actions, app.PaletteAction{
-			ID: aiProviderPrefix + string(id), Label: "AI provider: " + providerLabels[id],
-			Detail: model.ai.Providers[id].Model,
-		})
+		for _, name := range sortedAgentNames(model.ai.Agents) {
+			actions = append(actions, app.PaletteAction{
+				ID: aiAgentPrefix + name, Label: "AI agent: " + name,
+				Detail: describeAgentCommand(model.ai.Agents[name]),
+			})
+		}
 	}
 	// One row per key preset, so a new preset is offered without a second list. Nothing
 	// is chosen while there is one preset.
@@ -298,6 +311,9 @@ func (model *Model) runPaletteAction(
 	}
 	if after, ok := strings.CutPrefix(id, aiProviderPrefix); ok {
 		return model.switchAiProvider(connection, after)
+	}
+	if after, ok := strings.CutPrefix(id, aiAgentPrefix); ok {
+		return model.switchAiAgent(connection, after)
 	}
 
 	switch id {
@@ -405,6 +421,7 @@ func (model *Model) switchAiProvider(
 			continue
 		}
 		model.aiProvider = id
+		model.aiAgent = ""
 		connection.Show("ai provider set to " + written)
 		return model, nil
 	}

@@ -9,9 +9,6 @@ import (
 
 // Chat execution sends tool results to the model until the model stops requesting tools or reaches the step limit.
 
-// MaxToolSteps is the maximum number of model responses per run.
-const MaxToolSteps = 25
-
 // RunHooks are the callbacks the caller gets during a run.
 type RunHooks struct {
 	// StartTextBlock reports that a block of text follows an earlier block.
@@ -22,7 +19,10 @@ type RunHooks struct {
 	FinishToolStep func()
 	// CallTool runs one call of the catalogue and returns its result as JSON text.
 	CallTool func(ctx context.Context, name string, input map[string]any) string
-	LogEvent func(message string)
+	// AskPermission asks the user whether one action of an agent may run. Only an agent
+	// with a tool loop of its own asks; the tool loop of masume confirms a write itself.
+	AskPermission func(ctx context.Context, title, detail string) bool
+	LogEvent      func(message string)
 }
 
 // RunResult is the result of a whole run.
@@ -35,12 +35,12 @@ type RunResult struct {
 
 // RunChat sends a question and executes requested tools until completion, cancellation, or the step limit.
 func RunChat(
-	ctx context.Context, model Model, request Request, hooks RunHooks,
+	ctx context.Context, model Model, request Request, maxSteps int, hooks RunHooks,
 ) (RunResult, error) {
 	result := RunResult{FinishReason: FinishUnknown}
 	messages := append([]Message{}, request.Messages...)
 
-	for range MaxToolSteps {
+	for range maxSteps {
 		asked := request
 		asked.Messages = messages
 
@@ -101,13 +101,17 @@ func addUsage(total, step Usage) Usage {
 }
 
 // FindEmptyReplyProblem describes an empty reply with an abnormal finish reason.
-func FindEmptyReplyProblem(received int, finishReason string) string {
+func FindEmptyReplyProblem(received int, finishReason string, maxSteps int) string {
 	if received > 0 {
 		return ""
 	}
 	// A run that stops at a tool call without text reached the step limit.
 	if finishReason == FinishToolCalls {
-		return "the model reached the limit of " + strconv.Itoa(MaxToolSteps) + " steps without a text reply; " +
+		limit := "its step limit"
+		if maxSteps > 0 {
+			limit = "the limit of " + strconv.Itoa(maxSteps) + " steps"
+		}
+		return "the model reached " + limit + " without a text reply; " +
 			"ask a more specific question or try again"
 	}
 	// No error and no text: the model stopped early, often at a content filter.

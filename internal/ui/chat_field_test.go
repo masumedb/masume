@@ -13,10 +13,10 @@ func TestResolveChatFieldRowsGrowsWithTheQuestion(t *testing.T) {
 		lines int
 		rows  int
 	}{
-		{"nothing written keeps the least", 0, 3},
-		{"one line keeps the least", 1, 3},
-		{"two lines keep the least", 2, 3},
-		{"three lines fill the least", 3, 3},
+		{"nothing written takes one row", 0, 1},
+		{"one line takes one row", 1, 1},
+		{"two lines take two", 2, 2},
+		{"three lines take three", 3, 3},
 		{"four lines take a row more", 4, 4},
 		{"five lines take another", 5, 5},
 		{"six lines fill the most", 6, 6},

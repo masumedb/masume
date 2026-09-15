@@ -169,7 +169,7 @@ A notebook file holds statements, prose, and parameter defaults, but no result r
 
 It asks the model for one fenced block per query, with a `-- name` line on each. A reply that holds no statement reports that and opens nothing.
 
-`Ctrl+J` in the chat inserts the statement of the last reply; it becomes a new cell under the focused one. `Ctrl+G` in the chat turns the conversation into a notebook, where the prose of every turn becomes a text cell and every statement the model wrote becomes a statement cell. See [AI chat](ai.md#notebooks).
+`Ctrl+J` in the chat inserts the most recent statement of the conversation; it becomes a new cell under the focused one. `Ctrl+G` in the chat turns the conversation into a notebook, where the prose of every turn becomes a text cell and every statement the model wrote becomes a statement cell. See [AI chat](ai.md#notebooks).
 
 ## Headless mode
 

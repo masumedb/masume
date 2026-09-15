@@ -90,7 +90,10 @@ func TestBuildSystemColorsReadsThePalette(t *testing.T) {
 
 // loadedConfigForTest answers a config that names one theme and nothing else.
 func loadedConfigForTest(theme string) cfg.LoadedConfig {
-	loaded := cfg.LoadedConfig{Ai: cfg.DefaultAiConfig()}
+	loaded := cfg.LoadedConfig{
+		Ai: cfg.DefaultAiConfig(), Mcp: cfg.DefaultMcpConfig(),
+		Keys: cfg.DefaultKeySettings(),
+	}
 	loaded.Settings.Theme = theme
 	return loaded
 }

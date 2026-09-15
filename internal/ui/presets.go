@@ -287,6 +287,8 @@ var defaultChords = map[string][]string{
 	// The same key that cancels a running query in the workspace. The workspace takes no
 	// key while a dialog is open, so the panel binds its own.
 	"dialog:stop-ai-reply": {"ctrl+x"},
+	"dialog:ask-ai-again":  {"ctrl+r"},
+	"dialog:copy-ai-reply": {"ctrl+a"},
 	// `ctrl+l` clears the screen in a shell, and it leaves `ctrl+n` for the keys below.
 	"dialog:new-ai-chat":   {"ctrl+l"},
 	"dialog:show-ai-chats": {"ctrl+o"},

@@ -52,6 +52,10 @@ type Model struct {
 	// The chat settings the config file carried, and the provider the palette chose.
 	ai         cfg.AiConfig
 	aiProvider cfg.AiProviderID
+	// aiAgent is the agent the chat sends to. An empty name sends to aiProvider.
+	aiAgent string
+	// mcp is the access the MCP server of masume grants, which an agent reads through.
+	mcp cfg.McpConfig
 
 	// The file picker of the card that is open on each connection. It is kept here
 	// because it answers with commands of the draw loop.
@@ -161,6 +165,7 @@ func NewModel(
 		adapters: adapters, log: log, settings: loaded.Settings,
 		notebooks: loaded.Notebooks,
 		ai:        loaded.Ai, aiProvider: loaded.Ai.DefaultProvider,
+		aiAgent: loaded.Ai.DefaultAgent, mcp: loaded.Mcp,
 		profiles: loaded.Profiles, project: loaded.Project,
 		secrets: loaded.Secrets, problems: found,
 		screen: ScreenPickingProfile,

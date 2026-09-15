@@ -49,15 +49,12 @@ type ToolDeps struct {
 	NotebookPaths []string
 }
 
-// BuildTools returns profile discovery and database tools.
-func BuildTools(deps ToolDeps) []Tool {
-	tools := []Tool{
-		buildListProfilesTool(deps),
-		buildListNotebooksTool(deps),
-		buildReadNotebookTool(deps),
-	}
+// BuildTools returns the database tools of one source, and the discovery tools of a source
+// that serves several connections.
+func BuildTools(source ConnectionSource) []Tool {
+	tools := source.DiscoveryTools()
 	for _, definition := range agent.Definitions() {
-		tools = append(tools, buildConnectionTool(deps, definition))
+		tools = append(tools, buildConnectionTool(source, definition))
 	}
 	return tools
 }
@@ -105,46 +102,38 @@ func describeProfileForAgent(config cfg.McpConfig, profile cfg.Profile) map[stri
 	return described
 }
 
-// buildConnectionTool binds one tool of the chat to the connection of the call.
-func buildConnectionTool(deps ToolDeps, definition agent.ToolDefinition) Tool {
+// buildConnectionTool binds one tool to the connection the source resolves for the call.
+func buildConnectionTool(source ConnectionSource, definition agent.ToolDefinition) Tool {
 	schema := definition.InputSchema
-	if definition.Name == runQueryToolName {
+	if definition.Name == runQueryToolName && source.TakesPlanToken(nil) {
 		schema = agent.ExtendSchemaOptionally(schema, "plan_token", planTokenField)
 	}
-	if deps.ScopedProfile == "" {
+	if source.NamesProfile() {
 		schema = agent.ExtendSchema(schema, "profile", profileField)
 	}
 
 	return Tool{
 		Name: definition.Name, Description: definition.Description, InputSchema: schema,
 		Call: func(ctx context.Context, input map[string]any) (any, error) {
-			// Remove server arguments before tool validation.
-			asked := map[string]any{}
-			for name, value := range input {
-				if name != "profile" && name != "plan_token" {
-					asked[name] = value
-				}
-			}
-			token, _ := input["plan_token"].(string)
-			profile, err := GetNamedProfile(deps.AccessDeps, input["profile"])
-			if err != nil {
-				return nil, err
-			}
-			// Allow concurrent calls during database operations.
-			releaseReader(ctx)
-			connection, err := OpenNamedConnection(ctx, deps.AccessDeps, profile)
+			deps, err := source.Resolve(ctx, input)
 			if err != nil {
 				return nil, err
 			}
 			// Bind only the requested tool.
-			return definition.Call(ctx, agent.ToolDeps{
-				Session:      connection.Session,
-				Tables:       connection.Tables,
-				Runner:       buildRunner(deps, profile, connection, token),
-				WritePlanOff: profile.WritePlan == cfg.PlanOff,
-			}, asked), nil
+			return definition.Call(ctx, deps, stripServerArguments(input)), nil
 		},
 	}
+}
+
+// stripServerArguments removes the arguments of the server before the tool reads its input.
+func stripServerArguments(input map[string]any) map[string]any {
+	asked := map[string]any{}
+	for name, value := range input {
+		if name != "profile" && name != "plan_token" {
+			asked[name] = value
+		}
+	}
+	return asked
 }
 
 // buildRunner configures write planning, confirmation, timeouts, and history.

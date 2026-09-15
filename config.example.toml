@@ -503,11 +503,12 @@ paths = []
 
 # AI settings. The api_key_env names below are configured examples, not built-in defaults.
 # Direct api_key and base_url values take priority over their environment variables.
-# A configured base URL gains /v1 unless the address already ends with /v1. Requests use /messages or /responses.
+# A configured base URL gains /v1 unless the address already ends with /v1. Requests use /messages, /responses or /chat/completions.
 #
 # [ai]
 # enabled              = true          # false disables the AI chat, its elements and its bindings.
-# default_provider     = "anthropic"   # anthropic openai
+# default_provider     = "anthropic"   # anthropic openai openai_compatible
+# default_agent        = ""            # an agent of [ai.agents]. Empty sends to default_provider.
 # statement_timeout_ms = 30000         # time limit for a statement that the model runs
 #
 # [ai.providers.anthropic]
@@ -523,8 +524,44 @@ paths = []
 # api_key      = ""                   # Default: empty.
 # base_url     = ""                   # Default: the provider address.
 # base_url_env = "OPENAI_BASE_URL"    # Example. Default: empty.
+#
+# Any server with the OpenAI chat completions endpoint: Ollama, LM Studio, llama.cpp, vLLM.
+# base_url and model are required. api_key is optional.
+#
+# [ai.providers.openai_compatible]
+# model          = "qwen3-coder:30b"
+# base_url       = "http://localhost:11434"
+# api_key        = ""                 # Default: empty.
+# max_tool_steps = 25                 # maximum provider rounds for one question
 
-# MCP server settings. Profile mcp and read-only mode can lower the global access limit.
+# A coding agent, reached over the Agent Client Protocol. masume runs the command as a child
+# process and serves it the tools of the chat over the loopback address, so the agent reads
+# the connection that is open. [mcp] below does not apply to the chat.
+# The agent uses its own subscription and its own model. masume sends it no API key.
+#
+# masume already knows claude, codex and opencode, with the commands below. A table changes
+# one of them, and a table of any other name adds an agent.
+# claude and codex are started with npx, which comes with Node. Set command to another
+# program where npx is not installed.
+#
+# [ai.agents.claude]
+# command = "npx"
+# args    = ["-y", "@zed-industries/claude-code-acp"]
+# model   = "haiku"                   # default sonnet haiku. Empty keeps the model of the agent.
+# env     = []                        # extra environment, as NAME=VALUE. An empty value clears one.
+#
+# [ai.agents.opencode]
+# command = "opencode"
+# args    = ["acp"]
+# model   = "opencode-go/deepseek-v4-flash"
+#
+# [ai.agents.codex]
+# command = "npx"
+# args    = ["-y", "@zed-industries/codex-acp"]
+
+# MCP server settings for the agents that reach masume from outside. Profile mcp and
+# read-only mode can lower the global access limit. The AI chat of the client does not read
+# these; see docs/ai.md.
 #
 # [mcp]
 # profiles   = []            # Allowed profiles. Empty serves none. Example: ["shop"].

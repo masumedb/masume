@@ -335,16 +335,12 @@ var cardKeySpecs = map[app.OverlayKind][]keySpec{
 		firstChordOf(cfg.ScopeDialog, ActionWriteNewline, "newline").
 			onlyWhen(notFilters(asksToRun)),
 		keyOf(cfg.ScopeDialog, ActionStopAiReply, "stop").onlyWhen(writesReply),
-		pairOf(cfg.ScopeDialog, ActionPreviousTurn, ActionNextTurn, "turn", "/").
-			onlyWhen(notFilters(asksToRun)),
-		pairOf(cfg.ScopeDialog, ActionScrollBack, ActionScrollForward, "page", "/").
-			onlyWhen(notFilters(asksToRun)),
-		pairOf(cfg.ScopeList, ActionCursorUp, ActionCursorDown, "scroll", "").
-			onlyWhen(notFilters(asksToRun)),
-		keyOf(cfg.ScopeDialog, ActionInsertAiSQL, "last reply query to editor").
-			onlyWhen(notFilters(asksToRun)),
-		keyOf(cfg.ScopeDialog, ActionChatToNotebook, "to a notebook").
-			onlyWhen(notFilters(asksToRun)),
+		keyOf(cfg.ScopeDialog, ActionAskAiAgain, "ask again").onlyWhen(asksAgain),
+		keyOf(cfg.ScopeDialog, ActionCopyAiReply, "copy reply").onlyWhen(holdsChatText),
+		// The panel keeps one row of keys. The rest of them are in the help, under the
+		// group of the chat, and the status bar carries them as well.
+		keyOf(cfg.ScopeDialog, ActionInsertAiSQL, "to editor").
+			onlyWhen(holdsChatQuery),
 		keyOf(cfg.ScopeDialog, ActionNewAiChat, "new").onlyWhen(notFilters(asksToRun)),
 		keyOf(cfg.ScopeDialog, ActionShowAiChats, "chats").onlyWhen(notFilters(asksToRun)),
 		keyOf(cfg.ScopeDialog, ActionClose, "close").onlyWhen(notFilters(asksToRun)),
@@ -593,6 +589,35 @@ func listsConnections(scene keyScene) bool {
 
 func filtersConnections(scene keyScene) bool {
 	return scene.model.picker.filtersList()
+}
+
+// asksAgain is true where the chat has a question to ask again, which is one that failed or
+// one that was stopped.
+func asksAgain(scene keyScene) bool {
+	if scene.chat == nil || asksToRun(scene) || scene.chat.IsStreaming() {
+		return false
+	}
+	_, held := scene.chat.FindLastQuestion()
+	return held
+}
+
+// holdsChatText is true where the chat has a reply to copy.
+func holdsChatText(scene keyScene) bool {
+	if scene.chat == nil || asksToRun(scene) {
+		return false
+	}
+	_, held := scene.chat.FindLastReply()
+	return held
+}
+
+// holdsChatQuery is true where the chat has written a statement, which is what the key that
+// fills the editor needs.
+func holdsChatQuery(scene keyScene) bool {
+	if scene.chat == nil || asksToRun(scene) {
+		return false
+	}
+	_, held := scene.chat.FindLastQuery()
+	return held
 }
 
 func offersKeyring(scene keyScene) bool {

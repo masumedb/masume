@@ -371,7 +371,7 @@ MongoDB lists operations instead of SQL sessions. Both stop actions use `killOp`
 
 `Ctrl+K` opens the searchable command palette. Type a command name. Select a row. Press Enter. Commands need their target state, such as a result for copying.
 
-Palette-only operations include Reload the theme files, AI provider selection, Ask AI: explain this query, Ask AI: optimize this query, and Ask AI: build a notebook. Config problems appears when configuration reports exist. None of these have a default direct binding.
+Palette-only operations include Reload the theme files, AI provider selection, AI agent selection, Ask AI: explain this query, Ask AI: optimize this query, and Ask AI: build a notebook. Config problems appears when configuration reports exist. None of these have a default direct binding.
 
 `Alt+O t` opens the theme picker. Movement previews themes. Enter saves the selection. Esc cancels. See [themes](themes.md).
 

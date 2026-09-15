@@ -13,6 +13,8 @@ var aiActions = map[ActionID]bool{
 	ActionAiCheckPlan:    true,
 	ActionInsertAiSQL:    true,
 	ActionStopAiReply:    true,
+	ActionAskAiAgain:     true,
+	ActionCopyAiReply:    true,
 	ActionNewAiChat:      true,
 	ActionShowAiChats:    true,
 	ActionChatToNotebook: true,

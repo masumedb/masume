@@ -3,6 +3,7 @@ package mcp
 import (
 	"testing"
 
+	"github.com/turanmahmudov/masume/internal/agent"
 	"github.com/turanmahmudov/masume/internal/cfg"
 	"github.com/turanmahmudov/masume/internal/core"
 	"github.com/turanmahmudov/masume/internal/query/statement"
@@ -205,14 +206,14 @@ func TestReadServerArguments(t *testing.T) {
 		{[]string{"--mcp", "--profile=one", "--check"}, "one", true},
 	}
 	for _, held := range cases {
-		scoped, check, err := ReadServerArguments(held.argv)
+		read, err := ReadServerArguments(held.argv)
 		if err != nil {
 			t.Errorf("%v was refused: %s", held.argv, err)
 			continue
 		}
-		if scoped != held.wanted || check != held.check {
+		if read.Profile != held.wanted || read.Check != held.check {
 			t.Errorf("%v named %q and %v, wanted %q and %v",
-				held.argv, scoped, check, held.wanted, held.check)
+				held.argv, read.Profile, read.Check, held.wanted, held.check)
 		}
 	}
 }
@@ -227,9 +228,9 @@ func TestReadServerArgumentsRefusesWhatItCannotRead(t *testing.T) {
 		{"--mcp", "--profil=shop"},
 		{"--mcp", "shop"},
 	} {
-		scoped, _, err := ReadServerArguments(argv)
+		read, err := ReadServerArguments(argv)
 		if err == nil {
-			t.Errorf("%v was read, and named %q", argv, scoped)
+			t.Errorf("%v was read, and named %q", argv, read.Profile)
 		}
 	}
 }
@@ -256,4 +257,75 @@ func TestDescribeServing(t *testing.T) {
 	if said := describeServing(deps); said != DescribeNoOpenProfiles(deps.Config) {
 		t.Errorf("the report reads %q", said)
 	}
+}
+
+// One tool catalogue answers both servers. The source of the connection is the only thing
+// that differs, so a tool added once appears in both.
+func TestBothSourcesServeOneCatalogue(t *testing.T) {
+	bound := BuildTools(BindConnection(agent.ToolDeps{}))
+	pooled := BuildTools(OpenProfiles(ToolDeps{
+		AccessDeps: AccessDeps{Config: cfg.DefaultMcpConfig()},
+	}))
+
+	names := map[string]bool{}
+	for _, tool := range bound {
+		names[tool.Name] = true
+	}
+	for _, definition := range agent.Definitions() {
+		if !names[definition.Name] {
+			t.Errorf("the chat serves no %s", definition.Name)
+		}
+	}
+
+	// The server of the profiles adds the tools that find one.
+	if len(pooled) != len(bound)+3 {
+		t.Errorf("the servers offer %d and %d tools", len(pooled), len(bound))
+	}
+	for _, wanted := range []string{"list_profiles", "list_notebooks", "read_notebook"} {
+		if names[wanted] {
+			t.Errorf("the chat serves %s, which needs several connections", wanted)
+		}
+	}
+}
+
+// A server of several connections asks which one to use, and a server of one does not.
+func TestOnlyTheServerOfManyProfilesAsksForOne(t *testing.T) {
+	bound := findToolNamed(t, BuildTools(BindConnection(agent.ToolDeps{})), "run_query")
+	if holdsSchemaField(bound, "profile") || holdsSchemaField(bound, "plan_token") {
+		t.Errorf("the chat asks for a profile or a token: %v", bound.InputSchema)
+	}
+
+	pooled := findToolNamed(t, BuildTools(OpenProfiles(ToolDeps{
+		AccessDeps: AccessDeps{Config: cfg.DefaultMcpConfig()},
+	})), "run_query")
+	if !holdsSchemaField(pooled, "profile") || !holdsSchemaField(pooled, "plan_token") {
+		t.Errorf("the server asks for neither: %v", pooled.InputSchema)
+	}
+
+	// A server scoped to one profile needs no name either.
+	scoped := findToolNamed(t, BuildTools(OpenProfiles(ToolDeps{
+		AccessDeps: AccessDeps{Config: cfg.DefaultMcpConfig(), ScopedProfile: "shop"},
+	})), "run_query")
+	if holdsSchemaField(scoped, "profile") {
+		t.Errorf("a scoped server asks for a profile: %v", scoped.InputSchema)
+	}
+}
+
+// findToolNamed returns the tool of that name.
+func findToolNamed(t *testing.T, tools []Tool, name string) Tool {
+	t.Helper()
+	for _, tool := range tools {
+		if tool.Name == name {
+			return tool
+		}
+	}
+	t.Fatalf("no tool named %s", name)
+	return Tool{}
+}
+
+// holdsSchemaField is true where the input schema of a tool has this field.
+func holdsSchemaField(tool Tool, name string) bool {
+	properties, _ := tool.InputSchema["properties"].(map[string]any)
+	_, held := properties[name]
+	return held
 }

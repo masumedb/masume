@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/turanmahmudov/masume/internal/cfg"
+	"github.com/turanmahmudov/masume/internal/core"
 )
 
 // Shared provider requests, responses, and streaming interface.
@@ -117,27 +118,42 @@ func ResolveVersionedBaseURL(baseURL string) string {
 
 // OpenModel configures a provider model. cacheKey is the OpenAI cache grouping key.
 func OpenModel(config cfg.AiConfig, id cfg.AiProviderID, cacheKey string) (Model, error) {
-	if id != cfg.ProviderAnthropic && id != cfg.ProviderOpenai {
+	if _, known := core.FindAllowed(cfg.AiProviderIDs, string(id)); !known {
 		return nil, fmt.Errorf("no provider named %q", string(id))
+	}
+	if missing := DescribeMissingSetting(config, id); missing != "" {
+		return nil, errors.New(missing)
 	}
 
 	settings := config.Providers[id]
-	apiKey, held := FindAPIKey(settings)
-	if !held {
-		return nil, errors.New(DescribeMissingKey(config, id))
-	}
-	baseURL := cfg.FindConfiguredValue(settings.BaseURL, settings.BaseURLEnv)
+	apiKey, _ := FindAPIKey(settings)
+	baseURL, _ := FindBaseURL(settings)
 	if baseURL != "" {
 		baseURL = ResolveVersionedBaseURL(baseURL)
 	}
 
-	if id == cfg.ProviderAnthropic {
+	switch id {
+	case cfg.ProviderAnthropic:
 		return openAnthropicModel(settings.Model, apiKey, baseURL), nil
+	case cfg.ProviderOpenaiCompatible:
+		return openChatModel(settings.Model, apiKey, baseURL), nil
 	}
 	return openOpenaiModel(settings.Model, apiKey, baseURL, cacheKey), nil
 }
 
+// ResolveMaxToolSteps returns the step limit of this provider.
+func ResolveMaxToolSteps(config cfg.AiConfig, id cfg.AiProviderID) int {
+	if steps := config.Providers[id].MaxToolSteps; steps > 0 {
+		return steps
+	}
+	return cfg.DefaultMaxToolSteps
+}
+
 // DescribeActiveModel returns the provider and the model the chat sends to.
 func DescribeActiveModel(config cfg.AiConfig, id cfg.AiProviderID) string {
-	return string(id) + "/" + config.Providers[id].Model
+	model := config.Providers[id].Model
+	if model == "" {
+		return string(id)
+	}
+	return string(id) + "/" + model
 }

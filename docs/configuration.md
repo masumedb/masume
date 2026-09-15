@@ -496,7 +496,7 @@ A terminal without a Nerd Font draws those example glyphs as empty boxes.
 | `main` | The primary key hints only. See the list below |
 | `off` | No key hints. Every bar, strip, border and card keeps its readouts: the count of the statements, the place of the caret, the count of the faults, the rows of the result, what a card is for |
 
-`main` shows the primary keys, including the key a pane is there for (open a tree row, run the statement, run all, run a notebook cell), the key that opens the menu of the row under the cursor, the keys a state raises (cancel a running read, run a failed one, fetch more rows, count the rows, edit a table as a query), and the keys no other key reaches (show a hidden tree, step through the connections). On a card it shows the keys that answer it and the key that closes it, but no extras. The chat card shows `ask`, `last reply query to editor`, and `close`, and the notebook card shows `open` and `close`. The title bar, pane borders, and plan strip keep their keys; the tab row and the step keys of the result strips show none.
+`main` shows the primary keys, including the key a pane is there for (open a tree row, run the statement, run all, run a notebook cell), the key that opens the menu of the row under the cursor, the keys a state raises (cancel a running read, run a failed one, fetch more rows, count the rows, edit a table as a query), and the keys no other key reaches (show a hidden tree, step through the connections). On a card it shows the keys that answer it and the key that closes it, but no extras. The chat card shows `ask`, `to editor`, and `close`, and the notebook card shows `open` and `close`. The title bar, pane borders, and plan strip keep their keys; the tab row and the step keys of the result strips show none.
 
 `full` and `main` show the keys that reach the model: `ask ai` on the title bar, the one key of the model on the border of the editor, and `ask ai` on the strip of the plan. `off` hides all three.
 
@@ -552,22 +552,51 @@ api_key_env = "ANTHROPIC_API_KEY"
 | Key | Type | Default | Meaning |
 | --- | --- | --- | --- |
 | `enabled` | boolean | `true` | `false` disables the AI chat and its interface elements. MCP remains separate |
-| `default_provider` | `anthropic` or `openai` | `anthropic` | The initial AI chat provider. The palette changes the provider for the session. An unknown name produces a report |
+| `default_provider` | `anthropic`, `openai` or `openai_compatible` | `anthropic` | The initial AI chat provider. The palette changes the provider for the session. An unknown name produces a report |
+| `default_agent` | string | empty | An agent of `[ai.agents]`. A name that is set sends the chat to that agent instead of the provider. A name with no table produces a report |
 | `statement_timeout_ms` | integer above zero | `30000` | Execution timeout for AI chat `run_query`, in milliseconds. Other tools and undo capture are outside this timeout |
 
-One table per provider, `[ai.providers.anthropic]` and `[ai.providers.openai]`:
+One table per provider, `[ai.providers.anthropic]`, `[ai.providers.openai]` and `[ai.providers.openai_compatible]`:
 
 | Key | Type | Default | Meaning |
 | --- | --- | --- | --- |
-| `model` | string | `claude-opus-5`, `gpt-5` | The provider model ID |
-| `api_key` | string | empty | The API key stored directly in the file. A non-empty value takes priority over `api_key_env` |
+| `model` | string | `claude-opus-5`, `gpt-5`, empty | The provider model ID. Required for `openai_compatible` |
+| `api_key` | string | empty | The API key stored directly in the file. A non-empty value takes priority over `api_key_env`. Optional for `openai_compatible` |
 | `api_key_env` | string | empty | The environment variable with the API key. No variable name is assumed by default |
-| `base_url` | string | empty | The provider or proxy address. A non-empty value takes priority over `base_url_env` |
+| `base_url` | string | empty | The provider or proxy address. A non-empty value takes priority over `base_url_env`. Required for `openai_compatible` |
 | `base_url_env` | string | empty | The environment variable with the provider or proxy address. No variable name is assumed by default |
+| `max_tool_steps` | integer above zero | `25` | Maximum provider rounds for one question |
 
-Without a configured address, Anthropic uses `https://api.anthropic.com/v1` and OpenAI uses `https://api.openai.com/v1`. masume removes trailing slashes and appends `/v1` unless the configured address already ends with `/v1`. The client then uses `/messages` for Anthropic and `/responses` for OpenAI.
+Without a configured address, Anthropic uses `https://api.anthropic.com/v1` and OpenAI uses `https://api.openai.com/v1`. masume removes trailing slashes and appends `/v1` unless the configured address already ends with `/v1`. The client then uses `/messages` for Anthropic, `/responses` for OpenAI and `/chat/completions` for `openai_compatible`.
+
+`openai_compatible` has no default address, so `base_url` or `base_url_env` is required. A request carries an `Authorization` header only when the config file has a key, so a local server needs none.
 
 Unknown provider tables produce reports and are ignored. See [ai.md](ai.md) for provider data and credential sources.
+
+### AI agents
+
+One table per agent, `[ai.agents.NAME]`. The name is the name the palette shows.
+
+masume already knows `claude`, `codex` and `opencode`, so a file needs no table for those. A table of one of those names changes it; a table of any other name adds an agent. A `command` in the file replaces the arguments masume knows, because those arguments belong to the command it knew.
+
+```toml
+[ai.agents.claude]
+command = "npx"
+args    = ["@zed-industries/claude-code-acp"]
+
+[ai.agents.opencode]
+command = "opencode"
+args    = ["acp"]
+```
+
+| Key | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `command` | string | required for an agent masume does not know | The program that serves the Agent Client Protocol on its standard input and output. An agent without one produces a report and is skipped |
+| `args` | list of strings | empty | The arguments of that program |
+| `model` | string | empty | The model of the agent, from the list the agent offers. Empty keeps the model the agent is configured with |
+| `env` | list of strings | empty | Extra environment for the child process, as `NAME=VALUE` entries, added to the environment of masume. An entry with an empty value replaces what that environment holds |
+
+masume runs the command as a child process and serves it the tools of the chat over the loopback address, so `[mcp]` does not apply to the chat. See [ai.md](ai.md#agents).
 
 ## MCP
 

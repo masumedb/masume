@@ -65,17 +65,76 @@ func TestAFailedRunLeavesNoEmptyTurn(t *testing.T) {
 	}
 }
 
-func TestStepsBelongToOneReply(t *testing.T) {
+// A reply holds its calls where they happened, between the blocks of text around them, so
+// the turn reads in the order the model worked.
+func TestAReplyHoldsItsCallsWhereTheyHappened(t *testing.T) {
 	chat := NewChat()
+	chat.StartTurn("how many orders are unpaid", "")
+
+	chat.AppendDelta("Let me look.")
+	chat.StartStep("listing the tables")
+	chat.FinishStep()
+	chat.StartTextBlock()
+	chat.AppendDelta("Two tables.")
+	chat.StartStep("reading the columns of orders")
+
+	reply := chat.Messages[len(chat.Messages)-1]
+	if len(reply.Parts) != 4 {
+		t.Fatalf("the reply holds %+v", reply.Parts)
+	}
+	// A block that follows a call needs no blank line, because the call separates them.
+	for at, wanted := range []ChatPart{
+		{Text: "Let me look."},
+		{Step: "listing the tables", Done: true},
+		{Text: "Two tables."},
+		{Step: "reading the columns of orders"},
+	} {
+		if reply.Parts[at] != wanted {
+			t.Errorf("part %d reads %+v, wanted %+v", at, reply.Parts[at], wanted)
+		}
+	}
+	// The text of the reply is what a later question sends, and holds no call.
+	if reply.Content != "Let me look.\n\nTwo tables." {
+		t.Errorf("the text reads %q", reply.Content)
+	}
+	if chat.Activity != "reading the columns of orders" {
+		t.Errorf("the call that runs reads %q", chat.Activity)
+	}
+}
+
+// A call the reply never finished is not a call it made, so a stopped run drops it.
+func TestAStoppedRunDropsTheCallThatNeverFinished(t *testing.T) {
+	chat := NewChat()
+	chat.StartTurn("how many orders are unpaid", "")
+	chat.Begin(func() {})
+	chat.AppendDelta("Let me look.")
 	chat.StartStep("listing the tables")
 	chat.FinishStep()
 	chat.StartStep("reading the columns of orders")
-	if len(chat.Steps) != 1 || chat.Activity != "reading the columns of orders" {
-		t.Errorf("the steps read %v and %q", chat.Steps, chat.Activity)
+
+	chat.Stopped()
+	reply := chat.Messages[len(chat.Messages)-1]
+	if len(reply.Parts) != 2 {
+		t.Fatalf("the reply holds %+v", reply.Parts)
 	}
-	chat.ClearSteps()
-	if len(chat.Steps) != 0 || chat.Activity != "" {
-		t.Errorf("the steps were kept: %v and %q", chat.Steps, chat.Activity)
+	if !reply.Parts[1].Done {
+		t.Errorf("the call that finished reads %+v", reply.Parts[1])
+	}
+	if chat.Activity != "" {
+		t.Errorf("a call still runs: %q", chat.Activity)
+	}
+}
+
+// A reply that made a call and wrote nothing is kept, because the call is what it did.
+func TestAReplyWithACallIsKept(t *testing.T) {
+	chat := NewChat()
+	chat.StartTurn("how many orders are unpaid", "")
+	chat.StartStep("listing the tables")
+	chat.FinishStep()
+
+	chat.DropEmptyReply()
+	if len(chat.Messages) != 2 {
+		t.Errorf("the turns read %+v", chat.Messages)
 	}
 }
 

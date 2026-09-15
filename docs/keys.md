@@ -65,8 +65,10 @@ One card returns only its own actions. Two rows of this table can carry the same
 | `answer-yes` | `y` |
 | `apply-changes` | `ctrl+y` |
 | `apply-step` | `return` |
+| `ask-ai-again` | `ctrl+r` |
 | `chat-to-notebook` | `ctrl+g` |
 | `close` | `escape` |
+| `copy-ai-reply` | `ctrl+a` |
 | `copy-value` | `ctrl+a` or `y` |
 | `delete-connection` | `d` |
 | `discard-changes` | `x` |

@@ -136,8 +136,8 @@ func TestEveryKeyOfACardIsDrawnAsAKey(t *testing.T) {
 					Kind: app.OverlayAiChat, Draft: app.NewEditorBuffer("", 0),
 				}
 			},
-			keys:  []string{"↵", "⇧Enter", "↑↓"},
-			words: []string{"ask", "newline", "scroll"},
+			keys:  []string{"↵", "⇧Enter", "^L", "^O"},
+			words: []string{"ask", "newline", "new", "chats"},
 		},
 		{
 			name: "the card of a row",

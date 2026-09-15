@@ -290,6 +290,8 @@ const (
 	ActionDiscardChanges   ActionID = "discard-changes"
 	ActionInsertAiSQL      ActionID = "insert-ai-sql"
 	ActionStopAiReply      ActionID = "stop-ai-reply"
+	ActionAskAiAgain       ActionID = "ask-ai-again"
+	ActionCopyAiReply      ActionID = "copy-ai-reply"
 	ActionNewAiChat        ActionID = "new-ai-chat"
 	ActionShowAiChats      ActionID = "show-ai-chats"
 	ActionScrollBack       ActionID = "scroll-back"
@@ -511,6 +513,7 @@ var dialogActions = []ActionDefinition{
 	{ID: ActionToggleValue, MainHint: true}, {ID: ActionKeepAllValues}, {ID: ActionKeepOnlyValue},
 	{ID: ActionApplyChanges, MainHint: true}, {ID: ActionDiscardChanges, MainHint: true},
 	{ID: ActionInsertAiSQL, MainHint: true}, {ID: ActionStopAiReply, MainHint: true},
+	{ID: ActionAskAiAgain}, {ID: ActionCopyAiReply},
 	{ID: ActionNewAiChat}, {ID: ActionShowAiChats},
 	{ID: ActionScrollBack}, {ID: ActionScrollForward},
 	{ID: ActionPreviousTurn}, {ID: ActionNextTurn},

@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/turanmahmudov/masume/internal/cfg"
 )
 
 // recordedRequest is one request the test provider received.
@@ -137,7 +139,7 @@ func collectRun(t *testing.T, model Model, request Request) (RunResult, []string
 	t.Helper()
 	text := strings.Builder{}
 	steps := []string{}
-	result, err := RunChat(context.Background(), model, request, RunHooks{
+	result, err := RunChat(context.Background(), model, request, cfg.DefaultMaxToolSteps, RunHooks{
 		StartTextBlock: func() {
 			if text.Len() > 0 {
 				text.WriteString("\n\n")
@@ -148,7 +150,7 @@ func collectRun(t *testing.T, model Model, request Request) (RunResult, []string
 		FinishToolStep: func() {},
 		CallTool: func(_ context.Context, name string, input map[string]any) string {
 			return `{"called":"` + name + `","limit":` +
-				writeToolOutput(input["limit"]) + `}`
+				EncodeToolOutput(input["limit"]) + `}`
 		},
 		LogEvent: func(string) {},
 	})
@@ -394,17 +396,17 @@ func TestResolveModelCapabilities(t *testing.T) {
 }
 
 func TestFindEmptyReplyProblem(t *testing.T) {
-	if problem := FindEmptyReplyProblem(12, FinishStop); problem != "" {
+	if problem := FindEmptyReplyProblem(12, FinishStop, 25); problem != "" {
 		t.Errorf("a reply that arrived was reported: %s", problem)
 	}
-	if problem := FindEmptyReplyProblem(0, FinishStop); problem != "" {
+	if problem := FindEmptyReplyProblem(0, FinishStop, 25); problem != "" {
 		t.Errorf("a model that stopped with nothing to say was reported: %s", problem)
 	}
-	if problem := FindEmptyReplyProblem(0, FinishToolCalls); !strings.Contains(
+	if problem := FindEmptyReplyProblem(0, FinishToolCalls, 25); !strings.Contains(
 		problem, "reached the limit of 25 steps without a text reply") {
 		t.Errorf("the problem reads %q", problem)
 	}
-	if problem := FindEmptyReplyProblem(0, FinishContentFilter); problem !=
+	if problem := FindEmptyReplyProblem(0, FinishContentFilter, 25); problem !=
 		"the model returned no text (content-filter)" {
 		t.Errorf("the problem reads %q", problem)
 	}
@@ -418,7 +420,7 @@ func TestARunThatWasStoppedWritesNothingMore(t *testing.T) {
 	ctx, stop := context.WithCancel(context.Background())
 	defer stop()
 	written := strings.Builder{}
-	result, err := RunChat(ctx, model, buildTestRequest(), RunHooks{
+	result, err := RunChat(ctx, model, buildTestRequest(), cfg.DefaultMaxToolSteps, RunHooks{
 		StartTextBlock: func() {},
 		AppendText:     func(delta string) { written.WriteString(delta) },
 		StartToolStep:  func(string) { stop() },
