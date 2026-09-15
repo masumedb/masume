@@ -1,6 +1,13 @@
 package ui
 
-import "testing"
+import (
+	"strings"
+	"testing"
+
+	"github.com/turanmahmudov/masume/internal/app"
+	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/turanmahmudov/masume/internal/notebook"
+)
 
 // Every row the palette offers has to run something. A row whose id names no action is
 // drawn like any other, and reports that there is no such action only once the user has
@@ -41,4 +48,139 @@ func TestEveryPaletteEntryNamesItsOwnAction(t *testing.T) {
 				entry.id, entry.action)
 		}
 	}
+}
+
+// The palette offers no view of a result that was never run. A row that is drawn and then
+// does nothing reads as a client that is broken.
+func TestThePaletteOffersNoViewBeforeAQueryIsRun(t *testing.T) {
+	model := buildOfflineModel(t, 120, 34)
+	connection := model.Active()
+
+	for _, row := range model.buildPaletteActions(connection) {
+		if strings.HasPrefix(row.Label, "View: ") {
+			t.Errorf("the palette offers %q, and nothing has run", row.Label)
+		}
+	}
+
+	// A run that returned rows offers the views of those rows, and none of a table the
+	// tab was not opened on.
+	tab := connection.Active()
+	tab.Results.Start([]string{"select 1"}, 100)
+	tab.Results.Succeed(0, db.ComposedRead{}, db.QueryResult{
+		Columns: []db.ResultColumn{{Name: "id", DataType: "int4"}},
+		Rows:    [][]any{{int64(1)}},
+	})
+
+	offered := map[string]bool{}
+	for _, row := range model.buildPaletteActions(connection) {
+		offered[row.ID] = true
+	}
+	for _, view := range tab.Views(connection.Session) {
+		if !offered["tab-"+string(view)] {
+			t.Errorf("the palette offers no row for the %s view", view)
+		}
+	}
+	if offered["tab-"+string(app.ViewIndexes)] {
+		t.Error("the palette offers the indexes of a tab that opened no table")
+	}
+}
+
+// listPaletteRows returns the rows the palette offers now.
+func listPaletteRows(model *Model) map[string]bool {
+	offered := map[string]bool{}
+	for _, row := range model.buildPaletteActions(model.Active()) {
+		offered[row.ID] = true
+	}
+	return offered
+}
+
+// A row the state cannot run is left out, and not offered and refused.
+func TestThePaletteLeavesOutWhatTheStateCannotRun(t *testing.T) {
+	model := buildOfflineModel(t, 120, 34)
+	offered := listPaletteRows(model)
+
+	for _, id := range []string{
+		"run-at-cursor", "run-batch", "explain", "explain-analyze", "save-query",
+		"format-sql", "reveal-sql", "ai-explain-query", "ai-optimize-query",
+		"cancel-query", "copy-plan", "undo-write", "reopen-tab", "next-tab",
+		"export-csv", "export-json", "copy-csv", "copy-json", "copy-markdown",
+		"copy-inserts", "count-rows", "next-page",
+		"undo-change", "redo-change", "review-changes", "discard-changes",
+		"run-cell", "add-cell-below", "write-notebook-report", "chat-to-notebook",
+		"ai-fix-error",
+	} {
+		if offered[id] {
+			t.Errorf("the palette offers %q on a tab that holds nothing", id)
+		}
+	}
+	// Every row that stands on no state is still offered.
+	for _, id := range []string{
+		"show-history", "show-saved", "new-query-tab", "open-picker", "show-help",
+	} {
+		if !offered[id] {
+			t.Errorf("the palette does not offer %q", id)
+		}
+	}
+}
+
+// Each row appears with the state it needs, and goes with it.
+func TestThePaletteFollowsTheStateOfTheTab(t *testing.T) {
+	model := buildOfflineModel(t, 120, 34)
+	connection := model.Active()
+	tab := connection.Active()
+
+	wants := func(step string, ids ...string) {
+		t.Helper()
+		offered := listPaletteRows(model)
+		for _, id := range ids {
+			if !offered[id] {
+				t.Errorf("%s: the palette does not offer %q", step, id)
+			}
+		}
+	}
+	hides := func(step string, ids ...string) {
+		t.Helper()
+		offered := listPaletteRows(model)
+		for _, id := range ids {
+			if offered[id] {
+				t.Errorf("%s: the palette still offers %q", step, id)
+			}
+		}
+	}
+
+	tab.Editor.SetText("select id from orders")
+	wants("a statement in the editor", "run-at-cursor", "run-batch", "save-query",
+		"format-sql", "reveal-sql", "ai-explain-query", "ai-optimize-query")
+
+	tab.Results.Start([]string{"select id from orders"}, 1)
+	wants("a statement that ran", "tab-data", "tab-fields")
+	tab.Results.Succeed(0, db.ComposedRead{Pageable: true}, db.QueryResult{
+		Columns:   []db.ResultColumn{{Name: "id", DataType: "int4"}},
+		Rows:      [][]any{{int64(1)}},
+		Truncated: true,
+	})
+	wants("a result", "export-csv", "export-json", "copy-csv", "copy-json",
+		"copy-markdown", "copy-inserts", "count-rows", "next-page")
+
+	stageCellEdits(tab, 1)
+	wants("a staged change", "review-changes", "discard-changes", "undo-change")
+	hides("a staged change", "redo-change")
+
+	tab.UndoChange()
+	wants("an undone change", "redo-change")
+	hides("an undone change", "review-changes", "discard-changes", "undo-change")
+
+	connection.OpenQueryTab("select 1")
+	wants("a second tab", "next-tab")
+	hides("a second tab", "export-csv", "count-rows", "tab-data")
+
+	connection.CloseTab(connection.ActiveIndex)
+	wants("a closed tab", "reopen-tab")
+
+	connection.OpenNotebookInNewTab(
+		notebook.Parse("```sql id=one\nselect 1\n```\n"), "", notebook.OriginPersonal)
+	wants("a notebook tab", "run-cell", "run-from-cell", "run-marked-cells",
+		"add-cell-below", "set-cell-kind", "edit-cell-source",
+		"write-notebook-report", "notebook-run-policy")
+	hides("a notebook tab", "format-sql", "ai-explain-query", "ai-optimize-query")
 }

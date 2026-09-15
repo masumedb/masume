@@ -101,6 +101,14 @@ func TestThePaletteOffersNoAiRowWhereTheFeaturesAreOff(t *testing.T) {
 func TestThePaletteOffersTheAiRowsWhereTheFeaturesAreOn(t *testing.T) {
 	model := buildOfflineModel(t, 120, 34)
 	connection := model.Active()
+	// The row that asks about an error is offered after a run that failed, so the tab is
+	// given one.
+	// The rows that ask about a query need one in the editor, and the row that asks about
+	// an error needs a run that failed.
+	tab := connection.Active()
+	tab.Editor.SetText("select 1")
+	tab.Results.Start([]string{"select 1"}, 100)
+	tab.Results.Fail(0, "relation \"orders\" does not exist")
 
 	offered := map[string]bool{}
 	for _, row := range model.buildPaletteActions(connection) {

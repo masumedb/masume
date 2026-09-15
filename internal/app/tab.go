@@ -504,6 +504,12 @@ func (tab *Tab) HoldsChangesOfAnotherResult() bool {
 		tab.PendingResultID != tab.ReadActiveResultID()
 }
 
+// CanUndoChange is true where a staged change can be undone.
+func (tab *Tab) CanUndoChange() bool { return len(tab.undone) > 0 }
+
+// CanRedoChange is true where an undone change can be restored.
+func (tab *Tab) CanRedoChange() bool { return len(tab.redone) > 0 }
+
 // UndoChange undoes the last staged change.
 func (tab *Tab) UndoChange() bool {
 	if len(tab.undone) == 0 {

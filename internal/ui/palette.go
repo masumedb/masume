@@ -1,12 +1,15 @@
 package ui
 
 import (
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/turanmahmudov/masume/internal/app"
 	"github.com/turanmahmudov/masume/internal/cfg"
+	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/turanmahmudov/masume/internal/db"
 	"github.com/turanmahmudov/masume/internal/present"
 )
 
@@ -33,6 +36,9 @@ type paletteEntry struct {
 	// needs is the capability of a row that runs no action. A row with one takes the
 	// capability of that action.
 	needs Capability
+	// when returns false where the state leaves this row out. A row the client cannot
+	// run now is left out, and not offered and refused.
+	when func(keyScene) bool
 	// detailScope and detailAction are for a row reached by the key of another action,
 	// such as the one that moves between the panes.
 	detailScope  cfg.KeyScope
@@ -45,18 +51,19 @@ const paneChordAction = ActionFocusNextPane
 // paletteEntries are the rows the palette offers, in order.
 var paletteEntries = []paletteEntry{
 	{id: "run-at-cursor", label: "Run the selection or the statement",
-		scope: cfg.ScopeGlobal, action: ActionRunAtCursor},
+		scope: cfg.ScopeGlobal, action: ActionRunAtCursor, when: holdsStatement},
 	{id: "run-batch", label: "Run every statement", detail: "one result each",
-		scope: cfg.ScopeGlobal, action: ActionRunBatch},
-	{id: "explain", label: "Explain plan", scope: cfg.ScopeGlobal, action: ActionExplain},
+		scope: cfg.ScopeGlobal, action: ActionRunBatch, when: holdsStatement},
+	{id: "explain", label: "Explain plan",
+		scope: cfg.ScopeGlobal, action: ActionExplain, when: holdsStatement},
 	{id: "explain-analyze", label: "Explain analyze",
-		scope: cfg.ScopeGlobal, action: ActionExplainAnalyze},
+		scope: cfg.ScopeGlobal, action: ActionExplainAnalyze, when: holdsStatement},
 	{id: "cancel-query", label: "Cancel the running query",
-		scope: cfg.ScopeGlobal, action: ActionCancelQuery},
+		scope: cfg.ScopeGlobal, action: ActionCancelQuery, when: runsQuery},
 	{id: "show-history", label: "Query history",
 		scope: cfg.ScopeGlobal, action: ActionShowHistory},
 	{id: "save-query", label: "Save this query", detail: "under a name",
-		scope: cfg.ScopeGlobal, action: ActionSaveQuery},
+		scope: cfg.ScopeGlobal, action: ActionSaveQuery, when: savesQuery},
 	{id: "show-saved", label: "Saved queries",
 		scope: cfg.ScopeGlobal, action: ActionShowSaved},
 	{id: "show-activity", label: "Server activity",
@@ -64,40 +71,51 @@ var paletteEntries = []paletteEntry{
 		scope:  cfg.ScopeGlobal, action: ActionShowActivity},
 	{id: "undo-write", label: "Undo the last write",
 		detail: "run the saved undo statement",
-		scope:  cfg.ScopeGlobal, action: ActionUndoWrite},
+		scope:  cfg.ScopeGlobal, action: ActionUndoWrite, when: undoesWrite},
 	{id: "export-csv", label: "Export result as CSV",
-		scope: cfg.ScopeGlobal, action: ActionExportCSV},
+		scope: cfg.ScopeGlobal, action: ActionExportCSV, when: holdsResult},
 	{id: "export-json", label: "Export result as JSON",
-		scope: cfg.ScopeGlobal, action: ActionExportJSON},
+		scope: cfg.ScopeGlobal, action: ActionExportJSON, when: holdsResult},
 	{id: "reopen-tab", label: "Reopen the last closed tab",
-		scope: cfg.ScopeGlobal, action: ActionReopenTab},
+		scope: cfg.ScopeGlobal, action: ActionReopenTab, when: holdsClosedTab},
 	{id: "undo-change", label: "Undo the last staged change", detail: "in the grid",
-		scope: cfg.ScopeGrid, action: ActionUndoChange},
+		scope: cfg.ScopeGrid, action: ActionUndoChange, when: undoesChange},
 	{id: "redo-change", label: "Redo the last undone change", detail: "in the grid",
-		scope: cfg.ScopeGrid, action: ActionRedoChange},
+		scope: cfg.ScopeGrid, action: ActionRedoChange, when: redoesChange},
 	{id: "review-changes", label: "Review staged changes", detail: "in the grid",
-		scope: cfg.ScopeGrid, action: ActionReviewChanges},
+		scope: cfg.ScopeGrid, action: ActionReviewChanges, when: stagesChanges},
 	{id: "discard-changes", label: "Discard the staged changes", detail: "asks first",
-		scope: cfg.ScopeGrid, action: ActionDiscardChanges},
+		scope: cfg.ScopeGrid, action: ActionDiscardChanges, when: stagesChanges},
 	{id: "begin-transaction", label: "Begin transaction",
-		scope: cfg.ScopeGlobal, action: ActionBeginTransaction},
+		scope: cfg.ScopeGlobal, action: ActionBeginTransaction, when: opensTransaction},
 	{id: "commit-transaction", label: "Commit transaction",
-		scope: cfg.ScopeGlobal, action: ActionCommitTransaction},
+		scope: cfg.ScopeGlobal, action: ActionCommitTransaction, when: holdsTransaction},
 	{id: "rollback-transaction", label: "Rollback transaction",
-		scope: cfg.ScopeGlobal, action: ActionRollbackTransaction},
+		scope: cfg.ScopeGlobal, action: ActionRollbackTransaction,
+		when: holdsTransaction},
 	{id: "toggle-autocommit", label: "Toggle autocommit",
 		scope: cfg.ScopeGlobal, action: ActionToggleAutocommit},
-	{id: "tab-data", label: "View: Data", detail: "result rows"},
+	{id: "tab-data", label: "View: Data", detail: "result rows",
+		when: offersResultView(app.ViewData)},
 	{id: "tab-fields", label: "View: Fields",
-		detail: "the columns the server returned"},
-	{id: "tab-statistics", label: "View: Statistics", detail: "affected rows and execution times"},
-	{id: "tab-columns", label: "View: Columns", detail: "table columns"},
-	{id: "tab-indexes", label: "View: Indexes", detail: "table indexes"},
-	{id: "tab-constraints", label: "View: Constraints", detail: "table constraints"},
-	{id: "tab-ddl", label: "View: DDL", detail: "the statement that defines the table"},
-	{id: "tab-plan", label: "View: Plan", detail: "query plan"},
+		detail: "the columns the server returned",
+		when:   offersResultView(app.ViewFields)},
+	{id: "tab-statistics", label: "View: Statistics",
+		detail: "affected rows and execution times",
+		when:   offersResultView(app.ViewStatistics)},
+	{id: "tab-columns", label: "View: Columns", detail: "table columns",
+		when: offersResultView(app.ViewColumns)},
+	{id: "tab-indexes", label: "View: Indexes", detail: "table indexes",
+		when: offersResultView(app.ViewIndexes)},
+	{id: "tab-constraints", label: "View: Constraints", detail: "table constraints",
+		when: offersResultView(app.ViewConstraints)},
+	{id: "tab-ddl", label: "View: DDL", detail: "the statement that defines the table",
+		when: offersResultView(app.ViewDDL)},
+	{id: "tab-plan", label: "View: Plan", detail: "query plan",
+		when: offersResultView(app.ViewPlan)},
 	{id: "reveal-sql", label: "Edit the query for this result",
-		detail: "a table opens as a query", scope: cfg.ScopeGlobal, action: ActionRevealSQL},
+		detail: "a table opens as a query",
+		scope:  cfg.ScopeGlobal, action: ActionRevealSQL, when: revealsStatement},
 	{id: "toggle-sidebar", label: "Show or hide the object tree",
 		scope: cfg.ScopeGlobal, action: ActionToggleSidebar},
 	{id: "toggle-result", label: "Show or hide the result",
@@ -107,7 +125,7 @@ var paletteEntries = []paletteEntry{
 		scope: cfg.ScopeGlobal, action: ActionFocusSidebar,
 		detailScope: cfg.ScopeGlobal, detailAction: paneChordAction},
 	{id: "focus-editor", label: "Focus the editor",
-		scope: cfg.ScopeGlobal, action: ActionFocusEditor,
+		scope: cfg.ScopeGlobal, action: ActionFocusEditor, when: showsEditor,
 		detailScope: cfg.ScopeGlobal, detailAction: paneChordAction},
 	{id: "focus-result", label: "Focus the result",
 		scope: cfg.ScopeGlobal, action: ActionFocusResult,
@@ -124,52 +142,55 @@ var paletteEntries = []paletteEntry{
 		scope:  cfg.ScopeGlobal, action: ActionShowNotebooks},
 	{id: "write-notebook-report", label: "Write a report of this notebook",
 		detail: "prose, statements and the rows of every cell",
-		scope:  cfg.ScopeGlobal, action: ActionWriteNotebookReport},
+		scope:  cfg.ScopeGlobal, action: ActionWriteNotebookReport,
+		when: editsNotebook},
 	{id: "notebook-run-policy", label: "Notebook run policy",
 		detail: "transaction and error policy",
-		scope:  cfg.ScopeGlobal, action: ActionNotebookRunPolicy},
+		scope:  cfg.ScopeGlobal, action: ActionNotebookRunPolicy, when: editsNotebook},
 	{id: "run-cell", label: "Run the focused cell", detail: "in a notebook",
-		scope: cfg.ScopeNotebook, action: ActionRunCell},
+		scope: cfg.ScopeNotebook, action: ActionRunCell, when: editsNotebook},
 	{id: "run-from-cell", label: "Run the focused cell and the ones below it",
 		detail: "in a notebook",
-		scope:  cfg.ScopeNotebook, action: ActionRunFromCell},
+		scope:  cfg.ScopeNotebook, action: ActionRunFromCell, when: editsNotebook},
 	{id: "run-marked-cells", label: "Run the marked cells", detail: "in a notebook",
-		scope: cfg.ScopeNotebook, action: ActionRunMarkedCells},
+		scope: cfg.ScopeNotebook, action: ActionRunMarkedCells, when: editsNotebook},
 	{id: "add-cell-below", label: "Add a cell", detail: "in a notebook",
-		scope: cfg.ScopeNotebook, action: ActionAddCellBelow},
+		scope: cfg.ScopeNotebook, action: ActionAddCellBelow, when: editsNotebook},
 	{id: "set-cell-kind", label: "Cell kind", detail: "sql, md, param, or chart",
-		scope: cfg.ScopeNotebook, action: ActionSetCellKind},
+		scope: cfg.ScopeNotebook, action: ActionSetCellKind, when: editsNotebook},
 	{id: "edit-cell-source", label: "Edit the focused cell",
 		detail: "a chart cell opens its form",
-		scope:  cfg.ScopeNotebook, action: ActionEditCellSource},
-	{id: "next-tab", label: "Next tab", scope: cfg.ScopeGlobal, action: ActionNextTab},
+		scope:  cfg.ScopeNotebook, action: ActionEditCellSource, when: editsNotebook},
+	{id: "next-tab", label: "Next tab",
+		scope: cfg.ScopeGlobal, action: ActionNextTab, when: showsManyTabs},
 	{id: "close-tab", label: "Close this tab", detail: "asks if changes are staged",
 		scope: cfg.ScopeGlobal, action: ActionCloseTab},
-	{id: "name-tab", label: "Name this tab", scope: cfg.ScopeGlobal, action: ActionNameTab},
+	{id: "name-tab", label: "Name this tab",
+		scope: cfg.ScopeGlobal, action: ActionNameTab, when: namesTab},
 	{id: "refresh-objects", label: "Refresh the object tree",
 		detail: "read the catalog again",
 		scope:  cfg.ScopeGlobal, action: ActionRefreshObjects},
 	{id: "copy-csv", label: "Copy the result as CSV", detail: "in the grid",
-		scope: cfg.ScopeGrid, action: ActionCopyCSV},
+		scope: cfg.ScopeGrid, action: ActionCopyCSV, when: holdsResult},
 	{id: "copy-json", label: "Copy the result as JSON", detail: "in the grid",
-		scope: cfg.ScopeGrid, action: ActionCopyJSON},
+		scope: cfg.ScopeGrid, action: ActionCopyJSON, when: holdsResult},
 	{id: "copy-markdown", label: "Copy the result as Markdown", detail: "in the grid",
-		scope: cfg.ScopeGrid, action: ActionCopyMarkdown},
+		scope: cfg.ScopeGrid, action: ActionCopyMarkdown, when: holdsResult},
 	{id: "copy-inserts", label: "Copy the result as INSERTs", detail: "in the grid",
-		scope: cfg.ScopeGrid, action: ActionCopyInserts},
+		scope: cfg.ScopeGrid, action: ActionCopyInserts, when: holdsResult},
 	{id: "copy-plan", label: "Copy the query plan",
 		detail: "in the plan view · raw server output",
-		scope:  cfg.ScopePlan, action: ActionCopyPlan},
+		scope:  cfg.ScopePlan, action: ActionCopyPlan, when: holdsQueryPlan},
 	{id: "open-picker", label: "New connection",
 		scope: cfg.ScopeGlobal, action: ActionOpenPicker},
 	{id: "close-connection", label: "Close this connection", detail: "close all its tabs",
 		scope: cfg.ScopeGlobal, action: ActionCloseConnection},
 	{id: "next-page", label: "Fetch more rows",
-		scope: cfg.ScopeGlobal, action: ActionNextPage},
+		scope: cfg.ScopeGlobal, action: ActionNextPage, when: fetchesMoreRows},
 	{id: "count-rows", label: "Count every row in the result", detail: "in the grid",
-		scope: cfg.ScopeGrid, action: ActionCountRows},
+		scope: cfg.ScopeGrid, action: ActionCountRows, when: countsRows},
 	{id: "format-sql", label: "Format the query", detail: "one clause per line",
-		scope: cfg.ScopeEditor, action: ActionFormatSQL},
+		scope: cfg.ScopeEditor, action: ActionFormatSQL, when: editsStatement},
 	{id: "show-themes", label: "Theme",
 		detail: "preview the selected theme",
 		scope:  cfg.ScopeGlobal, action: ActionShowThemes},
@@ -179,17 +200,121 @@ var paletteEntries = []paletteEntry{
 	{id: "show-ai-chat", label: "Ask AI", detail: "ask about this database, or for a query",
 		scope: cfg.ScopeGlobal, action: ActionShowAiChat},
 	{id: "ai-explain-query", label: "Ask AI: explain this query",
-		detail: "the query in the editor"},
+		detail: "the query in the editor", when: editsStatement},
 	{id: "ai-optimize-query", label: "Ask AI: optimize this query",
-		detail: "the query in the editor"},
+		detail: "the query in the editor", when: editsStatement},
 	{id: "ai-build-notebook", label: "Ask AI: build a notebook",
 		detail: "prose and one cell per query"},
 	{id: "chat-to-notebook", label: "Turn this chat into a notebook",
 		detail: "one cell per statement the model wrote",
-		scope:  cfg.ScopeDialog, action: ActionChatToNotebook},
+		scope:  cfg.ScopeDialog, action: ActionChatToNotebook, when: holdsChatText},
 	{id: "ai-fix-error", label: "Ask AI: fix the error",
 		detail: "the last failed run in the editor",
-		scope:  cfg.ScopeGlobal, action: ActionAiFixError},
+		scope:  cfg.ScopeGlobal, action: ActionAiFixError, when: failedLastRun},
+}
+
+// offersResultView returns the test that offers a view while the result holds it. The pane
+// draws the views of a result, so a client that has run nothing offers none of them.
+func offersResultView(view app.ResultView) func(keyScene) bool {
+	return func(scene keyScene) bool {
+		if scene.tab.Results.State().Kind == app.QueryIdle {
+			return false
+		}
+		return slices.Contains(scene.tab.Views(scene.connection.Session), view)
+	}
+}
+
+// holdsQueryPlan is true where the result on show is a plan, which is the one the plan is
+// copied from.
+func holdsQueryPlan(scene keyScene) bool {
+	return scene.tab.ViewData.Kind == app.DataPlan
+}
+
+// runsQuery is true while a statement runs, which is the only time one can be cancelled.
+func runsQuery(scene keyScene) bool {
+	return scene.tab.Results.State().Kind == app.QueryRunning
+}
+
+// stagesChanges is true where the grid holds a change that is not written yet.
+func stagesChanges(scene keyScene) bool {
+	return core.CountChanges(scene.tab.Pending) > 0
+}
+
+// editsNotebook is true on a notebook tab.
+func editsNotebook(scene keyScene) bool {
+	return scene.tab.Kind == app.TabNotebook
+}
+
+// holdsStatement is true where the pane above the result holds something to run.
+func holdsStatement(scene keyScene) bool {
+	tab := scene.tab
+	if tab.Kind == app.TabNotebook {
+		return tab.Notebook != nil && len(tab.Notebook.Cells) > 0
+	}
+	if tab.Kind == app.TabBuilder {
+		return tab.BuildsQuery()
+	}
+	return strings.TrimSpace(tab.Editor.Text) != ""
+}
+
+// editsStatement is true where the editor itself holds text, which is what the rows that
+// read it need.
+func editsStatement(scene keyScene) bool {
+	return scene.tab.Kind == app.TabQuery &&
+		strings.TrimSpace(scene.tab.Editor.Text) != ""
+}
+
+// holdsResult is true where the statement that ran returned something to read.
+func holdsResult(scene keyScene) bool {
+	active := scene.tab.Results.Active()
+	return active != nil && active.State.Kind == app.QuerySucceeded
+}
+
+// countsRows is true where the result is one the server can be asked the row count of.
+func countsRows(scene keyScene) bool { return scene.tab.Results.CanCountRows() }
+
+// fetchesMoreRows is true where the result holds rows the client has not read yet.
+func fetchesMoreRows(scene keyScene) bool {
+	return scene.tab.Results.Active() != nil && scene.tab.Results.CanFetchMore()
+}
+
+// revealsStatement is true where the result came from a statement the editor can hold.
+func revealsStatement(scene keyScene) bool {
+	return scene.tab.EffectiveSQL(scene.connection.Session) != ""
+}
+
+// holdsClosedTab is true where a tab was closed and can be opened again.
+func holdsClosedTab(scene keyScene) bool {
+	return scene.connection.HasClosedTab()
+}
+
+// undoesWrite is true where the last write left a statement that takes it back.
+func undoesWrite(scene keyScene) bool {
+	held := scene.connection.Undo
+	return held != nil && held.Undo.IsHeld()
+}
+
+// undoesChange is true where a staged change can be stepped back, and redoesChange where one
+// that was stepped back can be restored.
+func undoesChange(scene keyScene) bool { return scene.tab.CanUndoChange() }
+
+func redoesChange(scene keyScene) bool { return scene.tab.CanRedoChange() }
+
+// holdsTransaction is true while a transaction is open on the server, and opensTransaction
+// while none is.
+func holdsTransaction(scene keyScene) bool {
+	return scene.connection.Session.ReadTransactionState() == db.TransactionOpen
+}
+
+func opensTransaction(scene keyScene) bool { return !holdsTransaction(scene) }
+
+// showsEditor is true where the pane above the result is drawn, which is the pane the
+// keyboard is given to.
+func showsEditor(scene keyScene) bool { return scene.tab.EditorVisible() }
+
+// savesQuery is true where the pane above the result holds something to save under a name.
+func savesQuery(scene keyScene) bool {
+	return scene.tab.EditorVisible() && holdsStatement(scene)
 }
 
 // providerLabels name each provider the way a reader writes it, not the way the config
@@ -227,8 +352,15 @@ func (model *Model) buildPaletteActions(connection *app.Connection) []app.Palett
 	capabilities := connection.Session.Capabilities()
 	actions := []app.PaletteAction{}
 
+	scene := keyScene{
+		model: model, connection: connection, tab: connection.Active(),
+		chat: connection.Chat,
+	}
 	for _, entry := range paletteEntries {
 		if !AnswersFor(capabilities, findEntryCapability(entry)) {
+			continue
+		}
+		if entry.when != nil && !entry.when(scene) {
 			continue
 		}
 		if !model.offersAi() && (aiPaletteRows[entry.id] || IsAiAction(entry.action)) {
