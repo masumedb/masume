@@ -501,7 +501,8 @@ paths = []
 # toggle-value      = ["space"]
 # write-export      = ["ctrl+s"]
 
-# AI settings. The api_key_env names below are configured examples, not built-in defaults.
+# AI settings. One table per provider and one per agent.
+# The api_key_env names below are configured examples, not built-in defaults.
 # Direct api_key and base_url values take priority over their environment variables.
 # A configured base URL gains /v1 unless the address already ends with /v1. Requests use /messages, /responses or /chat/completions.
 #
@@ -539,10 +540,10 @@ paths = []
 # the connection that is open. [mcp] below does not apply to the chat.
 # The agent uses its own subscription and its own model. masume sends it no API key.
 #
-# masume already knows claude, codex and opencode, with the commands below. A table changes
-# one of them, and a table of any other name adds an agent.
-# claude and codex are started with npx, which comes with Node. Set command to another
-# program where npx is not installed.
+# A table of any other name adds an agent, and the settings screen writes one without an
+# editor. claude and codex are started with npx, which comes with Node. Set command to
+# another program where npx is not installed. An agent with no command is reported and left
+# out.
 #
 # [ai.agents.claude]
 # command = "npx"

@@ -141,41 +141,37 @@ func TestParseAiConfigReportsADefaultAgentItHasNot(t *testing.T) {
 	}
 }
 
-// masume knows how to start the common agents, so a file that names none still offers them.
-func TestParseAiConfigCarriesTheAgentsItKnows(t *testing.T) {
-	config := readAiConfig(t, "[ai]\nenabled = true\n")
-	for _, name := range []string{"claude", "codex", "opencode"} {
-		settings, held := config.Agents[name]
-		if !held {
-			t.Errorf("masume does not know %s", name)
-			continue
-		}
-		if settings.Command == "" || settings.Name != name {
-			t.Errorf("%s reads %+v", name, settings)
-		}
+// Every agent the chat can send to is a table of the config file. The client carries none,
+// so a file that names none offers none.
+func TestParseAiConfigReadsTheAgentsOfTheFile(t *testing.T) {
+	if held := readAiConfig(t, "[ai]\nenabled = true\n"); len(held.Agents) != 0 {
+		t.Errorf("a file that names no agent reads %v", held.Agents)
 	}
-	// One of them can be chosen without a table of its own.
-	if held := readAiConfig(t, "[ai]\ndefault_agent = \"opencode\"\n"); held.DefaultAgent != "opencode" {
-		t.Errorf("the agent reads %q, and the read reports %v", held.DefaultAgent, held.Problems)
+
+	config := readAiConfig(t, "[ai]\ndefault_agent = \"opencode\"\n\n"+
+		"[ai.agents.opencode]\ncommand = \"opencode\"\nargs = [\"acp\"]\n"+
+		"env = [\"CLAUDECODE=\"]\nmodel = \"grok-code\"\n")
+	if len(config.Problems) != 0 {
+		t.Fatalf("the read reports %v", config.Problems)
+	}
+	if config.DefaultAgent != "opencode" {
+		t.Errorf("the agent reads %q", config.DefaultAgent)
+	}
+	held := config.Agents["opencode"]
+	if held.Name != "opencode" || held.Command != "opencode" ||
+		strings.Join(held.Args, " ") != "acp" || held.Model != "grok-code" ||
+		strings.Join(held.Env, " ") != "CLAUDECODE=" {
+		t.Errorf("the agent reads %+v", held)
 	}
 }
 
-// A table of an agent masume knows changes that agent and keeps what it does not set.
-func TestParseAiConfigChangesAnAgentItKnows(t *testing.T) {
-	config := readAiConfig(t, "[ai.agents.opencode]\nmodel = \"opencode-go/deepseek-v4-flash\"\n")
-	settings := config.Agents["opencode"]
-	if settings.Model != "opencode-go/deepseek-v4-flash" {
-		t.Errorf("the model reads %q", settings.Model)
+// An agent with no command cannot be started, so it is reported and left out.
+func TestParseAiConfigRefusesAnAgentWithNoCommand(t *testing.T) {
+	config := readAiConfig(t, "[ai.agents.broken]\nargs = [\"acp\"]\n")
+	if len(config.Agents) != 0 {
+		t.Errorf("the agents read %v", config.Agents)
 	}
-	if settings.Command != "opencode" || len(settings.Args) != 1 || settings.Args[0] != "acp" {
-		t.Errorf("the command reads %q %v", settings.Command, settings.Args)
-	}
-
-	// A command of the file replaces the arguments masume knows, which belong to the old
-	// command.
-	held := readAiConfig(t, "[ai.agents.opencode]\ncommand = \"/opt/opencode\"\n")
-	if written := held.Agents["opencode"]; written.Command != "/opt/opencode" ||
-		len(written.Args) != 0 {
-		t.Errorf("the command reads %q %v", written.Command, written.Args)
+	if len(config.Problems) != 1 || !strings.Contains(config.Problems[0], "no command") {
+		t.Errorf("the read reports %v", config.Problems)
 	}
 }

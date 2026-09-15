@@ -62,7 +62,7 @@ base_url = "http://localhost:11434"
 
 An agent is a coding agent masume reaches over the [Agent Client Protocol](https://agentclientprotocol.com/), such as Claude Code, Codex, Gemini CLI, OpenCode, Goose or Qwen Code. The agent uses its own subscription and its own model, and masume sends it no API key.
 
-masume knows how to start `claude`, `codex` and `opencode`, so a config file needs no table for those three. `claude` and `codex` are started with `npx`, which comes with Node; `opencode` is started directly. The chat says so before the first question where the command of an agent is not on the PATH. A table changes an agent masume knows, and a table of any other name adds one.
+One table per agent. The config file holds `claude`, `codex` and `opencode`. `claude` and `codex` are started with `npx`, which comes with Node; `opencode` is started directly. The chat says so before the first question where the command of an agent is not on the PATH. An agent with no command is reported and left out.
 
 ```toml
 [ai]

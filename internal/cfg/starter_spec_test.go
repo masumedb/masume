@@ -127,18 +127,6 @@ func TestStarterConfigShowsTheDefaultsAndChangesNothing(t *testing.T) {
 		t.Errorf("the starter sets the AI statement timeout to %v, and the default is %v",
 			loaded.Ai.StatementTimeout, ai.StatementTimeout)
 	}
-	for id, wanted := range ai.Providers {
-		held, named := loaded.Ai.Providers[id]
-		if !named {
-			t.Errorf("the starter names no provider %q", id)
-			continue
-		}
-		if held.Model != wanted.Model {
-			t.Errorf("the starter sets the %q model to %q, and the default is %q",
-				id, held.Model, wanted.Model)
-		}
-	}
-
 	mcp := cfg.DefaultMcpConfig()
 	if loaded.Mcp.Access != mcp.Access {
 		t.Errorf("the starter sets [mcp] access to %q, and the default is %q",
@@ -163,5 +151,47 @@ func TestStarterConfigNamesAThemeThatExists(t *testing.T) {
 	}
 	if theme := cfg.LoadConfig(path).Settings.Theme; theme == "" {
 		t.Error("the starter names no theme")
+	}
+}
+
+// The first run writes the providers and the agents. The client carries none of its own, so
+// the file it writes is where they come from.
+func TestTheStarterConfigCarriesTheProvidersAndTheAgents(t *testing.T) {
+	document, err := cfg.DecodeDocument(string(cfg.StarterConfig()))
+	if err != nil {
+		t.Fatalf("the starter config does not read: %v", err)
+	}
+	config := cfg.ParseAiConfig(document)
+	if len(config.Problems) != 0 {
+		t.Fatalf("the starter config reports %v", config.Problems)
+	}
+
+	if !config.Enabled || config.DefaultProvider != cfg.ProviderAnthropic {
+		t.Errorf("the chat reads %+v", config)
+	}
+	for id, model := range map[cfg.AiProviderID]string{
+		cfg.ProviderAnthropic: "claude-opus-5", cfg.ProviderOpenai: "gpt-5",
+	} {
+		held := config.Providers[id]
+		if held.Model != model || held.APIKeyEnv == "" ||
+			held.MaxToolSteps != cfg.DefaultMaxToolSteps {
+			t.Errorf("the %s provider reads %+v", id, held)
+		}
+	}
+	for _, name := range []string{"claude", "codex", "opencode"} {
+		held, bound := config.Agents[name]
+		if !bound {
+			t.Errorf("the starter config names no %s agent", name)
+			continue
+		}
+		if held.Name != name || held.Command == "" || len(held.Args) == 0 {
+			t.Errorf("the %s agent reads %+v", name, held)
+		}
+	}
+	// A client with no config file of its own carries neither.
+	if fresh := cfg.DefaultAiConfig(); len(fresh.Agents) != 0 ||
+		len(fresh.Providers) != 0 {
+		t.Errorf("the client carries %d agents and %d providers",
+			len(fresh.Agents), len(fresh.Providers))
 	}
 }

@@ -58,24 +58,6 @@ type AiAgentSettings struct {
 	Env []string
 }
 
-// BuiltInAgents returns the agents masume knows how to start. A config file can change any
-// of them under `[ai.agents]`, and can add agents of its own.
-func BuiltInAgents() map[string]AiAgentSettings {
-	return map[string]AiAgentSettings{
-		"claude": {
-			Name: "claude", Command: "npx",
-			Args: []string{"-y", "@zed-industries/claude-code-acp"},
-			// Claude Code refuses to run inside another Claude Code session.
-			Env: []string{"CLAUDECODE="},
-		},
-		"codex": {
-			Name: "codex", Command: "npx",
-			Args: []string{"-y", "@zed-industries/codex-acp"},
-		},
-		"opencode": {Name: "opencode", Command: "opencode", Args: []string{"acp"}},
-	}
-}
-
 // AiConfig is the configuration under `[ai]`.
 type AiConfig struct {
 	// Enabled is the switch for the AI chat, its actions, and its interface elements.
@@ -103,14 +85,9 @@ func DefaultAiConfig() AiConfig {
 		Enabled:          true,
 		DefaultProvider:  ProviderAnthropic,
 		StatementTimeout: DefaultAiStatementTimeout,
-		Agents:           BuiltInAgents(),
-		Providers: map[AiProviderID]AiProviderSettings{
-			ProviderAnthropic: {Model: "claude-opus-5", MaxToolSteps: DefaultMaxToolSteps},
-			ProviderOpenai:    {Model: "gpt-5", MaxToolSteps: DefaultMaxToolSteps},
-			ProviderOpenaiCompatible: {
-				Model: "", MaxToolSteps: DefaultMaxToolSteps,
-			},
-		},
+		// The agents and the models of the providers are tables of the config file.
+		Agents:    map[string]AiAgentSettings{},
+		Providers: map[AiProviderID]AiProviderSettings{},
 	}
 }
 
@@ -155,8 +132,14 @@ func ParseAiConfig(document Table) AiConfig {
 
 	providerTables, _ := FindTable(ai["providers"])
 	for _, id := range AiProviderIDs {
-		table, _ := FindTable(providerTables[string(id)])
-		config.Providers[id] = parseProviderSettings(table, config.Providers[id])
+		table, held := FindTable(providerTables[string(id)])
+		if !held {
+			continue
+		}
+		// A provider the file names starts from the step limit of the client, and the
+		// table sets the rest.
+		config.Providers[id] = parseProviderSettings(
+			table, AiProviderSettings{MaxToolSteps: DefaultMaxToolSteps})
 	}
 	for _, name := range sortedKeys(providerTables) {
 		if _, known := core.FindAllowed(AiProviderIDs, name); !known {
@@ -193,10 +176,10 @@ func ParseAiConfig(document Table) AiConfig {
 	return config
 }
 
-// parseAiAgents reads `[ai.agents]` over the agents masume knows. A table of a known agent
-// changes that agent, and a table of any other name adds one.
+// parseAiAgents reads the agents of `[ai.agents]`. Every agent the client can send to is a
+// table of the config file, and one with no command is reported and left out.
 func parseAiAgents(ai Table, problems []string) (map[string]AiAgentSettings, []string) {
-	agents := BuiltInAgents()
+	agents := map[string]AiAgentSettings{}
 	tables, _ := FindTable(ai["agents"])
 	for _, name := range sortedKeys(tables) {
 		table, isTable := FindTable(tables[name])
@@ -206,30 +189,16 @@ func parseAiAgents(ai Table, problems []string) (map[string]AiAgentSettings, []s
 			continue
 		}
 
-		settings, known := agents[name]
-		settings.Name = name
-		if written, named := FindString(table, "command"); named &&
-			strings.TrimSpace(written) != "" {
-			settings.Command = written
-			// A command of the file replaces the arguments of the agent masume knows.
-			settings.Args = nil
-		}
-		if settings.Command == "" {
+		settings := AiAgentSettings{Name: name}
+		settings.Command, _ = FindString(table, "command")
+		if strings.TrimSpace(settings.Command) == "" {
 			problems = append(problems,
 				"ai.agents."+name+": no command. Skipping this agent. Set command to the "+
 					"program that serves ACP on its standard input and output.")
-			if !known {
-				continue
-			}
-			delete(agents, name)
 			continue
 		}
-		if written, named := FindStringList(table, "args"); named {
-			settings.Args = written
-		}
-		if written, named := FindStringList(table, "env"); named {
-			settings.Env = written
-		}
+		settings.Args, _ = FindStringList(table, "args")
+		settings.Env, _ = FindStringList(table, "env")
 		settings.Model, _ = FindString(table, "model")
 		agents[name] = settings
 	}

@@ -556,11 +556,11 @@ api_key_env = "ANTHROPIC_API_KEY"
 | `default_agent` | string | empty | An agent of `[ai.agents]`. A name that is set sends the chat to that agent instead of the provider. A name with no table produces a report |
 | `statement_timeout_ms` | integer above zero | `30000` | Execution timeout for AI chat `run_query`, in milliseconds. Other tools and undo capture are outside this timeout |
 
-One table per provider, `[ai.providers.anthropic]`, `[ai.providers.openai]` and `[ai.providers.openai_compatible]`:
+One table per provider, `[ai.providers.anthropic]`, `[ai.providers.openai]` and `[ai.providers.openai_compatible]`. A provider with no model is reported when the chat asks it:
 
 | Key | Type | Default | Meaning |
 | --- | --- | --- | --- |
-| `model` | string | `claude-opus-5`, `gpt-5`, empty | The provider model ID. Required for `openai_compatible` |
+| `model` | string | empty | The provider model ID. Required for every provider |
 | `api_key` | string | empty | The API key stored directly in the file. A non-empty value takes priority over `api_key_env`. Optional for `openai_compatible` |
 | `api_key_env` | string | empty | The environment variable with the API key. No variable name is assumed by default |
 | `base_url` | string | empty | The provider or proxy address. A non-empty value takes priority over `base_url_env`. Required for `openai_compatible` |
@@ -577,7 +577,7 @@ Unknown provider tables produce reports and are ignored. See [ai.md](ai.md) for 
 
 One table per agent, `[ai.agents.NAME]`. The name is the name the palette shows.
 
-masume already knows `claude`, `codex` and `opencode`, so a file needs no table for those. A table of one of those names changes it; a table of any other name adds an agent. A `command` in the file replaces the arguments masume knows, because those arguments belong to the command it knew.
+The config file holds `claude`, `codex` and `opencode`. A table of any other name adds an agent. An agent with no `command` is reported and left out.
 
 ```toml
 [ai.agents.claude]

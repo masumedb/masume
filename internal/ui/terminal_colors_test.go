@@ -88,14 +88,25 @@ func TestBuildSystemColorsReadsThePalette(t *testing.T) {
 	}
 }
 
-// loadedConfigForTest answers a config that names one theme and nothing else.
+// loadedConfigForTest answers a config that names one theme, with the AI settings of the
+// file the first run writes. The providers and the agents are tables of that file, so the
+// client under test carries what a fresh install carries.
 func loadedConfigForTest(theme string) cfg.LoadedConfig {
 	loaded := cfg.LoadedConfig{
-		Ai: cfg.DefaultAiConfig(), Mcp: cfg.DefaultMcpConfig(),
+		Ai: readStarterAiConfig(), Mcp: cfg.DefaultMcpConfig(),
 		Keys: cfg.DefaultKeySettings(),
 	}
 	loaded.Settings.Theme = theme
 	return loaded
+}
+
+// readStarterAiConfig returns the AI settings of the file the first run writes.
+func readStarterAiConfig() cfg.AiConfig {
+	document, err := cfg.DecodeDocument(string(cfg.StarterConfig()))
+	if err != nil {
+		panic("the starter config does not read: " + err.Error())
+	}
+	return cfg.ParseAiConfig(document)
 }
 
 // answerEveryTerminalColor gives the model an answer for the ground, the ink and every slot.
