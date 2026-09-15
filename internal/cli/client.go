@@ -102,6 +102,10 @@ func runApp(held invocation) error {
 	if _, err := cfg.EnsureConfigFile(configPath); err != nil {
 		problems = append(problems, "config: "+err.Error())
 	}
+	// A file written by an earlier version gains what this one brings, before it is read.
+	if _, err := cfg.MigrateConfigFile(configPath); err != nil {
+		problems = append(problems, "config: "+err.Error())
+	}
 
 	loaded := cfg.LoadConfigForWorkingDirectory(configPath)
 	problems = append(problems, loaded.Project.Problems...)

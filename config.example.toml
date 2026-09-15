@@ -501,6 +501,12 @@ paths = []
 # toggle-value      = ["space"]
 # write-export      = ["ctrl+s"]
 
+# The version masume wrote the file at. masume adds what a newer version brings to an older
+# file. See docs/configuration.md#file-version.
+#
+# [masume]
+# version = 1
+
 # AI settings. One table per provider and one per agent.
 # The api_key_env names below are configured examples, not built-in defaults.
 # Direct api_key and base_url values take priority over their environment variables.

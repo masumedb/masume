@@ -73,6 +73,12 @@ func writeTomlValue(value any) string {
 		return strconv.Itoa(held)
 	case bool:
 		return strconv.FormatBool(held)
+	case []string:
+		written := make([]string, 0, len(held))
+		for _, entry := range held {
+			written = append(written, strconv.Quote(entry))
+		}
+		return "[" + strings.Join(written, ", ") + "]"
 	}
 	panic(fmt.Sprintf("unsupported profile value type %T", value))
 }
@@ -302,7 +308,17 @@ func removeProfileBlock(text, name string) string {
 	}
 	end := findWrittenEnd(lines, findBlockEnd(lines, start+1), start+1)
 	kept := append([]string{}, lines[:start]...)
-	return strings.Join(append(kept, lines[end:]...), "\n")
+	tail := lines[end:]
+	// The blank row over the block goes with it, so the blocks that remain are parted by
+	// one blank row and a file that loses its last block ends at its last line.
+	for len(kept) > 0 && strings.TrimSpace(kept[len(kept)-1]) == "" &&
+		(len(tail) == 0 || strings.TrimSpace(tail[0]) == "") {
+		kept = kept[:len(kept)-1]
+	}
+	for len(kept) == 0 && len(tail) > 0 && strings.TrimSpace(tail[0]) == "" {
+		tail = tail[1:]
+	}
+	return strings.Join(append(kept, tail...), "\n")
 }
 
 // quoteHeaderName returns a profile name for a header, with quotes if the reader would
@@ -453,4 +469,140 @@ func SaveTheme(name, path string) error {
 	rebuilt = append(rebuilt, kept...)
 	rebuilt = append(rebuilt, lines[end:]...)
 	return writeConfigText(path, strings.Join(rebuilt, "\n"))
+}
+
+// TableUpdate is the settings of one table of the config file. Order is the keys in the
+// order they are written. A key of Order without a value in Values is removed from the file,
+// and a key outside Order is left unchanged.
+type TableUpdate struct {
+	Header []string
+	Order  []string
+	Values map[string]any
+	// Remove deletes the table instead of writing it.
+	Remove bool
+}
+
+// buildTableHeader returns the header line of a table path.
+func buildTableHeader(path []string) string {
+	parts := make([]string, 0, len(path))
+	for _, name := range path {
+		parts = append(parts, quoteHeaderName(name))
+	}
+	return "[" + strings.Join(parts, ".") + "]"
+}
+
+// findTableHeaderLine returns the header line of this table, and -1 where the text has none.
+func findTableHeaderLine(lines []string, path []string) int {
+	for at, line := range lines {
+		held, isHeader := readHeaderPath(line)
+		if isHeader && matchesPath(held, path) {
+			return at
+		}
+	}
+	return -1
+}
+
+// writeTableBlock writes one table into the text and keeps every line outside that table
+// unchanged.
+func writeTableBlock(text string, update TableUpdate) string {
+	written := make([]string, 0, len(update.Order))
+	for _, key := range update.Order {
+		if value, held := update.Values[key]; held {
+			written = append(written, key+" = "+writeTomlValue(value))
+		}
+	}
+
+	lines := strings.Split(text, "\n")
+	start := findTableHeaderLine(lines, update.Header)
+	if start == -1 {
+		block := append([]string{buildTableHeader(update.Header)}, written...)
+		if strings.TrimSpace(text) == "" {
+			return strings.Join(block, "\n") + "\n"
+		}
+		tail := text
+		if !strings.HasSuffix(tail, "\n") {
+			tail += "\n"
+		}
+		return tail + "\n" + strings.Join(block, "\n") + "\n"
+	}
+
+	managed := map[string]bool{}
+	pending := map[string]bool{}
+	for _, key := range update.Order {
+		managed[key] = true
+		if _, held := update.Values[key]; held {
+			pending[key] = true
+		}
+	}
+
+	end := findWrittenEnd(lines, findBlockEnd(lines, start+1), start+1)
+	kept := []string{}
+	for _, line := range lines[start+1 : end] {
+		key, isAssignment := readAssignmentKey(line)
+		// Comments, blank lines and keys outside the update stay unchanged.
+		if !isAssignment || !managed[key] {
+			kept = append(kept, line)
+			continue
+		}
+		// A managed key with no value is removed, and a repeated one keeps one copy.
+		if !pending[key] {
+			continue
+		}
+		delete(pending, key)
+		kept = append(kept, key+" = "+writeTomlValue(update.Values[key]))
+	}
+	for _, key := range update.Order {
+		if pending[key] {
+			kept = append(kept, key+" = "+writeTomlValue(update.Values[key]))
+		}
+	}
+
+	rebuilt := append([]string{}, lines[:start+1]...)
+	rebuilt = append(rebuilt, kept...)
+	rebuilt = append(rebuilt, lines[end:]...)
+	return strings.Join(rebuilt, "\n")
+}
+
+// SaveTables writes these tables into the config file in one pass and keeps every line
+// outside them unchanged.
+func SaveTables(path string, updates []TableUpdate) error {
+	text, err := readConfigText(path)
+	if err != nil {
+		return err
+	}
+	for _, update := range updates {
+		if update.Remove {
+			text = removeTableBlock(text, update.Header)
+			continue
+		}
+		text = writeTableBlock(text, update)
+	}
+	if _, decodeErr := DecodeDocument(text); decodeErr != nil {
+		return ConfigFileError{Reason: fmt.Sprintf(
+			"the generated settings are invalid TOML; %s is unchanged", path)}
+	}
+	return writeConfigText(path, text)
+}
+
+// removeTableBlock deletes one table from the text and keeps every line outside it. A text
+// without that table is returned as it is.
+func removeTableBlock(text string, header []string) string {
+	lines := strings.Split(text, "\n")
+	start := findTableHeaderLine(lines, header)
+	if start == -1 {
+		return text
+	}
+	end := findWrittenEnd(lines, findBlockEnd(lines, start+1), start+1)
+	kept := append([]string{}, lines[:start]...)
+	tail := lines[end:]
+	// The blank row over the block goes with it, so the blocks that remain are parted by
+	// one blank row and a file that loses its last block ends at its last line.
+	for len(kept) > 0 && strings.TrimSpace(kept[len(kept)-1]) == "" &&
+		(len(tail) == 0 || strings.TrimSpace(tail[0]) == "") {
+		kept = kept[:len(kept)-1]
+	}
+	for len(kept) == 0 && len(tail) > 0 && strings.TrimSpace(tail[0]) == "" {
+		tail = tail[1:]
+	}
+	return strings.Join(append(kept, tail...), "\n")
 }

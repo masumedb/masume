@@ -412,3 +412,180 @@ func TestSaveProfileToFileWritesAndClearsTheTunnel(t *testing.T) {
 		t.Errorf("the file keeps an ssh key:\n%s", cleared)
 	}
 }
+
+// saveTables writes the tables into a file with that text, and returns the new text.
+func saveTables(t *testing.T, body string, updates []cfg.TableUpdate) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatalf("cannot write the config file: %v", err)
+	}
+	if err := cfg.SaveTables(path, updates); err != nil {
+		t.Fatalf("the tables were not written: %v", err)
+	}
+	written, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("cannot read the config file: %v", err)
+	}
+	return string(written)
+}
+
+// A table the file has not got is added at the end, under the lines it already holds.
+func TestSaveTablesAddsATableTheFileHasNot(t *testing.T) {
+	written := saveTables(t, "[ui]\ntheme = \"ayu-dark\"\n", []cfg.TableUpdate{{
+		Header: []string{"ai"},
+		Order:  []string{"enabled", "default_provider"},
+		Values: map[string]any{"enabled": true, "default_provider": "openai"},
+	}})
+
+	wanted := "[ui]\ntheme = \"ayu-dark\"\n\n[ai]\nenabled = true\ndefault_provider = \"openai\"\n"
+	if written != wanted {
+		t.Errorf("the file reads:\n%s\nwanted:\n%s", written, wanted)
+	}
+}
+
+// A key the file already has keeps its line, so the layout of the file survives the save. A
+// key the file has not got is added after them, in the order of the update.
+func TestSaveTablesKeepsTheLineOfAKeyTheFileHas(t *testing.T) {
+	written := saveTables(t, "[ai]\ndefault_provider = \"anthropic\"\nenabled = false\n",
+		[]cfg.TableUpdate{{
+			Header: []string{"ai"},
+			Order:  []string{"enabled", "default_provider", "statement_timeout_ms"},
+			Values: map[string]any{
+				"enabled": true, "default_provider": "openai",
+				"statement_timeout_ms": 45000,
+			},
+		}})
+
+	wanted := "[ai]\ndefault_provider = \"openai\"\nenabled = true\n" +
+		"statement_timeout_ms = 45000\n"
+	if written != wanted {
+		t.Errorf("the file reads:\n%s\nwanted:\n%s", written, wanted)
+	}
+}
+
+// A key of the update with no value is removed, and a key outside the update stays.
+func TestSaveTablesRemovesAClearedKeyAndKeepsTheOthers(t *testing.T) {
+	written := saveTables(t, strings.Join([]string{
+		"[ai.providers.anthropic]",
+		"# the key of the team",
+		"api_key = \"sk-written\"",
+		"api_key_env = \"ANTHROPIC_API_KEY\"",
+		"model = \"claude-opus-5\"",
+		"",
+	}, "\n"), []cfg.TableUpdate{{
+		Header: []string{"ai", "providers", "anthropic"},
+		Order:  []string{"model", "api_key_env"},
+		Values: map[string]any{"model": "claude-sonnet-5"},
+	}})
+
+	for _, wanted := range []string{
+		"# the key of the team", "api_key = \"sk-written\"",
+		"model = \"claude-sonnet-5\"",
+	} {
+		if !strings.Contains(written, wanted) {
+			t.Errorf("the file does not hold %q:\n%s", wanted, written)
+		}
+	}
+	if strings.Contains(written, "api_key_env") {
+		t.Errorf("the cleared key is still there:\n%s", written)
+	}
+}
+
+// Two tables are written in one pass, and the lines between them stay unchanged.
+func TestSaveTablesWritesEveryTableInOnePass(t *testing.T) {
+	written := saveTables(t, strings.Join([]string{
+		"[ai]",
+		"enabled = false",
+		"",
+		"[profile.shop]",
+		"engine = \"postgres\"",
+		"",
+		"[ai.providers.openai]",
+		"model = \"gpt-5\"",
+		"",
+	}, "\n"), []cfg.TableUpdate{
+		{
+			Header: []string{"ai"}, Order: []string{"enabled"},
+			Values: map[string]any{"enabled": true},
+		},
+		{
+			Header: []string{"ai", "providers", "openai"}, Order: []string{"model"},
+			Values: map[string]any{"model": "gpt-5-mini"},
+		},
+	})
+
+	for _, wanted := range []string{
+		"enabled = true", "[profile.shop]", "engine = \"postgres\"", "model = \"gpt-5-mini\"",
+	} {
+		if !strings.Contains(written, wanted) {
+			t.Errorf("the file does not hold %q:\n%s", wanted, written)
+		}
+	}
+}
+
+// A file that is not valid TOML is never written over, because the write would drop what
+// the user meant to keep.
+func TestSaveTablesRefusesAFileItCannotRead(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	body := "[ai\nenabled = true\n"
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatalf("cannot write the config file: %v", err)
+	}
+
+	err := cfg.SaveTables(path, []cfg.TableUpdate{{
+		Header: []string{"ai"}, Order: []string{"enabled"},
+		Values: map[string]any{"enabled": false},
+	}})
+	if err == nil {
+		t.Fatal("a file that does not read was written over")
+	}
+	written, _ := os.ReadFile(path)
+	if string(written) != body {
+		t.Errorf("the file changed:\n%s", written)
+	}
+}
+
+// A table that is removed takes the blank row over it, so the file reads as though the
+// table was never written: one blank row between the blocks that remain, and no blank row
+// left at either end.
+func TestRemovingATableLeavesTheFileTidy(t *testing.T) {
+	body := "[a]\nx = 1\n\n[b]\ny = 2\n\n[c]\nz = 3\n"
+	for _, held := range []struct {
+		name    string
+		updates []cfg.TableUpdate
+		wanted  string
+	}{
+		{"the middle table", []cfg.TableUpdate{{Header: []string{"b"}, Remove: true}},
+			"[a]\nx = 1\n\n[c]\nz = 3\n"},
+		{"the last table", []cfg.TableUpdate{{Header: []string{"c"}, Remove: true}},
+			"[a]\nx = 1\n\n[b]\ny = 2\n"},
+		{"the first table", []cfg.TableUpdate{{Header: []string{"a"}, Remove: true}},
+			"[b]\ny = 2\n\n[c]\nz = 3\n"},
+		{"one table written and another removed", []cfg.TableUpdate{
+			{Header: []string{"d"}, Order: []string{"w"},
+				Values: map[string]any{"w": 4}},
+			{Header: []string{"c"}, Remove: true},
+		}, "[a]\nx = 1\n\n[b]\ny = 2\n\n[d]\nw = 4\n"},
+	} {
+		t.Run(held.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "config.toml")
+			if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+				t.Fatalf("cannot write the config file: %v", err)
+			}
+			if err := cfg.SaveTables(path, held.updates); err != nil {
+				t.Fatalf("the tables were not written: %v", err)
+			}
+			written, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("cannot read the config file: %v", err)
+			}
+			if string(written) != held.wanted {
+				t.Errorf("the file reads %q, wanted %q", written, held.wanted)
+			}
+			if _, err := cfg.DecodeDocument(string(written)); err != nil {
+				t.Errorf("the file does not read: %v", err)
+			}
+		})
+	}
+}

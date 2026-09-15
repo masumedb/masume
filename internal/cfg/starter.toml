@@ -7,6 +7,11 @@
 #
 # Passwords in config files are ignored. Password sources include prompts, the keyring, commands, environment variables, and secret stores.
 
+# The version masume wrote this file at. masume adds what a newer version brings.
+
+[masume]
+version = 1
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Connections
 #

@@ -10,6 +10,7 @@ On the first run, masume creates a starter file if none exists. The client, `mas
 
 | Section | Holds |
 | --- | --- |
+| [`[masume]`](#file-version) | The version masume wrote the file at |
 | [`[profile.NAME]`](#profiles) | One connection profile |
 | [`[secret.NAME]`](#secret-stores) | One password store, shared by profiles |
 | [`[ui]`](#interface) | Icons, theme and colours |
@@ -32,6 +33,21 @@ Reports appear here:
 | `[ui]`, `[keys]`, `[ai]` or a theme | Under **Config problems** in the client palette. Headless commands do not report these settings |
 
 Unknown keys are generally ignored without a report. Exceptions include unknown actions, icon kinds, providers, and sections in a project file.
+
+## File version
+
+`[masume] version` is the version masume wrote the file at.
+
+```toml
+[masume]
+version = 1
+```
+
+masume adds what a newer version brings to an older file, and changes nothing else in it. A copy is kept as `config.toml.bak.N` first, where `N` is the version of the file it copied. A file at or above the current version is left alone.
+
+| Version | Adds |
+| --- | --- |
+| 1 | the `[ai.providers.*]` and `[ai.agents.*]` tables |
 
 ## Profiles
 
