@@ -4,24 +4,31 @@ import (
 	"context"
 	"fmt"
 	"strings"
+
+	"github.com/turanmahmudov/masume/internal/cfg"
 )
 
-// The chat completions client sends to any server with the OpenAI chat endpoint, such as
-// Ollama, LM Studio, llama.cpp or vLLM.
+// The chat completions client sends to any server with the OpenAI chat endpoint: xAI, and a
+// server of the user such as Ollama, LM Studio, llama.cpp or vLLM.
+
+// grokBaseURL is the address of the xAI API.
+const grokBaseURL = "https://api.x.ai/v1"
 
 // chatModel is one model of a server with the chat completions endpoint.
 type chatModel struct {
+	// name is the provider this server is, for the line the chat draws.
+	name    string
 	model   string
 	apiKey  string
 	baseURL string
 }
 
-func openChatModel(model, apiKey, baseURL string) Model {
-	return &chatModel{model: model, apiKey: apiKey, baseURL: baseURL}
+func openChatModel(name cfg.AiProviderID, model, apiKey, baseURL string) Model {
+	return &chatModel{name: string(name), model: model, apiKey: apiKey, baseURL: baseURL}
 }
 
 func (held *chatModel) Describe() string {
-	return "openai_compatible/" + held.model
+	return held.name + "/" + held.model
 }
 
 // A tool call of this protocol, in the request and in the stream.

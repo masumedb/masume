@@ -64,8 +64,10 @@ func TestMigrateConfigFileAddsTheAiTablesToAnOldFile(t *testing.T) {
 	if len(config.Problems) != 0 {
 		t.Errorf("the migrated file reports %v", config.Problems)
 	}
-	if len(config.Agents) != 3 {
-		t.Errorf("the migrated file names %d agents", len(config.Agents))
+	for _, name := range []string{"claude", "codex", "gemini", "opencode"} {
+		if _, held := config.Agents[name]; !held {
+			t.Errorf("the migrated file names no %s agent", name)
+		}
 	}
 	if held := config.Agents["claude"]; len(held.Env) != 1 {
 		t.Errorf("the claude agent reads %+v", held)

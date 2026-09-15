@@ -514,7 +514,7 @@ paths = []
 #
 # [ai]
 # enabled              = true          # false disables the AI chat, its elements and its bindings.
-# default_provider     = "anthropic"   # anthropic openai openai_compatible
+# default_provider     = "anthropic"   # anthropic openai grok openai_compatible
 # default_agent        = ""            # an agent of [ai.agents]. Empty sends to default_provider.
 # statement_timeout_ms = 30000         # time limit for a statement that the model runs
 #
@@ -531,6 +531,12 @@ paths = []
 # api_key      = ""                   # Default: empty.
 # base_url     = ""                   # Default: the provider address.
 # base_url_env = "OPENAI_BASE_URL"    # Example. Default: empty.
+#
+# [ai.providers.grok]
+# model        = "grok-4.6"
+# api_key_env  = "XAI_API_KEY"
+# api_key      = ""                   # Default: empty.
+# base_url     = ""                   # Default: https://api.x.ai/v1
 #
 # Any server with the OpenAI chat completions endpoint: Ollama, LM Studio, llama.cpp, vLLM.
 # base_url and model are required. api_key is optional.
@@ -565,6 +571,10 @@ paths = []
 # [ai.agents.codex]
 # command = "npx"
 # args    = ["-y", "@zed-industries/codex-acp"]
+#
+# [ai.agents.gemini]
+# command = "gemini"
+# args    = ["--experimental-acp"]
 
 # MCP server settings for the agents that reach masume from outside. Profile mcp and
 # read-only mode can lower the global access limit. The AI chat of the client does not read

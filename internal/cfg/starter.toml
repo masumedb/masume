@@ -126,7 +126,7 @@ preset = "default"
 
 [ai]
 enabled              = true          # false disables the AI chat, its bindings, and its interface elements
-default_provider     = "anthropic"   # anthropic openai openai_compatible
+default_provider     = "anthropic"   # anthropic openai grok openai_compatible
 # default_agent      = "claude"      # the chat sends to this agent instead of the provider
 statement_timeout_ms = 30000         # execution time limit for one AI chat query, in milliseconds
 
@@ -141,6 +141,11 @@ api_key_env  = "ANTHROPIC_API_KEY"
 model        = "gpt-5"
 api_key_env  = "OPENAI_API_KEY"
 # base_url_env = "OPENAI_BASE_URL"
+
+[ai.providers.grok]
+model        = "grok-4.6"
+api_key_env  = "XAI_API_KEY"
+# base_url   = "https://api.x.ai/v1"   # the default address of the xAI API
 
 # Any server that speaks the OpenAI chat API, such as a model on this machine.
 #
@@ -165,6 +170,10 @@ args    = ["-y", "@zed-industries/codex-acp"]
 command = "opencode"
 args    = ["acp"]
 # model = "opencode/grok-code"   # empty keeps the model the agent is configured with
+
+[ai.agents.gemini]
+command = "gemini"
+args    = ["--experimental-acp"]
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Agent access through `masume --mcp`

@@ -568,11 +568,11 @@ api_key_env = "ANTHROPIC_API_KEY"
 | Key | Type | Default | Meaning |
 | --- | --- | --- | --- |
 | `enabled` | boolean | `true` | `false` disables the AI chat and its interface elements. MCP remains separate |
-| `default_provider` | `anthropic`, `openai` or `openai_compatible` | `anthropic` | The initial AI chat provider. The palette changes the provider for the session. An unknown name produces a report |
+| `default_provider` | `anthropic`, `openai`, `grok` or `openai_compatible` | `anthropic` | The initial AI chat provider. The palette changes the provider for the session. An unknown name produces a report |
 | `default_agent` | string | empty | An agent of `[ai.agents]`. A name that is set sends the chat to that agent instead of the provider. A name with no table produces a report |
 | `statement_timeout_ms` | integer above zero | `30000` | Execution timeout for AI chat `run_query`, in milliseconds. Other tools and undo capture are outside this timeout |
 
-One table per provider, `[ai.providers.anthropic]`, `[ai.providers.openai]` and `[ai.providers.openai_compatible]`. A provider with no model is reported when the chat asks it:
+One table per provider, `[ai.providers.anthropic]`, `[ai.providers.openai]`, `[ai.providers.grok]` and `[ai.providers.openai_compatible]`. A provider with no model is reported when the chat asks it:
 
 | Key | Type | Default | Meaning |
 | --- | --- | --- | --- |
@@ -583,7 +583,7 @@ One table per provider, `[ai.providers.anthropic]`, `[ai.providers.openai]` and 
 | `base_url_env` | string | empty | The environment variable with the provider or proxy address. No variable name is assumed by default |
 | `max_tool_steps` | integer above zero | `25` | Maximum provider rounds for one question |
 
-Without a configured address, Anthropic uses `https://api.anthropic.com/v1` and OpenAI uses `https://api.openai.com/v1`. masume removes trailing slashes and appends `/v1` unless the configured address already ends with `/v1`. The client then uses `/messages` for Anthropic, `/responses` for OpenAI and `/chat/completions` for `openai_compatible`.
+Without a configured address, Anthropic uses `https://api.anthropic.com/v1`, OpenAI uses `https://api.openai.com/v1` and Grok uses `https://api.x.ai/v1`. masume removes trailing slashes and appends `/v1` unless the configured address already ends with `/v1`. The client then uses `/messages` for Anthropic, `/responses` for OpenAI and `/chat/completions` for Grok and for `openai_compatible`.
 
 `openai_compatible` has no default address, so `base_url` or `base_url_env` is required. A request carries an `Authorization` header only when the config file has a key, so a local server needs none.
 
@@ -593,7 +593,7 @@ Unknown provider tables produce reports and are ignored. See [ai.md](ai.md) for 
 
 One table per agent, `[ai.agents.NAME]`. The name is the name the palette shows.
 
-The config file holds `claude`, `codex` and `opencode`. A table of any other name adds an agent. An agent with no `command` is reported and left out.
+The config file holds `claude`, `codex`, `gemini` and `opencode`. A table of any other name adds an agent. An agent with no `command` is reported and left out.
 
 ```toml
 [ai.agents.claude]

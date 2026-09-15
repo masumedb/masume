@@ -25,13 +25,28 @@ func TestFindAPIKeyReadsTheEnvironment(t *testing.T) {
 
 func TestIsProviderReadyFollowsTheProvider(t *testing.T) {
 	config := cfg.AiConfig{Providers: map[cfg.AiProviderID]cfg.AiProviderSettings{
-		cfg.ProviderOpenai: {APIKey: "sk-openai"},
+		cfg.ProviderOpenai: {APIKey: "sk-openai", Model: "gpt-5"},
 	}}
 	if !ai.IsProviderReady(config, cfg.ProviderOpenai) {
-		t.Error("a provider with a key reports none")
+		t.Error("a provider with a key and a model reports a missing setting")
 	}
 	if ai.IsProviderReady(config, cfg.ProviderAnthropic) {
 		t.Error("a provider with no key reports one")
+	}
+}
+
+// The model of a provider is in the config file, so a provider that names none cannot be
+// asked and says which table to set it in.
+func TestDescribeMissingSettingNamesTheModelOfEveryProvider(t *testing.T) {
+	for _, id := range cfg.AiProviderIDs {
+		config := cfg.AiConfig{Providers: map[cfg.AiProviderID]cfg.AiProviderSettings{
+			id: {APIKey: "sk-written", BaseURL: "http://localhost:11434"},
+		}}
+		written := ai.DescribeMissingSetting(config, id)
+		if !strings.Contains(written, "no model") ||
+			!strings.Contains(written, string(id)) {
+			t.Errorf("%s reports %q", id, written)
+		}
 	}
 }
 

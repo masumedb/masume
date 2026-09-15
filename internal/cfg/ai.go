@@ -14,13 +14,16 @@ type AiProviderID string
 const (
 	ProviderAnthropic AiProviderID = "anthropic"
 	ProviderOpenai    AiProviderID = "openai"
+	ProviderGrok      AiProviderID = "grok"
 	// ProviderOpenaiCompatible is any server with the OpenAI chat completions endpoint,
 	// such as Ollama, LM Studio, llama.cpp or vLLM.
 	ProviderOpenaiCompatible AiProviderID = "openai_compatible"
 )
 
 // AiProviderIDs lists the providers a config file can use.
-var AiProviderIDs = []AiProviderID{ProviderAnthropic, ProviderOpenai, ProviderOpenaiCompatible}
+var AiProviderIDs = []AiProviderID{
+	ProviderAnthropic, ProviderOpenai, ProviderGrok, ProviderOpenaiCompatible,
+}
 
 // describeAiProviderIDs returns the supported provider names.
 func describeAiProviderIDs() string {

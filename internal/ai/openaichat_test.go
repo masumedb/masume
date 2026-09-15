@@ -39,7 +39,7 @@ var chatAnswers = buildChatEvent(
 
 func TestChatCompletionsAsksAndRunsWhatItIsAskedFor(t *testing.T) {
 	server, sent := serveCannedStreams(t, chatCallsATool, chatAnswers)
-	model := openChatModel("qwen3-coder", "", server.URL+"/v1")
+	model := openChatModel(cfg.ProviderOpenaiCompatible, "qwen3-coder", "", server.URL+"/v1")
 
 	result, steps, written := collectRun(t, model, buildTestRequest())
 	if written != "Let me look.\n\nTwo tables." {
@@ -87,7 +87,7 @@ func TestChatCompletionsAsksAndRunsWhatItIsAskedFor(t *testing.T) {
 // The second request repeats the call and answers it in a message of its own.
 func TestChatCompletionsSendsTheCallAndItsResult(t *testing.T) {
 	server, sent := serveCannedStreams(t, chatCallsATool, chatAnswers)
-	model := openChatModel("qwen3-coder", "probe-key", server.URL+"/v1")
+	model := openChatModel(cfg.ProviderOpenaiCompatible, "qwen3-coder", "probe-key", server.URL+"/v1")
 	collectRun(t, model, buildTestRequest())
 
 	if held := (*sent)[0].headers.Get("authorization"); held != "Bearer probe-key" {
@@ -127,7 +127,7 @@ func TestChatCompletionsSendsTheCallAndItsResult(t *testing.T) {
 func TestChatCompletionsReportsAnErrorOfTheStream(t *testing.T) {
 	server, _ := serveCannedStreams(t,
 		buildChatEvent(`{"error":{"message":"model \"qwen3\" not found"}}`))
-	model := openChatModel("qwen3", "", server.URL+"/v1")
+	model := openChatModel(cfg.ProviderOpenaiCompatible, "qwen3", "", server.URL+"/v1")
 
 	_, err := RunChat(context.Background(), model, buildTestRequest(),
 		cfg.DefaultMaxToolSteps, RunHooks{

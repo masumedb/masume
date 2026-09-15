@@ -136,7 +136,12 @@ func OpenModel(config cfg.AiConfig, id cfg.AiProviderID, cacheKey string) (Model
 	case cfg.ProviderAnthropic:
 		return openAnthropicModel(settings.Model, apiKey, baseURL), nil
 	case cfg.ProviderOpenaiCompatible:
-		return openChatModel(settings.Model, apiKey, baseURL), nil
+		return openChatModel(id, settings.Model, apiKey, baseURL), nil
+	case cfg.ProviderGrok:
+		if baseURL == "" {
+			baseURL = grokBaseURL
+		}
+		return openChatModel(id, settings.Model, apiKey, baseURL), nil
 	}
 	return openOpenaiModel(settings.Model, apiKey, baseURL, cacheKey), nil
 }

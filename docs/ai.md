@@ -45,12 +45,16 @@ api_key_env = "ANTHROPIC_API_KEY"
 model       = "gpt-5"
 api_key_env = "OPENAI_API_KEY"
 
+[ai.providers.grok]
+model       = "grok-4.6"
+api_key_env = "XAI_API_KEY"
+
 [ai.providers.openai_compatible]
 model    = "qwen3-coder:30b"
 base_url = "http://localhost:11434"
 ```
 
-`default_provider` is `anthropic`, `openai` or `openai_compatible`. The palette changes the provider for the session. Switching providers keeps the conversation; the next question sends those messages to the new provider.
+`default_provider` is `anthropic`, `openai`, `grok` or `openai_compatible`. The palette changes the provider for the session. Switching providers keeps the conversation; the next question sends those messages to the new provider.
 
 `api_key_env` is the environment variable for the API key; `api_key`, a key stored in the config file, takes priority. A file with `api_key` holds a secret.
 
@@ -62,7 +66,7 @@ base_url = "http://localhost:11434"
 
 An agent is a coding agent masume reaches over the [Agent Client Protocol](https://agentclientprotocol.com/), such as Claude Code, Codex, Gemini CLI, OpenCode, Goose or Qwen Code. The agent uses its own subscription and its own model, and masume sends it no API key.
 
-One table per agent. The config file holds `claude`, `codex` and `opencode`. `claude` and `codex` are started with `npx`, which comes with Node; `opencode` is started directly. The chat says so before the first question where the command of an agent is not on the PATH. An agent with no command is reported and left out.
+One table per agent. The config file holds `claude`, `codex`, `gemini` and `opencode`. `claude` and `codex` are started with `npx`, which comes with Node; `gemini` and `opencode` are started directly. The chat says so before the first question where the command of an agent is not on the PATH. An agent with no command is reported and left out.
 
 ```toml
 [ai]
@@ -111,6 +115,8 @@ An agent is not limited to the tools of masume. It brings its own system prompt,
 An agent asks permission before it runs a tool it does not know. masume answers for its own tools itself, because it has rules for them: a read runs, and a write is asked about by the tool, which knows the profile and measures the rows. Every other action of the agent is put to the reader, since masume has no rules for it. The panel asks the same question the write plan asks, with the action and its input, and `n` refuses it.
 
 ## Local models
+
+`grok` sends to `/chat/completions` on `https://api.x.ai/v1`, and `base_url` sends it elsewhere.
 
 `openai_compatible` sends to `/chat/completions` on any server with the OpenAI chat endpoint, including Ollama, LM Studio, llama.cpp and vLLM. It has no default address, so `base_url` is required, and `model` is the model the server serves. `api_key` is optional; a request carries an `Authorization` header only when the config file has a key.
 

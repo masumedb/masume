@@ -38,20 +38,18 @@ func DescribeMissingSetting(config cfg.AiConfig, id cfg.AiProviderID) string {
 				"or set base_url_env to the environment variable containing the address. " +
 				"Example: base_url = \"http://localhost:11434\""
 		}
-		if settings.Model == "" {
-			return "no model: set model under " + table + " in the config file to a model " +
-				"the server serves"
+	} else if _, held := FindAPIKey(settings); !held {
+		if settings.APIKeyEnv != "" {
+			return "no API key: " + settings.APIKeyEnv + " is empty or unset. Set the " +
+				"variable, or set api_key under " + table + " in the config file."
 		}
-		return ""
+		return "no API key: set api_key under " + table + " in the config file, or set " +
+			"api_key_env to the environment variable containing the key."
 	}
 
-	if _, held := FindAPIKey(settings); held {
-		return ""
+	if settings.Model == "" {
+		return "no model: set model under " + table + " in the config file to a model " +
+			"the server serves"
 	}
-	if settings.APIKeyEnv != "" {
-		return "no API key: " + settings.APIKeyEnv + " is empty or unset. Set the variable, or set api_key " +
-			"under " + table + " in the config file."
-	}
-	return "no API key: set api_key under " + table + " in the config file, or set " +
-		"api_key_env to the environment variable containing the key."
+	return ""
 }
