@@ -1865,7 +1865,7 @@ var promptPlaceholders = map[app.PromptKind]string{
 	app.PromptNotebookName:   "a name, or a path",
 	app.PromptNotebookRename: "a name",
 	app.PromptNotebookReport: "a path for the report",
-	app.PromptAiNotebook:     "what the notebook is to cover",
+	app.PromptAiNotebook:     "the subject to cover",
 }
 
 // describePromptPlaceholder returns what the field of a card takes while it is empty.
