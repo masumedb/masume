@@ -13,6 +13,7 @@ import (
 
 	"github.com/turanmahmudov/masume/internal/app"
 	"github.com/turanmahmudov/masume/internal/cfg"
+	"github.com/turanmahmudov/masume/internal/clip"
 	"github.com/turanmahmudov/masume/internal/core"
 	"github.com/turanmahmudov/masume/internal/db"
 	"github.com/turanmahmudov/masume/internal/db/engines"
@@ -120,8 +121,8 @@ type Model struct {
 	// What the pointer was dragged over, which `Ctrl+C` copies.
 	selection screenSelection
 	drag      pointerDrag
-	// What this client last put on the clipboard. The terminal owns the system clipboard
-	// and returns no read of it, so a paste inside the client reads this.
+	// What this client last put on the clipboard. A paste inside the client reads this
+	// when the machine has no clipboard tool.
 	clipboard string
 	frame     screenFrame
 	// The keys the card on show names at its foot, kept while the frame is drawn so the
@@ -683,11 +684,40 @@ func (model *Model) copySelection(written string) tea.Cmd {
 	return model.keepOnClipboard(written)
 }
 
-// keepOnClipboard puts the text on the clipboard of the terminal, and keeps a copy of it so
-// a paste inside the client has something to write.
+// keepOnClipboard puts the text on the system clipboard, and keeps a copy of it so a paste
+// inside the client has something to write when the machine has no clipboard tool.
 func (model *Model) keepOnClipboard(written string) tea.Cmd {
 	model.clipboard = written
-	return tea.SetClipboard(written)
+	return tea.Batch(tea.SetClipboard(written), writeSystemClipboard(written))
+}
+
+// The clipboard of the machine. A test writes its own.
+var (
+	hasClipboard   = clip.Available
+	readClipboard  = clip.Read
+	writeClipboard = clip.Write
+)
+
+// writeSystemClipboard puts the text on the system clipboard away from the draw loop.
+func writeSystemClipboard(written string) tea.Cmd {
+	if !hasClipboard() {
+		return nil
+	}
+	return func() tea.Msg {
+		_ = writeClipboard(written)
+		return nil
+	}
+}
+
+// readClipboardText returns the text of the system clipboard, and the text this client last
+// copied when the machine has no clipboard tool or the tool fails.
+func (model *Model) readClipboardText() string {
+	if hasClipboard() {
+		if written, err := readClipboard(); err == nil && written != "" {
+			return written
+		}
+	}
+	return model.clipboard
 }
 
 // readKey returns what one press does on the screen that is active.

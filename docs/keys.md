@@ -29,7 +29,7 @@ Plain global keys type characters while the editor has focus. These include `?`,
 
 `Ctrl+C` copies an editor or mouse text selection and clears it. Without a selection, `Ctrl+C` quits after asking about staged changes and open transactions, then about a connection that is in no config file. `Esc` closes a card, dismisses completion, and clears a workspace selection.
 
-`Tab` accepts a listed completion; otherwise it moves focus. `Enter` inserts a newline in the editor. `Ctrl+V` pastes the last text copied inside masume, and the terminal paste command pastes the operating system clipboard.
+`Tab` accepts a listed completion; otherwise it moves focus. `Enter` inserts a newline in the editor. `Ctrl+V` pastes the system clipboard, and the terminal paste command does the same.
 
 Some terminals merge `Ctrl+I` with Tab, `Ctrl+H` with Backspace, `Ctrl+M` with Enter, `Ctrl+[` with Escape, and `Ctrl+Shift+Z` with `Ctrl+Z`. Extended keyboard support depends on the terminal and any multiplexer. Use `Alt+Z` for editor redo, `Z` for grid redo, or the palette for those commands.
 

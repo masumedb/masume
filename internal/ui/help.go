@@ -198,7 +198,7 @@ var HelpSections = []HelpSection{
 			{Scope: cfg.ScopeEditor, Actions: []ActionID{ActionDeleteWordForward}, Text: "delete the word after the caret"},
 			{Scope: cfg.ScopeEditor, Actions: []ActionID{ActionUndoEdit}, Text: "undo the last edit"},
 			{Scope: cfg.ScopeEditor, Actions: []ActionID{ActionRedoEdit}, Text: "redo the last edit"},
-			{Scope: cfg.ScopeEditor, Actions: []ActionID{ActionPasteText}, Text: "paste the text last copied in this client"},
+			{Scope: cfg.ScopeEditor, Actions: []ActionID{ActionPasteText}, Text: "paste the text on the system clipboard"},
 			{Scope: cfg.ScopeEditor, Actions: []ActionID{ActionFormatSQL}, Text: "format the statement, one clause per line"},
 			{Scope: cfg.ScopeEditor, Actions: []ActionID{ActionCommentLines}, Text: "comment or uncomment the lines"},
 			{Scope: cfg.ScopeEditor, Actions: []ActionID{ActionIndentLines, ActionOutdentLines}, Text: "indent or outdent the lines"},

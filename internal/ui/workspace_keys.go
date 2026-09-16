@@ -1028,14 +1028,15 @@ func (model *Model) redoEdit(connection *app.Connection, tab *app.Tab) tea.Cmd {
 	return model.reportEdit(connection, tab)
 }
 
-// pasteIntoEditor writes what this client last copied at the caret. The terminal owns the
-// system clipboard, and a paste it makes arrives as a paste of its own.
+// pasteIntoEditor writes the text of the system clipboard at the caret.
 func (model *Model) pasteIntoEditor(connection *app.Connection, tab *app.Tab) tea.Cmd {
-	if model.clipboard == "" {
-		connection.Show("no text copied in this client; use the terminal's paste key")
+	written := model.readClipboardText()
+	if written == "" {
+		connection.Show("the clipboard is empty")
 		return nil
 	}
-	tab.Editor.Insert(model.clipboard)
+	written = strings.ReplaceAll(strings.ReplaceAll(written, "\r\n", "\n"), "\r", "\n")
+	tab.Editor.Insert(written)
 	return model.reportEdit(connection, tab)
 }
 

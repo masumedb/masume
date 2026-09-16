@@ -107,7 +107,7 @@ A save error keeps the client open and displays the reason.
 
 `Alt+N` opens a new query tab with editor focus. `Alt+E` opens a table read as a query. In a query tab, `Alt+E` writes the grid sort and server filters into the SQL.
 
-Type SQL or use the terminal paste command. `Ctrl+V` pastes the last text copied inside masume, and the terminal paste command pastes the operating system clipboard.
+Type SQL or use the terminal paste command. `Ctrl+V` pastes the system clipboard, and the terminal paste command does the same.
 
 Completion appears while typing. Up and Down select a candidate, and Tab accepts the candidate. Enter always inserts a newline, even while completion is open. Esc dismisses completion; without completion, Tab changes panes.
 
@@ -431,7 +431,7 @@ Every change writes the table of that row alone, and every line outside it stays
 
 - A key types text: check focus and the [scope rules](keys.md#scopes). A card can have a different action for the same key.
 - A modified key fails: check terminal and multiplexer support. Use a listed alternative. Use the palette. Or [rebind the action](keys.md#rebinding).
-- Clipboard paste differs from expected text: use terminal paste for the operating system clipboard. Clipboard writes also need terminal support.
+- Copy and paste do nothing: masume reads and writes the system clipboard with `wl-copy`, `xclip`, `xsel`, `pbcopy` or `clip.exe`. A machine with none of these falls back to the OSC 52 escape sequence, which needs terminal support, and `Ctrl+V` then pastes only the text copied inside masume.
 - Rows appear missing: check screen filters, server filters, SQL limits, and the loaded-row count. Use `Ctrl+F` for another page.
 - The client rejects grid editing: check the status reason, the primary key, the selected columns, the relation kind, and the profile access mode.
 - Connection or configuration fails: inspect the reported error. Inspect Config problems in the palette. See [configuration](configuration.md) and [engines](engines.md).

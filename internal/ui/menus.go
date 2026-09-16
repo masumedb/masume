@@ -109,7 +109,7 @@ func (model *Model) openEditorMenu(
 			{ActionFormatSQL, "Format", "one clause per line", cfg.IconNote, written},
 			{ActionCommentLines, "Comment lines", "comment or uncomment selected lines", cfg.IconNote, written},
 			{ActionSelectAll, "Select all", "", cfg.IconColumn, written},
-			{ActionPasteText, "Paste", "text last copied in this client", cfg.IconQuery, true},
+			{ActionPasteText, "Paste", "the text on the system clipboard", cfg.IconQuery, true},
 			{ActionFindInStatement, "Find…", "", cfg.IconRecent, written},
 			{ActionSaveQuery, "Save this query", "under a name", cfg.IconFavourites, written},
 		}))
