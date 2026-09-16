@@ -44,14 +44,33 @@ var asciiIcons = IconSet{
 	cfg.IconBanner: "!", cfg.IconNewTab: "+",
 }
 
-// BuildIconSet returns the glyphs of a set, with the ones the user chose over them. A Nerd
-// Font glyph cannot be shipped, because without the font every row is an empty box, so a
-// reader who has the font writes the glyphs they want in `[ui.icon_glyphs]`. A glyph written
-// as nothing turns that one kind off.
+// nerdIcons are the glyphs of a Nerd Font. A terminal without that font draws an empty
+// box for every one of them.
+var nerdIcons = IconSet{
+	cfg.IconSchema: "", cfg.IconTable: "", cfg.IconView: "",
+	cfg.IconMaterializedView: "", cfg.IconFunction: "", cfg.IconSequence: "",
+	cfg.IconType: "", cfg.IconTrigger: "", cfg.IconColumn: "",
+	cfg.IconIndex: "▤", cfg.IconPlan: "⊳",
+	cfg.IconPrimaryKey: "", cfg.IconForeignKey: "", cfg.IconRole: "",
+	cfg.IconRoles: "", cfg.IconFavourites: "", cfg.IconRecent: "",
+	cfg.IconQuery: "≡", cfg.IconFolder: "▸", cfg.IconNote: "", cfg.IconAi: "✦",
+	cfg.IconProblem:    "✗",
+	cfg.IconFoldClosed: "▸", cfg.IconFoldOpen: "▾", cfg.IconField: "▸",
+	cfg.IconClose: "×", cfg.IconDot: "●", cfg.IconSortUp: "↑", cfg.IconSortDown: "↓",
+	cfg.IconPrompt: "❯", cfg.IconStepBack: "‹", cfg.IconStepOn: "›",
+	cfg.IconBanner: "⚑", cfg.IconNewTab: "+",
+}
+
+// BuildIconSet returns the glyphs of a set, with the ones the user chose over them. Every
+// glyph of every set is replaced under `[ui.icon_glyphs]`, and a glyph written as nothing
+// turns that one kind off.
 func BuildIconSet(name cfg.IconSetName, chosen map[cfg.IconKind]string) IconSet {
 	base := plainIcons
-	if name == cfg.IconsASCII {
+	switch name {
+	case cfg.IconsASCII:
 		base = asciiIcons
+	case cfg.IconsNerd:
+		base = nerdIcons
 	}
 	built := IconSet{}
 	maps.Copy(built, base)

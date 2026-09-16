@@ -411,16 +411,16 @@ key_hints           = "full"
 
 | Key | Type | Default | Meaning |
 | --- | --- | --- | --- |
-| `icons` | `plain` or `ascii` | `plain` | The base glyph set. See [Icons](#icons) |
+| `icons` | `plain`, `ascii` or `nerd` | `plain` | The base glyph set. See [Icons](#icons) |
 | `theme` | string | `ayu-dark` | A built-in theme name, a file name in `themes/` without `.toml`, or `system` for the colours of the terminal. See [themes.md](themes.md) |
 | `hide_system_schemas` | boolean | `true` | `false` displays system schemas, including `pg_catalog` and `information_schema`. `h` in the tree toggles visibility for the session |
 | `key_hints` | `full`, `main` or `off` | `full` | How many key hints the status bar, the title bar, the tab row, the pane strips and the pane borders draw. An unknown mode produces a report and uses `full`. See [Key hint modes](#key-hint-modes) |
 
 ### Icons
 
-`icons = "plain"` is the default set. `icons = "ascii"` is ASCII-only. An unknown set produces a report and uses `plain`.
+`icons = "plain"` is the default set. `icons = "ascii"` is ASCII-only. `icons = "nerd"` needs a Nerd Font in the terminal, and draws an empty box for every glyph without one. An unknown set produces a report and uses `plain`.
 
-`[ui.icon_glyphs]` overlays individual glyphs on that set. An empty string hides that kind. An unknown kind produces a report. A Nerd Font glyph belongs here. The shipped sets stay one column wide without that font.
+`[ui.icon_glyphs]` overlays individual glyphs on any of the three. An empty string hides that kind. An unknown kind produces a report.
 
 ```toml
 [ui]
@@ -463,44 +463,44 @@ banner            = "⚑"
 new-tab           = "+"
 ```
 
-A terminal without a Nerd Font draws those example glyphs as empty boxes.
+A terminal without a Nerd Font draws the `nerd` glyphs, and the example above, as empty boxes.
 
-| Kind | Drawn for | `plain` | `ascii` |
-| --- | --- | --- | --- |
-| `schema` | A schema in the object tree | `◇` | `~` |
-| `table` | A table | `▦` | `T` |
-| `view` | A view | `◈` | `V` |
-| `materialized-view` | A materialized view | `◆` | `M` |
-| `function` | A function | `ƒ` | `f` |
-| `sequence` | A sequence | `№` | `S` |
-| `type` | A type | `⊞` | `Y` |
-| `trigger` | A trigger | `⚑` | `!` |
-| `column` | A column | `·` | `.` |
-| `index` | An index | `▤` | `#` |
-| `primary-key` | A primary key | `◆` | `*` |
-| `foreign-key` | A foreign key | `→` | `>` |
-| `role` | A role | `●` | `o` |
-| `roles` | The roles folder | `●` | `o` |
-| `favourites` | The favourites folder | `★` | `*` |
-| `recent` | The recent folder | `↻` | `@` |
-| `query` | A saved query | `≡` | `=` |
-| `folder` | A folder | `▸` | `>` |
-| `plan` | A query plan | `⊳` | `>` |
-| `note` | A notice | `⚠` | `!` |
-| `problem` | A problem | `✗` | `x` |
-| `ai` | The AI chat | `✦` | `*` |
-| `fold-closed` | A closed fold | `▸` | `>` |
-| `fold-open` | An open fold | `▾` | `v` |
-| `field` | A form field marker | `▸` | `>` |
-| `close` | A close control | `×` | `x` |
-| `dot` | A status dot | `●` | `o` |
-| `sort-up` | Ascending sort | `↑` | `^` |
-| `sort-down` | Descending sort | `↓` | `v` |
-| `prompt` | A prompt marker | `❯` | `>` |
-| `step-back` | A step back | `‹` | `<` |
-| `step-on` | A step forward | `›` | `>` |
-| `banner` | A banner | `⚑` | `!` |
-| `new-tab` | A new tab | `+` | `+` |
+| Kind | Drawn for | `plain` | `ascii` | `nerd` |
+| --- | --- | --- | --- | --- |
+| `schema` | A schema in the object tree | `◇` | `~` | `` |
+| `table` | A table | `▦` | `T` | `` |
+| `view` | A view | `◈` | `V` | `` |
+| `materialized-view` | A materialized view | `◆` | `M` | `` |
+| `function` | A function | `ƒ` | `f` | `` |
+| `sequence` | A sequence | `№` | `S` | `` |
+| `type` | A type | `⊞` | `Y` | `` |
+| `trigger` | A trigger | `⚑` | `!` | `` |
+| `column` | A column | `·` | `.` | `` |
+| `index` | An index | `▤` | `#` | `▤` |
+| `primary-key` | A primary key | `◆` | `*` | `` |
+| `foreign-key` | A foreign key | `→` | `>` | `` |
+| `role` | A role | `●` | `o` | `` |
+| `roles` | The roles folder | `●` | `o` | `` |
+| `favourites` | The favourites folder | `★` | `*` | `` |
+| `recent` | The recent folder | `↻` | `@` | `` |
+| `query` | A saved query | `≡` | `=` | `≡` |
+| `folder` | A folder | `▸` | `>` | `▸` |
+| `plan` | A query plan | `⊳` | `>` | `⊳` |
+| `note` | A notice | `⚠` | `!` | `` |
+| `problem` | A problem | `✗` | `x` | `✗` |
+| `ai` | The AI chat | `✦` | `*` | `✦` |
+| `fold-closed` | A closed fold | `▸` | `>` | `▸` |
+| `fold-open` | An open fold | `▾` | `v` | `▾` |
+| `field` | A form field marker | `▸` | `>` | `▸` |
+| `close` | A close control | `×` | `x` | `×` |
+| `dot` | A status dot | `●` | `o` | `●` |
+| `sort-up` | Ascending sort | `↑` | `^` | `↑` |
+| `sort-down` | Descending sort | `↓` | `v` | `↓` |
+| `prompt` | A prompt marker | `❯` | `>` | `❯` |
+| `step-back` | A step back | `‹` | `<` | `‹` |
+| `step-on` | A step forward | `›` | `>` | `›` |
+| `banner` | A banner | `⚑` | `!` | `⚑` |
+| `new-tab` | A new tab | `+` | `+` | `+` |
 
 `[ui.palette]`, `[ui.colors]`, and `[ui.syntax]` overlay the selected theme. See [themes.md](themes.md) for colour names, token kinds, and inheritance.
 

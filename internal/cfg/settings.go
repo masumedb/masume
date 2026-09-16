@@ -76,10 +76,13 @@ type IconSetName string
 const (
 	IconsPlain IconSetName = "plain"
 	IconsASCII IconSetName = "ascii"
+	// IconsNerd are the glyphs of a Nerd Font, which a terminal without that font draws
+	// as empty boxes.
+	IconsNerd IconSetName = "nerd"
 )
 
 // IconSetNames lists the sets a config file can use.
-var IconSetNames = []IconSetName{IconsPlain, IconsASCII}
+var IconSetNames = []IconSetName{IconsPlain, IconsASCII, IconsNerd}
 
 // DescribeIconSetNames returns the supported sets and the instruction to hide an icon.
 func DescribeIconSetNames() string {
@@ -87,7 +90,7 @@ func DescribeIconSetNames() string {
 	for _, name := range IconSetNames {
 		written = append(written, string(name))
 	}
-	return "The sets are " + strings.Join(written, " and ") +
+	return "The sets are " + strings.Join(written, ", ") +
 		". An empty glyph hides one icon kind."
 }
 

@@ -171,7 +171,7 @@ paths = []
 # Relative SQLite paths in a project file use the project directory. Other relative SQLite paths use the startup directory.
 
 # [ui]
-# icons               = "plain"   # plain ascii
+# icons               = "plain"   # plain ascii nerd
 # theme               = "ayu-dark" # system, a built-in theme, or a custom theme from the themes directory.
 # hide_system_schemas = true      # false lists pg_catalog and other system schemas in the tree
 # key_hints           = "full"    # full main off. main names the primary keys only, off names none

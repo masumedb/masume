@@ -57,7 +57,7 @@ version = 1
 
 [ui]
 theme               = "ayu-dark"   # a built-in theme, a theme in the adjacent themes directory, or "system" for terminal colours
-icons               = "plain"      # plain ascii
+icons               = "plain"      # plain ascii nerd. nerd needs a Nerd Font in the terminal
 hide_system_schemas = true         # false lists pg_catalog and the rest in the tree
 key_hints           = "full"       # full main off. main names the primary keys only, off names none
 

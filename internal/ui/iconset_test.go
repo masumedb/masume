@@ -148,24 +148,45 @@ func TestAGlyphSetInTheConfigIsDrawn(t *testing.T) {
 	}
 }
 
-// Every kind the config file may name has a glyph in the set the client opens with, so a kind
-// added to the client is never drawn as nothing by accident.
-func TestEveryKindHasAGlyphInTheSetTheClientOpensWith(t *testing.T) {
-	plain := BuildIconSet(cfg.IconsPlain, nil)
-	for _, kind := range cfg.IconKinds {
-		if plain.Icon(kind) == "" {
-			t.Errorf("the kind %q has no glyph in the plain set", kind)
-		}
+// Every kind the config file may name has a glyph in every set the client ships, so a kind
+// added to the client is never drawn as nothing by accident, and a reader who chose the set
+// of letters or the set of a Nerd Font still sees every mark.
+func TestEverySetCoversEveryKind(t *testing.T) {
+	for _, set := range cfg.IconSetNames {
+		t.Run(string(set), func(t *testing.T) {
+			icons := BuildIconSet(set, nil)
+			for _, kind := range cfg.IconKinds {
+				if icons.Icon(kind) == "" {
+					t.Errorf("the kind %q has no glyph", kind)
+				}
+			}
+		})
 	}
 }
 
-// A kind the plain set draws with a glyph a terminal may not have needs one in the set of
-// letters as well, so a terminal without the font still draws every mark.
-func TestTheSetOfLettersCoversTheKindsItCan(t *testing.T) {
-	letters := BuildIconSet(cfg.IconsASCII, nil)
+// The set of a Nerd Font is its own set. A reader who chooses it and writes no glyph of
+// their own sees the glyphs of that font, not the ones of the plain set.
+func TestTheNerdSetDrawsGlyphsOfItsOwn(t *testing.T) {
+	plain := BuildIconSet(cfg.IconsPlain, nil)
+	nerd := BuildIconSet(cfg.IconsNerd, nil)
+
+	same := 0
 	for _, kind := range cfg.IconKinds {
-		if letters.Icon(kind) == "" {
-			t.Errorf("the kind %q has no letter to stand for it", kind)
+		if nerd.Icon(kind) == plain.Icon(kind) {
+			same++
+		}
+	}
+	if same == len(cfg.IconKinds) {
+		t.Error("the nerd set draws the plain glyphs")
+	}
+	// The glyphs of a Nerd Font are in the private use area of Unicode.
+	for _, kind := range []cfg.IconKind{
+		cfg.IconSchema, cfg.IconTable, cfg.IconColumn, cfg.IconRole,
+	} {
+		glyph := []rune(nerd.Icon(kind))
+		if len(glyph) != 1 || glyph[0] < 0xE000 || glyph[0] > 0xF8FF {
+			t.Errorf("the %q glyph is %q, which is not a glyph of a Nerd Font",
+				kind, nerd.Icon(kind))
 		}
 	}
 }
