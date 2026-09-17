@@ -10,27 +10,28 @@ type Engine string
 
 // The supported servers. Each one has an entry in the registry below.
 const (
-	EnginePostgres    Engine = "postgres"
-	EngineMysql       Engine = "mysql"
-	EngineSqlite      Engine = "sqlite"
-	EngineCockroach   Engine = "cockroach"
-	EngineTimescale   Engine = "timescale"
-	EngineRedshift    Engine = "redshift"
-	EngineNeon        Engine = "neon"
-	EngineSupabase    Engine = "supabase"
-	EngineMariadb     Engine = "mariadb"
-	EngineTidb        Engine = "tidb"
-	EnginePlanetscale Engine = "planetscale"
-	EngineAuroraMysql Engine = "aurora-mysql"
-	EngineSqlserver   Engine = "sqlserver"
-	EngineClickhouse  Engine = "clickhouse"
-	EngineMongo       Engine = "mongodb"
+	EnginePostgres       Engine = "postgres"
+	EngineMysql          Engine = "mysql"
+	EngineSqlite         Engine = "sqlite"
+	EngineCockroach      Engine = "cockroach"
+	EngineTimescale      Engine = "timescale"
+	EngineRedshift       Engine = "redshift"
+	EngineNeon           Engine = "neon"
+	EngineSupabase       Engine = "supabase"
+	EngineAuroraPostgres Engine = "aurora-postgres"
+	EngineMariadb        Engine = "mariadb"
+	EngineTidb           Engine = "tidb"
+	EnginePlanetscale    Engine = "planetscale"
+	EngineAuroraMysql    Engine = "aurora-mysql"
+	EngineSqlserver      Engine = "sqlserver"
+	EngineClickhouse     Engine = "clickhouse"
+	EngineMongo          Engine = "mongodb"
 )
 
 // Engines lists every engine, in the order used by the docs.
 var Engines = []Engine{
 	EnginePostgres, EngineMysql, EngineSqlite,
-	EngineCockroach, EngineTimescale, EngineRedshift, EngineNeon, EngineSupabase,
+	EngineCockroach, EngineTimescale, EngineRedshift, EngineNeon, EngineSupabase, EngineAuroraPostgres,
 	EngineMariadb, EngineTidb, EnginePlanetscale, EngineAuroraMysql,
 	EngineSqlserver,
 	EngineClickhouse,
@@ -248,6 +249,12 @@ var engineRegistry = map[Engine]EngineInfo{
 			"auth", "storage", "realtime", "graphql", "graphql_public", "extensions",
 			"vault", "supabase_functions", "supabase_migrations", "pgbouncer", "net", "cron"),
 		SystemSchemaPrefixes: postgresOwnPrefixes,
+	},
+	EngineAuroraPostgres: {
+		Engine: EngineAuroraPostgres, Family: FamilyPostgres, Capabilities: postgresCapabilities,
+		DefaultPort: 5432, NeedsUser: true, NeedsPassword: true, NeedsDatabase: true,
+		SystemSchemas:        postgresCatalogSchemas,
+		SystemSchemaPrefixes: append(append([]string{}, postgresOwnPrefixes...), "aws_", "rds_"),
 	},
 	EngineMysql: {
 		Engine: EngineMysql, Family: FamilyMysql, Capabilities: mysqlCapabilities,

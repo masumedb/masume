@@ -8,7 +8,7 @@ Engines in one protocol family share a driver, but catalogs, SQL features, permi
 
 | Protocol | Engines |
 | --- | --- |
-| PostgreSQL | PostgreSQL, CockroachDB, TimescaleDB, Redshift, Neon, Supabase |
+| PostgreSQL | PostgreSQL, CockroachDB, TimescaleDB, Redshift, Neon, Supabase, Aurora PostgreSQL |
 | MySQL | MySQL, MariaDB, TiDB, PlanetScale, Aurora MySQL |
 | SQLite | SQLite |
 | TDS | SQL Server |
@@ -22,6 +22,7 @@ Most capabilities are static defaults. The interface uses these flags to decide 
 | Engine | Plans | Measures | Transactions | Cancels | Activity | Locks | Load | Sorts | Truncates | DDL |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | aurora-mysql | yes | yes | yes | yes | yes | no | yes | yes | yes | yes |
+| aurora-postgres | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
 | clickhouse | yes | no | no | yes | yes | no | yes | yes | yes | yes |
 | cockroach | yes | yes | yes | no | no | no | no | yes | yes | yes |
 | mariadb | yes | yes | yes | yes | yes | no | yes | yes | yes | yes |
@@ -66,7 +67,7 @@ The dashboard omits unsupported panels. Activity, lock relationships, server loa
 
 | Engines | Implemented metrics | Dependencies |
 | --- | --- | --- |
-| PostgreSQL, TimescaleDB, Neon, Supabase | Activity, locks, connections, connection limit, start time, transaction count, WAL bytes, temporary files, cache hits, replication lag | PostgreSQL statistics views, functions, and sufficient permissions |
+| PostgreSQL, TimescaleDB, Neon, Supabase, Aurora PostgreSQL | Activity, locks, connections, connection limit, start time, transaction count, WAL bytes, temporary files, cache hits, replication lag | PostgreSQL statistics views, functions, and sufficient permissions |
 | MySQL, MariaDB, Aurora MySQL | Activity, connections, connection limit, start time | `information_schema.processlist`, `performance_schema.global_status`, and `@@max_connections` |
 | ClickHouse | Running statements, connections, connection limit, start time, statement statistics | `system.processes`, `system.metrics`, `system.server_settings`, and `system.query_log` |
 | SQL Server | Activity, locks, connections, connection limit, start time, statement statistics | `sys.dm_exec_sessions`, `sys.dm_exec_requests`, `sys.dm_tran_locks`, `sys.dm_os_sys_info`, and the VIEW SERVER STATE permission |
@@ -101,6 +102,7 @@ A classified read can still have side effects. Database permissions remain separ
 | Engine | Port | Default `sslmode` |
 | --- | --- | --- |
 | aurora-mysql | 3306 | `prefer` |
+| aurora-postgres | 5432 | `prefer` |
 | clickhouse | 9000 | unset; no TLS |
 | cockroach | 26257 | `prefer` |
 | mariadb | 3306 | `prefer` |

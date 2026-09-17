@@ -59,6 +59,7 @@ body:
         - TiDB
         - PlanetScale
         - Aurora MySQL
+        - Aurora PostgreSQL
         - Not about an engine
 
   - type: input

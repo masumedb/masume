@@ -32,11 +32,12 @@ func CreateAdapters() Adapters {
 		core.EngineClickhouse: clickhouse.NewAdapter(clickhouse.Support),
 
 		// These use the PostgreSQL protocol.
-		core.EngineCockroach: postgres.NewAdapter(ResolveSupport(core.EngineCockroach), postgres.FlavourCockroach),
-		core.EngineTimescale: postgres.NewAdapter(ResolveSupport(core.EngineTimescale), postgres.FlavourStandard),
-		core.EngineRedshift:  postgres.NewAdapter(ResolveSupport(core.EngineRedshift), postgres.FlavourRedshift),
-		core.EngineNeon:      postgres.NewAdapter(ResolveSupport(core.EngineNeon), postgres.FlavourStandard),
-		core.EngineSupabase:  postgres.NewAdapter(ResolveSupport(core.EngineSupabase), postgres.FlavourStandard),
+		core.EngineCockroach:      postgres.NewAdapter(ResolveSupport(core.EngineCockroach), postgres.FlavourCockroach),
+		core.EngineTimescale:      postgres.NewAdapter(ResolveSupport(core.EngineTimescale), postgres.FlavourStandard),
+		core.EngineRedshift:       postgres.NewAdapter(ResolveSupport(core.EngineRedshift), postgres.FlavourRedshift),
+		core.EngineNeon:           postgres.NewAdapter(ResolveSupport(core.EngineNeon), postgres.FlavourStandard),
+		core.EngineSupabase:       postgres.NewAdapter(ResolveSupport(core.EngineSupabase), postgres.FlavourStandard),
+		core.EngineAuroraPostgres: postgres.NewAdapter(ResolveSupport(core.EngineAuroraPostgres), postgres.FlavourStandard),
 
 		// These use the MySQL protocol.
 		core.EngineMariadb:     mysql.NewAdapter(ResolveSupport(core.EngineMariadb), mariadb.Flavour),

@@ -124,7 +124,7 @@ paths = []
 # [profile.a-name]
 # engine               = "postgres"   # postgres mysql sqlserver clickhouse sqlite mongodb
 #                                     # timescale redshift neon supabase mariadb tidb
-#                                     # planetscale aurora-mysql
+#                                     # planetscale aurora-mysql aurora-postgres
 # host                 = "127.0.0.1"
 # port                 = 5432         # the default port of the engine when not set
 # database             = "shop"       # the file path for sqlite
@@ -166,7 +166,7 @@ paths = []
 # Environment defaults apply to absent file settings. Changing env in the form does not change confirmation.
 # Undo covers eligible single updates, deletes and truncates. Captured target rows exclude cascades and trigger effects.
 # A later undo can overwrite newer values. Grid changes and imports retain no undo. See docs/configuration.md for eligibility and failures.
-# Unset TLS uses prefer on PostgreSQL, MySQL, MariaDB, CockroachDB, TimescaleDB, TiDB and Aurora MySQL, require on Redshift, Neon, Supabase and PlanetScale, and none on MongoDB.
+# Unset TLS uses prefer on PostgreSQL, MySQL, MariaDB, CockroachDB, TimescaleDB, TiDB, Aurora MySQL and Aurora PostgreSQL, require on Redshift, Neon, Supabase and PlanetScale, and none on MongoDB.
 # MongoDB allow and prefer use TLS without an unencrypted fallback. SQLite ignores TLS.
 # Relative SQLite paths in a project file use the project directory. Other relative SQLite paths use the startup directory.
 

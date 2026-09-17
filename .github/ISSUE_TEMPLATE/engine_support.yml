@@ -28,6 +28,7 @@ body:
         - TiDB
         - PlanetScale
         - Aurora MySQL
+        - Aurora PostgreSQL
         - An engine that the client does not support yet
     validations:
       required: true
