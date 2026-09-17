@@ -16,6 +16,7 @@ import (
 	"github.com/turanmahmudov/masume/internal/db/sqlite"
 	"github.com/turanmahmudov/masume/internal/db/sqlserver"
 	"github.com/turanmahmudov/masume/internal/db/tidb"
+	"github.com/turanmahmudov/masume/internal/db/turso"
 )
 
 // Adapters is the map of engines to connection adapters.
@@ -26,7 +27,7 @@ func CreateAdapters() Adapters {
 	return Adapters{
 		core.EnginePostgres:   postgres.NewAdapter(postgres.Support, postgres.FlavourStandard),
 		core.EngineMysql:      mysql.NewAdapter(mysql.Support, mysql.FlavourStandard),
-		core.EngineSqlite:     sqlite.NewAdapter(sqlite.Support),
+		core.EngineSqlite:     sqlite.NewAdapter(sqlite.Support, sqlite.FlavourFile),
 		core.EngineMongo:      mongo.NewAdapter(mongo.Support),
 		core.EngineSqlserver:  sqlserver.NewAdapter(sqlserver.Support),
 		core.EngineClickhouse: clickhouse.NewAdapter(clickhouse.Support),
@@ -44,6 +45,9 @@ func CreateAdapters() Adapters {
 		core.EngineTidb:        mysql.NewAdapter(ResolveSupport(core.EngineTidb), tidb.Flavour),
 		core.EnginePlanetscale: mysql.NewAdapter(ResolveSupport(core.EnginePlanetscale), planetscale.Flavour),
 		core.EngineAuroraMysql: mysql.NewAdapter(ResolveSupport(core.EngineAuroraMysql), auroramysql.Flavour),
+
+		// This speaks the libSQL protocol and takes the SQLite dialect.
+		core.EngineTurso: sqlite.NewAdapter(ResolveSupport(core.EngineTurso), turso.Flavour),
 	}
 }
 

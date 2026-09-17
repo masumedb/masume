@@ -20,6 +20,7 @@ import (
 	"github.com/turanmahmudov/masume/internal/db/supabase"
 	"github.com/turanmahmudov/masume/internal/db/tidb"
 	"github.com/turanmahmudov/masume/internal/db/timescale"
+	"github.com/turanmahmudov/masume/internal/db/turso"
 )
 
 // support holds one entry per engine. An engine missing here cannot be opened.
@@ -27,6 +28,7 @@ var support = map[core.Engine]db.EngineSupport{
 	core.EnginePostgres: postgres.Support,
 	core.EngineMysql:    mysql.Support,
 	core.EngineSqlite:   sqlite.Support,
+	core.EngineTurso:    turso.Support,
 	core.EngineMongo:    mongo.Support,
 
 	core.EngineSqlserver:  sqlserver.Support,

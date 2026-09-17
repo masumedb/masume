@@ -176,6 +176,13 @@ func buildProfileFromURL(text string) (Profile, error) {
 		}
 	}
 
+	// Turso writes the auth token as a URL parameter, and the client holds it as the password.
+	if engine == core.EngineTurso {
+		if token := parsed.Query().Get("authToken"); token != "" {
+			built.Password = token
+		}
+	}
+
 	built.Database = strings.TrimPrefix(parsed.Path, "/")
 	// The database path has one segment.
 	if strings.Contains(built.Database, "/") {

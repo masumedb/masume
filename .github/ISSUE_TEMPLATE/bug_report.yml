@@ -60,6 +60,7 @@ body:
         - PlanetScale
         - Aurora MySQL
         - Aurora PostgreSQL
+        - Turso
         - Not about an engine
 
   - type: input

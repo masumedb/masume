@@ -29,6 +29,7 @@ body:
         - PlanetScale
         - Aurora MySQL
         - Aurora PostgreSQL
+        - Turso
         - An engine that the client does not support yet
     validations:
       required: true

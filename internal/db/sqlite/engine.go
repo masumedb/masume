@@ -53,3 +53,13 @@ var Support = db.EngineSupport{
 	Language:   language.SQL,
 	Compose:    db.NewSQLComposer(Dialect),
 }
+
+// BuildSupport combines engine metadata with the SQLite dialect and language.
+func BuildSupport(engine core.Engine) db.EngineSupport {
+	return db.EngineSupport{
+		EngineInfo: core.ResolveEngineInfo(engine),
+		Dialect:    Dialect,
+		Language:   language.SQL,
+		Compose:    db.NewSQLComposer(Dialect),
+	}
+}

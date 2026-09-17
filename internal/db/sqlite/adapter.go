@@ -393,42 +393,64 @@ func (session *sqliteSession) Close() error {
 	return session.file.Close()
 }
 
-// sqliteAdapter opens a SQLite file.
-type sqliteAdapter struct{ support db.EngineSupport }
-
-// NewAdapter returns the adapter that opens a SQLite file.
-func NewAdapter(support db.EngineSupport) db.Adapter {
-	return &sqliteAdapter{support: support}
+// Flavour is the engine-specific configuration for the shared SQLite adapter.
+type Flavour struct {
+	// DriverName is the driver registered with database/sql.
+	DriverName string
+	// BuildSource returns the data source of that profile, or the reason it has none.
+	BuildSource func(profile cfg.Profile, password string) (string, error)
 }
 
-func (adapter *sqliteAdapter) Connect(
-	ctx context.Context, profile cfg.Profile, _ string,
-) (db.Session, error) {
+// FlavourFile is a local SQLite file, which the other flavours differ from.
+var FlavourFile = Flavour{DriverName: "sqlite", BuildSource: buildFileSource}
+
+// buildFileSource returns the data source of a local file, and refuses a missing one.
+func buildFileSource(profile cfg.Profile, _ string) (string, error) {
 	path := core.ExpandHomePath(profile.Database)
 	inMemory := path == memoryDatabase
 	if !inMemory {
 		// The driver creates missing files. Existing paths are required here.
 		if _, err := os.Stat(path); err != nil {
-			reason := err
 			if errors.Is(err, fs.ErrNotExist) {
-				reason = errors.New("the database file is missing at this path")
+				return "", errors.New("the database file is missing at this path")
 			}
-			return nil, db.WrapDatabaseMessage(db.BuildConnectMessage(profile, reason), err)
+			return "", err
 		}
 	}
 
-	readOnly := profile.AccessMode == cfg.AccessReadOnly
 	settings := []string{
 		"_pragma=busy_timeout(" + strconv.FormatInt(sqliteBusyTimeout.Milliseconds(), 10) + ")",
 	}
-	if readOnly && !inMemory {
+	if profile.AccessMode == cfg.AccessReadOnly && !inMemory {
 		settings = append(settings, "mode=ro")
 	} else {
 		// SQLite requires explicit foreign key enforcement for each connection.
 		settings = append(settings, "_pragma=foreign_keys(1)")
 	}
+	return "file:" + path + "?" + strings.Join(settings, "&"), nil
+}
 
-	file, err := sql.Open("sqlite", "file:"+path+"?"+strings.Join(settings, "&"))
+// sqliteAdapter opens a SQLite database.
+type sqliteAdapter struct {
+	support db.EngineSupport
+	flavour Flavour
+}
+
+// NewAdapter returns the adapter that opens a SQLite database.
+func NewAdapter(support db.EngineSupport, flavour Flavour) db.Adapter {
+	return &sqliteAdapter{support: support, flavour: flavour}
+}
+
+func (adapter *sqliteAdapter) Connect(
+	ctx context.Context, profile cfg.Profile, password string,
+) (db.Session, error) {
+	source, sourceErr := adapter.flavour.BuildSource(profile, password)
+	if sourceErr != nil {
+		return nil, db.WrapDatabaseMessage(
+			db.BuildConnectMessage(profile, sourceErr), sourceErr)
+	}
+
+	file, err := sql.Open(adapter.flavour.DriverName, source)
 	if err != nil {
 		return nil, db.WrapDatabaseMessage(db.BuildConnectMessage(profile, err), err)
 	}

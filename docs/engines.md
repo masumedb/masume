@@ -11,6 +11,7 @@ Engines in one protocol family share a driver, but catalogs, SQL features, permi
 | PostgreSQL | PostgreSQL, CockroachDB, TimescaleDB, Redshift, Neon, Supabase, Aurora PostgreSQL |
 | MySQL | MySQL, MariaDB, TiDB, PlanetScale, Aurora MySQL |
 | SQLite | SQLite |
+| libSQL | Turso |
 | TDS | SQL Server |
 | ClickHouse native | ClickHouse |
 | MongoDB wire | MongoDB |
@@ -37,6 +38,7 @@ Most capabilities are static defaults. The interface uses these flags to decide 
 | supabase | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
 | tidb | yes | yes | yes | yes | yes | no | no | yes | yes | yes |
 | timescale | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
+| turso | yes | no | yes | no | no | no | no | yes | no | yes |
 
 | Flag | Meaning |
 | --- | --- |
@@ -57,7 +59,7 @@ MongoDB transaction and atomic staged-write flags depend on the deployment's `he
 | --- | --- |
 | Plans every statement | CockroachDB only |
 | Write previews | Every SQL engine except ClickHouse. No MongoDB |
-| Read-only mode | Every engine except TiDB. MongoDB and SQL Server enforcement is client-only |
+| Read-only mode | Every engine except TiDB and Turso. MongoDB, SQL Server and Turso enforcement is client-only |
 | Atomic staged changes | Every engine except ClickHouse, which holds no transaction. MongoDB adjusts this after connection |
 | Statement statistics | No engine before connection. PostgreSQL-family sessions enable this after an extension check, SQL Server sessions after a permission check, and ClickHouse sessions after a check of its query log |
 
@@ -73,7 +75,7 @@ The dashboard omits unsupported panels. Activity, lock relationships, server loa
 | SQL Server | Activity, locks, connections, connection limit, start time, statement statistics | `sys.dm_exec_sessions`, `sys.dm_exec_requests`, `sys.dm_tran_locks`, `sys.dm_os_sys_info`, and the VIEW SERVER STATE permission |
 | Redshift, TiDB | Activity only | The adapter's activity query and sufficient permissions |
 | MongoDB | Current operations | `currentOp` and sufficient permissions |
-| CockroachDB, PlanetScale, SQLite | No dashboard metrics | None |
+| CockroachDB, PlanetScale, SQLite, Turso | No dashboard metrics | None |
 
 PostgreSQL metrics use `pg_stat_activity`, `pg_locks`, `pg_stat_database`, WAL functions, and replication statistics. Replication lag appears only when the query returns a value. Cache hit rate needs recorded block reads or hits, and rates need successive counter samples.
 
@@ -90,6 +92,8 @@ Static capability flags do not check every statistics view, extension setting, o
 ## Read-only access
 
 The client rejects recognized writes for read-only profiles. PostgreSQL-family sessions also ask for server read-only mode. MySQL and MariaDB use `SET SESSION TRANSACTION READ ONLY`. SQLite opens existing files with `mode=ro`. ClickHouse uses `SET readonly = 2`, which rejects a write but still takes the settings the driver sends. MongoDB and SQL Server have client-only checks.
+
+Turso takes no read-only connection. A read-only Turso profile has a client-only check.
 
 TiDB does not enforce the session read-only statement. An explicit TiDB profile with `mode = "read-only"` fails during connection.
 
@@ -117,6 +121,7 @@ A classified read can still have side effects. Database permissions remain separ
 | supabase | 5432 | `require` |
 | tidb | 4000 | `prefer` |
 | timescale | 5432 | `prefer` |
+| turso | 443 | `require` |
 
 Most PostgreSQL-family and MySQL-family engines with an unset `sslmode` behave as `prefer`.
 
@@ -127,6 +132,8 @@ ClickHouse differs. The native protocol does not negotiate. Unset, `allow`, and 
 SQL Server differs. Unset, `allow`, and `prefer` encrypt the login. The rest of the session goes unencrypted. `disable` encrypts nothing. `require` encrypts the whole session without certificate verification. `verify-ca` and `verify-full` verify it.
 
 MongoDB differs. Unset or `disable` uses no TLS. Explicit `allow`, `prefer`, and `require` need TLS. They use no certificate verification. They have no unencrypted fallback. MongoDB also supports `verify-ca` and `verify-full`.
+
+Turso differs. `disable` opens `ws://`, and every other mode opens `wss://`. A hosted database accepts TLS only.
 
 See [profiles](configuration.md#profiles) for the other profile keys. Connection targets do not forward native URL options. See [connection targets](usage.md#connection-targets).
 
@@ -212,6 +219,14 @@ An estimated plan comes from `SET SHOWPLAN_ALL ON`. A measured plan comes from `
 The dashboard stops another session with `KILL`, which ends the session and its transaction. T-SQL has no statement that stops one statement of another session. The activity list has no cancel, and the interface also has no cancel for a statement of this connection; `Ctrl+X` is not shown on a SQL Server connection. Set `statement_timeout_ms` to bound a statement instead. The client stops such a statement through the driver and opens the connection again afterwards. A stopped statement leaves the connection unusable, a transaction is lost with that connection, and the client says so.
 
 The server has no read-only session, and a read-only profile is enforced by this client alone. It also has no materialized view; an indexed view appears as a view.
+
+## Turso
+
+masume connects to Turso and to any libSQL server over the websocket protocol of the server. The database is the host name, and the auth token is the password. A `libsql://` target carries the token as its `authToken` parameter.
+
+The SQL is SQLite, and the catalog is read through the same `pragma` functions. The HTTP protocol of the same server runs each statement on a connection of its own, which ends a transaction before the next statement arrives, so masume opens the websocket protocol instead.
+
+The server sends no column type. A result column takes the type of its first value: `text`, `integer`, `real`, or `blob`. A local file of libSQL opens as a SQLite profile.
 
 ## ClickHouse
 

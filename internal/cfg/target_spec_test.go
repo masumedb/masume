@@ -132,6 +132,23 @@ func TestBuildProfileFromTargetReadsAMysqlURLWithoutADatabase(t *testing.T) {
 	}
 }
 
+// Turso writes the auth token as a URL parameter, and the client holds it as the password.
+func TestBuildProfileFromTargetReadsTheAuthTokenOfATursoURL(t *testing.T) {
+	built, err := cfg.BuildProfileFromTarget("libsql://shop-acme.turso.io?authToken=a-token")
+	if err != nil {
+		t.Fatalf("a Turso URL does not read: %v", err)
+	}
+	if built.Engine != core.EngineTurso {
+		t.Errorf("the engine reads %q, wanted turso", built.Engine)
+	}
+	if built.Password != "a-token" {
+		t.Errorf("the password reads %q, wanted the auth token", built.Password)
+	}
+	if built.Database != "" {
+		t.Errorf("the profile opens %q, wanted no database", built.Database)
+	}
+}
+
 // A host without a name is a URL of the form `postgres:///shop`, which the client opens on
 // the local machine.
 func TestBuildProfileFromTargetFillsTheLocalHost(t *testing.T) {

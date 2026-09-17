@@ -13,6 +13,7 @@ const (
 	EnginePostgres       Engine = "postgres"
 	EngineMysql          Engine = "mysql"
 	EngineSqlite         Engine = "sqlite"
+	EngineTurso          Engine = "turso"
 	EngineCockroach      Engine = "cockroach"
 	EngineTimescale      Engine = "timescale"
 	EngineRedshift       Engine = "redshift"
@@ -33,6 +34,7 @@ var Engines = []Engine{
 	EnginePostgres, EngineMysql, EngineSqlite,
 	EngineCockroach, EngineTimescale, EngineRedshift, EngineNeon, EngineSupabase, EngineAuroraPostgres,
 	EngineMariadb, EngineTidb, EnginePlanetscale, EngineAuroraMysql,
+	EngineTurso,
 	EngineSqlserver,
 	EngineClickhouse,
 	EngineMongo,
@@ -144,6 +146,24 @@ var mysqlCapabilities = withPostgres(func(capabilities *Capabilities) {
 	// MySQL lock waits require performance_schema queries that this client does not implement.
 	capabilities.ReportsLockWaits = false
 })
+
+var sqliteCapabilities = Capabilities{
+	// SQLite plans a statement, but it does not measure the run.
+	PlansStatement: true,
+	MeasuresPlan:   false,
+	// SQLite has no server session list.
+	HasServerSessions:   false,
+	CancelsRunningQuery: false,
+	HasTransactions:     true,
+	SortsRead:           true,
+	// SQLite empties a table with a delete of every row.
+	TruncatesTable:         false,
+	WritesDDL:              true,
+	PlansWrites:            true,
+	TakesReadOnlyMode:      true,
+	JoinsTables:            true,
+	AppliesChangesTogether: true,
+}
 
 var sqlserverCapabilities = Capabilities{
 	// SHOWPLAN_ALL estimates the plan and STATISTICS PROFILE counts the rows of every step.
@@ -307,26 +327,19 @@ var engineRegistry = map[Engine]EngineInfo{
 		SystemSchemas: []string{"system", "information_schema"},
 	},
 	EngineSqlite: {
-		Engine: EngineSqlite, Family: FamilySqlite,
-		Capabilities: Capabilities{
-			// SQLite plans a statement, but it does not measure the run.
-			PlansStatement: true,
-			MeasuresPlan:   false,
-			// SQLite has no server session list.
-			HasServerSessions:   false,
-			CancelsRunningQuery: false,
-			HasTransactions:     true,
-			SortsRead:           true,
-			// SQLite empties a table with a delete of every row.
-			TruncatesTable:         false,
-			WritesDDL:              true,
-			PlansWrites:            true,
-			TakesReadOnlyMode:      true,
-			JoinsTables:            true,
-			AppliesChangesTogether: true,
-		},
+		Engine: EngineSqlite, Family: FamilySqlite, Capabilities: sqliteCapabilities,
 		// A file is opened locally, so there is no port and no URL scheme.
 		DefaultPort: 0, OpensFile: true, NeedsDatabase: true,
+	},
+	EngineTurso: {
+		Engine: EngineTurso, Family: FamilySqlite,
+		Capabilities: withSqlite(func(capabilities *Capabilities) {
+			// The server takes no read-only connection, so the client checks every write.
+			capabilities.TakesReadOnlyMode = false
+		}),
+		// The database is the host name of the server, and the auth token is the password.
+		DefaultPort: 443, NeedsPassword: true, DefaultSSLMode: SSLRequire,
+		URLSchemes: []string{"libsql"},
 	},
 	EngineMongo: {
 		Engine: EngineMongo, Family: FamilyMongo,
@@ -364,6 +377,12 @@ var engineRegistry = map[Engine]EngineInfo{
 
 func withPostgres(change func(*Capabilities)) Capabilities {
 	capabilities := postgresCapabilities
+	change(&capabilities)
+	return capabilities
+}
+
+func withSqlite(change func(*Capabilities)) Capabilities {
+	capabilities := sqliteCapabilities
 	change(&capabilities)
 	return capabilities
 }

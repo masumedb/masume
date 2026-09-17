@@ -200,11 +200,11 @@ func TestMongodbNamesTheTransactionItsDeploymentsHold(t *testing.T) {
 }
 
 // A MySQL-protocol server connects without a database, and its catalog holds every database
-// of the server. Every other engine opens one database, so the form and the config file ask
-// for its name.
-func TestOnlyTheMysqlEnginesConnectWithoutADatabase(t *testing.T) {
+// of the server. The database of Turso is the host name of the server. Every other engine
+// opens one database, so the form and the config file ask for its name.
+func TestTheEnginesThatConnectWithoutADatabase(t *testing.T) {
 	for _, info := range ListEngineInfo() {
-		wanted := info.Family != FamilyMysql
+		wanted := info.Family != FamilyMysql && info.Engine != EngineTurso
 		if info.NeedsDatabase != wanted {
 			t.Errorf("%q needs a database: %t, wanted %t",
 				info.Engine, info.NeedsDatabase, wanted)
