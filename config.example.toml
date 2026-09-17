@@ -122,12 +122,12 @@ paths = []
 # A profile is one connection. The name after profile. is the picker name.
 #
 # [profile.a-name]
-# engine               = "postgres"   # postgres mysql sqlserver clickhouse sqlite mongodb
+# engine               = "postgres"   # postgres mysql sqlserver clickhouse sqlite mongodb redis
 #                                     # timescale redshift neon supabase mariadb tidb
 #                                     # planetscale aurora-mysql aurora-postgres turso
 # host                 = "127.0.0.1"
 # port                 = 5432         # the default port of the engine when not set
-# database             = "shop"       # the file path for sqlite
+# database             = "shop"       # the file path for sqlite, the database number for redis
 # user                 = "you"
 # auth                 = "password"   # password command prompt keyring secret
 # The default auth is secret when secret is set, otherwise command when password_command is set, otherwise password.

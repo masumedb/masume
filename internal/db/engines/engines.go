@@ -14,6 +14,7 @@ import (
 	"github.com/turanmahmudov/masume/internal/db/neon"
 	"github.com/turanmahmudov/masume/internal/db/planetscale"
 	"github.com/turanmahmudov/masume/internal/db/postgres"
+	"github.com/turanmahmudov/masume/internal/db/redis"
 	"github.com/turanmahmudov/masume/internal/db/redshift"
 	"github.com/turanmahmudov/masume/internal/db/sqlite"
 	"github.com/turanmahmudov/masume/internal/db/sqlserver"
@@ -28,6 +29,7 @@ var support = map[core.Engine]db.EngineSupport{
 	core.EnginePostgres: postgres.Support,
 	core.EngineMysql:    mysql.Support,
 	core.EngineSqlite:   sqlite.Support,
+	core.EngineRedis:    redis.Support,
 	core.EngineTurso:    turso.Support,
 	core.EngineMongo:    mongo.Support,
 

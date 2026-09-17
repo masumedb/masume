@@ -13,6 +13,7 @@ const (
 	EnginePostgres       Engine = "postgres"
 	EngineMysql          Engine = "mysql"
 	EngineSqlite         Engine = "sqlite"
+	EngineRedis          Engine = "redis"
 	EngineTurso          Engine = "turso"
 	EngineCockroach      Engine = "cockroach"
 	EngineTimescale      Engine = "timescale"
@@ -31,7 +32,7 @@ const (
 
 // Engines lists every engine, in the order used by the docs.
 var Engines = []Engine{
-	EnginePostgres, EngineMysql, EngineSqlite,
+	EnginePostgres, EngineMysql, EngineSqlite, EngineRedis,
 	EngineCockroach, EngineTimescale, EngineRedshift, EngineNeon, EngineSupabase, EngineAuroraPostgres,
 	EngineMariadb, EngineTidb, EnginePlanetscale, EngineAuroraMysql,
 	EngineTurso,
@@ -53,6 +54,7 @@ const (
 	FamilySqlite     Family = "sqlite"
 	FamilySqlserver  Family = "sqlserver"
 	FamilyClickhouse Family = "clickhouse"
+	FamilyRedis      Family = "redis"
 	FamilyMongo      Family = "mongo"
 )
 
@@ -95,6 +97,10 @@ type EngineInfo struct {
 	OpensFile     bool
 	NeedsUser     bool
 	NeedsPassword bool
+	// True where the password belongs to the server and not to a named user, so a profile
+	// without a user can still have a password. Redis is the only one: `requirepass`
+	// has no user.
+	PasswordWithoutUser bool
 	// True where a connection needs the name of one database. A MySQL-protocol server
 	// connects without one.
 	NeedsDatabase  bool
@@ -325,6 +331,33 @@ var engineRegistry = map[Engine]EngineInfo{
 		// The server holds the catalog twice: once as `system`, and once as the standard
 		// views under two names of one database. `default` holds tables of the user.
 		SystemSchemas: []string{"system", "information_schema"},
+	},
+	EngineRedis: {
+		Engine: EngineRedis, Family: FamilyRedis,
+		Capabilities: Capabilities{
+			// A command states the operation, so the server makes no plan.
+			PlansStatement: false,
+			MeasuresPlan:   false,
+			// CLIENT LIST lists every connection, and CLIENT KILL stops one.
+			HasServerSessions: true,
+			// Redis runs one command at a time and completes it before the next one.
+			CancelsRunningQuery: false,
+			// MULTI queues the commands and returns no result before EXEC.
+			HasTransactions: false,
+			// A SCAN returns the keys in the order of the server only.
+			SortsRead: false,
+			// A prefix is only a name pattern, so no command deletes it.
+			TruncatesTable: false,
+			WritesDDL:      false,
+			// The server has no read-only session, so this client blocks the write.
+			TakesReadOnlyMode: true,
+			// MULTI is not a transaction the user controls, but it does apply a staged
+			// set as one unit.
+			AppliesChangesTogether: true,
+		},
+		DefaultPort: 6379, NeedsDatabase: true,
+		URLSchemes:          []string{"redis", "rediss"},
+		PasswordWithoutUser: true,
 	},
 	EngineSqlite: {
 		Engine: EngineSqlite, Family: FamilySqlite, Capabilities: sqliteCapabilities,

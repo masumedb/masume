@@ -12,6 +12,7 @@ Engines in one protocol family share a driver, but catalogs, SQL features, permi
 | MySQL | MySQL, MariaDB, TiDB, PlanetScale, Aurora MySQL |
 | SQLite | SQLite |
 | libSQL | Turso |
+| RESP | Redis |
 | TDS | SQL Server |
 | ClickHouse native | ClickHouse |
 | MongoDB wire | MongoDB |
@@ -32,6 +33,7 @@ Most capabilities are static defaults. The interface uses these flags to decide 
 | neon | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
 | planetscale | yes | yes | yes | no | no | no | no | yes | yes | yes |
 | postgres | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
+| redis | no | no | no | no | yes | no | no | no | no | no |
 | redshift | yes | no | yes | yes | yes | no | no | yes | yes | yes |
 | sqlite | yes | no | yes | no | no | no | no | yes | no | yes |
 | sqlserver | yes | yes | yes | no | yes | yes | yes | yes | yes | yes |
@@ -75,6 +77,7 @@ The dashboard omits unsupported panels. Activity, lock relationships, server loa
 | SQL Server | Activity, locks, connections, connection limit, start time, statement statistics | `sys.dm_exec_sessions`, `sys.dm_exec_requests`, `sys.dm_tran_locks`, `sys.dm_os_sys_info`, and the VIEW SERVER STATE permission |
 | Redshift, TiDB | Activity only | The adapter's activity query and sufficient permissions |
 | MongoDB | Current operations | `currentOp` and sufficient permissions |
+| Redis | Connected clients | `CLIENT LIST`, and `CLIENT KILL` to stop one |
 | CockroachDB, PlanetScale, SQLite, Turso | No dashboard metrics | None |
 
 PostgreSQL metrics use `pg_stat_activity`, `pg_locks`, `pg_stat_database`, WAL functions, and replication statistics. Replication lag appears only when the query returns a value. Cache hit rate needs recorded block reads or hits, and rates need successive counter samples.
@@ -91,7 +94,7 @@ Static capability flags do not check every statistics view, extension setting, o
 
 ## Read-only access
 
-The client rejects recognized writes for read-only profiles. PostgreSQL-family sessions also ask for server read-only mode. MySQL and MariaDB use `SET SESSION TRANSACTION READ ONLY`. SQLite opens existing files with `mode=ro`. ClickHouse uses `SET readonly = 2`, which rejects a write but still takes the settings the driver sends. MongoDB and SQL Server have client-only checks.
+The client rejects recognized writes for read-only profiles. PostgreSQL-family sessions also ask for server read-only mode. MySQL and MariaDB use `SET SESSION TRANSACTION READ ONLY`. SQLite opens existing files with `mode=ro`. ClickHouse uses `SET readonly = 2`, which rejects a write but still takes the settings the driver sends. MongoDB, SQL Server and Redis have client-only checks.
 
 Turso takes no read-only connection. A read-only Turso profile has a client-only check.
 
@@ -115,6 +118,7 @@ A classified read can still have side effects. Database permissions remain separ
 | neon | 5432 | `require` |
 | planetscale | 3306 | `require` |
 | postgres | 5432 | `prefer` |
+| redis | 6379 | unset; no TLS |
 | redshift | 5439 | `require` |
 | sqlite | none | none |
 | sqlserver | 1433 | unset; the login only |
@@ -130,6 +134,8 @@ For PostgreSQL-family and MySQL-family engines, `allow` and `prefer` permit unen
 ClickHouse differs. The native protocol does not negotiate. Unset, `allow`, and `prefer` connect without encryption. `require` encrypts without certificate verification. `verify-ca` and `verify-full` verify it. An encrypted ClickHouse listens on a port of its own. The default is 9440.
 
 SQL Server differs. Unset, `allow`, and `prefer` encrypt the login. The rest of the session goes unencrypted. `disable` encrypts nothing. `require` encrypts the whole session without certificate verification. `verify-ca` and `verify-full` verify it.
+
+Redis differs. Unset or `disable` uses no TLS. Every other mode uses TLS. A `rediss://` target sets `verify-full`.
 
 MongoDB differs. Unset or `disable` uses no TLS. Explicit `allow`, `prefer`, and `require` need TLS. They use no certificate verification. They have no unencrypted fallback. MongoDB also supports `verify-ca` and `verify-full`.
 
@@ -219,6 +225,21 @@ An estimated plan comes from `SET SHOWPLAN_ALL ON`. A measured plan comes from `
 The dashboard stops another session with `KILL`, which ends the session and its transaction. T-SQL has no statement that stops one statement of another session. The activity list has no cancel, and the interface also has no cancel for a statement of this connection; `Ctrl+X` is not shown on a SQL Server connection. Set `statement_timeout_ms` to bound a statement instead. The client stops such a statement through the driver and opens the connection again afterwards. A stopped statement leaves the connection unusable, a transaction is lost with that connection, and the client says so.
 
 The server has no read-only session, and a read-only profile is enforced by this client alone. It also has no materialized view; an indexed view appears as a view.
+
+## Redis
+
+Redis has no SQL. A query tab takes Redis commands, one per line:
+
+```
+SET user:1 "a name"
+GET user:1
+```
+
+A command ends at the line break, because a key can hold a semicolon. masume holds the Redis command set, marks a command it does not know, and rates each one as a read, a write, a delete, a sweep of the whole database, or a script. A script is rated at the highest risk, because its body can call any command.
+
+The tree is built from a scan of the key space, so it shows the keys of the last scan. A key written after that scan appears after the next one. A prefix of the key names stands for a relation, and the four columns of every prefix are the key, its type, its time to live, and its value.
+
+The connection opens one numbered database, and the profile holds that number. A password without a user is accepted: the server setting is `requirepass`, which has no user.
 
 ## Turso
 

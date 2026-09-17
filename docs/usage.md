@@ -35,17 +35,17 @@ masume --profile shop-prod
 
 | Form | Read as |
 | --- | --- |
-| A URL | Supported schemes: `postgres`, `postgresql`, `mysql`, `mariadb`, `cockroachdb`, `redshift`, `sqlserver`, `mssql`, `clickhouse`, `libsql`, `mongodb` |
+| A URL | Supported schemes: `postgres`, `postgresql`, `mysql`, `mariadb`, `cockroachdb`, `redshift`, `sqlserver`, `mssql`, `clickhouse`, `libsql`, `redis`, `rediss`, `mongodb` |
 | A connection string | `key=value` pairs: `engine`, `host`, `hostaddr`, `port`, `dbname`, `database`, `user`, `password`, `sslmode`. The default engine is `postgres` |
 | A file path | A SQLite path ending in `.db`, `.db3`, `.sqlite` or `.sqlite3`. Other extensions must have an existing SQLite header. `:memory:` is also accepted |
 
-A URL without a database uses the user name on PostgreSQL-family engines and `admin` on MongoDB. A MySQL-family URL without a database opens the server itself, and every other engine must have the database in the URL. A missing URL host uses `127.0.0.1`.
+A URL without a database uses the user name on PostgreSQL-family engines, database `0` on Redis, and `admin` on MongoDB. A MySQL-family URL without a database opens the server itself, and every other engine must have the database in the URL. A missing URL host uses `127.0.0.1`.
 
 Connection strings accept single-quoted values and backslash escapes inside quotes. `engine` accepts the profile engine names; unknown connection string keys are errors.
 
 URLs support one host, credentials, a port, a database, and `sslmode`, `ssl-mode`, or `sslMode`. Other native URL options are ignored; these include `authSource`, `replicaSet`, and `connect_timeout`. The client rejects `mongodb+srv` URLs.
 
-Other settings use new-connection defaults; they include `env = "dev"`, `mode = "write"`, and `page_size = 200`.
+`rediss://` connects with TLS and verifies the certificate. Other settings use new-connection defaults; they include `env = "dev"`, `mode = "write"`, and `page_size = 200`.
 
 The client asks for a missing password when the engine and the user need one. SQLite and MongoDB without a user need no password. The connection stays in memory until saved; the picker uses the database name or file name and adds a numeric suffix for duplicate names.
 
@@ -59,7 +59,7 @@ masume --detect
 
 A container appears when both are true:
 
-- The image name contains a supported database name. Recognized names are `postgres`, `postgis`, `pgvector`, `timescale`, `supabase`, `cockroach`, `mysql`, `percona`, `mariadb`, `tidb`, and `mongo`. Detection uses the image name, not the parent image. `supabase/postgres` is Supabase.
+- The image name contains a supported database name. Recognized names are `postgres`, `postgis`, `pgvector`, `timescale`, `supabase`, `cockroach`, `mysql`, `percona`, `mariadb`, `tidb`, `redis`, `valkey`, and `mongo`. Detection uses the image name, not the parent image. `supabase/postgres` is Supabase.
 - The container publishes the database port.
 
 Detection reads the user, database, and password from container environment variables:
@@ -70,6 +70,7 @@ Detection reads the user, database, and password from container environment vari
 | MySQL | `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`, `MYSQL_ROOT_PASSWORD` |
 | MariaDB | The MySQL names with a `MARIADB_` prefix, with MySQL variables as fallbacks |
 | MongoDB | `MONGO_INITDB_ROOT_USERNAME`, `MONGO_INITDB_ROOT_PASSWORD`, `MONGO_INITDB_DATABASE` |
+| Redis | `REDIS_PASSWORD` |
 | CockroachDB | `COCKROACH_USER`, `COCKROACH_PASSWORD`, `COCKROACH_DATABASE` |
 
 Missing variables use the detection defaults. A PostgreSQL container with only `POSTGRES_DB` set uses the `postgres` user.
@@ -133,7 +134,7 @@ Named parameters such as `:customer_id` open a JSON value form before execution.
 
 Read-only profiles reject writes. Other profiles can ask for confirmation and show a write plan. Review the SQL and affected rows before accepting. See [write guards](configuration.md#profiles) and [write plans](configuration.md#write-plans).
 
-`Ctrl+X` asks for query cancellation and stops an export in progress. Cancellation support depends on the engine. CockroachDB, MongoDB, PlanetScale, SQL Server, SQLite, and Turso take no cancel. The key is hidden there, and the wheel of the run shows `this engine cannot stop a running statement`. Query cancel is `Ctrl+X`. `Ctrl+C` copies or quits.
+`Ctrl+X` asks for query cancellation and stops an export in progress. Cancellation support depends on the engine. CockroachDB, MongoDB, PlanetScale, Redis, SQL Server, SQLite, and Turso take no cancel. The key is hidden there, and the wheel of the run shows `this engine cannot stop a running statement`. Query cancel is `Ctrl+X`. `Ctrl+C` copies or quits.
 
 ## Transactions
 

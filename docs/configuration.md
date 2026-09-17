@@ -70,8 +70,8 @@ mode     = "write"
 | `engine` | `postgres` | See [engines.md](engines.md) for the list |
 | `host` | required | The form defaults to `127.0.0.1`. A path or `socket` connects over a unix socket; see [Unix socket](#unix-socket). Ignored for SQLite |
 | `port` | per engine | The server port |
-| `database` | required, except on MySQL-protocol engines | The database name, or the SQLite file path |
-| `user` | required if the engine needs one | Ignored for SQLite. Optional for MongoDB |
+| `database` | required, except on MySQL-protocol engines | The database name, the SQLite file path, or the Redis database number |
+| `user` | required if the engine needs one | Ignored for SQLite. Optional for Redis and MongoDB |
 | `auth` | `secret` if `secret` is set; otherwise `command` if `password_command` is set; otherwise `password` | The password source: `prompt`, `keyring`, `command`, `secret` or `password`. See [Passwords](#passwords) |
 | `password_env` | | The environment variable that holds the password. Read when `auth` is `password` |
 | `password_command` | | A shell command that prints the password on its first line. Read when `auth` is `command` |
@@ -249,7 +249,7 @@ select "remember in the keyring", or set password_env, password_command
 or a [secret] store
 ```
 
-Ignoring `password` does not change `auth`; the configured environment variable, command, secret store, or keyring still applies. The client prompts only when the selected source and engine need a prompt. SQLite needs no password. MongoDB without a user does not prompt unless `auth = "prompt"`. A test from the connection form asks for the password through the same dialog but keeps none of it.
+Ignoring `password` does not change `auth`; the configured environment variable, command, secret store, or keyring still applies. The client prompts only when the selected source and engine need a prompt. SQLite needs no password. MongoDB without a user does not prompt unless `auth = "prompt"`. Redis takes a password without a user: its server setting is `requirepass`, which has no user. A test from the connection form asks for the password through the same dialog but keeps none of it.
 
 `masume run` and `masume --mcp` cannot prompt. A password must come from a non-interactive source. Saving a profile removes an existing `password` assignment from that profile block.
 

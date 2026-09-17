@@ -86,6 +86,16 @@ services:
       timeout: 5s
       retries: 90
 
+  redis:
+    image: ${MASUME_TEST_REDIS_IMAGE:-redis:8-alpine}
+    ports:
+      - "127.0.0.1:55379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 1s
+      timeout: 5s
+      retries: 60
+
   # The libSQL server of Turso. The image ships no HTTP client, so the check opens the port
   # with bash and reads the status line of the health endpoint.
   libsql:

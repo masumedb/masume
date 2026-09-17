@@ -40,6 +40,8 @@ var imageEngines = []struct {
 	{"mariadb", core.EngineMariadb},
 	{"tidb", core.EngineTidb},
 	{"percona", core.EngineMysql},
+	{"valkey", core.EngineRedis},
+	{"redis", core.EngineRedis},
 	{"mongodb", core.EngineMongo},
 	{"azure-sql-edge", core.EngineSqlserver},
 	{"clickhouse-server", core.EngineClickhouse},
@@ -300,6 +302,13 @@ func applyClickhouseEnvironment(profile *cfg.Profile, environment map[string]str
 	}
 }
 
+// applyRedisEnvironment fills a Redis image. The server has no user, and a password belongs
+// to the server itself.
+func applyRedisEnvironment(profile *cfg.Profile, environment map[string]string) {
+	profile.Password = findFirstValue(environment, "REDIS_PASSWORD")
+	profile.Database = "0"
+}
+
 // resolveContainerSSLMode permits non-TLS connections for local containers.
 func resolveContainerSSLMode(engine core.Engine) core.SSLMode {
 	mode := core.ResolveEngineInfo(engine).DefaultSSLMode
@@ -357,6 +366,8 @@ func buildContainerProfile(held container) (cfg.Profile, bool) {
 		applyMysqlEnvironment(&profile, environment)
 	case core.FamilyMongo:
 		applyMongoEnvironment(&profile, environment)
+	case core.FamilyRedis:
+		applyRedisEnvironment(&profile, environment)
 	case core.FamilySqlserver:
 		applySqlserverEnvironment(&profile, environment)
 	case core.FamilyClickhouse:

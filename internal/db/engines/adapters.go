@@ -13,6 +13,7 @@ import (
 	"github.com/turanmahmudov/masume/internal/db/mysql"
 	"github.com/turanmahmudov/masume/internal/db/planetscale"
 	"github.com/turanmahmudov/masume/internal/db/postgres"
+	"github.com/turanmahmudov/masume/internal/db/redis"
 	"github.com/turanmahmudov/masume/internal/db/sqlite"
 	"github.com/turanmahmudov/masume/internal/db/sqlserver"
 	"github.com/turanmahmudov/masume/internal/db/tidb"
@@ -29,6 +30,7 @@ func CreateAdapters() Adapters {
 		core.EngineMysql:      mysql.NewAdapter(mysql.Support, mysql.FlavourStandard),
 		core.EngineSqlite:     sqlite.NewAdapter(sqlite.Support, sqlite.FlavourFile),
 		core.EngineMongo:      mongo.NewAdapter(mongo.Support),
+		core.EngineRedis:      redis.NewAdapter(redis.Support),
 		core.EngineSqlserver:  sqlserver.NewAdapter(sqlserver.Support),
 		core.EngineClickhouse: clickhouse.NewAdapter(clickhouse.Support),
 

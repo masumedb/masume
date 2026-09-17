@@ -5,6 +5,7 @@ import (
 
 	"github.com/turanmahmudov/masume/internal/db/mysql"
 	"github.com/turanmahmudov/masume/internal/db/postgres"
+	"github.com/turanmahmudov/masume/internal/db/redis"
 	"github.com/turanmahmudov/masume/internal/db/sqlite"
 	"github.com/turanmahmudov/masume/internal/db/sqlserver"
 	"github.com/turanmahmudov/masume/internal/query"
@@ -187,6 +188,7 @@ func TestGenerateDropSchemaWritesWhatTheEngineCallsASchema(t *testing.T) {
 		{"postgres removes a schema", postgres.Dialect, "drop schema \"sch\" restrict;"},
 		{"mysql removes a database", mysql.Dialect, "drop database `sch`;"},
 		{"sqlite lets a file go", sqlite.Dialect, "detach database \"sch\";"},
+		{"redis empties the numbered database", redis.Dialect, "FLUSHDB"},
 	} {
 		t.Run(held.name, func(t *testing.T) {
 			if got := build.GenerateDropSchema("sch", held.dialect); got != held.want {

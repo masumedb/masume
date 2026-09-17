@@ -8,7 +8,7 @@ import (
 // Model replies contain prose and proposed statements in code blocks.
 
 // statementFences is the set of code block language tags recognized as statements.
-const statementFences = "sql|js|javascript|mongodb|mongosh"
+const statementFences = "sql|js|javascript|mongodb|mongosh|redis"
 
 // fencedBlock matches one fenced block, with or without the language named.
 var fencedBlock = regexp.MustCompile(

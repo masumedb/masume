@@ -20,12 +20,12 @@ version = 1
 # ─────────────────────────────────────────────────────────────────────────────
 
 # [profile.shop]
-# engine               = "postgres"   # postgres mysql sqlserver clickhouse sqlite mongodb
+# engine               = "postgres"   # postgres mysql sqlserver clickhouse sqlite mongodb redis
 #                                     # timescale redshift neon supabase mariadb tidb
 #                                     # planetscale aurora-mysql aurora-postgres turso
 # host                 = "127.0.0.1"
 # port                 = 5432         # the engine default if omitted
-# database             = "shop"       # the file, for sqlite
+# database             = "shop"       # the file, for sqlite; the number, for redis
 # user                 = "you"
 # auth                 = "password"   # password command prompt keyring secret
 # password_env         = "PGPASSWORD" # read the password from the environment

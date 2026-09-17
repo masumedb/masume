@@ -365,6 +365,11 @@ var urlSchemes = func() map[string]core.Engine {
 // sslKeys are the query keys a URL can use for the SSL setting.
 var sslKeys = []string{"sslmode", "ssl-mode", "sslMode"}
 
+// tlsSchemes are the schemes that request TLS by their name, with the mode of each one. A
+// Redis client reads `rediss://` as a TLS connection that verifies the certificate, so a
+// URL without a mode must not fall back to an unencrypted connection.
+var tlsSchemes = map[string]core.SSLMode{"rediss": core.SSLVerifyFull}
+
 // ParseConnectionURL requires a supported scheme and host. A database is required only for an
 // engine that connects to one. The returned fields omit the password.
 func ParseConnectionURL(text string) (ConnectionURL, bool) {

@@ -154,6 +154,7 @@ The classifier uses statement structure. Effects it misses include:
 - An `UPDATE` without `WHERE` needs `full`, even when the statement changes no rows.
 - Creating a routine is a write. Its body does not change this.
 - MongoDB `runCommand` uses the command inside its document.
+- A Redis `EVAL`, `EVALSHA` or `FCALL` needs `full`, because the script can call any command. `EVAL_RO`, `EVALSHA_RO` and `FCALL_RO` are reads.
 - Unrecognized `SET` and `RESET` settings are writes. Recognized settings such as `search_path`, time zones, and timeouts can be reads.
 - Disabling read-only transactions is a write. `BEGIN READ WRITE` is a write.
 - MySQL and MariaDB executable comments use the statement inside the comment.
