@@ -111,7 +111,7 @@ Headless commands use `statement_timeout_ms`, `mode`, `page_size`, and `command`
 
 ### TLS
 
-Redshift, Neon, Supabase, PlanetScale, and Turso default to `require`. Other PostgreSQL-family and MySQL-family engines default to TLS with an unencrypted fallback. MongoDB defaults to no TLS. SQLite does not use TLS.
+Redshift, Neon, Supabase, PlanetScale, Turso, and Azure SQL Database default to `require`. Other PostgreSQL-family and MySQL-family engines default to TLS with an unencrypted fallback. MongoDB defaults to no TLS. SQLite does not use TLS.
 
 | Mode | Behaviour |
 | --- | --- |

@@ -13,7 +13,7 @@ Engines in one protocol family share a driver, but catalogs, SQL features, permi
 | SQLite | SQLite |
 | libSQL | Turso |
 | RESP | Redis |
-| TDS | SQL Server |
+| TDS | SQL Server, Azure SQL Database |
 | ClickHouse native | ClickHouse |
 | MongoDB wire | MongoDB |
 
@@ -25,6 +25,7 @@ Most capabilities are static defaults. The interface uses these flags to decide 
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | aurora-mysql | yes | yes | yes | yes | yes | no | yes | yes | yes | yes |
 | aurora-postgres | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
+| azure-sql | yes | yes | yes | no | yes | yes | no | yes | yes | yes |
 | clickhouse | yes | no | no | yes | yes | no | yes | yes | yes | yes |
 | cockroach | yes | yes | yes | no | no | no | no | yes | yes | yes |
 | mariadb | yes | yes | yes | yes | yes | no | yes | yes | yes | yes |
@@ -75,6 +76,7 @@ The dashboard omits unsupported panels. Activity, lock relationships, server loa
 | MySQL, MariaDB, Aurora MySQL | Activity, connections, connection limit, start time | `information_schema.processlist`, `performance_schema.global_status`, and `@@max_connections` |
 | ClickHouse | Running statements, connections, connection limit, start time, statement statistics | `system.processes`, `system.metrics`, `system.server_settings`, and `system.query_log` |
 | SQL Server | Activity, locks, connections, connection limit, start time, statement statistics | `sys.dm_exec_sessions`, `sys.dm_exec_requests`, `sys.dm_tran_locks`, `sys.dm_os_sys_info`, and the VIEW SERVER STATE permission |
+| Azure SQL Database | Activity, locks, statement statistics | The same views at database scope, and the VIEW DATABASE STATE permission |
 | Redshift, TiDB | Activity only | The adapter's activity query and sufficient permissions |
 | MongoDB | Current operations | `currentOp` and sufficient permissions |
 | Redis | Connected clients | `CLIENT LIST`, and `CLIENT KILL` to stop one |
@@ -94,7 +96,7 @@ Static capability flags do not check every statistics view, extension setting, o
 
 ## Read-only access
 
-The client rejects recognized writes for read-only profiles. PostgreSQL-family sessions also ask for server read-only mode. MySQL and MariaDB use `SET SESSION TRANSACTION READ ONLY`. SQLite opens existing files with `mode=ro`. ClickHouse uses `SET readonly = 2`, which rejects a write but still takes the settings the driver sends. MongoDB, SQL Server and Redis have client-only checks.
+The client rejects recognized writes for read-only profiles. PostgreSQL-family sessions also ask for server read-only mode. MySQL and MariaDB use `SET SESSION TRANSACTION READ ONLY`. SQLite opens existing files with `mode=ro`. ClickHouse uses `SET readonly = 2`, which rejects a write but still takes the settings the driver sends. MongoDB, SQL Server, Azure SQL Database and Redis have client-only checks.
 
 Turso takes no read-only connection. A read-only Turso profile has a client-only check.
 
@@ -121,6 +123,7 @@ A classified read can still have side effects. Database permissions remain separ
 | redis | 6379 | unset; no TLS |
 | redshift | 5439 | `require` |
 | sqlite | none | none |
+| azure-sql | 1433 | `require` |
 | sqlserver | 1433 | unset; the login only |
 | supabase | 5432 | `require` |
 | tidb | 4000 | `prefer` |
@@ -133,7 +136,7 @@ For PostgreSQL-family and MySQL-family engines, `allow` and `prefer` permit unen
 
 ClickHouse differs. The native protocol does not negotiate. Unset, `allow`, and `prefer` connect without encryption. `require` encrypts without certificate verification. `verify-ca` and `verify-full` verify it. An encrypted ClickHouse listens on a port of its own. The default is 9440.
 
-SQL Server differs. Unset, `allow`, and `prefer` encrypt the login. The rest of the session goes unencrypted. `disable` encrypts nothing. `require` encrypts the whole session without certificate verification. `verify-ca` and `verify-full` verify it.
+SQL Server differs. Azure SQL Database takes an encrypted session only, and its default is `require`. On SQL Server, unset, `allow`, and `prefer` encrypt the login. The rest of the session goes unencrypted. `disable` encrypts nothing. `require` encrypts the whole session without certificate verification. `verify-ca` and `verify-full` verify it.
 
 Redis differs. Unset or `disable` uses no TLS. Every other mode uses TLS. A `rediss://` target sets `verify-full`.
 
@@ -208,7 +211,7 @@ Set a user only for authenticated MongoDB connections. With a user, the adapter 
 
 ## SQL Server
 
-masume connects to SQL Server 2016 and later and Azure SQL Database. Both use TDS. The connection opens one database, and the relations of that database appear under their schemas. `dbo` is the default schema of most logins.
+masume connects to SQL Server 2016 and later, and to Azure SQL Database as the `azure-sql` engine. Both use TDS. The connection opens one database, and the relations of that database appear under their schemas. `dbo` is the default schema of most logins.
 
 A page after the first uses `OFFSET` and `FETCH NEXT`, which the server reads after a sort only. A page of a read with no sort of its own gets `ORDER BY (SELECT NULL)`, which keeps the rows in the order the server returns them; that order is not guaranteed between pages. Sort a read whose pages must line up. The first page takes no window, and the client caps the rows as it reads them. A read the server will not sort, such as `select next value for`, still runs. The generated `SELECT` of the object menu caps its rows with `TOP` instead.
 
@@ -225,6 +228,8 @@ An estimated plan comes from `SET SHOWPLAN_ALL ON`. A measured plan comes from `
 The dashboard stops another session with `KILL`, which ends the session and its transaction. T-SQL has no statement that stops one statement of another session. The activity list has no cancel, and the interface also has no cancel for a statement of this connection; `Ctrl+X` is not shown on a SQL Server connection. Set `statement_timeout_ms` to bound a statement instead. The client stops such a statement through the driver and opens the connection again afterwards. A stopped statement leaves the connection unusable, a transaction is lost with that connection, and the client says so.
 
 The server has no read-only session, and a read-only profile is enforced by this client alone. It also has no materialized view; an indexed view appears as a view.
+
+Azure SQL Database holds one database per connection, and `USE` does not reach another one. Its dynamic management views are scoped to that database and need the VIEW DATABASE STATE permission. The server load panel is hidden there: `@@max_connections` is a value of a whole instance, which the service does not hold.
 
 ## Redis
 

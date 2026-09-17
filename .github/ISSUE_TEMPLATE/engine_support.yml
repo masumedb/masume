@@ -31,6 +31,7 @@ body:
         - Aurora MySQL
         - Aurora PostgreSQL
         - Turso
+        - Azure SQL Database
         - An engine that the client does not support yet
     validations:
       required: true

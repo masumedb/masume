@@ -26,13 +26,17 @@ type Adapters map[core.Engine]db.Adapter
 // CreateAdapters builds adapters with engine-specific metadata and protocol settings.
 func CreateAdapters() Adapters {
 	return Adapters{
-		core.EnginePostgres:   postgres.NewAdapter(postgres.Support, postgres.FlavourStandard),
-		core.EngineMysql:      mysql.NewAdapter(mysql.Support, mysql.FlavourStandard),
-		core.EngineSqlite:     sqlite.NewAdapter(sqlite.Support, sqlite.FlavourFile),
-		core.EngineMongo:      mongo.NewAdapter(mongo.Support),
-		core.EngineRedis:      redis.NewAdapter(redis.Support),
-		core.EngineSqlserver:  sqlserver.NewAdapter(sqlserver.Support),
+		core.EnginePostgres:  postgres.NewAdapter(postgres.Support, postgres.FlavourStandard),
+		core.EngineMysql:     mysql.NewAdapter(mysql.Support, mysql.FlavourStandard),
+		core.EngineSqlite:    sqlite.NewAdapter(sqlite.Support, sqlite.FlavourFile),
+		core.EngineMongo:     mongo.NewAdapter(mongo.Support),
+		core.EngineRedis:     redis.NewAdapter(redis.Support),
+		core.EngineSqlserver: sqlserver.NewAdapter(sqlserver.Support),
+
 		core.EngineClickhouse: clickhouse.NewAdapter(clickhouse.Support),
+
+		// This uses the TDS protocol.
+		core.EngineAzureSQL: sqlserver.NewAdapter(ResolveSupport(core.EngineAzureSQL)),
 
 		// These use the PostgreSQL protocol.
 		core.EngineCockroach:      postgres.NewAdapter(ResolveSupport(core.EngineCockroach), postgres.FlavourCockroach),

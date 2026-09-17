@@ -62,6 +62,7 @@ body:
         - Aurora MySQL
         - Aurora PostgreSQL
         - Turso
+        - Azure SQL Database
         - Not about an engine
 
   - type: input

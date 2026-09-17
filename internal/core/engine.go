@@ -26,6 +26,7 @@ const (
 	EnginePlanetscale    Engine = "planetscale"
 	EngineAuroraMysql    Engine = "aurora-mysql"
 	EngineSqlserver      Engine = "sqlserver"
+	EngineAzureSQL       Engine = "azure-sql"
 	EngineClickhouse     Engine = "clickhouse"
 	EngineMongo          Engine = "mongodb"
 )
@@ -36,7 +37,7 @@ var Engines = []Engine{
 	EngineCockroach, EngineTimescale, EngineRedshift, EngineNeon, EngineSupabase, EngineAuroraPostgres,
 	EngineMariadb, EngineTidb, EnginePlanetscale, EngineAuroraMysql,
 	EngineTurso,
-	EngineSqlserver,
+	EngineSqlserver, EngineAzureSQL,
 	EngineClickhouse,
 	EngineMongo,
 }
@@ -193,6 +194,12 @@ var sqlserverCapabilities = Capabilities{
 	AppliesChangesTogether: true,
 }
 
+func withSqlserver(change func(*Capabilities)) Capabilities {
+	capabilities := sqlserverCapabilities
+	change(&capabilities)
+	return capabilities
+}
+
 var clickhouseCapabilities = Capabilities{
 	// EXPLAIN returns the plan of a read. No plan carries a measurement of a run.
 	PlansStatement:      true,
@@ -322,6 +329,18 @@ var engineRegistry = map[Engine]EngineInfo{
 		Engine: EngineSqlserver, Family: FamilySqlserver, Capabilities: sqlserverCapabilities,
 		DefaultPort: 1433, NeedsUser: true, NeedsPassword: true, NeedsDatabase: true,
 		URLSchemes: []string{"sqlserver", "mssql"}, SystemSchemas: sqlserverSystemSchemas,
+	},
+	EngineAzureSQL: {
+		Engine: EngineAzureSQL, Family: FamilySqlserver,
+		Capabilities: withSqlserver(func(capabilities *Capabilities) {
+			// The database reports no connection limit: `@@max_connections` is a value of
+			// a whole instance, which the service does not hold.
+			capabilities.ReportsServerLoad = false
+		}),
+		DefaultPort: 1433, NeedsUser: true, NeedsPassword: true, NeedsDatabase: true,
+		// The service accepts an encrypted connection only.
+		DefaultSSLMode: SSLRequire,
+		SystemSchemas:  sqlserverSystemSchemas,
 	},
 	EngineClickhouse: {
 		Engine: EngineClickhouse, Family: FamilyClickhouse,
