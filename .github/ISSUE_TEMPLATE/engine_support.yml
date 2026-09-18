@@ -33,6 +33,7 @@ body:
         - Turso
         - Azure SQL Database
         - Amazon DocumentDB
+        - YugabyteDB
         - An engine that the client does not support yet
     validations:
       required: true

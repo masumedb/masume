@@ -24,6 +24,7 @@ import (
 	"github.com/turanmahmudov/masume/internal/db/tidb"
 	"github.com/turanmahmudov/masume/internal/db/timescale"
 	"github.com/turanmahmudov/masume/internal/db/turso"
+	"github.com/turanmahmudov/masume/internal/db/yugabyte"
 )
 
 // support holds one entry per engine. An engine missing here cannot be opened.
@@ -46,6 +47,7 @@ var support = map[core.Engine]db.EngineSupport{
 	core.EngineNeon:           neon.Support,
 	core.EngineSupabase:       supabase.Support,
 	core.EngineAuroraPostgres: aurorapostgres.Support,
+	core.EngineYugabyte:       yugabyte.Support,
 
 	core.EngineMariadb:     mariadb.Support,
 	core.EngineTidb:        tidb.Support,

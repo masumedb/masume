@@ -8,7 +8,7 @@ Engines in one protocol family share a driver, but catalogs, SQL features, permi
 
 | Protocol | Engines |
 | --- | --- |
-| PostgreSQL | PostgreSQL, CockroachDB, TimescaleDB, Redshift, Neon, Supabase, Aurora PostgreSQL |
+| PostgreSQL | PostgreSQL, CockroachDB, TimescaleDB, Redshift, Neon, Supabase, Aurora PostgreSQL, YugabyteDB |
 | MySQL | MySQL, MariaDB, TiDB, PlanetScale, Aurora MySQL |
 | SQLite | SQLite |
 | libSQL | Turso |
@@ -43,6 +43,7 @@ Most capabilities are static defaults. The interface uses these flags to decide 
 | tidb | yes | yes | yes | yes | yes | no | no | yes | yes | yes |
 | timescale | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
 | turso | yes | no | yes | no | no | no | no | yes | no | yes |
+| yugabyte | yes | yes | yes | yes | yes | yes | no | yes | yes | yes |
 
 | Flag | Meaning |
 | --- | --- |
@@ -78,10 +79,13 @@ The dashboard omits unsupported panels. Activity, lock relationships, server loa
 | ClickHouse | Running statements, connections, connection limit, start time, statement statistics | `system.processes`, `system.metrics`, `system.server_settings`, and `system.query_log` |
 | SQL Server | Activity, locks, connections, connection limit, start time, statement statistics | `sys.dm_exec_sessions`, `sys.dm_exec_requests`, `sys.dm_tran_locks`, `sys.dm_os_sys_info`, and the VIEW SERVER STATE permission |
 | Azure SQL Database | Activity, locks, statement statistics | The same views at database scope, and the VIEW DATABASE STATE permission |
+| YugabyteDB | Activity, locks, statement statistics | `pg_stat_activity`, `pg_locks`, and `pg_stat_statements`, which the server loads by itself |
 | Redshift, TiDB | Activity only | The adapter's activity query and sufficient permissions |
 | MongoDB, Amazon DocumentDB | Current operations | `currentOp` and sufficient permissions |
 | Redis | Connected clients | `CLIENT LIST`, and `CLIENT KILL` to stop one |
 | CockroachDB, PlanetScale, SQLite, Turso | No dashboard metrics | None |
+
+YugabyteDB holds no write ahead log of PostgreSQL. `pg_current_wal_lsn()` answers `not yet supported`, which fails the whole load read, so the server load panel is hidden there. Activity, lock waits and statement statistics all work.
 
 PostgreSQL metrics use `pg_stat_activity`, `pg_locks`, `pg_stat_database`, WAL functions, and replication statistics. Replication lag appears only when the query returns a value. Cache hit rate needs recorded block reads or hits, and rates need successive counter samples.
 
@@ -131,6 +135,7 @@ A classified read can still have side effects. Database permissions remain separ
 | tidb | 4000 | `prefer` |
 | timescale | 5432 | `prefer` |
 | turso | 443 | `require` |
+| yugabyte | 5433 | `prefer` |
 
 Most PostgreSQL-family and MySQL-family engines with an unset `sslmode` behave as `prefer`.
 

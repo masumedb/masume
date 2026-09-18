@@ -35,7 +35,7 @@ masume --profile shop-prod
 
 | Form | Read as |
 | --- | --- |
-| A URL | Supported schemes: `postgres`, `postgresql`, `mysql`, `mariadb`, `cockroachdb`, `redshift`, `sqlserver`, `mssql`, `clickhouse`, `libsql`, `redis`, `rediss`, `mongodb` |
+| A URL | Supported schemes: `postgres`, `postgresql`, `mysql`, `mariadb`, `cockroachdb`, `yugabytedb`, `redshift`, `sqlserver`, `mssql`, `clickhouse`, `libsql`, `redis`, `rediss`, `mongodb` |
 | A connection string | `key=value` pairs: `engine`, `host`, `hostaddr`, `port`, `dbname`, `database`, `user`, `password`, `sslmode`. The default engine is `postgres` |
 | A file path | A SQLite path ending in `.db`, `.db3`, `.sqlite` or `.sqlite3`. Other extensions must have an existing SQLite header. `:memory:` is also accepted |
 

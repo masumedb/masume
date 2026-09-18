@@ -21,6 +21,7 @@ const (
 	EngineNeon           Engine = "neon"
 	EngineSupabase       Engine = "supabase"
 	EngineAuroraPostgres Engine = "aurora-postgres"
+	EngineYugabyte       Engine = "yugabyte"
 	EngineMariadb        Engine = "mariadb"
 	EngineTidb           Engine = "tidb"
 	EnginePlanetscale    Engine = "planetscale"
@@ -36,6 +37,7 @@ const (
 var Engines = []Engine{
 	EnginePostgres, EngineMysql, EngineSqlite, EngineRedis,
 	EngineCockroach, EngineTimescale, EngineRedshift, EngineNeon, EngineSupabase, EngineAuroraPostgres,
+	EngineYugabyte,
 	EngineMariadb, EngineTidb, EnginePlanetscale, EngineAuroraMysql,
 	EngineTurso,
 	EngineSqlserver, EngineAzureSQL,
@@ -314,6 +316,17 @@ var engineRegistry = map[Engine]EngineInfo{
 		DefaultPort: 5432, NeedsUser: true, NeedsPassword: true, NeedsDatabase: true,
 		SystemSchemas:        postgresCatalogSchemas,
 		SystemSchemaPrefixes: append(append([]string{}, postgresOwnPrefixes...), "aws_", "rds_"),
+	},
+	EngineYugabyte: {
+		Engine: EngineYugabyte, Family: FamilyPostgres,
+		Capabilities: withPostgres(func(capabilities *Capabilities) {
+			// The server holds no write ahead log of PostgreSQL, so it answers
+			// `pg_current_wal_lsn() is not yet supported` and the whole load read fails.
+			capabilities.ReportsServerLoad = false
+		}),
+		DefaultPort: 5433, NeedsUser: true, NeedsPassword: true, NeedsDatabase: true,
+		URLSchemes:    []string{"yugabytedb"},
+		SystemSchemas: postgresCatalogSchemas, SystemSchemaPrefixes: postgresOwnPrefixes,
 	},
 	EngineMysql: {
 		Engine: EngineMysql, Family: FamilyMysql, Capabilities: mysqlCapabilities,

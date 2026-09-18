@@ -64,6 +64,7 @@ body:
         - Turso
         - Azure SQL Database
         - Amazon DocumentDB
+        - YugabyteDB
         - Not about an engine
 
   - type: input

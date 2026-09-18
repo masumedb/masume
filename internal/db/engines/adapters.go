@@ -48,6 +48,7 @@ func CreateAdapters() Adapters {
 		core.EngineNeon:           postgres.NewAdapter(ResolveSupport(core.EngineNeon), postgres.FlavourStandard),
 		core.EngineSupabase:       postgres.NewAdapter(ResolveSupport(core.EngineSupabase), postgres.FlavourStandard),
 		core.EngineAuroraPostgres: postgres.NewAdapter(ResolveSupport(core.EngineAuroraPostgres), postgres.FlavourStandard),
+		core.EngineYugabyte:       postgres.NewAdapter(ResolveSupport(core.EngineYugabyte), postgres.FlavourStandard),
 
 		// These use the MySQL protocol.
 		core.EngineMariadb:     mysql.NewAdapter(ResolveSupport(core.EngineMariadb), mariadb.Flavour),
