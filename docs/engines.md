@@ -13,6 +13,7 @@ Engines in one protocol family share a driver, but catalogs, SQL features, permi
 | SQLite | SQLite |
 | libSQL | Turso |
 | RESP | Redis |
+| CQL | Cassandra |
 | TDS | SQL Server, Azure SQL Database |
 | ClickHouse native | ClickHouse |
 | MongoDB wire | MongoDB, Amazon DocumentDB |
@@ -25,6 +26,7 @@ Most capabilities are static defaults. The interface uses these flags to decide 
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | aurora-mysql | yes | yes | yes | yes | yes | no | yes | yes | yes | yes |
 | aurora-postgres | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
+| cassandra | no | no | no | no | no | no | no | no | yes | yes |
 | azure-sql | yes | yes | yes | no | yes | yes | no | yes | yes | yes |
 | clickhouse | yes | no | no | yes | yes | no | yes | yes | yes | yes |
 | cockroach | yes | yes | yes | no | no | no | no | yes | yes | yes |
@@ -63,8 +65,8 @@ MongoDB transaction and atomic staged-write flags depend on the deployment's `he
 | Flag | Default |
 | --- | --- |
 | Plans every statement | CockroachDB only |
-| Write previews | Every SQL engine except ClickHouse. No MongoDB |
-| Read-only mode | Every engine except TiDB. MongoDB, Amazon DocumentDB, SQL Server, Azure SQL Database, Redis and Turso enforcement is client-only |
+| Write previews | Every SQL engine except ClickHouse and Cassandra. No MongoDB |
+| Read-only mode | Every engine except TiDB. MongoDB, Amazon DocumentDB, SQL Server, Azure SQL Database, Redis, Cassandra and Turso enforcement is client-only |
 | Atomic staged changes | Every engine except ClickHouse, which holds no transaction. MongoDB adjusts this after connection |
 | Statement statistics | No engine before connection. PostgreSQL-family sessions enable this after an extension check, SQL Server sessions after a permission check, and ClickHouse sessions after a check of its query log |
 
@@ -83,7 +85,7 @@ The dashboard omits unsupported panels. Activity, lock relationships, server loa
 | Redshift, TiDB | Activity only | The adapter's activity query and sufficient permissions |
 | MongoDB, Amazon DocumentDB | Current operations | `currentOp` and sufficient permissions |
 | Redis | Connected clients | `CLIENT LIST`, and `CLIENT KILL` to stop one |
-| CockroachDB, PlanetScale, SQLite, Turso | No dashboard metrics | None |
+| CockroachDB, PlanetScale, SQLite, Turso, Cassandra | No dashboard metrics | None |
 
 YugabyteDB holds no write ahead log of PostgreSQL. `pg_current_wal_lsn()` answers `not yet supported`, which fails the whole load read, so the server load panel is hidden there. Activity, lock waits and statement statistics all work.
 
@@ -101,7 +103,7 @@ Static capability flags do not check every statistics view, extension setting, o
 
 ## Read-only access
 
-The client rejects recognized writes for read-only profiles. PostgreSQL-family sessions also ask for server read-only mode. MySQL and MariaDB use `SET SESSION TRANSACTION READ ONLY`. SQLite opens existing files with `mode=ro`. ClickHouse uses `SET readonly = 2`, which rejects a write but still takes the settings the driver sends. MongoDB, Amazon DocumentDB, SQL Server, Azure SQL Database and Redis have client-only checks.
+The client rejects recognized writes for read-only profiles. PostgreSQL-family sessions also ask for server read-only mode. MySQL and MariaDB use `SET SESSION TRANSACTION READ ONLY`. SQLite opens existing files with `mode=ro`. ClickHouse uses `SET readonly = 2`, which rejects a write but still takes the settings the driver sends. MongoDB, Amazon DocumentDB, SQL Server, Azure SQL Database, Redis and Cassandra have client-only checks.
 
 Turso opens no read-only connection, because the libSQL server takes no `mode=ro`. A read-only Turso profile has a client-only check.
 
@@ -117,6 +119,7 @@ A classified read can still have side effects. Database permissions remain separ
 | --- | --- | --- |
 | aurora-mysql | 3306 | `prefer` |
 | aurora-postgres | 5432 | `prefer` |
+| cassandra | 9042 | unset; no TLS |
 | clickhouse | 9000 | unset; no TLS |
 | cockroach | 26257 | `prefer` |
 | documentdb | 27017 | `require` |
@@ -144,6 +147,8 @@ For PostgreSQL-family and MySQL-family engines, `allow` and `prefer` permit unen
 ClickHouse differs. The native protocol does not negotiate. Unset, `allow`, and `prefer` connect without encryption. `require` encrypts without certificate verification. `verify-ca` and `verify-full` verify it. An encrypted ClickHouse listens on a port of its own. The default is 9440.
 
 SQL Server differs. Azure SQL Database takes an encrypted session only, and its default is `require`. On SQL Server, unset, `allow`, and `prefer` encrypt the login. The rest of the session goes unencrypted. `disable` encrypts nothing. `require` encrypts the whole session without certificate verification. `verify-ca` and `verify-full` verify it.
+
+Cassandra differs. Unset or `disable` uses no TLS. Every other mode uses TLS, and `verify-ca` and `verify-full` check the certificate.
 
 Redis differs. Unset or `disable` uses no TLS. Every other mode uses TLS. A `rediss://` target sets `verify-full`.
 
@@ -241,6 +246,20 @@ The dashboard stops another session with `KILL`, which ends the session and its 
 The server has no read-only session, and a read-only profile is enforced by this client alone. It also has no materialized view; an indexed view appears as a view.
 
 Azure SQL Database holds one database per connection, and `USE` does not reach another one. Its dynamic management views are scoped to that database and need the VIEW DATABASE STATE permission. The server load panel is hidden there: `@@max_connections` is a value of a whole instance, which the service does not hold.
+
+## Cassandra
+
+masume connects to Cassandra 4 and 5 over the native protocol; the default port is 9042. A keyspace is the schema, and the connection opens one of them. The tree draws every keyspace of the cluster.
+
+A query tab takes CQL. The statement separator is the semicolon, and a buffer that holds several statements runs them one at a time.
+
+The catalog comes from `system_schema`. A table lists its partition key first, then its clustering columns, then the rest by name, and a column outside the key takes a null. The definition of a table is built from that catalog, with the clustering order and the secondary indexes of the table.
+
+CQL has no `EXPLAIN`, no join, no transaction the user drives, and no `OFFSET`. A page after the first is taken from the rows above it, so a deep page costs the rows it skips. A row count is not offered, because counting reads every partition of the table. Staged changes run in one logged batch, which the server applies whole or not at all.
+
+The grid writes an edited cell as text, and the driver marshals a value by its Go type, so each value is cast to the type of its column before it is bound: a decimal, a uuid, a timestamp and a whole number each take their own form.
+
+The server has no read-only session, and a read-only profile is enforced by this client alone. The dashboard has no panel: `system_views.clients` lists the connections of one node, and no statement stops one.
 
 ## Redis
 

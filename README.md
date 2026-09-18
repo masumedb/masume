@@ -64,7 +64,7 @@ Both interfaces share database tools, but their policies differ. See [AI data sh
 
 ## Features
 
-**Multiple engines:** PostgreSQL, MySQL, SQL Server, ClickHouse, SQLite, Redis, and MongoDB. Hosted services based on them also work.
+**Multiple engines:** PostgreSQL, MySQL, SQL Server, ClickHouse, SQLite, Cassandra, Redis, and MongoDB. Hosted services based on them also work.
 
 **Staged edits:** Insert, edit, duplicate, and delete supported table rows. Then review the SQL. See [editing rows](docs/usage.md#editing-rows).
 
@@ -97,6 +97,8 @@ Both interfaces share database tools, but their policies differ. See [AI data sh
 **MongoDB:** A [subset of shell syntax](docs/engines.md#mongodb).
 
 **Redis:** [Commands in a query tab](docs/engines.md#redis), one per line.
+
+**Cassandra:** [CQL with the keyspace as the schema](docs/engines.md#cassandra).
 
 **Themes:** Built-in themes, custom themes, or terminal colours.
 

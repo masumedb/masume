@@ -31,6 +31,7 @@ const (
 	EngineClickhouse     Engine = "clickhouse"
 	EngineMongo          Engine = "mongodb"
 	EngineDocumentdb     Engine = "documentdb"
+	EngineCassandra      Engine = "cassandra"
 )
 
 // Engines lists every engine, in the order used by the docs.
@@ -43,6 +44,7 @@ var Engines = []Engine{
 	EngineSqlserver, EngineAzureSQL,
 	EngineClickhouse,
 	EngineMongo, EngineDocumentdb,
+	EngineCassandra,
 }
 
 // DefaultEngine is the engine used when a profile does not name one.
@@ -59,6 +61,7 @@ const (
 	FamilySqlserver  Family = "sqlserver"
 	FamilyClickhouse Family = "clickhouse"
 	FamilyRedis      Family = "redis"
+	FamilyCassandra  Family = "cassandra"
 	FamilyMongo      Family = "mongo"
 )
 
@@ -128,6 +131,12 @@ var sqlserverSystemSchemas = []string{
 	"db_owner", "db_accessadmin", "db_securityadmin", "db_ddladmin",
 	"db_backupoperator", "db_datareader", "db_datawriter",
 	"db_denydatareader", "db_denydatawriter",
+}
+
+// The keyspaces a Cassandra reserves for itself.
+var cassandraSystemSchemas = []string{
+	"system", "system_schema", "system_auth", "system_distributed", "system_traces",
+	"system_views", "system_virtual_schema",
 }
 
 // The databases every MySQL-protocol server reserves for itself.
@@ -396,6 +405,34 @@ var engineRegistry = map[Engine]EngineInfo{
 		NeedsPassword: true, NeedsDatabase: true, DefaultSSLMode: SSLRequire,
 		DefaultPort:   27017,
 		SystemSchemas: []string{"admin", "config", "local"},
+	},
+	EngineCassandra: {
+		Engine: EngineCassandra, Family: FamilyCassandra,
+		Capabilities: Capabilities{
+			// CQL has no EXPLAIN. Tracing writes its own rows and plans nothing.
+			PlansStatement: false,
+			MeasuresPlan:   false,
+			// system_views.clients lists the connections, and no statement stops one.
+			HasServerSessions:   false,
+			CancelsRunningQuery: false,
+			// The server holds no transaction the user drives.
+			HasTransactions: false,
+			// An ORDER BY takes a clustering column of the partition read, and nothing else.
+			SortsRead:      false,
+			TruncatesTable: true,
+			WritesDDL:      true,
+			// A write returns no count of the rows it changed.
+			PlansWrites: false,
+			// The server has no read-only session, so this client blocks the write.
+			TakesReadOnlyMode: true,
+			// CQL joins nothing.
+			JoinsTables: false,
+			// A logged batch applies every statement in it, or none.
+			AppliesChangesTogether: true,
+		},
+		DefaultPort: 9042, NeedsPassword: true, NeedsDatabase: true,
+		URLSchemes:    []string{"cassandra"},
+		SystemSchemas: cassandraSystemSchemas,
 	},
 	EngineRedis: {
 		Engine: EngineRedis, Family: FamilyRedis,

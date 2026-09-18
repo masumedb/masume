@@ -7,6 +7,7 @@ import (
 	"github.com/turanmahmudov/masume/internal/core"
 	"github.com/turanmahmudov/masume/internal/db"
 	"github.com/turanmahmudov/masume/internal/db/auroramysql"
+	"github.com/turanmahmudov/masume/internal/db/cassandra"
 	"github.com/turanmahmudov/masume/internal/db/clickhouse"
 	"github.com/turanmahmudov/masume/internal/db/mariadb"
 	"github.com/turanmahmudov/masume/internal/db/mongo"
@@ -31,6 +32,7 @@ func CreateAdapters() Adapters {
 		core.EngineSqlite:    sqlite.NewAdapter(sqlite.Support, sqlite.FlavourFile),
 		core.EngineMongo:     mongo.NewAdapter(mongo.Support),
 		core.EngineRedis:     redis.NewAdapter(redis.Support),
+		core.EngineCassandra: cassandra.NewAdapter(cassandra.Support),
 		core.EngineSqlserver: sqlserver.NewAdapter(sqlserver.Support),
 
 		core.EngineClickhouse: clickhouse.NewAdapter(clickhouse.Support),

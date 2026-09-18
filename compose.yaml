@@ -86,6 +86,27 @@ services:
       timeout: 5s
       retries: 90
 
+  # The server takes about a minute to open its port, so the check runs for longer than the
+  # others. The image has no variable for a keyspace, so the check creates one, as the SQL
+  # Server check creates its database.
+  cassandra:
+    image: ${MASUME_TEST_CASSANDRA_IMAGE:-cassandra:5}
+    environment:
+      CASSANDRA_CLUSTER_NAME: masume
+      # A single node needs no more heap than this, and the image would take a quarter of
+      # the machine without it.
+      MAX_HEAP_SIZE: 512M
+      HEAP_NEWSIZE: 128M
+    ports:
+      - "127.0.0.1:55942:9042"
+    healthcheck:
+      test: ["CMD-SHELL",
+             "cqlsh -e \"create keyspace if not exists masume_test with replication =
+                {'class': 'SimpleStrategy', 'replication_factor': 1}\" > /dev/null"]
+      interval: 5s
+      timeout: 10s
+      retries: 60
+
   redis:
     image: ${MASUME_TEST_REDIS_IMAGE:-redis:8-alpine}
     ports:

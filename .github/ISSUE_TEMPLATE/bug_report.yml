@@ -65,6 +65,7 @@ body:
         - Azure SQL Database
         - Amazon DocumentDB
         - YugabyteDB
+        - Cassandra
         - Not about an engine
 
   - type: input

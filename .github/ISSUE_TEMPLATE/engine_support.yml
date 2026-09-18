@@ -34,6 +34,7 @@ body:
         - Azure SQL Database
         - Amazon DocumentDB
         - YugabyteDB
+        - Cassandra
         - An engine that the client does not support yet
     validations:
       required: true

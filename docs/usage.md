@@ -35,7 +35,7 @@ masume --profile shop-prod
 
 | Form | Read as |
 | --- | --- |
-| A URL | Supported schemes: `postgres`, `postgresql`, `mysql`, `mariadb`, `cockroachdb`, `yugabytedb`, `redshift`, `sqlserver`, `mssql`, `clickhouse`, `libsql`, `redis`, `rediss`, `mongodb` |
+| A URL | Supported schemes: `postgres`, `postgresql`, `mysql`, `mariadb`, `cockroachdb`, `yugabytedb`, `redshift`, `sqlserver`, `mssql`, `clickhouse`, `cassandra`, `libsql`, `redis`, `rediss`, `mongodb` |
 | A connection string | `key=value` pairs: `engine`, `host`, `hostaddr`, `port`, `dbname`, `database`, `user`, `password`, `sslmode`. The default engine is `postgres` |
 | A file path | A SQLite path ending in `.db`, `.db3`, `.sqlite` or `.sqlite3`. Other extensions must have an existing SQLite header. `:memory:` is also accepted |
 
@@ -134,7 +134,7 @@ Named parameters such as `:customer_id` open a JSON value form before execution.
 
 Read-only profiles reject writes. Other profiles can ask for confirmation and show a write plan. Review the SQL and affected rows before accepting. See [write guards](configuration.md#profiles) and [write plans](configuration.md#write-plans).
 
-`Ctrl+X` asks for query cancellation and stops an export in progress. Cancellation support depends on the engine. Amazon DocumentDB, Azure SQL Database, CockroachDB, MongoDB, PlanetScale, Redis, SQL Server, SQLite, and Turso take no cancel. The key is hidden there, and the wheel of the run shows `this engine cannot stop a running statement`. Query cancel is `Ctrl+X`. `Ctrl+C` copies or quits.
+`Ctrl+X` asks for query cancellation and stops an export in progress. Cancellation support depends on the engine. Amazon DocumentDB, Azure SQL Database, Cassandra, CockroachDB, MongoDB, PlanetScale, Redis, SQL Server, SQLite, and Turso take no cancel. The key is hidden there, and the wheel of the run shows `this engine cannot stop a running statement`. Query cancel is `Ctrl+X`. `Ctrl+C` copies or quits.
 
 ## Transactions
 

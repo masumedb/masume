@@ -7,6 +7,7 @@ import (
 	"github.com/turanmahmudov/masume/internal/db/auroramysql"
 	"github.com/turanmahmudov/masume/internal/db/aurorapostgres"
 	"github.com/turanmahmudov/masume/internal/db/azuresql"
+	"github.com/turanmahmudov/masume/internal/db/cassandra"
 	"github.com/turanmahmudov/masume/internal/db/clickhouse"
 	"github.com/turanmahmudov/masume/internal/db/cockroach"
 	"github.com/turanmahmudov/masume/internal/db/documentdb"
@@ -33,6 +34,7 @@ var support = map[core.Engine]db.EngineSupport{
 	core.EngineMysql:      mysql.Support,
 	core.EngineSqlite:     sqlite.Support,
 	core.EngineRedis:      redis.Support,
+	core.EngineCassandra:  cassandra.Support,
 	core.EngineTurso:      turso.Support,
 	core.EngineMongo:      mongo.Support,
 	core.EngineDocumentdb: documentdb.Support,
