@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"testing"
+	"unicode/utf8"
 
 	"github.com/turanmahmudov/masume/internal/app"
 )
@@ -222,6 +223,30 @@ func TestReplaceMatchesAnswersNothingForATermThatIsNotThere(t *testing.T) {
 	}
 }
 
+func TestReplaceMatchesCarriesTheCaretWithTheText(t *testing.T) {
+	// The caret stands on the "o" of "orders", with one match before it.
+	buffer := app.NewEditorBuffer("select id from orders where id = 1", 15)
+
+	buffer.ReplaceMatches("id", "identifier")
+	if buffer.Text[buffer.Caret:buffer.Caret+6] != "orders" {
+		t.Errorf("the caret stands at %d, on %q", buffer.Caret, buffer.Text[buffer.Caret:])
+	}
+}
+
+func TestReplaceMatchesLeavesTheCaretOnACharacterStart(t *testing.T) {
+	// The caret stands on the "ä", with one shorter match written before it.
+	buffer := app.NewEditorBuffer("select id, 'ä' from orders", len("select id, '"))
+
+	buffer.ReplaceMatches("id", "x")
+	if !utf8.RuneStart(buffer.Text[buffer.Caret]) {
+		t.Errorf("the caret at %d stands inside a character of %q", buffer.Caret, buffer.Text)
+	}
+	buffer.DeleteForward()
+	if !utf8.ValidString(buffer.Text) {
+		t.Errorf("a delete after the replace broke the text: %q", buffer.Text)
+	}
+}
+
 func TestReplaceMatchesUndoesInOneStep(t *testing.T) {
 	buffer := app.NewEditorBuffer("id and id", 0)
 	buffer.ReplaceMatches("id", "key")
@@ -229,5 +254,49 @@ func TestReplaceMatchesUndoesInOneStep(t *testing.T) {
 	buffer.Undo()
 	if buffer.Text != "id and id" {
 		t.Errorf("one undo answered %q, wanted the whole replace taken back", buffer.Text)
+	}
+}
+
+func TestIndentLinesSelectsNothingWithoutASelection(t *testing.T) {
+	// The caret stands on the "s" of the second line.
+	buffer := app.NewEditorBuffer("select id\nfrom orders", 10)
+
+	if !buffer.IndentLines(2) {
+		t.Fatal("reported that it changed nothing")
+	}
+	if buffer.HasSelection() {
+		t.Errorf("the indent selected %q", buffer.Selection())
+	}
+	// The caret keeps the character it stood on, which the indent moved two cells right.
+	if buffer.Caret != 12 {
+		t.Errorf("the caret stands at %d, wanted 12", buffer.Caret)
+	}
+}
+
+func TestCommentLinesSelectsNothingWithoutASelection(t *testing.T) {
+	buffer := app.NewEditorBuffer("select id\nfrom orders", 10)
+
+	if !buffer.CommentLines("--") {
+		t.Fatal("reported that it changed nothing")
+	}
+	if buffer.HasSelection() {
+		t.Errorf("the comment selected %q", buffer.Selection())
+	}
+	if buffer.Caret != 13 {
+		t.Errorf("the caret stands at %d, wanted 13", buffer.Caret)
+	}
+}
+
+func TestOutdentLinesSelectsNothingWithoutASelection(t *testing.T) {
+	buffer := app.NewEditorBuffer("select id\n    from orders", 14)
+
+	if !buffer.OutdentLines(4) {
+		t.Fatal("reported that it changed nothing")
+	}
+	if buffer.HasSelection() {
+		t.Errorf("the outdent selected %q", buffer.Selection())
+	}
+	if buffer.Caret != 10 {
+		t.Errorf("the caret stands at %d, wanted 10", buffer.Caret)
 	}
 }

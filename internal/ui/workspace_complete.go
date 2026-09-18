@@ -105,8 +105,7 @@ func (model *Model) acceptCompletion(connection *app.Connection, tab *app.Tab) {
 	}
 	written, caret := editor.ApplyCompletion(
 		tab.Editor.Text, tab.Editor.Caret, chosen, connection.Session.Dialect())
-	tab.Editor.SetText(written)
-	tab.Editor.Caret = caret
+	tab.Editor.SetTextWithCaret(written, caret)
 	tab.Completion.Close()
 }
 

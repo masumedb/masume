@@ -161,3 +161,24 @@ func TestShiftAndAnArrowStillGrowTheSelection(t *testing.T) {
 		t.Error("Shift and Up selected nothing")
 	}
 }
+
+// A candidate taken in the middle of a statement leaves no selection behind it. The text after
+// the caret was selected, and the next typed character replaced it.
+func TestATakenCandidateSelectsNothing(t *testing.T) {
+	written := "select 1;\nselect * from ord\nselect 3;\nselect 4;"
+	model, connection, tab := buildScannedModel(t)
+	tab.Focus = app.PaneEditor
+	tab.Editor = app.NewEditorBuffer(written, strings.Index(written, "\nselect 3;"))
+	model.refreshCompletion(connection, tab)
+	if !tab.Completion.IsListing() {
+		t.Skipf("the statement %q offered nothing", written)
+	}
+
+	model.acceptCompletion(connection, tab)
+	if tab.Editor.HasSelection() {
+		t.Errorf("the taken candidate selected %q", tab.Editor.Selection())
+	}
+	if !strings.HasSuffix(tab.Editor.Text, "\nselect 3;\nselect 4;") {
+		t.Errorf("the taken candidate wrote %q", tab.Editor.Text)
+	}
+}

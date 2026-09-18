@@ -308,11 +308,22 @@ func (buffer *EditorBuffer) OutdentLines(width int) bool {
 	return true
 }
 
-// replaceLines replaces a line range and selects the replacement.
+// replaceLines replaces a line range and selects the replacement. Without a selection the
+// caret keeps its place in the line and nothing is selected.
 func (buffer *EditorBuffer) replaceLines(start, end int, written string) {
+	selecting := buffer.HasSelection()
+	caret := buffer.Caret
 	buffer.rememberBefore(editWhole)
 	buffer.Text = buffer.Text[:start] + written + buffer.Text[end:]
 	buffer.Anchor, buffer.Caret = start, start+len(written)
+	if !selecting {
+		moved := caret + len(written) - (end - start)
+		if moved < start {
+			moved = start
+		}
+		buffer.Caret = buffer.snapToRune(core.ClampWithin(moved, start+len(written)))
+		buffer.ClearSelection()
+	}
 	buffer.hasWanted = false
 	buffer.lastEdit = editWhole
 }
@@ -624,10 +635,25 @@ func (buffer *EditorBuffer) ReplaceMatches(term, written string) int {
 	built.WriteString(buffer.Text[at:])
 
 	buffer.Text = built.String()
-	buffer.Caret = core.ClampWithin(buffer.Caret, len(buffer.Text))
+	buffer.Caret = buffer.moveOverReplacements(buffer.Caret, found, len(term), len(written))
 	buffer.ClearSelection()
 	buffer.hasWanted = false
 	return len(found)
+}
+
+// moveOverReplacements returns where an offset stands after the replacements before it. An
+// offset inside a match moves to the end of what was written in its place.
+func (buffer *EditorBuffer) moveOverReplacements(offset int, found []int, term, written int) int {
+	moved := offset
+	for _, start := range found {
+		switch {
+		case start+term <= offset:
+			moved += written - term
+		case start < offset:
+			moved += start + written - offset
+		}
+	}
+	return buffer.snapToRune(core.ClampWithin(moved, len(buffer.Text)))
 }
 
 // Undo restores the previous buffer state and reports success.
