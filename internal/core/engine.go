@@ -430,11 +430,7 @@ var engineRegistry = map[Engine]EngineInfo{
 		DefaultPort: 0, OpensFile: true, NeedsDatabase: true,
 	},
 	EngineTurso: {
-		Engine: EngineTurso, Family: FamilySqlite,
-		Capabilities: withSqlite(func(capabilities *Capabilities) {
-			// The server takes no read-only connection, so the client checks every write.
-			capabilities.TakesReadOnlyMode = false
-		}),
+		Engine: EngineTurso, Family: FamilySqlite, Capabilities: sqliteCapabilities,
 		// The database is the host name of the server, and the auth token is the password.
 		DefaultPort: 443, NeedsPassword: true, DefaultSSLMode: SSLRequire,
 		URLSchemes: []string{"libsql"},
@@ -452,12 +448,6 @@ var engineRegistry = map[Engine]EngineInfo{
 
 func withPostgres(change func(*Capabilities)) Capabilities {
 	capabilities := postgresCapabilities
-	change(&capabilities)
-	return capabilities
-}
-
-func withSqlite(change func(*Capabilities)) Capabilities {
-	capabilities := sqliteCapabilities
 	change(&capabilities)
 	return capabilities
 }

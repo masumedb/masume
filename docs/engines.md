@@ -64,7 +64,7 @@ MongoDB transaction and atomic staged-write flags depend on the deployment's `he
 | --- | --- |
 | Plans every statement | CockroachDB only |
 | Write previews | Every SQL engine except ClickHouse. No MongoDB |
-| Read-only mode | Every engine except TiDB and Turso. MongoDB, SQL Server and Turso enforcement is client-only |
+| Read-only mode | Every engine except TiDB. MongoDB, Amazon DocumentDB, SQL Server, Azure SQL Database, Redis and Turso enforcement is client-only |
 | Atomic staged changes | Every engine except ClickHouse, which holds no transaction. MongoDB adjusts this after connection |
 | Statement statistics | No engine before connection. PostgreSQL-family sessions enable this after an extension check, SQL Server sessions after a permission check, and ClickHouse sessions after a check of its query log |
 
@@ -103,7 +103,7 @@ Static capability flags do not check every statistics view, extension setting, o
 
 The client rejects recognized writes for read-only profiles. PostgreSQL-family sessions also ask for server read-only mode. MySQL and MariaDB use `SET SESSION TRANSACTION READ ONLY`. SQLite opens existing files with `mode=ro`. ClickHouse uses `SET readonly = 2`, which rejects a write but still takes the settings the driver sends. MongoDB, Amazon DocumentDB, SQL Server, Azure SQL Database and Redis have client-only checks.
 
-Turso takes no read-only connection. A read-only Turso profile has a client-only check.
+Turso opens no read-only connection, because the libSQL server takes no `mode=ro`. A read-only Turso profile has a client-only check.
 
 TiDB does not enforce the session read-only statement. An explicit TiDB profile with `mode = "read-only"` fails during connection.
 
