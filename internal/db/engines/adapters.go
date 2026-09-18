@@ -35,6 +35,9 @@ func CreateAdapters() Adapters {
 
 		core.EngineClickhouse: clickhouse.NewAdapter(clickhouse.Support),
 
+		// This uses the MongoDB wire protocol.
+		core.EngineDocumentdb: mongo.NewAdapter(ResolveSupport(core.EngineDocumentdb)),
+
 		// This uses the TDS protocol.
 		core.EngineAzureSQL: sqlserver.NewAdapter(ResolveSupport(core.EngineAzureSQL)),
 

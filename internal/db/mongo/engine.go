@@ -47,3 +47,13 @@ var Support = db.EngineSupport{
 	Language:   Language,
 	Compose:    NewComposer(Dialect),
 }
+
+// BuildSupport combines engine metadata with the MongoDB dialect and language.
+func BuildSupport(engine core.Engine) db.EngineSupport {
+	return db.EngineSupport{
+		EngineInfo: core.ResolveEngineInfo(engine),
+		Dialect:    Dialect,
+		Language:   Language,
+		Compose:    NewComposer(Dialect),
+	}
+}

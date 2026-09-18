@@ -15,7 +15,7 @@ Engines in one protocol family share a driver, but catalogs, SQL features, permi
 | RESP | Redis |
 | TDS | SQL Server, Azure SQL Database |
 | ClickHouse native | ClickHouse |
-| MongoDB wire | MongoDB |
+| MongoDB wire | MongoDB, Amazon DocumentDB |
 
 ## Capabilities
 
@@ -28,6 +28,7 @@ Most capabilities are static defaults. The interface uses these flags to decide 
 | azure-sql | yes | yes | yes | no | yes | yes | no | yes | yes | yes |
 | clickhouse | yes | no | no | yes | yes | no | yes | yes | yes | yes |
 | cockroach | yes | yes | yes | no | no | no | no | yes | yes | yes |
+| documentdb | yes | yes | yes | no | yes | no | no | yes | no | no |
 | mariadb | yes | yes | yes | yes | yes | no | yes | yes | yes | yes |
 | mongodb | yes | yes | yes | no | yes | no | no | yes | no | no |
 | mysql | yes | yes | yes | yes | yes | no | yes | yes | yes | yes |
@@ -78,7 +79,7 @@ The dashboard omits unsupported panels. Activity, lock relationships, server loa
 | SQL Server | Activity, locks, connections, connection limit, start time, statement statistics | `sys.dm_exec_sessions`, `sys.dm_exec_requests`, `sys.dm_tran_locks`, `sys.dm_os_sys_info`, and the VIEW SERVER STATE permission |
 | Azure SQL Database | Activity, locks, statement statistics | The same views at database scope, and the VIEW DATABASE STATE permission |
 | Redshift, TiDB | Activity only | The adapter's activity query and sufficient permissions |
-| MongoDB | Current operations | `currentOp` and sufficient permissions |
+| MongoDB, Amazon DocumentDB | Current operations | `currentOp` and sufficient permissions |
 | Redis | Connected clients | `CLIENT LIST`, and `CLIENT KILL` to stop one |
 | CockroachDB, PlanetScale, SQLite, Turso | No dashboard metrics | None |
 
@@ -96,7 +97,7 @@ Static capability flags do not check every statistics view, extension setting, o
 
 ## Read-only access
 
-The client rejects recognized writes for read-only profiles. PostgreSQL-family sessions also ask for server read-only mode. MySQL and MariaDB use `SET SESSION TRANSACTION READ ONLY`. SQLite opens existing files with `mode=ro`. ClickHouse uses `SET readonly = 2`, which rejects a write but still takes the settings the driver sends. MongoDB, SQL Server, Azure SQL Database and Redis have client-only checks.
+The client rejects recognized writes for read-only profiles. PostgreSQL-family sessions also ask for server read-only mode. MySQL and MariaDB use `SET SESSION TRANSACTION READ ONLY`. SQLite opens existing files with `mode=ro`. ClickHouse uses `SET readonly = 2`, which rejects a write but still takes the settings the driver sends. MongoDB, Amazon DocumentDB, SQL Server, Azure SQL Database and Redis have client-only checks.
 
 Turso takes no read-only connection. A read-only Turso profile has a client-only check.
 
@@ -114,6 +115,7 @@ A classified read can still have side effects. Database permissions remain separ
 | aurora-postgres | 5432 | `prefer` |
 | clickhouse | 9000 | unset; no TLS |
 | cockroach | 26257 | `prefer` |
+| documentdb | 27017 | `require` |
 | mariadb | 3306 | `prefer` |
 | mongodb | 27017 | unset; no TLS |
 | mysql | 3306 | `prefer` |
@@ -139,6 +141,8 @@ ClickHouse differs. The native protocol does not negotiate. Unset, `allow`, and 
 SQL Server differs. Azure SQL Database takes an encrypted session only, and its default is `require`. On SQL Server, unset, `allow`, and `prefer` encrypt the login. The rest of the session goes unencrypted. `disable` encrypts nothing. `require` encrypts the whole session without certificate verification. `verify-ca` and `verify-full` verify it.
 
 Redis differs. Unset or `disable` uses no TLS. Every other mode uses TLS. A `rediss://` target sets `verify-full`.
+
+Amazon DocumentDB takes an encrypted connection only, and its default is `require`.
 
 MongoDB differs. Unset or `disable` uses no TLS. Explicit `allow`, `prefer`, and `require` need TLS. They use no certificate verification. They have no unencrypted fallback. MongoDB also supports `verify-ca` and `verify-full`.
 
@@ -206,6 +210,8 @@ Plans support `find`, `aggregate`, `count`, `countDocuments`, and `distinct`. Sh
 Collection metadata samples up to 100 documents. Result columns come from the returned documents. Streaming columns come from the first batch. A column with different non-null types is `mixed`. Staged edits use the row's `_id`.
 
 Streaming omits fields first encountered after the first batch and reports an error. Headless output can already be incomplete at that point. See [headless streaming](headless.md#memory-and-streaming).
+
+Amazon DocumentDB speaks the same wire protocol and takes the same calls, as the `documentdb` engine. The cluster takes an encrypted connection only, so its default `sslmode` is `require`, and it reaches this client through an SSH tunnel or a bastion where the VPC has no public route. A transaction needs an engine version of 4.0 or later, and the session reads the deployment at connect as it does for MongoDB.
 
 Set a user only for authenticated MongoDB connections. With a user, the adapter supplies credentials; without one, it supplies none. The client has no authentication settings beyond the profile fields. Native URL query options do not provide them.
 

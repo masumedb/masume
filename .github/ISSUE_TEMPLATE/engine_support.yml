@@ -32,6 +32,7 @@ body:
         - Aurora PostgreSQL
         - Turso
         - Azure SQL Database
+        - Amazon DocumentDB
         - An engine that the client does not support yet
     validations:
       required: true

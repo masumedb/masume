@@ -29,6 +29,7 @@ const (
 	EngineAzureSQL       Engine = "azure-sql"
 	EngineClickhouse     Engine = "clickhouse"
 	EngineMongo          Engine = "mongodb"
+	EngineDocumentdb     Engine = "documentdb"
 )
 
 // Engines lists every engine, in the order used by the docs.
@@ -39,7 +40,7 @@ var Engines = []Engine{
 	EngineTurso,
 	EngineSqlserver, EngineAzureSQL,
 	EngineClickhouse,
-	EngineMongo,
+	EngineMongo, EngineDocumentdb,
 }
 
 // DefaultEngine is the engine used when a profile does not name one.
@@ -200,6 +201,31 @@ func withSqlserver(change func(*Capabilities)) Capabilities {
 	return capabilities
 }
 
+var mongoCapabilities = Capabilities{
+	// The server explains a find and an aggregate, and it can measure both.
+	PlansStatement: true,
+	MeasuresPlan:   true,
+	// The client only requests plans for reads.
+	PlansEveryStatement: false,
+	// currentOp lists every running operation, and killOp stops one.
+	HasServerSessions: true,
+	// The driver cancels through the context. A second connection cannot find
+	// the operation id of the call it would stop.
+	CancelsRunningQuery: false,
+	// Transactions require a replica set or sharded cluster. The connected session checks deployment support.
+	HasTransactions: true,
+	// A find accepts a sort, so the server sorts the page.
+	SortsRead: true,
+	// Emptying a collection deletes all documents.
+	TruncatesTable: false,
+	// Every statement is a command, so the object menu has no SQL to generate.
+	WritesDDL: false,
+	// The server has no read-only session, so this client blocks the write.
+	TakesReadOnlyMode: true,
+	// Atomic changes require transactions. The connected session checks deployment support.
+	AppliesChangesTogether: true,
+}
+
 var clickhouseCapabilities = Capabilities{
 	// EXPLAIN returns the plan of a read. No plan carries a measurement of a run.
 	PlansStatement:      true,
@@ -351,6 +377,13 @@ var engineRegistry = map[Engine]EngineInfo{
 		// views under two names of one database. `default` holds tables of the user.
 		SystemSchemas: []string{"system", "information_schema"},
 	},
+	EngineDocumentdb: {
+		Engine: EngineDocumentdb, Family: FamilyMongo, Capabilities: mongoCapabilities,
+		// The cluster accepts a TLS connection only.
+		NeedsPassword: true, NeedsDatabase: true, DefaultSSLMode: SSLRequire,
+		DefaultPort:   27017,
+		SystemSchemas: []string{"admin", "config", "local"},
+	},
 	EngineRedis: {
 		Engine: EngineRedis, Family: FamilyRedis,
 		Capabilities: Capabilities{
@@ -395,30 +428,7 @@ var engineRegistry = map[Engine]EngineInfo{
 	},
 	EngineMongo: {
 		Engine: EngineMongo, Family: FamilyMongo,
-		Capabilities: Capabilities{
-			// The server explains a find and an aggregate, and it can measure both.
-			PlansStatement: true,
-			MeasuresPlan:   true,
-			// The client only requests plans for reads.
-			PlansEveryStatement: false,
-			// currentOp lists every running operation, and killOp stops one.
-			HasServerSessions: true,
-			// The driver cancels through the context. A second connection cannot find
-			// the operation id of the call it would stop.
-			CancelsRunningQuery: false,
-			// Transactions require a replica set or sharded cluster. The connected session checks deployment support.
-			HasTransactions: true,
-			// A find accepts a sort, so the server sorts the page.
-			SortsRead: true,
-			// Emptying a collection deletes all documents.
-			TruncatesTable: false,
-			// Every statement is a command, so the object menu has no SQL to generate.
-			WritesDDL: false,
-			// The server has no read-only session, so this client blocks the write.
-			TakesReadOnlyMode: true,
-			// Atomic changes require transactions. The connected session checks deployment support.
-			AppliesChangesTogether: true,
-		},
+		Capabilities: mongoCapabilities,
 		// A username enables authentication and password lookup. Profiles without a user omit authentication.
 		NeedsPassword: true, NeedsDatabase: true,
 		DefaultPort:   27017,

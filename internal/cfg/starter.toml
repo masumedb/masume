@@ -23,7 +23,7 @@ version = 1
 # engine               = "postgres"   # postgres mysql sqlserver clickhouse sqlite mongodb redis
 #                                     # timescale redshift neon supabase mariadb tidb
 #                                     # planetscale aurora-mysql aurora-postgres
-#                                     # turso azure-sql
+#                                     # turso azure-sql documentdb
 # host                 = "127.0.0.1"
 # port                 = 5432         # the engine default if omitted
 # database             = "shop"       # the file, for sqlite; the number, for redis
