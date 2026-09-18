@@ -24,7 +24,7 @@ version = 1
 #                                     # timescale redshift neon supabase mariadb tidb
 #                                     # planetscale aurora-mysql aurora-postgres
 #                                     # turso azure-sql documentdb
-#                                     # yugabyte cassandra
+#                                     # yugabyte cassandra scylladb
 # host                 = "127.0.0.1"
 # port                 = 5432         # the engine default if omitted
 # database             = "shop"       # the file, for sqlite; the number, for redis

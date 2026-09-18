@@ -32,6 +32,7 @@ const (
 	EngineMongo          Engine = "mongodb"
 	EngineDocumentdb     Engine = "documentdb"
 	EngineCassandra      Engine = "cassandra"
+	EngineScylladb       Engine = "scylladb"
 )
 
 // Engines lists every engine, in the order used by the docs.
@@ -44,7 +45,7 @@ var Engines = []Engine{
 	EngineSqlserver, EngineAzureSQL,
 	EngineClickhouse,
 	EngineMongo, EngineDocumentdb,
-	EngineCassandra,
+	EngineCassandra, EngineScylladb,
 }
 
 // DefaultEngine is the engine used when a profile does not name one.
@@ -237,6 +238,29 @@ var mongoCapabilities = Capabilities{
 	AppliesChangesTogether: true,
 }
 
+var cassandraCapabilities = Capabilities{
+	// CQL has no EXPLAIN. Tracing writes its own rows and plans nothing.
+	PlansStatement: false,
+	MeasuresPlan:   false,
+	// system_views.clients lists the connections, and no statement stops one.
+	HasServerSessions:   false,
+	CancelsRunningQuery: false,
+	// The server holds no transaction the user drives.
+	HasTransactions: false,
+	// An ORDER BY takes a clustering column of the partition read, and nothing else.
+	SortsRead:      false,
+	TruncatesTable: true,
+	WritesDDL:      true,
+	// A write returns no count of the rows it changed.
+	PlansWrites: false,
+	// The server has no read-only session, so this client blocks the write.
+	TakesReadOnlyMode: true,
+	// CQL joins nothing.
+	JoinsTables: false,
+	// A logged batch applies every statement in it, or none.
+	AppliesChangesTogether: true,
+}
+
 var clickhouseCapabilities = Capabilities{
 	// EXPLAIN returns the plan of a read. No plan carries a measurement of a run.
 	PlansStatement:      true,
@@ -408,31 +432,18 @@ var engineRegistry = map[Engine]EngineInfo{
 	},
 	EngineCassandra: {
 		Engine: EngineCassandra, Family: FamilyCassandra,
-		Capabilities: Capabilities{
-			// CQL has no EXPLAIN. Tracing writes its own rows and plans nothing.
-			PlansStatement: false,
-			MeasuresPlan:   false,
-			// system_views.clients lists the connections, and no statement stops one.
-			HasServerSessions:   false,
-			CancelsRunningQuery: false,
-			// The server holds no transaction the user drives.
-			HasTransactions: false,
-			// An ORDER BY takes a clustering column of the partition read, and nothing else.
-			SortsRead:      false,
-			TruncatesTable: true,
-			WritesDDL:      true,
-			// A write returns no count of the rows it changed.
-			PlansWrites: false,
-			// The server has no read-only session, so this client blocks the write.
-			TakesReadOnlyMode: true,
-			// CQL joins nothing.
-			JoinsTables: false,
-			// A logged batch applies every statement in it, or none.
-			AppliesChangesTogether: true,
-		},
-		DefaultPort: 9042, NeedsPassword: true, NeedsDatabase: true,
+		Capabilities: cassandraCapabilities,
+		DefaultPort:  9042, NeedsPassword: true, NeedsDatabase: true,
 		URLSchemes:    []string{"cassandra"},
 		SystemSchemas: cassandraSystemSchemas,
+	},
+	EngineScylladb: {
+		Engine: EngineScylladb, Family: FamilyCassandra,
+		Capabilities: cassandraCapabilities,
+		DefaultPort:  9042, NeedsPassword: true, NeedsDatabase: true,
+		URLSchemes: []string{"scylla"},
+		SystemSchemas: append(append([]string{}, cassandraSystemSchemas...),
+			"system_replicated_keys", "system_distributed_everywhere", "audit"),
 	},
 	EngineRedis: {
 		Engine: EngineRedis, Family: FamilyRedis,

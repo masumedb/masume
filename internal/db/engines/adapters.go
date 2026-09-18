@@ -33,6 +33,9 @@ func CreateAdapters() Adapters {
 		core.EngineMongo:     mongo.NewAdapter(mongo.Support),
 		core.EngineRedis:     redis.NewAdapter(redis.Support),
 		core.EngineCassandra: cassandra.NewAdapter(cassandra.Support),
+
+		// This speaks the Cassandra protocol.
+		core.EngineScylladb:  cassandra.NewAdapter(ResolveSupport(core.EngineScylladb)),
 		core.EngineSqlserver: sqlserver.NewAdapter(sqlserver.Support),
 
 		core.EngineClickhouse: clickhouse.NewAdapter(clickhouse.Support),

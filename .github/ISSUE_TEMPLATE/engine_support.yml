@@ -35,6 +35,7 @@ body:
         - Amazon DocumentDB
         - YugabyteDB
         - Cassandra
+        - ScyllaDB
         - An engine that the client does not support yet
     validations:
       required: true

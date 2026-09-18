@@ -19,6 +19,7 @@ import (
 	"github.com/turanmahmudov/masume/internal/db/postgres"
 	"github.com/turanmahmudov/masume/internal/db/redis"
 	"github.com/turanmahmudov/masume/internal/db/redshift"
+	"github.com/turanmahmudov/masume/internal/db/scylladb"
 	"github.com/turanmahmudov/masume/internal/db/sqlite"
 	"github.com/turanmahmudov/masume/internal/db/sqlserver"
 	"github.com/turanmahmudov/masume/internal/db/supabase"
@@ -35,6 +36,7 @@ var support = map[core.Engine]db.EngineSupport{
 	core.EngineSqlite:     sqlite.Support,
 	core.EngineRedis:      redis.Support,
 	core.EngineCassandra:  cassandra.Support,
+	core.EngineScylladb:   scylladb.Support,
 	core.EngineTurso:      turso.Support,
 	core.EngineMongo:      mongo.Support,
 	core.EngineDocumentdb: documentdb.Support,
