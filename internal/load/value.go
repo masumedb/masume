@@ -23,8 +23,13 @@ var timestampLayouts = []string{
 	"2006-01-02 15:04:05",
 	"2006-01-02 15:04",
 	"2006-01-02",
-	"02/01/2006",
+	slashLayout,
 }
+
+// slashLayout is a date written with slashes, day first. A file written month first holds
+// the same shape, so a column of these is a date only where one value of it has a first
+// number over twelve.
+const slashLayout = "02/01/2006"
 
 // booleanWords are the supported boolean strings and their values.
 var booleanWords = map[string]bool{
@@ -73,10 +78,26 @@ func readTextKind(written string) core.ColumnKind {
 			return core.KindNumber
 		}
 	}
-	if _, read := ReadTimestamp(trimmed); read {
+	if _, read := ReadTimestamp(trimmed); read && !holdsSlashDate(trimmed) {
 		return core.KindTimestamp
 	}
 	return core.KindText
+}
+
+// holdsSlashDate is true for a date written with slashes.
+func holdsSlashDate(written string) bool {
+	_, err := time.Parse(slashLayout, written)
+	return err == nil
+}
+
+// provesDayFirst is true for a slash date whose first number is over twelve, which no month
+// is, so the file writes the day first.
+func provesDayFirst(written string) bool {
+	if !holdsSlashDate(written) {
+		return false
+	}
+	day, err := strconv.Atoi(written[:strings.Index(written, "/")])
+	return err == nil && day > 12
 }
 
 // holdsDigitOnly is true for non-empty text containing only digits.
@@ -107,6 +128,9 @@ func ReadTimestamp(written string) (time.Time, bool) {
 
 // ResolveColumnKind returns a type for all column values. An all-null column uses text.
 func ResolveColumnKind(values []any) core.ColumnKind {
+	if holdsDayFirstDates(values) {
+		return core.KindTimestamp
+	}
 	resolved := core.ColumnKind("")
 	for _, value := range values {
 		kind, holds := ReadValueKind(value)
@@ -124,6 +148,28 @@ func ResolveColumnKind(values []any) core.ColumnKind {
 	return resolved
 }
 
+// holdsDayFirstDates is true for a column of slash dates where one of them proves that the
+// file writes the day first. A column of dates that could be read either way is text, so no
+// date is written the wrong way round.
+func holdsDayFirstDates(values []any) bool {
+	proven := false
+	held := 0
+	for _, value := range values {
+		written, isText := value.(string)
+		if value == nil || (isText && strings.TrimSpace(written) == "") {
+			continue
+		}
+		if !isText || !holdsSlashDate(strings.TrimSpace(written)) {
+			return false
+		}
+		held++
+		if provesDayFirst(strings.TrimSpace(written)) {
+			proven = true
+		}
+	}
+	return proven && held > 0
+}
+
 // ValueError is an import value conversion error.
 type ValueError struct{ Reason string }
 
@@ -138,6 +184,10 @@ func CastValue(value any, kind core.ColumnKind) (any, error) {
 	written := ""
 	switch held := value.(type) {
 	case string:
+		// A text column takes the value as the file wrote it, with the blanks it holds.
+		if kind == core.KindText {
+			return held, nil
+		}
 		written = strings.TrimSpace(held)
 	case json.Number:
 		written = held.String()

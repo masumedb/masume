@@ -678,3 +678,53 @@ func TestReadSampleCountsTheLinesOfAJSONFile(t *testing.T) {
 		t.Errorf("a file that opens with the mark read %d rows, wanted 2", len(held.Rows))
 	}
 }
+
+// A text column takes the value the file wrote, with the blanks around it and with an empty
+// value of its own. A trim would change the data on the way in.
+func TestCastValueKeepsTheBlanksOfATextValue(t *testing.T) {
+	for _, held := range []struct {
+		written string
+		want    any
+	}{
+		{"  padded  ", "  padded  "},
+		{"   ", "   "},
+		{"", ""},
+	} {
+		answered, err := load.CastValue(held.written, core.KindText)
+		if err != nil {
+			t.Fatalf("%q failed: %v", held.written, err)
+		}
+		if answered != held.want {
+			t.Errorf("%q answered %#v, wanted %#v", held.written, answered, held.want)
+		}
+	}
+}
+
+// A number or a date is read from the value without the blanks around it.
+func TestCastValueReadsANumberWithoutItsBlanks(t *testing.T) {
+	answered, err := load.CastValue("  42 ", core.KindInteger)
+	if err != nil || answered != int64(42) {
+		t.Errorf("answered %#v (%v), wanted 42", answered, err)
+	}
+}
+
+// A date written with slashes reads either way round, so a column of them is text unless one
+// value proves that the file writes the day first.
+func TestResolveColumnKindLeavesAmbiguousSlashDatesAsText(t *testing.T) {
+	if kind := load.ResolveColumnKind([]any{"03/04/2024", "05/06/2024"}); kind != core.KindText {
+		t.Errorf("answered %s, wanted text for dates that read either way", kind)
+	}
+}
+
+func TestResolveColumnKindReadsSlashDatesTheFileProvesAreDayFirst(t *testing.T) {
+	kind := load.ResolveColumnKind([]any{"03/04/2024", "25/12/2024", nil})
+	if kind != core.KindTimestamp {
+		t.Errorf("answered %s, wanted a date column", kind)
+	}
+}
+
+func TestResolveColumnKindReadsAnIsoDateOnItsOwn(t *testing.T) {
+	if kind := load.ResolveColumnKind([]any{"2024-04-03"}); kind != core.KindTimestamp {
+		t.Errorf("answered %s, wanted a date column", kind)
+	}
+}
