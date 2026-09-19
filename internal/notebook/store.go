@@ -127,5 +127,5 @@ func Save(path string, book Notebook) error {
 	if err := os.MkdirAll(filepath.Dir(full), 0o700); err != nil {
 		return err
 	}
-	return os.WriteFile(full, []byte(Write(book)), 0o600)
+	return core.WriteFileWholly(full, []byte(Write(book)), 0o600)
 }

@@ -1,6 +1,7 @@
 package core_test
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -44,5 +45,44 @@ func TestResolveStatePathFallsBackBesideTheHomeDirectory(t *testing.T) {
 	want := filepath.Join(home, ".local", "state", "masume", "history.json")
 	if held != want {
 		t.Errorf("the path reads %q, wanted %q", held, want)
+	}
+}
+
+func TestWriteFileWhollyLeavesNoTemporaryFileBehind(t *testing.T) {
+	directory := t.TempDir()
+	path := filepath.Join(directory, "book.md")
+
+	if err := core.WriteFileWholly(path, []byte("one"), 0o600); err != nil {
+		t.Fatalf("the first write failed: %v", err)
+	}
+	if err := core.WriteFileWholly(path, []byte("two"), 0o600); err != nil {
+		t.Fatalf("the second write failed: %v", err)
+	}
+
+	held, err := os.ReadFile(path)
+	if err != nil || string(held) != "two" {
+		t.Errorf("the file holds %q (%v), wanted the second write", held, err)
+	}
+	entries, err := os.ReadDir(directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 {
+		t.Errorf("the directory holds %d files, wanted the written one alone", len(entries))
+	}
+	state, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Mode().Perm() != 0o600 {
+		t.Errorf("the file stands at mode %v", state.Mode().Perm())
+	}
+}
+
+func TestWriteFileWhollyKeepsTheFileWhereTheDirectoryIsMissing(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "gone", "book.md")
+
+	if err := core.WriteFileWholly(path, []byte("one"), 0o600); err == nil {
+		t.Error("a write into a directory that is not there reported no error")
 	}
 }
