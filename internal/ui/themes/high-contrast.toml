@@ -1,0 +1,35 @@
+# High Contrast, for a screen or an eye that needs the widest separation. The ground is
+# black, the text is white, and every mark stands at 5:1 or more against the pane.
+
+title = "High Contrast"
+appearance = "dark"
+
+[palette]
+white = "#ffffff"
+gold = "#ffd400"
+violet = "#d7a0ff"
+orange = "#ff9e3d"
+cyan = "#00d7ff"
+green = "#5cff8f"
+red = "#ff5f5f"
+red-deep = "#ff2e2e"
+
+[colors]
+background = "#000000"
+panel = "#000000"
+header = "#1f1f1f"
+zebra = "#0d0d0d"
+border = "#767676"
+border_focus = "white"
+selection = "#333333"
+text = "white"
+muted = "#e6e6e6"
+faint = "#b0b0b0"
+accent = "gold"
+accent_alt = "violet"
+accent_warm = "orange"
+info = "cyan"
+success = "green"
+warning = "gold"
+danger = "red"
+error = "red-deep"

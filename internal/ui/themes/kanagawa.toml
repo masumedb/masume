@@ -1,0 +1,38 @@
+# Kanagawa, the wave variant of rebelot/kanagawa.nvim. The three text steps are
+# fujiWhite, oldWhite and fujiGray. A failure takes samuraiRed and a production mark
+# takes waveRed, so the two never match.
+
+title = "Kanagawa"
+appearance = "dark"
+
+[palette]
+fuji-white = "#dcd7ba"
+old-white = "#c8c093"
+fuji-gray = "#727169"
+crystal-blue = "#7e9cd8"
+oni-violet = "#957fb8"
+surimi-orange = "#ffa066"
+spring-blue = "#7fb4ca"
+spring-green = "#98bb6c"
+carp-yellow = "#e6c384"
+wave-red = "#e46876"
+samurai-red = "#e82424"
+
+[colors]
+background = "#16161d"
+panel = "#1f1f28"
+header = "#2a2a37"
+zebra = "#24242f"
+border = "#363646"
+border_focus = "crystal-blue"
+text = "fuji-white"
+muted = "old-white"
+faint = "fuji-gray"
+accent = "crystal-blue"
+accent_alt = "oni-violet"
+accent_warm = "surimi-orange"
+info = "spring-blue"
+success = "spring-green"
+warning = "carp-yellow"
+danger = "wave-red"
+error = "samurai-red"

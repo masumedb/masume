@@ -1,0 +1,36 @@
+# High Contrast Light, the light half of the high contrast pair. The ground is white,
+# the text is black, and every mark stands at 5:1 or more against the pane.
+
+title = "High Contrast Light"
+appearance = "light"
+
+[palette]
+black = "#000000"
+blue = "#0b57d0"
+purple = "#6a1b9a"
+orange = "#b34700"
+teal = "#006d75"
+green = "#00701a"
+yellow = "#7a5200"
+red = "#c00000"
+magenta = "#a21caf"
+
+[colors]
+background = "#ffffff"
+panel = "#ffffff"
+header = "#e0e0e0"
+zebra = "#f2f2f2"
+border = "#6b6b6b"
+border_focus = "black"
+selection = "#cfcfcf"
+text = "black"
+muted = "#1a1a1a"
+faint = "#4f4f4f"
+accent = "blue"
+accent_alt = "purple"
+accent_warm = "orange"
+info = "teal"
+success = "green"
+warning = "yellow"
+danger = "red"
+error = "magenta"

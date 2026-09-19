@@ -1,0 +1,34 @@
+# masume slate. The ground is a cool steel ink, the text is a blue-grey white, and
+# the three accents are a muted blue, a lavender and an orange.
+
+title = "masume slate"
+appearance = "dark"
+
+[palette]
+steel = "#7fb0e0"
+lavender = "#b9a3e6"
+orange = "#e8a06e"
+cyan = "#79c6d6"
+sage = "#9dbf8a"
+gold = "#e3c173"
+rose = "#e88495"
+crimson = "#d95f6e"
+
+[colors]
+background = "#0d1116"
+panel = "#12171e"
+header = "#1a212b"
+zebra = "#161c24"
+border = "#252e3a"
+border_focus = "steel"
+text = "#d3d9e0"
+muted = "#95a1b1"
+faint = "#66738a"
+accent = "steel"
+accent_alt = "lavender"
+accent_warm = "orange"
+info = "cyan"
+success = "sage"
+warning = "gold"
+danger = "rose"
+error = "crimson"

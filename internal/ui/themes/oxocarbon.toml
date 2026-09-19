@@ -1,0 +1,37 @@
+# Oxocarbon, from nyoom-engineering/oxocarbon.nvim, which follows the IBM Carbon
+# palette. The grounds are the Carbon grey ramp from 100 to 70.
+
+title = "Oxocarbon"
+appearance = "dark"
+
+[palette]
+white = "#f2f4f8"
+grey-40 = "#a8a8a8"
+grey-50 = "#7b7b7b"
+blue = "#78a9ff"
+purple = "#be95ff"
+pink = "#ff7eb6"
+cyan = "#33b1ff"
+green = "#42be65"
+yellow = "#f1c21b"
+magenta = "#ee5396"
+red = "#fa4d56"
+
+[colors]
+background = "#0d0d0d"
+panel = "#161616"
+header = "#262626"
+zebra = "#1c1c1c"
+border = "#393939"
+border_focus = "blue"
+text = "white"
+muted = "grey-40"
+faint = "grey-50"
+accent = "blue"
+accent_alt = "purple"
+accent_warm = "pink"
+info = "cyan"
+success = "green"
+warning = "yellow"
+danger = "magenta"
+error = "red"

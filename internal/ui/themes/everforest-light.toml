@@ -1,0 +1,37 @@
+# Everforest Light, the medium contrast light variant of sainnhe/everforest. Every
+# accent is stepped toward the ink until it reads on a pane, because Everforest tunes
+# them against text. The text steps are one under fg, fg itself, and one over grey1.
+
+title = "Everforest Light"
+appearance = "light"
+
+[palette]
+ink = "#414e55"
+fg = "#5c6a72"
+grey = "#7a8878"
+red = "#e33c3c"
+orange = "#c25a0e"
+yellow = "#a07400"
+green = "#68760a"
+aqua = "#1e7f5c"
+blue = "#2b7ba6"
+purple = "#b8458f"
+
+[colors]
+background = "#f4f0d9"
+panel = "#fdf6e3"
+header = "#e6e2cc"
+zebra = "#efebd4"
+border = "#ddd8c0"
+border_focus = "blue"
+text = "ink"
+muted = "fg"
+faint = "grey"
+accent = "blue"
+accent_alt = "purple"
+accent_warm = "orange"
+info = "aqua"
+success = "green"
+warning = "yellow"
+danger = "red"
+error = "#a32828"

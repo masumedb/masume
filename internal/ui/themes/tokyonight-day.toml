@@ -1,0 +1,38 @@
+# Tokyo Night Day, the day variant of folke/tokyonight.nvim. Its blue foreground is the
+# middle text step, with a darker one over it and the comment blue under it. Every
+# accent is stepped toward the ink until it reads on a pane.
+
+title = "Tokyo Night Day"
+appearance = "light"
+
+[palette]
+ink = "#2c4585"
+fg = "#3760bf"
+comment = "#6172b0"
+blue = "#1a5fc8"
+cyan = "#00697e"
+magenta = "#7a3fd0"
+orange = "#9c4f00"
+yellow = "#7a5c2e"
+green = "#4c6b2f"
+red = "#c9184a"
+red1 = "#a63030"
+
+[colors]
+background = "#d0d5e3"
+panel = "#e1e2e7"
+header = "#c4c8da"
+zebra = "#d8dae3"
+border = "#a8aecb"
+border_focus = "blue"
+text = "ink"
+muted = "fg"
+faint = "comment"
+accent = "blue"
+accent_alt = "magenta"
+accent_warm = "orange"
+info = "cyan"
+success = "green"
+warning = "yellow"
+danger = "red"
+error = "red1"

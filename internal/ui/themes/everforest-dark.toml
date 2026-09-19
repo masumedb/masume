@@ -1,0 +1,39 @@
+# Everforest Dark, the medium contrast dark variant of sainnhe/everforest. The middle
+# text step is one between fg and grey1, because this needs three steps at 4.5:1,
+# 4.5:1 and 3:1 against a pane. The failure red is one step under the theme's red.
+
+title = "Everforest Dark"
+appearance = "dark"
+
+[palette]
+fg = "#d3c6aa"
+grey2 = "#9da9a0"
+grey1 = "#859289"
+blue = "#7fbbb3"
+purple = "#d699b6"
+orange = "#e69875"
+aqua = "#83c092"
+green = "#a7c080"
+yellow = "#dbbc7f"
+red = "#e67e80"
+red-deep = "#d15b5b"
+
+[colors]
+background = "#232a2e"
+panel = "#2d353b"
+header = "#3d484d"
+zebra = "#343f44"
+border = "#475258"
+border_focus = "blue"
+selection = "#434f55"
+text = "fg"
+muted = "grey2"
+faint = "grey1"
+accent = "blue"
+accent_alt = "purple"
+accent_warm = "orange"
+info = "aqua"
+success = "green"
+warning = "yellow"
+danger = "red"
+error = "red-deep"

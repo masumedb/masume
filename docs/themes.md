@@ -14,22 +14,37 @@ The value is the file name without `.toml`; `ayu-dark` is the default and the fa
 | File | Title | Appearance |
 | --- | --- | --- |
 | `ayu-dark` | Ayu Dark | dark |
+| `masume-ember` | masume ember | dark |
+| `masume-indigo` | masume indigo | dark |
+| `masume-slate` | masume slate | dark |
+| `ayu-mirage` | Ayu Mirage | dark |
 | `tokyonight` | Tokyo Night | dark |
 | `catppuccin-mocha` | Catppuccin Mocha | dark |
+| `kanagawa` | Kanagawa | dark |
+| `everforest-dark` | Everforest Dark | dark |
 | `gruvbox-dark` | Gruvbox Dark | dark |
 | `dracula` | Dracula | dark |
 | `nord` | Nord | dark |
 | `one-dark` | One Dark | dark |
+| `night-owl` | Night Owl | dark |
+| `oxocarbon` | Oxocarbon | dark |
 | `monokai` | Monokai | dark |
 | `github-dark` | GitHub Dark | dark |
 | `rose-pine` | Rosé Pine | dark |
 | `solarized-dark` | Solarized Dark | dark |
+| `high-contrast` | High Contrast | dark |
 | `catppuccin-latte` | Catppuccin Latte | light |
 | `github-light` | GitHub Light | light |
 | `one-light` | One Light | light |
+| `ayu-light` | Ayu Light | light |
+| `everforest-light` | Everforest Light | light |
+| `tokyonight-day` | Tokyo Night Day | light |
 | `gruvbox-light` | Gruvbox Light | light |
 | `solarized-light` | Solarized Light | light |
 | `rose-pine-dawn` | Rosé Pine Dawn | light |
+| `high-contrast-light` | High Contrast Light | light |
+
+`high-contrast` and `high-contrast-light` are the widest separation of ink and ground, for a screen or an eye that needs it.
 
 ## System theme
 

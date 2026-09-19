@@ -1,0 +1,35 @@
+# masume ember. The ground is a warm near-black in four close steps, the text is a
+# warm white, and the three accents are a gold, a lilac and a coral.
+
+title = "masume ember"
+appearance = "dark"
+
+[palette]
+gold = "#f0b45e"
+lilac = "#cba6f0"
+coral = "#f08a63"
+sky = "#7cc0dc"
+olive = "#a9c185"
+amber = "#e8c46a"
+rose = "#ec7b8b"
+crimson = "#e0565f"
+
+[colors]
+background = "#0c0a09"
+panel = "#100d0c"
+header = "#191513"
+zebra = "#131110"
+border = "#221d1a"
+border_focus = "gold"
+text = "#e6ded4"
+muted = "#a79b90"
+faint = "#726760"
+accent = "gold"
+accent_alt = "lilac"
+accent_warm = "coral"
+info = "sky"
+success = "olive"
+warning = "amber"
+danger = "rose"
+error = "crimson"
+

@@ -1,0 +1,34 @@
+# masume indigo. The ground is a blue-black ink, the text is a cool white, and the
+# three accents are a periwinkle, a mauve and an amber.
+
+title = "masume indigo"
+appearance = "dark"
+
+[palette]
+periwinkle = "#a6a9ff"
+mauve = "#dda6e0"
+amber = "#f3b671"
+sky = "#79bdf0"
+sage = "#93c79a"
+gold = "#ecc06a"
+rose = "#f4788f"
+crimson = "#e0596a"
+
+[colors]
+background = "#0e1016"
+panel = "#13151d"
+header = "#1c1f2b"
+zebra = "#171a24"
+border = "#272b3a"
+border_focus = "periwinkle"
+text = "#d6d8e2"
+muted = "#979eb4"
+faint = "#69708a"
+accent = "periwinkle"
+accent_alt = "mauve"
+accent_warm = "amber"
+info = "sky"
+success = "sage"
+warning = "gold"
+danger = "rose"
+error = "crimson"

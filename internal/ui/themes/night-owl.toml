@@ -1,0 +1,37 @@
+# Night Owl, from sdras/night-owl-vscode-theme. The middle text step is added: Night
+# Owl names a foreground and a comment grey, and this needs three steps.
+
+title = "Night Owl"
+appearance = "dark"
+
+[palette]
+fg = "#d6deeb"
+fg-subtle = "#9db3c8"
+grey = "#637777"
+blue = "#82aaff"
+purple = "#c792ea"
+orange = "#f78c6c"
+cyan = "#7fdbca"
+green = "#addb67"
+tan = "#ecc48d"
+red = "#ef5350"
+pink = "#ff5874"
+
+[colors]
+background = "#010e1a"
+panel = "#011627"
+header = "#0b2942"
+zebra = "#04203a"
+border = "#1d3b53"
+border_focus = "blue"
+text = "fg"
+muted = "fg-subtle"
+faint = "grey"
+accent = "blue"
+accent_alt = "purple"
+accent_warm = "orange"
+info = "cyan"
+success = "green"
+warning = "tan"
+danger = "red"
+error = "pink"

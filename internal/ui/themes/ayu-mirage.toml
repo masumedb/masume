@@ -1,0 +1,34 @@
+# Ayu Mirage, from `themes/mirage.yaml` of ayu-theme/ayu-colors. It follows the same
+# roles as Ayu Dark on the lighter mirage grounds.
+
+title = "Ayu Mirage"
+appearance = "dark"
+
+[palette]
+gold = "#ffcc66"
+purple = "#dfbfff"
+sky = "#73d0ff"
+tangerine = "#ffa759"
+lime = "#d5ff80"
+amber = "#ffd580"
+rose = "#f28779"
+brick = "#ff6666"
+
+[colors]
+background = "#1f2430"
+panel = "#242936"
+header = "#343f4c"
+zebra = "#282e3b"
+border = "#3d4757"
+border_focus = "gold"
+text = "#cccac2"
+muted = "#9aa5b5"
+faint = "#707a8c"
+accent = "gold"
+accent_alt = "purple"
+accent_warm = "tangerine"
+info = "sky"
+success = "lime"
+warning = "amber"
+danger = "rose"
+error = "brick"

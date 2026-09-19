@@ -1,0 +1,35 @@
+# Ayu Light, from `themes/light.yaml` of ayu-theme/ayu-colors. Every accent is stepped
+# toward the ink until it reads on a pane, because Ayu tunes them against text. The
+# text step over Ayu's own foreground is added, so there are three.
+
+title = "Ayu Light"
+appearance = "light"
+
+[palette]
+gold = "#a06800"
+purple = "#8a5cc0"
+sky = "#1a7fc1"
+tangerine = "#c25d0d"
+lime = "#5f7d00"
+amber = "#b07d00"
+rose = "#d1435b"
+brick = "#a01818"
+
+[colors]
+background = "#eef0f2"
+panel = "#fcfcfc"
+header = "#e6e9ec"
+zebra = "#f5f6f8"
+border = "#dcdfe3"
+border_focus = "gold"
+text = "#3c4043"
+muted = "#5c6166"
+faint = "#8a9199"
+accent = "gold"
+accent_alt = "purple"
+accent_warm = "tangerine"
+info = "sky"
+success = "lime"
+warning = "amber"
+danger = "rose"
+error = "brick"
