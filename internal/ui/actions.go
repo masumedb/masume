@@ -170,8 +170,11 @@ const (
 	ActionReplaceInStatement ActionID = "replace-in-statement"
 	ActionNextMatch          ActionID = "next-match"
 	ActionPreviousMatch      ActionID = "previous-match"
+	ActionReplaceMatch       ActionID = "replace-match"
 	ActionNextProblem        ActionID = "next-problem"
 	ActionAcceptCompletion   ActionID = "accept-completion"
+	ActionShowCompletion     ActionID = "show-completion"
+	ActionToggleWholeWord    ActionID = "toggle-whole-word"
 	ActionLeaveCell          ActionID = "leave-cell"
 
 	ActionCursorUp         ActionID = "cursor-up"
@@ -452,8 +455,9 @@ var editorActions = []ActionDefinition{
 	{ID: ActionFormatSQL}, {ID: ActionCommentLines},
 	{ID: ActionIndentLines}, {ID: ActionOutdentLines},
 	{ID: ActionFindInStatement},
-	{ID: ActionNextMatch}, {ID: ActionPreviousMatch},
+	{ID: ActionNextMatch}, {ID: ActionPreviousMatch}, {ID: ActionReplaceMatch},
 	{ID: ActionNextProblem},
+	{ID: ActionShowCompletion},
 	{ID: ActionLeaveCell, MainHint: true},
 }
 
@@ -528,6 +532,8 @@ var dialogActions = []ActionDefinition{
 	{ID: ActionScrollLeft}, {ID: ActionScrollRight},
 	{ID: ActionOpenDirectory}, {ID: ActionLeaveDirectory},
 	{ID: ActionUseKeyring},
+	// The find field marks whole words only, or every match of the term.
+	{ID: ActionToggleWholeWord},
 	// The list of completions owns the keyboard while it is open, as a card does.
 	{ID: ActionAcceptCompletion},
 }

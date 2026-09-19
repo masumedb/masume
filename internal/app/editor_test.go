@@ -219,6 +219,39 @@ func TestFindOffsetAtAnswersTheCellThePointerStandsOn(t *testing.T) {
 	}
 }
 
+// A byte of the buffer is not a cell of the screen, so a press on a line with a wide glyph
+// in it lands on the character under the pointer and not a few bytes past it.
+func TestFindOffsetAtReadsTheCellsOfTheLine(t *testing.T) {
+	const text = "select '漢字' as name\nfrom orders"
+	buffer := NewEditorBuffer(text, 0)
+
+	for _, held := range []struct {
+		name       string
+		line, cell int
+		want       int
+	}{
+		{"before the glyphs", 0, 8, len("select '")},
+		// The two glyphs take four cells, so the closing quote stands in cell 12.
+		{"the closing quote", 0, 12, len("select '漢字")},
+		{"after the glyphs", 0, 13, len("select '漢字'")},
+		{"the second line", 1, 4, len("select '漢字' as name\nfrom")},
+	} {
+		t.Run(held.name, func(t *testing.T) {
+			if answered := buffer.FindOffsetAt(held.line, held.cell); answered != held.want {
+				t.Errorf("answered %d, wanted %d", answered, held.want)
+			}
+		})
+	}
+}
+
+func TestMeasureCellsBeforeCountsTheCellsOfTheLine(t *testing.T) {
+	buffer := NewEditorBuffer("select '漢字' as name", 0)
+
+	if answered := buffer.MeasureCellsBefore(len("select '漢字'")); answered != 13 {
+		t.Errorf("answered %d, wanted 13", answered)
+	}
+}
+
 func TestPlaceCaretGrowsTheSelectionWhileSelecting(t *testing.T) {
 	buffer := NewEditorBuffer("select id from orders", 0)
 	buffer.PlaceCaret(6, false)

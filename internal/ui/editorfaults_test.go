@@ -219,3 +219,49 @@ func TestEditorFaultsAreKeptPerTab(t *testing.T) {
 		t.Error("the buffer of the second tab was not faulted")
 	}
 }
+
+// The keys that step through the faults and the row that reports one read them in the order
+// they stand in the statement, whatever order the server named them in.
+func TestTheFaultsOfTheServerAreKeptInTheOrderOfTheStatement(t *testing.T) {
+	model, _, tab := buildScannedModel(t)
+	tab.Editor = app.NewEditorBuffer("select 1;\nselect 2;\nselect 3;", 0)
+
+	model.readChecked(checkedMsg{
+		ConnectionID: model.ActiveID(), TabID: tab.ID, SQL: tab.Editor.Text,
+		Found: []editor.Diagnostic{
+			{Start: 20, End: 21, Message: "third"},
+			{Start: 0, End: 1, Message: "first"},
+			{Start: 10, End: 11, Message: "second"},
+		},
+	})
+
+	messages := []string{}
+	for _, fault := range tab.Served.Found {
+		messages = append(messages, fault.Message)
+	}
+	if strings.Join(messages, " ") != "first second third" {
+		t.Errorf("the faults read %v", messages)
+	}
+}
+
+// The next problem key reaches the fault after the caret, and wraps at the end.
+func TestTheNextProblemKeyStepsThroughTheFaultsInOrder(t *testing.T) {
+	model, connection, tab := buildScannedModel(t)
+	tab.Editor = app.NewEditorBuffer("select 1;\nselect 2;\nselect 3;", 0)
+	model.readChecked(checkedMsg{
+		ConnectionID: model.ActiveID(), TabID: tab.ID, SQL: tab.Editor.Text,
+		Found: []editor.Diagnostic{
+			{Start: 20, End: 21, Message: "third"},
+			{Start: 10, End: 11, Message: "second"},
+		},
+	})
+
+	model.stepProblem(connection, tab)
+	if tab.Editor.Caret != 10 {
+		t.Errorf("the caret stands at %d, wanted the first fault at 10", tab.Editor.Caret)
+	}
+	model.stepProblem(connection, tab)
+	if tab.Editor.Caret != 20 {
+		t.Errorf("the caret stands at %d, wanted the second fault at 20", tab.Editor.Caret)
+	}
+}

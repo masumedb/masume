@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -411,5 +412,90 @@ func TestAnEmptyLineInsideASelectionShowsACell(t *testing.T) {
 	// The border takes the first row, so the second line of the statement is the third.
 	if !strings.Contains(rows[2], selected) {
 		t.Errorf("the empty line inside the selection is drawn as %q", rows[2])
+	}
+}
+
+// A byte of the buffer is not a cell of the screen, so a press on a line with wide glyphs in
+// it lands on the character under the pointer.
+func TestAPressLandsOnTheCharacterUnderThePointer(t *testing.T) {
+	model, connection, tab := buildEditingModel(t, "select '漢字' as name", 0)
+	model.render()
+	// The word stands 14 cells along the line: 8 for "select '", 4 for the glyphs, and
+	// two for the quote and the blank after it.
+	model.pressEditor(connection, tab, tea.Mouse{
+		X: model.layout.editorTextLeft + 14, Y: model.layout.editorTextTop,
+		Button: tea.MouseLeft,
+	})
+
+	if rest := tab.Editor.Text[tab.Editor.Caret:]; rest != "as name" {
+		t.Errorf("the caret stands before %q, wanted \"as name\"", rest)
+	}
+}
+
+// The list of names is placed from the caret, which stands where the cells of the line put it
+// and not where its bytes would.
+func TestTheCaretColumnCountsTheCellsOfTheLine(t *testing.T) {
+	model, _, tab := buildEditingModel(t, "select '漢字' as name", len("select '漢字' "))
+	model.renderEditor(model.Active(), tab, 60, 10)
+
+	// The caret stands after the quote and the blank, 14 cells along the line.
+	wanted := model.layout.editorTextLeft + 14
+	if model.caretColumn != wanted {
+		t.Errorf("the caret stands in cell %d, wanted %d", model.caretColumn, wanted)
+	}
+}
+
+// The copy keeps the selection, so the keys that work on one still reach it. The press after
+// it quits, because what stands selected is on the clipboard already.
+func TestACopyKeepsTheSelectionOfTheStatement(t *testing.T) {
+	model, _, tab := buildEditingModel(t, "select id from orders", 0)
+	tab.Editor.SelectRange(0, len("select id"))
+
+	model.copySelection(tab.Editor.Selection())
+
+	if tab.Editor.Selection() != "select id" {
+		t.Errorf("the copy left %q selected", tab.Editor.Selection())
+	}
+	if model.holdsSelection() {
+		t.Error("the bar still offers a copy of what it copied already")
+	}
+}
+
+// The format writes the statement out again, and the caret keeps the token it stood on so a
+// long statement is not read from the top again.
+func TestTheFormatKeepsTheCaretOnItsToken(t *testing.T) {
+	written := "select id, name from orders where id = 1"
+	model, connection, tab := buildEditingModel(t, written, len("select id, name from orders where "))
+
+	model.runEditorAction(connection, tab, Match{Action: ActionFormatSQL})
+
+	if rest := tab.Editor.Text[tab.Editor.Caret:]; !strings.HasPrefix(rest, "id = 1") {
+		t.Errorf("the caret stands before %q", rest)
+	}
+	if strings.Count(tab.Editor.Text, "\n") == 0 {
+		t.Error("the statement was not written out again")
+	}
+}
+
+// Only the lines the pane draws are coloured, because a statement of thousands of lines is
+// coloured on every press and nothing below the pane is on the screen.
+func TestTheEditorColoursTheLinesItDraws(t *testing.T) {
+	lines := []string{}
+	for at := range 400 {
+		lines = append(lines, "select "+strconv.Itoa(at)+";")
+	}
+	written := strings.Join(lines, "\n")
+	model, connection, tab := buildEditingModel(t, written, 0)
+	text := tab.Editor.Lines()
+
+	spans := model.buildEditorHighlights(connection, tab, text, nil, 10, 20)
+
+	for line := range spans {
+		if line < 10 || line >= 20 {
+			t.Errorf("line %d was coloured, and the pane draws lines 10 to 19", line)
+		}
+	}
+	if len(spans) == 0 {
+		t.Error("the lines the pane draws were not coloured")
 	}
 }

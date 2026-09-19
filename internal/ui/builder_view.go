@@ -415,7 +415,8 @@ func (model *Model) buildSQLRows(
 		return nil
 	}
 	rows := []builderRow{{text: model.buildSectionRule(" sql ", width)}}
-	spans := collectLineHighlights(written, connection.Session.Language().Tokenize(written))
+	spans := collectLineHighlights(
+		written, connection.Session.Language().Tokenize(written), 0, len(written)+1)
 	for at, line := range strings.Split(written, "\n") {
 		held := codeLine{text: line, width: width - 3}
 		if at < len(spans) {

@@ -113,6 +113,7 @@ One card returns only its own actions. Two rows of this table can carry the same
 | `stop-session` | `x` |
 | `test-connection` | `ctrl+t` |
 | `toggle-value` | `space` |
+| `toggle-whole-word` | `alt+w` |
 | `unfold-row` | `right` |
 | `use-keyring` | `tab` |
 | `write-export` | `ctrl+s` |
@@ -154,7 +155,9 @@ See [editing SQL](usage.md#editing-sql) for search, replacement, completion, and
 | `paste-text` | `ctrl+v` |
 | `previous-match` | `shift+f3` |
 | `redo-edit` | `ctrl+shift+z` or `alt+z` |
+| `replace-match` | `f4` |
 | `select-all` | `ctrl+a` |
+| `show-completion` | `ctrl+space` |
 | `undo-edit` | `ctrl+z` |
 
 ## Global

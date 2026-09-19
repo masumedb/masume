@@ -211,6 +211,9 @@ var HelpSections = []HelpSection{
 			{Scope: cfg.ScopeEditor, Actions: []ActionID{ActionFindInStatement}, Text: "find text in the statement"},
 			{Scope: cfg.ScopeDialog, Actions: []ActionID{ActionReplaceInStatement}, Text: "replace every match, in the find field"},
 			{Scope: cfg.ScopeEditor, Actions: []ActionID{ActionNextMatch, ActionPreviousMatch}, Text: "go to the next or the previous match"},
+			{Scope: cfg.ScopeEditor, Actions: []ActionID{ActionReplaceMatch}, Text: "write the replacement over the match and take the next one"},
+			{Scope: cfg.ScopeDialog, Actions: []ActionID{ActionToggleWholeWord}, Text: "match whole words only, or every match of the term"},
+			{Scope: cfg.ScopeEditor, Actions: []ActionID{ActionShowCompletion}, Text: "open the list of names for the word under the caret"},
 		},
 	},
 	{

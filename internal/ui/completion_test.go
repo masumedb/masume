@@ -85,16 +85,17 @@ func TestEscapeGivesTheArrowsBackToTheEditor(t *testing.T) {
 	}
 }
 
-// The client offers the list itself, so there is no key that asks for one.
-func TestNoKeyAsksForTheList(t *testing.T) {
+// The list opens as the statement is written, and one key opens it again for the word under
+// the caret after it was dismissed.
+func TestOneKeyAsksForTheList(t *testing.T) {
 	model, _, tab := buildScannedModel(t)
 	tab.Focus = app.PaneEditor
 	tab.Editor = app.NewEditorBuffer("select * from ", len("select * from "))
 	tab.Completion.Dismiss()
 
 	model.readWorkspaceKey(tea.Key{Code: ' ', Text: " ", Mod: uv.ModCtrl})
-	if tab.Completion.IsListing() {
-		t.Error("a key asked for the list the client offers itself")
+	if !tab.Completion.IsListing() {
+		t.Error("the key left the list closed")
 	}
 	if tab.Editor.Text != "select * from " {
 		t.Errorf("the statement reads %q", tab.Editor.Text)
@@ -180,5 +181,38 @@ func TestATakenCandidateSelectsNothing(t *testing.T) {
 	}
 	if !strings.HasSuffix(tab.Editor.Text, "\nselect 3;\nselect 4;") {
 		t.Errorf("the taken candidate wrote %q", tab.Editor.Text)
+	}
+}
+
+// The list offers the columns of the statement at the caret. A buffer of several statements
+// names other relations, and a column of one of those belongs to no statement being written.
+func TestTheListOffersTheColumnsOfTheStatementAtTheCaret(t *testing.T) {
+	model, connection, tab := buildScannedModel(t)
+	tab.Focus = app.PaneEditor
+	written := "select * from public.orders as o;\nselect * from public.customers as c where c."
+	tab.Editor = app.NewEditorBuffer(written, len(written))
+	model.refreshCompletion(connection, tab)
+
+	sources := model.buildCompletionSources(connection, tab)
+	if _, named := sources.ColumnsByQualifier["o"]; named {
+		t.Error("the list offers the columns of a statement the caret is not in")
+	}
+}
+
+// The word the caret stands in the middle of is replaced whole, so no tail of the old word
+// is left behind the name that was taken.
+func TestATakenCandidateTakesTheRestOfTheWord(t *testing.T) {
+	model, connection, tab := buildScannedModel(t)
+	tab.Focus = app.PaneEditor
+	written := "select * from ordersandmore"
+	tab.Editor = app.NewEditorBuffer(written, len("select * from ord"))
+	model.refreshCompletion(connection, tab)
+	if !tab.Completion.IsListing() {
+		t.Skip("the statement offered nothing")
+	}
+
+	model.acceptCompletion(connection, tab)
+	if strings.Contains(tab.Editor.Text, "andmore") {
+		t.Errorf("the statement reads %q", tab.Editor.Text)
 	}
 }

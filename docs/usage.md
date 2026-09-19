@@ -110,15 +110,17 @@ A save error keeps the client open and displays the reason.
 
 Type SQL or use the terminal paste command. `Ctrl+V` pastes the system clipboard, and the terminal paste command does the same.
 
-Completion appears while typing. Up and Down select a candidate, and Tab accepts the candidate. Enter always inserts a newline, even while completion is open. Esc dismisses completion; without completion, Tab changes panes.
+Completion appears while typing, and `Ctrl+Space` opens it for the word under the caret. Up and Down select a candidate, and Tab accepts the candidate. An accepted candidate replaces the whole word under the caret, including the part after it. Enter always inserts a newline, even while completion is open. Esc dismisses completion; without completion, Tab changes panes.
 
-Shift with movement keys extends the selection. `Ctrl+A` selects all editor text. `Ctrl+C` copies and clears the selection; without a selection, `Ctrl+C` quits after asking about staged changes and open transactions. `Ctrl+D` formats SQL. `Alt+C` toggles line comments. `Alt+[` or `Alt+]` changes indentation.
+Completion offers the columns of the statement the caret is in, the columns of the result on screen, and the relations, routines and schemas of the catalog. A term matches a candidate by its start, by any part of it, or, from three letters that open with the same letter, by its letters in order: `plat` reaches `placed_at`.
 
-`Alt+F` opens Find. Enter applies the search. `F3` and `Shift+F3` select the next or previous match. The search uses plain substrings, including matches inside longer names.
+Shift with movement keys extends the selection. `Ctrl+A` selects all editor text. `Ctrl+C` copies and keeps the selection; the next `Ctrl+C` quits after asking about staged changes and open transactions, because what is selected is on the clipboard already. `Ctrl+D` formats SQL and keeps the caret on its token. `Alt+C` toggles line comments. `Alt+[` or `Alt+]` changes indentation.
 
-For replacement, type the search term in Find, then press `Ctrl+R`. Type the replacement and press Enter. Replacement changes every match, and one editor undo reverses the whole replacement.
+`Alt+F` opens Find. Enter applies the search. The row under the field counts what the term matches while it is typed. `Alt+W` matches whole words only. `F3` and `Shift+F3` select the next or previous match. The search uses plain substrings, including matches inside longer names.
 
-Search and replacement cover the whole editor buffer, including other statements, comments, and strings. Matching normally ignores case, but if lowercase conversion changes the byte length of the text, matching uses the original case.
+For replacement, type the search term in Find, then press `Ctrl+R`. Type the replacement and press Enter. Replacement changes every match, and one editor undo reverses the whole replacement. `F4` writes the replacement over one match and selects the next one.
+
+Search and replacement cover the whole editor buffer, including other statements, comments, and strings. A term in lower case matches either case, and a term with a capital in it matches that case only. If lowercase conversion changes the byte length of the text, matching uses the original case.
 
 `F8` moves to the next reported SQL problem. Editor undo is `Ctrl+Z`. Redo is `Ctrl+Shift+Z` or `Alt+Z`.
 

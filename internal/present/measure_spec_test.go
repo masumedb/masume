@@ -99,3 +99,49 @@ func TestWidenColumnsLeavesOutACellNoColumnHolds(t *testing.T) {
 		t.Fatalf("%d widths were answered for one column", len(widths))
 	}
 }
+
+// The editor counts bytes and the screen counts cells, so the two are read against each other
+// where the caret is drawn and where a press of the pointer lands.
+func TestFindCellOfByteCountsTheCellsBeforeTheOffset(t *testing.T) {
+	for _, held := range []struct {
+		name   string
+		text   string
+		offset int
+		want   int
+	}{
+		{"the start", "select", 0, 0},
+		{"plain letters", "select", 3, 3},
+		{"past the end", "select", 40, 6},
+		{"after a two-byte character", "'ä' = x", 4, 3},
+		{"after a wide character", "'漢' = x", 4, 3},
+	} {
+		t.Run(held.name, func(t *testing.T) {
+			if answered := present.FindCellOfByte(held.text, held.offset); answered != held.want {
+				t.Errorf("answered %d, wanted %d", answered, held.want)
+			}
+		})
+	}
+}
+
+func TestFindByteOfCellAnswersTheByteTheCellStartsAt(t *testing.T) {
+	for _, held := range []struct {
+		name string
+		text string
+		cell int
+		want int
+	}{
+		{"the start", "select", 0, 0},
+		{"plain letters", "select", 3, 3},
+		{"past the end", "select", 40, 6},
+		{"after a two-byte character", "'ä' = x", 3, 4},
+		{"after a wide character", "'漢' = x", 4, 5},
+		// A press on the right half of a wide glyph puts the caret after it.
+		{"the second cell of a wide character", "'漢' = x", 2, 4},
+	} {
+		t.Run(held.name, func(t *testing.T) {
+			if answered := present.FindByteOfCell(held.text, held.cell); answered != held.want {
+				t.Errorf("answered %d, wanted %d", answered, held.want)
+			}
+		})
+	}
+}

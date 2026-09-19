@@ -166,6 +166,10 @@ var defaultChords = map[string][]string{
 	"editor:find-in-statement": {"alt+f"},
 	"editor:next-match":        {"f3"},
 	"editor:previous-match":    {"shift+f3"},
+	"editor:replace-match":     {"f4"},
+	// The list of names opens on its own as the statement is written. This key opens it
+	// again for the word under the caret.
+	"editor:show-completion": {"ctrl+space"},
 	// The row that reports a fault names this key, so it has to reach the fault it names.
 	"editor:next-problem": {"f8"},
 	"editor:leave-cell":   {"escape"},
@@ -267,6 +271,7 @@ var defaultChords = map[string][]string{
 	"dialog:save-cell":            {"ctrl+s"},
 	"dialog:prettify-json":        {"ctrl+f"},
 	"dialog:replace-in-statement": {"ctrl+r"},
+	"dialog:toggle-whole-word":    {"alt+w"},
 	"dialog:set-null":             {"ctrl+l"},
 	"dialog:set-empty":            {"ctrl+e"},
 	"dialog:set-default":          {"ctrl+d"},

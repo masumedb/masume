@@ -6,6 +6,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/turanmahmudov/masume/internal/present"
 	"github.com/turanmahmudov/masume/internal/query/language"
 )
 
@@ -514,8 +515,9 @@ func (buffer *EditorBuffer) SelectLineAt(offset int) {
 	buffer.hasWanted = false
 }
 
-// FindOffsetAt converts a line and byte column to an offset, capped at the line end.
-func (buffer *EditorBuffer) FindOffsetAt(line, column int) int {
+// FindOffsetAt converts a line and a display column to an offset, capped at the line end. A
+// cell of the screen is not a byte of the buffer, so the cells of the line are counted.
+func (buffer *EditorBuffer) FindOffsetAt(line, cell int) int {
 	start := 0
 	for range line {
 		broke := strings.IndexByte(buffer.Text[start:], '\n')
@@ -524,14 +526,19 @@ func (buffer *EditorBuffer) FindOffsetAt(line, column int) int {
 		}
 		start += broke + 1
 	}
-	if column < 1 {
+	if cell < 1 {
 		return start
 	}
 	end := buffer.LineEnd(start)
-	if start+column >= end {
-		return end
-	}
-	return buffer.snapToRune(start + column)
+	return start + present.FindByteOfCell(buffer.Text[start:end], cell)
+}
+
+// MeasureCellsBefore returns the cells the line of that offset takes before it, which is the
+// column the caret stands in on the screen.
+func (buffer *EditorBuffer) MeasureCellsBefore(offset int) int {
+	held := core.ClampWithin(offset, len(buffer.Text))
+	start := buffer.LineStart(held)
+	return present.FindCellOfByte(buffer.Text[start:], held-start)
 }
 
 // FindWordStart returns the start of the word before that offset.
@@ -585,15 +592,20 @@ func (buffer *EditorBuffer) FindWordEnd(offset int) int {
 	return at
 }
 
-// FindMatches returns case-insensitive match offsets unless lowercasing changes byte lengths.
-func (buffer *EditorBuffer) FindMatches(term string) []int {
+// FindMatches returns the match offsets of the term. A term in lower case matches either
+// case, and a term with a capital in it matches that case only. A whole-word search skips a
+// match with a name character against either end of it.
+func (buffer *EditorBuffer) FindMatches(term string, wholeWord bool) []int {
 	if term == "" {
 		return nil
 	}
-	text, wanted := strings.ToLower(buffer.Text), strings.ToLower(term)
-	// Unicode lowercasing can change byte lengths. Use exact matching in that case.
-	if len(text) != len(buffer.Text) || len(wanted) != len(term) {
-		text, wanted = buffer.Text, term
+	text, wanted := buffer.Text, term
+	if !hasUpperCase(term) {
+		lowered, wantedLower := strings.ToLower(text), strings.ToLower(term)
+		// Unicode lowercasing can change byte lengths. Use exact matching in that case.
+		if len(lowered) == len(text) && len(wantedLower) == len(term) {
+			text, wanted = lowered, wantedLower
+		}
 	}
 
 	found := []int{}
@@ -602,10 +614,49 @@ func (buffer *EditorBuffer) FindMatches(term string) []int {
 		if next < 0 {
 			break
 		}
-		found = append(found, at+next)
-		at += next + len(wanted)
+		start := at + next
+		if !wholeWord || standsAlone(text, start, start+len(wanted)) {
+			found = append(found, start)
+		}
+		at = start + len(wanted)
 	}
 	return found
+}
+
+// MatchesTerm is true where the text is a match of that term, read the way a search reads
+// it: either case for a term in lower case, and that case only for a term with a capital.
+func MatchesTerm(text, term string) bool {
+	if hasUpperCase(term) {
+		return text == term
+	}
+	return strings.EqualFold(text, term)
+}
+
+// hasUpperCase is true where the text has a capital letter in it.
+func hasUpperCase(text string) bool {
+	for _, character := range text {
+		if unicode.IsUpper(character) {
+			return true
+		}
+	}
+	return false
+}
+
+// standsAlone is true where no name character touches either end of that range.
+func standsAlone(text string, start, end int) bool {
+	if start > 0 {
+		before, _ := utf8.DecodeLastRuneInString(text[:start])
+		if classifyRune(before) == nameRune {
+			return false
+		}
+	}
+	if end < len(text) {
+		after, _ := utf8.DecodeRuneInString(text[end:])
+		if classifyRune(after) == nameRune {
+			return false
+		}
+	}
+	return true
 }
 
 // SelectRange selects the text between two offsets. A search match calls it.
@@ -617,8 +668,8 @@ func (buffer *EditorBuffer) SelectRange(start, end int) {
 }
 
 // ReplaceMatches replaces all matches in one undo step and returns the replacement count.
-func (buffer *EditorBuffer) ReplaceMatches(term, written string) int {
-	found := buffer.FindMatches(term)
+func (buffer *EditorBuffer) ReplaceMatches(term, written string, wholeWord bool) int {
+	found := buffer.FindMatches(term, wholeWord)
 	if len(found) == 0 {
 		return 0
 	}

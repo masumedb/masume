@@ -62,6 +62,8 @@ func (target EditTarget) FindColumnProblem(name string) string {
 type FindState struct {
 	Term        string
 	Replacement string
+	// True where the term matches a whole word only.
+	WholeWord bool
 }
 
 // Tab is the editor, result, view, and staged changes for one connection tab.

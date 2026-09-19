@@ -1901,6 +1901,9 @@ func (model *Model) renderPromptBar(overlay app.Overlay, width int) []string {
 	// The hint is cut where the pane ends, with nothing to mark the cut, because the keys it
 	// names are on the bar below as well.
 	hint := promptHints[overlay.Prompt]
+	if counted := model.describeMatchCount(overlay); counted != "" {
+		hint += " · " + counted
+	}
 	if model.showsKeyHints() {
 		text := []string{hint}
 		// Finding and replacing is one key. The find field shows the second half and the
@@ -1914,6 +1917,9 @@ func (model *Model) renderPromptBar(overlay app.Overlay, width int) []string {
 				cfg.ScopeEditor, ActionNextMatch); chord != "" {
 				text = append(text, chord+" next match")
 			}
+		}
+		if word := model.describeWholeWordKey(overlay); word != "" {
+			text = append(text, word)
 		}
 		if chord := model.registry.FormatFirstActionChord(
 			cfg.ScopeList, ActionChooseRow); chord != "" {
@@ -1929,6 +1935,59 @@ func (model *Model) renderPromptBar(overlay app.Overlay, width int) []string {
 		paintOn(theme.Header, " ") + label + field,
 		" " + model.styles.Muted().Render(truncateCells(hint, width-1)),
 	}
+}
+
+// describeMatchCount counts what the term in the find field matches in the statement, so the
+// count stands under the field while the term is still being typed.
+func (model *Model) describeMatchCount(overlay app.Overlay) string {
+	if overlay.Prompt != app.PromptFind && overlay.Prompt != app.PromptReplace {
+		return ""
+	}
+	connection := model.Active()
+	if connection == nil {
+		return ""
+	}
+	tab := connection.Active()
+	if tab == nil || !tab.EditorVisible() {
+		return ""
+	}
+	term := tab.Find.Term
+	if overlay.Prompt == app.PromptFind {
+		term = overlay.Draft.Text
+	}
+	if term == "" {
+		return ""
+	}
+	found := tab.Editor.FindMatches(term, tab.Find.WholeWord)
+	if len(found) == 0 {
+		return "no match"
+	}
+	return present.FormatCountOf(int64(len(found)), "match", "matches")
+}
+
+// describeWholeWordKey names the key that marks whole words only, and says which way the
+// field stands now.
+func (model *Model) describeWholeWordKey(overlay app.Overlay) string {
+	if overlay.Prompt != app.PromptFind && overlay.Prompt != app.PromptReplace {
+		return ""
+	}
+	chord := model.registry.FormatFirstActionChord(cfg.ScopeDialog, ActionToggleWholeWord)
+	if chord == "" {
+		return ""
+	}
+	connection := model.Active()
+	if connection == nil {
+		return ""
+	}
+	tab := connection.Active()
+	if tab == nil {
+		return ""
+	}
+	text := chord + " whole words only"
+	if tab.Find.WholeWord {
+		text = chord + " every match"
+	}
+	return text
 }
 
 // renderPrompt draws a one-line field, with what it is for under it.

@@ -444,6 +444,14 @@ func (model *Model) runOverlayAction(
 		return true, model, nil
 	}
 
+	// The field that searches marks whole words only, or every match of the term. The
+	// hint under it names the key and says which way it stands.
+	if (overlay.Prompt == app.PromptFind || overlay.Prompt == app.PromptReplace) &&
+		match.Action == ActionToggleWholeWord {
+		tab.Find.WholeWord = !tab.Find.WholeWord
+		return true, model, nil
+	}
+
 	// The find field turns into the replace field, carrying the term with it, so finding
 	// and replacing takes one key and the second half is offered where it is needed.
 	if overlay.Prompt == app.PromptFind && match.Action == ActionReplaceInStatement {
@@ -1064,7 +1072,7 @@ func (model *Model) answerPrompt(
 			return model, nil
 		}
 		tab.Find.Replacement = written
-		count := tab.Editor.ReplaceMatches(tab.Find.Term, written)
+		count := tab.Editor.ReplaceMatches(tab.Find.Term, written, tab.Find.WholeWord)
 		if count == 0 {
 			connection.Show("no match for " + tab.Find.Term)
 			return model, nil

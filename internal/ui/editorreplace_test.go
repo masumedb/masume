@@ -115,3 +115,67 @@ func TestTheEditorHintBarNamesTheFindKey(t *testing.T) {
 		t.Error("the hint bar does not name the key that finds and replaces")
 	}
 }
+
+// One key writes the replacement over the match that stands taken and steps on to the next
+// one, so a reader can go through the matches and write over the ones they choose.
+func TestOneKeyWritesTheReplacementOverOneMatch(t *testing.T) {
+	model, connection, tab := buildEditingModel(t, "select id, id from orders", 0)
+	tab.Find.Term = "id"
+	tab.Find.Replacement = "key"
+
+	// The first press takes the first match, and the second writes over it.
+	model.runEditorAction(connection, tab, Match{Action: ActionReplaceMatch})
+	model.runEditorAction(connection, tab, Match{Action: ActionReplaceMatch})
+
+	if tab.Editor.Text != "select key, id from orders" {
+		t.Errorf("the statement reads %q", tab.Editor.Text)
+	}
+	if tab.Editor.Selection() != "id" {
+		t.Errorf("the next match stands taken as %q", tab.Editor.Selection())
+	}
+}
+
+// Without a replacement the key opens the field that asks for one, so the first press of it
+// leads somewhere rather than deleting every match.
+func TestTheReplaceKeyAsksForAReplacementItDoesNotHave(t *testing.T) {
+	model, connection, tab := buildEditingModel(t, "select id from orders", 0)
+	tab.Find.Term = "id"
+
+	model.runEditorAction(connection, tab, Match{Action: ActionReplaceMatch})
+
+	if connection.Overlay.Prompt != app.PromptReplace {
+		t.Errorf("the field is %q, wanted the one that replaces", connection.Overlay.Prompt)
+	}
+	if tab.Editor.Text != "select id from orders" {
+		t.Errorf("the statement reads %q", tab.Editor.Text)
+	}
+}
+
+// The field that searches marks whole words only on one key, and the row under it says which
+// way it stands.
+func TestTheFindFieldTakesAKeyForWholeWords(t *testing.T) {
+	model, connection, tab := buildEditingModel(t, "select id, valid from orders", 0)
+	model.startFinding(connection, tab, app.PromptFind)
+
+	handled, _, _ := model.runOverlayAction(
+		connection, tab, &connection.Overlay, Match{Action: ActionToggleWholeWord})
+	if !handled {
+		t.Fatal("the field did not take the key")
+	}
+	if !tab.Find.WholeWord {
+		t.Error("the field still marks every match")
+	}
+}
+
+// The count stands under the field while the term is still being typed, so a reader sees
+// what the term reaches before answering.
+func TestTheFindFieldCountsTheMatchesWhileTheTermIsTyped(t *testing.T) {
+	model, connection, tab := buildEditingModel(t, "select id, id from orders", 0)
+	model.startFinding(connection, tab, app.PromptFind)
+	connection.Overlay.Draft = app.NewEditorBuffer("id", 2)
+
+	frame := model.render()
+	if !strings.Contains(frame, "2 matches") {
+		t.Error("the field does not say how many matches the term reaches")
+	}
+}

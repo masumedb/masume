@@ -653,32 +653,21 @@ func (model *Model) readTextToCopy() (string, bool) {
 	return tab.Editor.Selection(), true
 }
 
-// holdsSelection is true while text stands selected, so `Ctrl+C` copies instead of quitting.
-// The drag over the cells of the frame and the caret of the editor are the two places a
-// selection lives, so it is read from them rather than kept beside them.
+// holdsSelection is true while text stands selected that is not on the clipboard already, so
+// `Ctrl+C` copies it and the press after that quits. The drag over the cells of the frame and
+// the caret of the editor are the two places a selection lives, so it is read from them
+// rather than kept beside them.
 func (model *Model) holdsSelection() bool {
-	if model.selection.held {
-		return true
-	}
-	if model.screen != ScreenWorking {
-		return false
-	}
-	connection := model.Active()
-	if connection == nil {
-		return false
-	}
-	tab := connection.Active()
-	return tab != nil && tab.Editor.HasSelection()
+	written, copies := model.readTextToCopy()
+	return copies && written != model.clipboard
 }
 
-// copySelection puts the text on the clipboard, lets the selection go, and says what it took.
+// copySelection puts the text on the clipboard and says what it took. The editor keeps its
+// selection, so the keys that work on one still reach it.
 func (model *Model) copySelection(written string) tea.Cmd {
 	model.selection = screenSelection{}
 	model.copied = describeCopied(written)
 	if connection := model.Active(); connection != nil {
-		if tab := connection.Active(); tab != nil {
-			tab.Editor.ClearSelection()
-		}
 		connection.Show(model.copied)
 	}
 	return model.keepOnClipboard(written)
@@ -724,7 +713,7 @@ func (model *Model) readClipboardText() string {
 func (model *Model) readKey(key tea.Key) (tea.Model, tea.Cmd) {
 	// Ctrl+C copies while something is selected, and quits when there is none.
 	if key.Mod.Contains(uv.ModCtrl) && key.Code == 'c' {
-		if written, copies := model.readTextToCopy(); copies {
+		if written, copies := model.readTextToCopy(); copies && written != model.clipboard {
 			return model, model.copySelection(written)
 		}
 		// Quitting here would drop the connections the open question is asking about.

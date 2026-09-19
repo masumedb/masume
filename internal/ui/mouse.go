@@ -1210,12 +1210,12 @@ func (model *Model) resolveEditorOffset(tab *app.Tab, x, y int) (int, bool) {
 	if x > layout.editorTextLeft+layout.editorTextWidth {
 		x = layout.editorTextLeft + layout.editorTextWidth
 	}
-	column := layout.editorColumnOffset + (x - layout.editorTextLeft)
+	cell := layout.editorColumnOffset + (x - layout.editorTextLeft)
 	if x < layout.editorTextLeft {
-		column = 0
+		cell = 0
 	}
 	line := layout.editorFirstLine + (y - layout.editorTextTop)
-	return tab.Editor.FindOffsetAt(line, column), true
+	return tab.Editor.FindOffsetAt(line, cell), true
 }
 
 // rollWheelSideways returns one turn of the other axis of the wheel. The diagram of a

@@ -134,3 +134,49 @@ func TestApplyCompletionQuotesANameTheServerWouldNotReadBack(t *testing.T) {
 		t.Errorf("got %q at %d, want %q at 16", sql, offset, `select "Odd Col"`)
 	}
 }
+
+func TestApplyCompletionTakesTheRestOfTheWordAfterTheCaret(t *testing.T) {
+	// The caret stands after "ord" in "orders", which the offer replaces whole.
+	sql, offset := editor.ApplyCompletion("select * from orders", 17,
+		editor.Completion{Text: "order_items", Kind: editor.CompleteTable}, postgres.Dialect)
+	if sql != "select * from order_items" || offset != 25 {
+		t.Errorf("got %q at %d, want %q at 25", sql, offset, "select * from order_items")
+	}
+}
+
+func TestApplyCompletionLeavesTheQualifierAfterTheCaretAsItIs(t *testing.T) {
+	// The dot is no part of the word, so what stands after it is not replaced.
+	sql, _ := editor.ApplyCompletion("select o.id from orders as o", 8,
+		editor.Completion{Text: "orders", Kind: editor.CompleteTable}, postgres.Dialect)
+	if sql != "select orders.id from orders as o" {
+		t.Errorf("got %q", sql)
+	}
+}
+
+func TestBuildCompletionsOffersANameTheLettersOfThePrefixReachInOrder(t *testing.T) {
+	sources := editor.CompletionSources{
+		Columns: []editor.CompletionColumn{{Name: "placed_at"}, {Name: "price"}},
+	}
+	found := editor.BuildCompletions("plat", sources,
+		editor.CompletionContext{AllowQualified: true, NamePosition: editor.PositionColumn})
+
+	names := []string{}
+	for _, candidate := range found {
+		names = append(names, candidate.Text)
+	}
+	if len(names) != 1 || names[0] != "placed_at" {
+		t.Errorf("answered %v, wanted the name the letters reach in order", names)
+	}
+}
+
+func TestBuildCompletionsOffersNothingForTwoLettersNothingOpensWith(t *testing.T) {
+	// Two letters in order alone would reach half the catalog.
+	sources := editor.CompletionSources{
+		Columns: []editor.CompletionColumn{{Name: "placed_at"}},
+	}
+	found := editor.BuildCompletions("pt", sources,
+		editor.CompletionContext{AllowQualified: true, NamePosition: editor.PositionColumn})
+	if len(found) != 0 {
+		t.Errorf("answered %v, wanted nothing", found)
+	}
+}

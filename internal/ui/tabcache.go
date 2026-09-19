@@ -9,6 +9,9 @@ type tabCaches struct {
 	// tokenizes the buffer and checks the catalog, and the frame reads them for the fault
 	// row, the marks over the text and the gutter.
 	faults map[tabKey]editorFaults
+	// The tokens of the buffer of each tab, kept because every frame colours the statement
+	// and tokenizing the whole buffer is the most expensive thing the pane does.
+	tokens map[tabKey]editorTokens
 }
 
 func (caches *tabCaches) readText(key tabKey) (gridText, bool) {
@@ -38,10 +41,20 @@ func (caches *tabCaches) keepFaults(key tabKey, held editorFaults) {
 	caches.faults = keepInTabCache(caches.faults, key, held)
 }
 
+func (caches *tabCaches) readTokens(key tabKey) (editorTokens, bool) {
+	held, found := caches.tokens[key]
+	return held, found
+}
+
+func (caches *tabCaches) keepTokens(key tabKey, held editorTokens) {
+	caches.tokens = keepInTabCache(caches.tokens, key, held)
+}
+
 func (caches *tabCaches) forgetClosed(open func(key tabKey) bool) {
 	forgetClosedInTabCache(caches.text, open)
 	forgetClosedInTabCache(caches.head, open)
 	forgetClosedInTabCache(caches.faults, open)
+	forgetClosedInTabCache(caches.tokens, open)
 }
 
 func keepInTabCache[T any](held map[tabKey]T, key tabKey, value T) map[tabKey]T {

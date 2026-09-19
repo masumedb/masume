@@ -85,6 +85,39 @@ func MeasureTextUpTo(text string, limit int) int {
 	return used
 }
 
+// FindCellOfByte returns the cells the text takes before that byte offset. The editor reads
+// the column of the caret with it, because a byte of the buffer is not a cell of the screen.
+func FindCellOfByte(text string, offset int) int {
+	if offset > len(text) {
+		offset = len(text)
+	}
+	if offset <= 0 {
+		return 0
+	}
+	return MeasureText(text[:offset])
+}
+
+// FindByteOfCell returns the byte of the text where that cell starts, or the length of the
+// text where the cell is past its end. The second cell of a wide glyph answers the byte
+// after that glyph, as a press on the right half of one puts the caret after it.
+func FindByteOfCell(text string, cell int) int {
+	if cell <= 0 {
+		return 0
+	}
+	used := 0
+	for at, character := range text {
+		if used >= cell {
+			return at
+		}
+		if isControlCharacter(character) || character == utf8.RuneError {
+			used++
+			continue
+		}
+		used += runewidth.RuneWidth(character)
+	}
+	return len(text)
+}
+
 // SafeText returns the text a terminal can draw. A value from the server can contain an
 // invalid byte or a control character: an escape would colour the rest of the frame, a
 // carriage return would move the cursor over the border of a pane, and neither one takes the

@@ -332,7 +332,8 @@ func (model *Model) buildCellLines(
 		return []string{paintText(theme.Faint, theme.Panel, present.FitText(empty, width))}
 	}
 	source := strings.Split(text, "\n")
-	spans := collectLineHighlights(text, connection.Session.Language().Tokenize(text))
+	spans := collectLineHighlights(
+		text, connection.Session.Language().Tokenize(text), 0, len(text)+1)
 	lines := make([]string, 0, len(source))
 	for at, line := range source {
 		lines = append(lines, model.renderCodeLine(codeLine{

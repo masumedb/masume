@@ -15,8 +15,11 @@ import (
 	"github.com/turanmahmudov/masume/internal/core"
 	"github.com/turanmahmudov/masume/internal/db"
 	"github.com/turanmahmudov/masume/internal/present"
+	"github.com/turanmahmudov/masume/internal/query/editor"
+	"github.com/turanmahmudov/masume/internal/query/language"
 	"github.com/turanmahmudov/masume/internal/query/result"
 	"github.com/turanmahmudov/masume/internal/query/statement"
+	"github.com/turanmahmudov/masume/internal/query/syntax"
 )
 
 // readWorkspaceKey returns what one press does in the workspace. An overlay owns the keyboard
@@ -795,6 +798,12 @@ func (model *Model) stepEditorAction(
 		buffer.MovePage(1, model.resolveEditorPageRows(), selecting)
 	case ActionSelectAll:
 		buffer.SelectAll()
+	case ActionShowCompletion:
+		tab.Completion.Dismissed = false
+		model.refreshCompletion(connection, tab)
+		if !tab.Completion.IsListing() {
+			connection.Show("no name fits the word under the caret")
+		}
 
 	case ActionOpenLine:
 		// The new line opens under the one the caret is on, with the same indent, and one
@@ -829,8 +838,12 @@ func (model *Model) stepEditorAction(
 	case ActionPasteText:
 		return model, model.pasteIntoEditor(connection, tab)
 	case ActionFormatSQL:
-		// One press writes the statement out again, one clause per line.
-		buffer.SetText(connection.Session.Language().FormatStatement(buffer.Text))
+		// One press writes the statement out again, one clause per line. The caret keeps
+		// the token it stood on, which the new lines moved.
+		language := connection.Session.Language()
+		written := language.FormatStatement(buffer.Text)
+		buffer.SetTextWithCaret(
+			written, resolveFormattedCaret(language, buffer.Text, written, buffer.Caret))
 		return model, model.reportEdit(connection, tab)
 
 	case ActionCommentLines:
@@ -862,6 +875,8 @@ func (model *Model) stepEditorAction(
 		return model.stepMatch(connection, tab, 1)
 	case ActionPreviousMatch:
 		return model.stepMatch(connection, tab, -1)
+	case ActionReplaceMatch:
+		return model.replaceOneMatch(connection, tab)
 	case ActionNextProblem:
 		return model.stepProblem(connection, tab)
 	}
@@ -923,7 +938,7 @@ func (model *Model) stepMatch(
 		connection.Show("enter search text first")
 		return model, nil
 	}
-	found := tab.Editor.FindMatches(term)
+	found := tab.Editor.FindMatches(term, tab.Find.WholeWord)
 	if len(found) == 0 {
 		connection.Show("no match for " + term)
 		return model, nil
@@ -935,6 +950,32 @@ func (model *Model) stepMatch(
 	connection.Show(strconv.Itoa(at+1) + " of " +
 		present.FormatCountOf(int64(len(found)), "match", "matches"))
 	return model, nil
+}
+
+// replaceOneMatch writes the replacement over the match the search stands on, and takes the
+// next one, so a reader can step through the matches and write over the ones they choose.
+func (model *Model) replaceOneMatch(
+	connection *app.Connection, tab *app.Tab,
+) (tea.Model, tea.Cmd) {
+	if tab.Find.Term == "" {
+		connection.Show("enter search text first")
+		return model, nil
+	}
+	// The replacement is written in the field that names it, so the first press of this
+	// key opens that field and the ones after it write what it holds.
+	if tab.Find.Replacement == "" {
+		return model.startFinding(connection, tab, app.PromptReplace)
+	}
+	// The key takes the next match where none stands taken, so one press after a find
+	// reaches the first match to write over.
+	if !tab.Editor.HasSelection() ||
+		!app.MatchesTerm(tab.Editor.Selection(), tab.Find.Term) {
+		return model.stepMatch(connection, tab, 1)
+	}
+	tab.Editor.Insert(tab.Find.Replacement)
+	command := model.reportEdit(connection, tab)
+	next, stepped := model.stepMatch(connection, tab, 1)
+	return next, tea.Batch(command, stepped)
 }
 
 // resolveSearchStart returns the offset a step of the search counts from: the start of the
@@ -999,6 +1040,30 @@ func (model *Model) stepProblem(
 	connection.Show(strconv.Itoa(at+1) + " of " +
 		present.FormatCountOf(int64(len(faults)), "problem", "problems"))
 	return model, nil
+}
+
+// resolveFormattedCaret returns where the caret stands in the formatted statement: at the
+// start of the token it stood on before. The format writes the same tokens with other
+// whitespace between them, so the place of a token in the statement is the place to look.
+func resolveFormattedCaret(
+	language language.Language, before, after string, caret int,
+) int {
+	at := countTokensBefore(language.Tokenize(before), caret)
+	tokens := language.Tokenize(after)
+	if at >= len(tokens) {
+		return len(after)
+	}
+	return tokens[at].Start
+}
+
+// countTokensBefore returns the place of the token the caret stands on or before.
+func countTokensBefore(tokens []syntax.Token, caret int) int {
+	for at, token := range tokens {
+		if caret <= token.End {
+			return at
+		}
+	}
+	return len(tokens)
 }
 
 // resolveEditorPageRows returns how many lines one press of Page Up or Page Down moves the
@@ -1078,7 +1143,13 @@ func (model *Model) readChecked(answered checkedMsg) (tea.Model, tea.Cmd) {
 	if !found || tab.Editor.Text != answered.SQL {
 		return model, nil
 	}
-	tab.Served = app.ServedDiagnostics{SQL: answered.SQL, Found: answered.Found}
+	// The keys that step through the faults and the row that reports one read them in the
+	// order they stand in the statement.
+	sorted := slices.Clone(answered.Found)
+	slices.SortStableFunc(sorted, func(left, right editor.Diagnostic) int {
+		return left.Start - right.Start
+	})
+	tab.Served = app.ServedDiagnostics{SQL: answered.SQL, Found: sorted}
 	return model, nil
 }
 

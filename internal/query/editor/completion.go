@@ -5,6 +5,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/turanmahmudov/masume/internal/query"
 )
@@ -77,6 +78,8 @@ func splitQualifier(prefix string) (string, string, bool) {
 
 var prefixWord = regexp.MustCompile(`[A-Za-z_][A-Za-z0-9_.$]*$`)
 
+var suffixWord = regexp.MustCompile(`^[A-Za-z0-9_$]*`)
+
 // ReadPrefix returns the word prefix before the caret, or an empty string.
 func ReadPrefix(sql string, offset int) string {
 	if offset > len(sql) {
@@ -85,12 +88,25 @@ func ReadPrefix(sql string, offset int) string {
 	return prefixWord.FindString(sql[:offset])
 }
 
+// ReadSuffix returns the rest of the word after the caret, or an empty string. The dot is not
+// part of it, so a qualifier after the caret stays as it is.
+func ReadSuffix(sql string, offset int) string {
+	if offset > len(sql) {
+		offset = len(sql)
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	return suffixWord.FindString(sql[offset:])
+}
+
 // Match ranks in display order. Unmatched and exact candidates are excluded.
 const (
-	rankPrefix   = 0
-	rankContains = 1
-	rankNoMatch  = 2
-	rankExact    = 3
+	rankPrefix      = 0
+	rankContains    = 1
+	rankSubsequence = 2
+	rankNoMatch     = 3
+	rankExact       = 4
 )
 
 // rankCandidate returns the match rank. Lower ranks appear first.
@@ -104,7 +120,40 @@ func rankCandidate(lowered, needle string) int {
 	if strings.Contains(lowered, needle) {
 		return rankContains
 	}
+	// The letters of the term in order, as "plat" reaches "placed_at". The term opens on
+	// the same letter as the name and carries three letters at least, or a short term
+	// reaches half the catalog. A term with a dot in it names the qualifier it belongs to,
+	// and only a name of that qualifier answers it.
+	if len(needle) >= shortestSubsequence && !strings.Contains(needle, ".") &&
+		opensAlike(lowered, needle) && holdsSubsequence(lowered, needle) {
+		return rankSubsequence
+	}
 	return rankNoMatch
+}
+
+// shortestSubsequence is the letters a term needs before it matches in order alone.
+const shortestSubsequence = 3
+
+// opensAlike is true where the text and the needle start with the same character.
+func opensAlike(text, needle string) bool {
+	first, _ := utf8.DecodeRuneInString(text)
+	wanted, _ := utf8.DecodeRuneInString(needle)
+	return first == wanted
+}
+
+// holdsSubsequence is true where every character of the needle stands in the text, in order.
+func holdsSubsequence(text, needle string) bool {
+	rest := needle
+	for _, character := range text {
+		if rest == "" {
+			return true
+		}
+		wanted, width := utf8.DecodeRuneInString(rest)
+		if character == wanted {
+			rest = rest[width:]
+		}
+	}
+	return rest == ""
 }
 
 // kindOrder is the suggestion category order for each syntax position.
@@ -316,17 +365,20 @@ func buildInsertText(completion Completion, dialect *query.Dialect) string {
 	return name
 }
 
-// ApplyCompletion replaces the word under the caret with the chosen candidate.
+// ApplyCompletion replaces the word under the caret with the chosen candidate. The rest of
+// the word after the caret goes with it, so a name written into the middle of one leaves no
+// tail behind.
 func ApplyCompletion(
 	sql string, offset int, completion Completion, dialect *query.Dialect,
 ) (string, int) {
 	written := buildInsertText(completion, dialect)
 	prefix := ReadPrefix(sql, offset)
 	start := offset - len(prefix)
+	end := offset + len(ReadSuffix(sql, offset))
 	// The caret goes inside the brackets of a routine, and after anything else.
 	rest := 0
 	if completion.Kind == CompleteFunction {
 		rest = 1
 	}
-	return sql[:start] + written + sql[offset:], start + len(written) - rest
+	return sql[:start] + written + sql[end:], start + len(written) - rest
 }

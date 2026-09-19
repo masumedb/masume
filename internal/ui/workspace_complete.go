@@ -12,15 +12,15 @@ import (
 	"github.com/turanmahmudov/masume/internal/query/statement"
 )
 
-// buildCompletionColumns returns the columns of the relations the statement reads,
-// keyed in lower case under the name of each relation and under any alias it takes.
+// buildCompletionColumns returns the columns of the relations that text reads, keyed in lower
+// case under the name of each relation and under any alias it takes.
 func (model *Model) buildCompletionColumns(
-	connection *app.Connection, tab *app.Tab,
+	connection *app.Connection, text string,
 ) map[string][]editor.CompletionColumn {
 	byQualifier := map[string][]editor.CompletionColumn{}
 	flavour := connection.Session.Dialect().Syntax
 
-	for _, reference := range statement.FindTableReferences(tab.Editor.Text, flavour) {
+	for _, reference := range statement.FindTableReferences(text, flavour) {
 		table, found := model.findTableByName(connection, reference.SelectSource)
 		if !found {
 			continue
@@ -63,9 +63,12 @@ func (model *Model) buildCompletionSources(
 		}
 	}
 
+	// The relations of the statement at the caret, not of every statement in the buffer,
+	// so a name of another statement is never offered here.
 	return editor.CompletionSources{
 		Schemas: schemas, Tables: tables, Functions: functions, Columns: columns,
-		ColumnsByQualifier: model.buildCompletionColumns(connection, tab),
+		ColumnsByQualifier: model.buildCompletionColumns(
+			connection, tab.Editor.ReadStatementAtCaret(connection.Session.Language())),
 	}
 }
 

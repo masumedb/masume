@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"image/color"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -820,14 +821,17 @@ func (model *Model) renderEditor(
 	// shows where it ends.
 	textWidth := max(inner-gutterWidth-1, 1)
 	// A line wider than the pane is moved left, and only as far as it must be, so the text
-	// before the caret stays in view while the caret walks along a long line.
-	columnOffset := scrollTo(
-		caretColumn, tab.EditorColumnOffset, textWidth, measureLongestLine(lines)+1)
+	// before the caret stays in view while the caret walks along a long line. The offset
+	// counts cells of the screen, and the caret is read in cells for it, because a byte of
+	// the buffer is not a cell.
+	caretCell := tab.Editor.MeasureCellsBefore(tab.Editor.Caret)
+	columnOffset := scrollTo(caretCell, tab.EditorColumnOffset, textWidth,
+		measureWidestLine(lines, offset, offset+body)+1)
 	tab.EditorColumnOffset = columnOffset
 
 	// The cell of the caret on the screen, which the completion popup is placed from.
 	model.caretRow = tabRowHeight + 1 + (caretLine - offset)
-	model.caretColumn = model.editorLeft + 1 + gutterWidth + caretColumn - columnOffset
+	model.caretColumn = model.editorLeft + 1 + gutterWidth + caretCell - columnOffset
 
 	// Where the text of the statement is drawn, so a press of the pointer can be read as an
 	// offset in the buffer.
@@ -847,7 +851,8 @@ func (model *Model) renderEditor(
 		lineFrom += len(lines[at]) + 1
 	}
 
-	highlights := model.buildEditorHighlights(connection, tab, lines, faults)
+	highlights := model.buildEditorHighlights(
+		connection, tab, lines, faults, offset, offset+body)
 	// A line with a fault is marked in the gutter, so a long statement says where it
 	// is wrong without reading the border.
 	faulty := findFaultyLines(tab, faults)
@@ -951,16 +956,17 @@ func resolveLineSelection(from, to, length int) (int, int) {
 	return from, to
 }
 
-// measureLongestLine returns the bytes of the longest line, which is how far the pane can
-// be moved left.
-func measureLongestLine(lines []string) int {
-	longest := 0
-	for _, line := range lines {
-		if len(line) > longest {
-			longest = len(line)
+// measureWidestLine returns the cells of the widest line the pane draws, which is how far
+// the pane can be moved left. Only the drawn lines are measured, because no line below them
+// is on the screen to reach.
+func measureWidestLine(lines []string, from, to int) int {
+	widest := 0
+	for at := max(from, 0); at < to && at < len(lines); at++ {
+		if cells := present.MeasureText(lines[at]); cells > widest {
+			widest = cells
 		}
 	}
-	return longest
+	return widest
 }
 
 // findShownFault returns the fault the pane reports: the one on the line of the caret, or
@@ -1190,6 +1196,28 @@ func (model *Model) findDiagnostics(
 	return nil
 }
 
+// editorTokens holds the tokens of one buffer, and the text they were read from.
+type editorTokens struct {
+	text   string
+	tokens []syntax.Token
+}
+
+// resolveEditorTokens returns the tokens of the buffer, reading them again only where the
+// ones it kept were read from another buffer.
+func (model *Model) resolveEditorTokens(
+	connection *app.Connection, tab *app.Tab,
+) []syntax.Token {
+	key := model.buildTabKey(connection, tab)
+	held, kept := model.caches.readTokens(key)
+	if kept && held.text == tab.Editor.Text {
+		return held.tokens
+	}
+
+	tokens := connection.Session.Language().Tokenize(tab.Editor.Text)
+	model.caches.keepTokens(key, editorTokens{text: tab.Editor.Text, tokens: tokens})
+	return tokens
+}
+
 // buildSchemaKnowledge returns what this tab knows of the catalog. Nothing is reported until
 // the catalog is read, because an empty catalog knows nothing.
 func (model *Model) buildSchemaKnowledge(
@@ -1197,7 +1225,9 @@ func (model *Model) buildSchemaKnowledge(
 ) editor.SchemaKnowledge {
 	// The same columns as the list offers, by name only, which is all the check needs.
 	byQualifier := map[string][]string{}
-	for qualifier, columns := range model.buildCompletionColumns(connection, tab) {
+	// Every statement of the buffer is checked, so every relation any of them reads is
+	// known here.
+	for qualifier, columns := range model.buildCompletionColumns(connection, tab.Editor.Text) {
 		names := make([]string, 0, len(columns))
 		for _, column := range columns {
 			names = append(names, column.Name)
@@ -1222,10 +1252,18 @@ type lineHighlight struct {
 	end   int
 }
 
-// collectLineHighlights returns the spans to colour, one list per line. The editor colours
-// one line at a time, so a token over a line break is cut.
-func collectLineHighlights(text string, tokens []syntax.Token) map[int][]lineHighlight {
+// collectLineHighlights returns the spans to colour, one list per line, for the lines from
+// one up to but not including the other. The editor colours one line at a time, so a token
+// over a line break is cut.
+func collectLineHighlights(
+	text string, tokens []syntax.Token, from, to int,
+) map[int][]lineHighlight {
 	byLine := map[int][]lineHighlight{}
+	keep := func(at int, span lineHighlight) {
+		if at >= from && at < to {
+			byLine[at] = append(byLine[at], span)
+		}
+	}
 	line := 0
 	lineStart := 0
 	cursor := 0
@@ -1242,13 +1280,17 @@ func collectLineHighlights(text string, tokens []syntax.Token) map[int][]lineHig
 
 	for _, token := range tokens {
 		advanceTo(token.Start)
+		// The lines below the window are drawn by nothing, so the walk stops there.
+		if line >= to {
+			break
+		}
 		spanStart := token.Start
 		for index := token.Start; index < token.End && index < len(text); index++ {
 			if text[index] != '\n' {
 				continue
 			}
 			if index > spanStart {
-				byLine[line] = append(byLine[line], lineHighlight{
+				keep(line, lineHighlight{
 					kind:  HighlightKind(token.Kind),
 					start: spanStart - lineStart, end: index - lineStart,
 				})
@@ -1258,7 +1300,7 @@ func collectLineHighlights(text string, tokens []syntax.Token) map[int][]lineHig
 		}
 		advanceTo(token.End)
 		if token.End > spanStart {
-			byLine[line] = append(byLine[line], lineHighlight{
+			keep(line, lineHighlight{
 				kind:  HighlightKind(token.Kind),
 				start: spanStart - lineStart, end: token.End - lineStart,
 			})
@@ -1271,7 +1313,8 @@ func collectLineHighlights(text string, tokens []syntax.Token) map[int][]lineHig
 // definition of a relation. It reads the SQL scanner rather than the language of the open
 // buffer, because a definition is SQL whatever the buffer holds.
 func buildSQLLineHighlights(text string) map[int][]lineHighlight {
-	return collectLineHighlights(text, syntax.Tokenize(text, syntax.FlavourStandard))
+	tokens := syntax.Tokenize(text, syntax.FlavourStandard)
+	return collectLineHighlights(text, tokens, 0, len(text)+1)
 }
 
 // buildEditorHighlights returns everything drawn over the statement: the colour of every
@@ -1280,35 +1323,42 @@ func buildSQLLineHighlights(text string) map[int][]lineHighlight {
 // span over a cell is the one that is kept.
 func (model *Model) buildEditorHighlights(
 	connection *app.Connection, tab *app.Tab, lines []string, faults []editor.Diagnostic,
+	from, to int,
 ) map[int][]lineHighlight {
 	term := resolveFindTerm(connection, tab)
 	text := tab.Editor.Text
 	byLine := map[int][]lineHighlight{}
-	// Prose is no statement, so no token of it is coloured as one.
-	if !tab.EditsStatements() {
-		for _, start := range tab.Editor.FindMatches(term) {
-			span := present.ResolveLineSpan(
-				text, editor.Diagnostic{Start: start, End: start + len(term)})
-			if span.Line >= 0 && span.Line < len(lines) {
-				byLine[span.Line] = append(byLine[span.Line], lineHighlight{
-					kind: MatchStyle, start: span.Start, end: span.End,
-				})
-			}
-		}
-		return byLine
-	}
-	// A span over several lines is marked on its first line only.
+	// The offset of every line, so a span is placed on its line without reading the text
+	// from the start for each one.
+	starts := buildLineStarts(lines)
+
+	// A span over several lines is marked on its first line only. A span outside the lines
+	// the pane draws is drawn by nothing, so it is left out.
 	add := func(kind HighlightKind, start, end int) {
-		span := present.ResolveLineSpan(text, editor.Diagnostic{Start: start, End: end})
-		if span.Line < 0 || span.Line >= len(lines) {
+		at := findLineOfOffset(starts, start)
+		if at < from || at >= to {
 			return
 		}
-		byLine[span.Line] = append(byLine[span.Line], lineHighlight{
-			kind: kind, start: span.Start, end: span.End,
+		lineStart := starts[at]
+		lineEnd := lineStart + len(lines[at])
+		column := start - lineStart
+		last := min(end, lineEnd) - lineStart
+		byLine[at] = append(byLine[at], lineHighlight{
+			kind: kind, start: column, end: max(last, column+1),
 		})
 	}
 
-	tokens := connection.Session.Language().Tokenize(text)
+	// What a search found is marked over the colour of the token it stands in, so a match
+	// inside a name or a string is seen as readily as one between them.
+	for _, start := range tab.Editor.FindMatches(term, tab.Find.WholeWord) {
+		add(MatchStyle, start, start+len(term))
+	}
+	// Prose is no statement, so no token of it is coloured as one.
+	if !tab.EditsStatements() {
+		return byLine
+	}
+
+	tokens := model.resolveEditorTokens(connection, tab)
 	if pair, found := FindBracketPair(
 		text, tab.Editor.Caret, buildCoveredReader(tokens)); found {
 		add(BracketStyle, pair.Open, pair.Open+1)
@@ -1317,27 +1367,45 @@ func (model *Model) buildEditorHighlights(
 	for _, fault := range faults {
 		add(ProblemStyle, fault.Start, fault.End)
 	}
-	// What a search found is marked over the colour of the token it stands in, so a match
-	// inside a name or a string is seen as readily as one between them.
-	for _, start := range tab.Editor.FindMatches(term) {
-		add(MatchStyle, start, start+len(term))
-	}
 	for at, columns := range PlanIndentGuides(lines) {
+		if at < from || at >= to {
+			continue
+		}
 		for _, column := range columns {
-			if at < len(lines) {
-				byLine[at] = append(byLine[at], lineHighlight{
-					kind: GuideStyle, start: column, end: column + 1,
-				})
-			}
+			byLine[at] = append(byLine[at], lineHighlight{
+				kind: GuideStyle, start: column, end: column + 1,
+			})
 		}
 	}
 
 	// The colour of every token is read from the tokens above, because tokenizing the
 	// buffer again for them is the most expensive thing the pane does.
-	for line, spans := range collectLineHighlights(text, tokens) {
+	for line, spans := range collectLineHighlights(text, tokens, from, to) {
 		byLine[line] = append(byLine[line], spans...)
 	}
 	return byLine
+}
+
+// buildLineStarts returns the offset each line begins at.
+func buildLineStarts(lines []string) []int {
+	starts := make([]int, len(lines))
+	at := 0
+	for index, line := range lines {
+		starts[index] = at
+		at += len(line) + 1
+	}
+	return starts
+}
+
+// findLineOfOffset returns the line that holds that offset, counted from zero.
+func findLineOfOffset(starts []int, offset int) int {
+	if offset < 0 || len(starts) == 0 {
+		return -1
+	}
+	at := sort.Search(len(starts), func(index int) bool {
+		return starts[index] > offset
+	})
+	return at - 1
 }
 
 // buildCoveredReader returns a reader that is true for an offset inside a string, a comment
@@ -1367,7 +1435,7 @@ type codeLine struct {
 	text  string
 	spans []lineHighlight
 	width int
-	// The first column drawn, so a line wider than the pane is moved left.
+	// The first cell drawn, so a line wider than the pane is moved left.
 	columnOffset int
 	// The column the caret stands in, drawn only while showCaret is true.
 	caretColumn int
@@ -1440,9 +1508,12 @@ func (model *Model) renderCodeLineOn(ground color.Color, drawn codeLine) string 
 		}
 	}
 
+	// The offset of the pane counts cells of the screen, and the line is drawn byte by
+	// byte, so the first cell drawn is read as a byte of the line.
+	start := present.FindByteOfCell(line, max(drawn.columnOffset, 0))
 	written := strings.Builder{}
 	written.Grow(len(line) + (len(drawn.spans)+2)*cellEscapeBytes)
-	for at := max(drawn.columnOffset, 0); at < len(line); {
+	for at := start; at < len(line); {
 		end := at + 1
 		for end < len(line) && marks[end] == marks[at] && onCaret[end] == onCaret[at] &&
 			drawn.holdsColumn(end) == drawn.holdsColumn(at) {
@@ -1463,7 +1534,7 @@ func (model *Model) renderCodeLineOn(ground color.Color, drawn codeLine) string 
 	switch {
 	case drawn.showCaret && drawn.caretColumn >= len(line):
 		writeOpenedText(&written, caret, " ")
-	case drawn.selectTo > len(line) && len(line) >= max(drawn.columnOffset, 0):
+	case drawn.selectTo > len(line) && len(line) >= start:
 		writeOpenedText(&written, picked[0], " ")
 	}
 	return padStyledOn(truncateStyled(written.String(), drawn.width), drawn.width, ground)
