@@ -162,6 +162,8 @@ func (styles *Styles) renderBorderRow(
 // padStyledOn fills the line out to the width on that ground, and lays the ground under
 // every part of the line that sets none of its own.
 func padStyledOn(line string, width int, ground color.Color) string {
+	// A pane or a card narrower than its own border has no room to fill.
+	width = max(width, 0)
 	var written strings.Builder
 	written.Grow(len(line) + width)
 	writePaddedOn(&written, line, width, ground)

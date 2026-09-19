@@ -1189,7 +1189,7 @@ func (model *Model) renderRowDetail(overlay app.Overlay, width int) string {
 	}
 	theme := model.styles.Theme
 	row := overlay.Window.Rows[overlay.Window.Index]
-	inner := width - present.CardChrome
+	inner := max(width-present.CardChrome, 1)
 	plan := present.PlanFieldColumns(inner)
 	room := max(inner-plan.Name-plan.Type, 1)
 

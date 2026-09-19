@@ -22,7 +22,7 @@ func (model *Model) renderDump(overlay app.Overlay, width int) string {
 
 // renderDumpPicker draws the directory the file is chosen out of.
 func (model *Model) renderDumpPicker(overlay app.Overlay, width int) string {
-	inner := width - present.CardChrome
+	inner := max(width-present.CardChrome, 1)
 	lines := model.renderFilePicker(model.ActiveID(), inner)
 	if overlay.Notice != "" {
 		lines = append(lines, "", model.styles.Error().Render(

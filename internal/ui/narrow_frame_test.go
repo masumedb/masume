@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/turanmahmudov/masume/internal/app"
+	"github.com/turanmahmudov/masume/internal/db"
 )
 
 // A terminal narrower than the tree plus a readable pane draws the tree and the pane side by
@@ -74,6 +75,39 @@ func TestEveryCardFitsATerminalNarrowerThanTheNarrowestCard(t *testing.T) {
 			}
 			if got < 1 {
 				t.Errorf("on a screen of %d the %s card draws %d wide", width, kind, got)
+			}
+		}
+	}
+}
+
+// A card that scrolls writes its bar over the last column of each row. On a terminal
+// narrower than the border of the card that column stood before the first one, and the
+// frame of the whole client failed to draw.
+func TestACardDrawsOnATerminalNarrowerThanItsBorder(t *testing.T) {
+	for _, width := range []int{1, 2, 3, 4, 6, 10} {
+		for _, height := range []int{1, 3, 8, 24} {
+			model := buildOfflineModel(t, 120, 34)
+			connection := model.Active()
+			tab := connection.Active()
+			tab.Results.Start([]string{"select 1"}, 100)
+			tab.Results.Succeed(0, db.ComposedRead{Text: "select 1"}, db.QueryResult{
+				Columns: []db.ResultColumn{
+					{Name: "id", DataType: "integer"}, {Name: "name", DataType: "text"},
+				},
+				Rows: [][]any{{int64(1), "one"}, {int64(2), "two"}},
+			})
+			shape := model.buildGridShape(connection, tab)
+			connection.Open(app.Overlay{
+				Kind: app.OverlayRowDetail,
+				Window: app.RowWindow{
+					Columns: shape.Columns, Rows: shape.Rows, Index: 0,
+				},
+			})
+
+			held, _ := model.Update(tea.WindowSizeMsg{Width: width, Height: height})
+			model = held.(*Model)
+			if frame := model.View().Content; frame == "" && width > 2 {
+				t.Errorf("the frame at %dx%d is empty", width, height)
 			}
 		}
 	}
