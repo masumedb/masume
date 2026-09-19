@@ -354,38 +354,13 @@ func readConfigText(path string) (string, error) {
 	return string(held), nil
 }
 
-// writeConfigText writes and syncs a temporary file, then renames the temporary file over the config file.
+// writeConfigText writes the config file whole, through a temporary file beside it.
 func writeConfigText(path, text string) error {
 	// The config directory is private to its owner.
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
-	file, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".*")
-	if err != nil {
-		return err
-	}
-	temporaryPath := file.Name()
-	dropTemporary := func(reason error) error {
-		_ = file.Close()
-		_ = os.Remove(temporaryPath)
-		return reason
-	}
-	if _, err := file.WriteString(text); err != nil {
-		return dropTemporary(err)
-	}
-	// Sync completes before the rename.
-	if err := file.Sync(); err != nil {
-		return dropTemporary(err)
-	}
-	if err := file.Close(); err != nil {
-		_ = os.Remove(temporaryPath)
-		return err
-	}
-	if err := os.Rename(temporaryPath, path); err != nil {
-		_ = os.Remove(temporaryPath)
-		return err
-	}
-	return nil
+	return core.WriteFileWholly(path, []byte(text), 0o600)
 }
 
 // SaveProfileToFile adds or updates a profile and handles a changed profile name.
