@@ -160,6 +160,13 @@ func BuildPlan(ctx context.Context, server Server, options Options) (Plan, error
 		plan.Views = append(plan.Views, relation)
 	}
 	plan.Tables = SortByReference(plan.Tables, relationships)
+	if options.Content.WritesSchema() {
+		ordered, viewErr := sortViewsByReference(ctx, server, plan.Views)
+		if viewErr != nil {
+			return Plan{}, viewErr
+		}
+		plan.Views = ordered
+	}
 
 	objects, objectErr := server.ListSchemaObjects(ctx)
 	if objectErr != nil {
@@ -176,6 +183,63 @@ func BuildPlan(ctx context.Context, server Server, options Options) (Plan, error
 		plan.After = append(plan.After, object)
 	}
 	return plan, nil
+}
+
+// sortViewsByReference returns the views with every view in front of the views that read it.
+// A view reads another view where its definition holds the name of that view as a word.
+func sortViewsByReference(
+	ctx context.Context, server Server, views []db.TableRef,
+) ([]db.TableRef, error) {
+	if len(views) < 2 {
+		return views, nil
+	}
+	references := []db.Relationship{}
+	for _, view := range views {
+		lines, err := server.BuildTableDDL(ctx, view)
+		if err != nil {
+			return nil, err
+		}
+		definition := strings.ToLower(strings.Join(lines, "\n"))
+		for _, target := range views {
+			if target == view || !holdsWord(definition, strings.ToLower(target.Name)) {
+				continue
+			}
+			references = append(references, db.Relationship{
+				Schema: view.Schema, Table: view.Name,
+				TargetSchema: target.Schema, TargetTable: target.Name,
+			})
+		}
+	}
+	return SortByReference(views, references), nil
+}
+
+// holdsWord is true where the text holds that word, with no letter, digit or underscore on
+// either side of it.
+func holdsWord(text, word string) bool {
+	if word == "" {
+		return false
+	}
+	for at := 0; ; {
+		found := strings.Index(text[at:], word)
+		if found < 0 {
+			return false
+		}
+		start := at + found
+		at = start + len(word)
+		if !isWordByte(text, start-1) && !isWordByte(text, at) {
+			return true
+		}
+	}
+}
+
+// isWordByte is true where the text holds a letter, a digit or an underscore at that index.
+func isWordByte(text string, at int) bool {
+	if at < 0 || at >= len(text) {
+		return false
+	}
+	held := text[at]
+	return held == '_' || (held >= '0' && held <= '9') ||
+		(held >= 'a' && held <= 'z') || (held >= 'A' && held <= 'Z')
 }
 
 // SortByReference returns the tables with every table in front of the tables that name it in

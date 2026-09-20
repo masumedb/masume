@@ -400,3 +400,28 @@ func TestDropStatementsNameIfExists(t *testing.T) {
 		}
 	}
 }
+
+// A view that reads another view is created after it. A restore then finds what it reads.
+func TestWriteOrdersAViewAfterTheViewItReads(t *testing.T) {
+	server := buildServer()
+	server.tables = []db.TableRef{
+		{Schema: "public", Name: "a_on_z", Kind: db.RelationView},
+		{Schema: "public", Name: "z_base", Kind: db.RelationView},
+	}
+	server.ddl = map[string][]string{
+		"a_on_z": {"create view public.a_on_z as select * from z_base;"},
+		"z_base": {"create view public.z_base as select 1;"},
+	}
+	written := &strings.Builder{}
+	if _, err := dump.Write(context.Background(), server, dump.Options{
+		Schema: "public", Content: dump.ContentSchema,
+	}, written); err != nil {
+		t.Fatal(err)
+	}
+
+	text := written.String()
+	if strings.Index(text, "create view public.z_base") >
+		strings.Index(text, "create view public.a_on_z") {
+		t.Errorf("the views are written in this order:\n%s", text)
+	}
+}
