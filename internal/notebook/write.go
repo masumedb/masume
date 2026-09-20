@@ -43,7 +43,11 @@ func resolveFrontMatter(book Notebook) string {
 	if policy.Transaction == "" && policy.OnError == "" {
 		policy = DefaultPolicy()
 	}
-	lines = append(lines, "", "[run]",
+	// A blank line stands between the keys above and the table, and none opens the block.
+	if len(lines) > 0 {
+		lines = append(lines, "")
+	}
+	lines = append(lines, "[run]",
 		"transaction = "+quoteText(policy.Transaction),
 		"on_error = "+quoteText(policy.OnError))
 	return strings.Join(lines, "\n")
@@ -51,7 +55,9 @@ func resolveFrontMatter(book Notebook) string {
 
 // writeCell writes one cell and the fence around it.
 func writeCell(written *strings.Builder, cell Cell) {
-	if cell.Kind == CellText {
+	// Prose stands as it is. Prose that holds a fence takes one of its own, longer than
+	// the fence inside it, so the next read holds one cell and not three.
+	if cell.Kind == CellText && !holdsFenceLine(cell.Source) {
 		written.WriteString(strings.Trim(cell.Source, "\n") + "\n")
 		return
 	}
@@ -79,6 +85,16 @@ func buildFenceInfo(cell Cell) string {
 		parts = append(parts, attr.Name+"="+attr.Value)
 	}
 	return strings.Join(parts, " ")
+}
+
+// holdsFenceLine is true where a line of the text opens or closes a fence.
+func holdsFenceLine(source string) bool {
+	for _, line := range strings.Split(source, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), fenceMark) {
+			return true
+		}
+	}
+	return false
 }
 
 // resolveFenceWidth returns a fence longer than any fence inside the cell.

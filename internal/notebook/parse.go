@@ -14,6 +14,10 @@ const FrontMatterMark = "+++"
 // fenceMark opens and closes a cell.
 const fenceMark = "```"
 
+// fenceWidth is the shortest fence. A cell whose text holds a fence is written with a longer
+// one, and closes on a line of at least as many marks.
+const fenceWidth = len(fenceMark)
+
 // Parse reads the text of a notebook file.
 func Parse(text string) Notebook {
 	lines := strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n")
@@ -98,13 +102,13 @@ func readCells(lines []string) []Cell {
 	}
 
 	for at := 0; at < len(lines); at++ {
-		info, opens := cutFenceOpening(lines[at])
+		width, info, opens := cutFenceOpening(lines[at])
 		if !opens {
 			prose = append(prose, lines[at])
 			continue
 		}
 		keepProse()
-		source, after := readFenceBody(lines, at+1)
+		source, after := readFenceBody(lines, at+1, width)
 		at = after
 		cells = append(cells, buildCell(info, source))
 	}
@@ -112,20 +116,37 @@ func readCells(lines []string) []Cell {
 	return cells
 }
 
-// cutFenceOpening returns the info text of a fence line.
-func cutFenceOpening(line string) (string, bool) {
-	after, opens := strings.CutPrefix(strings.TrimSpace(line), fenceMark)
-	if !opens {
-		return "", false
+// cutFenceOpening returns the marks of a fence line and the info text after them.
+func cutFenceOpening(line string) (int, string, bool) {
+	trimmed := strings.TrimSpace(line)
+	marks := countFenceMarks(trimmed)
+	if marks < fenceWidth {
+		return 0, "", false
 	}
-	return strings.TrimSpace(strings.TrimLeft(after, "`")), true
+	return marks, strings.TrimSpace(trimmed[marks:]), true
+}
+
+// countFenceMarks returns the marks that open the line.
+func countFenceMarks(trimmed string) int {
+	marks := 0
+	for marks < len(trimmed) && trimmed[marks] == '`' {
+		marks++
+	}
+	return marks
+}
+
+// closesFence is true for a line of fence marks alone, as many as the fence that opened.
+func closesFence(line string, width int) bool {
+	trimmed := strings.TrimSpace(line)
+	marks := countFenceMarks(trimmed)
+	return marks >= width && marks == len(trimmed)
 }
 
 // readFenceBody returns the text up to the closing fence, and the line the fence closed on.
-func readFenceBody(lines []string, from int) (string, int) {
+func readFenceBody(lines []string, from, width int) (string, int) {
 	body := []string{}
 	for at := from; at < len(lines); at++ {
-		if strings.TrimSpace(lines[at]) == fenceMark {
+		if closesFence(lines[at], width) {
 			return strings.Join(body, "\n"), at
 		}
 		body = append(body, lines[at])

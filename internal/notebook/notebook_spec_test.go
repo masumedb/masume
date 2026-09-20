@@ -260,3 +260,46 @@ func TestParseMarksFrontMatterItCannotRead(t *testing.T) {
 		t.Error("front matter that decodes is marked unreadable")
 	}
 }
+
+// A file the client wrote reads back as the cells it wrote, so a save changes nothing but
+// what the reader changed.
+func TestWritingANotebookTwiceChangesNothing(t *testing.T) {
+	for _, held := range []struct {
+		name string
+		text string
+	}{
+		{"a title and a statement", "# title\n\nprose\n\n```sql\nselect 1;\n```\n"},
+		{"a statement holding a fence", "```sql\nselect '```' as fence;\n```\n"},
+		{"prose holding a statement", "prose\n\n````md\n```sql\nselect 1;\n```\n````\n"},
+		{"a fence of another language", "```json\n{\"a\": 1}\n```\n"},
+	} {
+		t.Run(held.name, func(t *testing.T) {
+			once := notebook.Write(notebook.Parse(held.text))
+			twice := notebook.Write(notebook.Parse(once))
+			if once != twice {
+				t.Errorf("the first save wrote\n%s\nand the second\n%s", once, twice)
+			}
+		})
+	}
+}
+
+// Prose that holds a fenced statement is one cell. Written as bare prose it would read back
+// as three cells, and the statement inside it would run with the notebook.
+func TestProseHoldingAFenceStaysOneCell(t *testing.T) {
+	book := notebook.Parse("```sql id=c-1\nselect 1;\n```\n")
+	book.Cells = append(book.Cells, notebook.Cell{
+		ID: "notes", Kind: notebook.CellText,
+		Source: "run this:\n\n```sql\nselect 2;\n```",
+	})
+
+	read := notebook.Parse(notebook.Write(book))
+	if len(read.Cells) != 2 {
+		t.Fatalf("the notebook reads back as %d cells", len(read.Cells))
+	}
+	if read.Cells[1].Kind != notebook.CellText {
+		t.Errorf("the prose reads back as %q", read.Cells[1].Kind)
+	}
+	if read.Cells[1].Source != "run this:\n\n```sql\nselect 2;\n```" {
+		t.Errorf("the prose reads back as %q", read.Cells[1].Source)
+	}
+}
