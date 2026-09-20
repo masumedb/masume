@@ -42,6 +42,24 @@ func (session *readOnlySession) RunQuery(
 	return session.Session.RunQuery(ctx, sql, rowLimit, params)
 }
 
+func (session *readOnlySession) ReadPage(
+	ctx context.Context, read ComposedRead, window ReadWindow,
+) (QueryResult, error) {
+	if refusal := session.buildRefusal(read.Text); refusal != nil {
+		return QueryResult{}, refusal
+	}
+	return session.Session.ReadPage(ctx, read, window)
+}
+
+func (session *readOnlySession) CountRead(
+	ctx context.Context, read ComposedRead,
+) (int64, bool, error) {
+	if refusal := session.buildRefusal(read.Text); refusal != nil {
+		return 0, false, refusal
+	}
+	return session.Session.CountRead(ctx, read)
+}
+
 func (session *readOnlySession) StreamQuery(
 	ctx context.Context, sql string, params []any, batchSize int,
 	onBatch func(rows [][]any, columns []ResultColumn) error,
