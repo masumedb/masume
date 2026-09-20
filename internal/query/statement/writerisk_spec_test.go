@@ -49,7 +49,7 @@ func TestResolveWriteRiskReadsWhatAStatementDoes(t *testing.T) {
 		{"an import", "import foreign schema public from server other into local",
 			syntax.FlavourStandard, statement.RiskWrite},
 		{"a prepared statement being run", "execute plan", syntax.FlavourStandard,
-			statement.RiskWrite},
+			statement.RiskRoutine},
 		{"a vacuum", "vacuum full orders", syntax.FlavourStandard, statement.RiskWrite},
 		// A read that opens with a bracket is still a read.
 		{"a read in brackets", "(select 1) union (select 2)", syntax.FlavourStandard,
@@ -135,8 +135,9 @@ func TestDescribeRiskAnswersForEveryRisk(t *testing.T) {
 	}
 }
 
-func TestResolveWriteRiskReadsAStoredRoutineBodyAsAWriteAlone(t *testing.T) {
-	// A routine body is stored, not run, so a DELETE inside it removes nothing now.
+func TestResolveWriteRiskReadsAStoredRoutineBodyAsARoutine(t *testing.T) {
+	// A routine body is stored, not run. The client reads none of it, and a later call
+	// runs it, so making one carries the risk of a routine.
 	for _, held := range []struct {
 		name    string
 		sql     string
@@ -144,13 +145,13 @@ func TestResolveWriteRiskReadsAStoredRoutineBodyAsAWriteAlone(t *testing.T) {
 		want    statement.WriteRisk
 	}{
 		{"a procedure that deletes", "create procedure p() delete from t",
-			syntax.FlavourMysql, statement.RiskWrite},
+			syntax.FlavourMysql, statement.RiskRoutine},
 		{"a function that deletes", "create function f() returns int begin delete from t; end",
-			syntax.FlavourMysql, statement.RiskWrite},
+			syntax.FlavourMysql, statement.RiskRoutine},
 		{"a trigger that deletes", "create trigger tr after insert on t delete from u",
-			syntax.FlavourMysql, statement.RiskWrite},
+			syntax.FlavourMysql, statement.RiskRoutine},
 		{"an altered routine", "alter procedure p() delete from t",
-			syntax.FlavourMysql, statement.RiskWrite},
+			syntax.FlavourMysql, statement.RiskRoutine},
 		{"a table is no routine", "create table t as select * from u",
 			syntax.FlavourMysql, statement.RiskWrite},
 		{"a drop is no routine", "drop procedure p", syntax.FlavourMysql, statement.RiskDelete},
@@ -175,8 +176,8 @@ func TestResolveWriteRiskWeighsTheRestOfTheWritingStatements(t *testing.T) {
 		{"a select into a new table", "select * into new_t from t", statement.RiskWrite},
 		{"a copy", "copy t from stdin", statement.RiskWrite},
 		{"a refresh", "refresh materialized view mv", statement.RiskWrite},
-		{"a call", "call proc()", statement.RiskWrite},
-		{"a do block", "do $$ begin end $$", statement.RiskWrite},
+		{"a call", "call proc()", statement.RiskRoutine},
+		{"a do block", "do $$ begin end $$", statement.RiskRoutine},
 		{"a grant", "grant select on t to r", statement.RiskWrite},
 		{"a revoke", "revoke select on t from r", statement.RiskWrite},
 		{"an alter", "alter table t add column c int", statement.RiskWrite},

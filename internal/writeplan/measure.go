@@ -97,7 +97,9 @@ func (measure measurer) readTriggers(ctx context.Context) []Cascade {
 			continue
 		}
 		// Omit the target table for triggers.
-		cascades = append(cascades, Cascade{Reason: "trigger " + object.Name})
+		cascades = append(cascades, Cascade{
+			Reason: "trigger " + object.Name, Trigger: true,
+		})
 	}
 	return cascades
 }

@@ -19,7 +19,7 @@ func TestResolveWriteRiskOfABufferTakesTheWorstStatement(t *testing.T) {
 		{"reads only", "select 1; select 2", statement.RiskNone},
 		{"a write after a read", "select 1; insert into orders (id) values (1)",
 			statement.RiskWrite},
-		{"a call after a read", "select 1; call proc()", statement.RiskWrite},
+		{"a call after a read", "select 1; call proc()", statement.RiskRoutine},
 		{"a copy after a read", "select 1; copy orders from stdin", statement.RiskWrite},
 		{"a vacuum after a read", "select 1; vacuum full", statement.RiskWrite},
 		{"a setting that opens writes after a read",

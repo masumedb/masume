@@ -12,13 +12,16 @@ type WriteRisk string
 
 // Risk levels in ascending order.
 const (
-	RiskNone     WriteRisk = "none"
-	RiskWrite    WriteRisk = "write"
+	RiskNone  WriteRisk = "none"
+	RiskWrite WriteRisk = "write"
+	// RiskRoutine is a statement that runs a routine of the server. The body of a routine
+	// is text on the server, and this client reads none of it.
+	RiskRoutine  WriteRisk = "routine"
 	RiskDelete   WriteRisk = "delete"
 	RiskEveryRow WriteRisk = "every-row"
 )
 
-var writeRisks = []WriteRisk{RiskNone, RiskWrite, RiskDelete, RiskEveryRow}
+var writeRisks = []WriteRisk{RiskNone, RiskWrite, RiskRoutine, RiskDelete, RiskEveryRow}
 
 func indexOfRisk(risk WriteRisk) int {
 	for at, candidate := range writeRisks {
@@ -55,7 +58,10 @@ var plainObjectKeywords = map[string]bool{
 }
 
 // writingOpeners is the set of opening keywords classified as writes.
-var writingOpeners = map[string]bool{"copy": true, "refresh": true, "call": true, "do": true}
+var writingOpeners = map[string]bool{"copy": true, "refresh": true}
+
+// routineOpeners is the set of opening keywords that run a routine or a block of the server.
+var routineOpeners = map[string]bool{"call": true, "do": true, "exec": true, "execute": true}
 
 // destructiveOpeners is the set of destructive opening keywords. MySQL REPLACE deletes conflicting rows before insertion.
 var destructiveOpeners = map[string]bool{"replace": true}
@@ -292,9 +298,10 @@ func ResolveWriteRisk(sql string, flavour syntax.SyntaxFlavour) WriteRisk {
 		return len(keepStatementHits(tokens, syntax.FindKeywordsAnywhere(tokens, keywords))) > 0
 	}
 
-	// Creating a routine is a write, whatever its body does later.
+	// The body of a routine is text on the server. Making one, and running one, both
+	// carry statements this client cannot read.
 	if definesRoutine(tokens) {
-		return RiskWrite
+		return RiskRoutine
 	}
 	if isUnqualifiedWrite(tokens) {
 		return RiskEveryRow
@@ -310,6 +317,9 @@ func ResolveWriteRisk(sql string, flavour syntax.SyntaxFlavour) WriteRisk {
 	}
 	if finds([]string{"create", "alter", "grant", "revoke"}) {
 		return RiskWrite
+	}
+	if routineOpeners[opening] {
+		return RiskRoutine
 	}
 	if writingOpeners[opening] || syntax.SelectsIntoTarget(tokens) {
 		return RiskWrite
@@ -338,8 +348,12 @@ func ResolveWriteRisk(sql string, flavour syntax.SyntaxFlavour) WriteRisk {
 type riskVerb struct{ one, many string }
 
 var riskVerbs = map[WriteRisk]riskVerb{
-	RiskNone:   {"is classified as read-only", "are classified as read-only"},
-	RiskWrite:  {"writes to the database", "write to the database"},
+	RiskNone:  {"is classified as read-only", "are classified as read-only"},
+	RiskWrite: {"writes to the database", "write to the database"},
+	RiskRoutine: {
+		"runs a routine of the server, which can write and remove data",
+		"run routines of the server, which can write and remove data",
+	},
 	RiskDelete: {"removes data", "remove data"},
 	RiskEveryRow: {
 		"has no WHERE clause and may affect every row",

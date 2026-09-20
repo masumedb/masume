@@ -147,12 +147,13 @@ timeout_ms = 30000
 | `off` | No profile tools |
 | `read-only` | Statements classified as reads, plus catalog tools |
 | `read-write` | Ordinary writes, including `INSERT`, filtered `UPDATE`, `CREATE`, `ALTER`, `GRANT`, and `REVOKE` |
-| `full` | Also `DELETE`, `DROP`, `TRUNCATE`, and writes classified as affecting every row |
+| `full` | Also `DELETE`, `DROP`, `TRUNCATE`, statements that run a routine, and writes classified as affecting every row |
 
 The classifier uses statement structure. Effects it misses include:
 
 - An `UPDATE` without `WHERE` needs `full`, even when the statement changes no rows.
-- Creating a routine is a write. Its body does not change this.
+- A statement that makes or runs a routine needs `full`. `CALL`, `EXECUTE`, `DO`, and `CREATE` or `ALTER` of a function, a procedure or a trigger are all this. The body of a routine is text on the server, and this client reads none of it.
+- A write on a relation with a trigger is asked about as a routine is. The plan of the write names the trigger.
 - MongoDB `runCommand` uses the command inside its document.
 - A Redis `EVAL`, `EVALSHA` or `FCALL` needs `full`, because the script can call any command. `EVAL_RO`, `EVALSHA_RO` and `FCALL_RO` are reads.
 - Unrecognized `SET` and `RESET` settings are writes. Recognized settings such as `search_path`, time zones, and timeouts can be reads.
@@ -183,7 +184,7 @@ MCP uses the profile `confirm_writes` setting after its access check. Statements
 | `confirm_writes` | Confirmation |
 | --- | --- |
 | `off` | None |
-| `delete` | Deletes, destructive statements, and writes classified as affecting every row |
+| `delete` | Deletes, destructive statements, statements that run a routine, and writes classified as affecting every row |
 | `write` | Every statement classified as a write |
 | `agent` | Every classified write, with a plan token for clients without elicitation |
 

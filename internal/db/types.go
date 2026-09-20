@@ -436,7 +436,8 @@ func NeedsConfirmation(mode cfg.ConfirmWrites, risk statement.WriteRisk) bool {
 		return false
 	}
 	return mode == cfg.ConfirmWrite || mode == cfg.ConfirmAgent ||
-		risk == statement.RiskDelete || risk == statement.RiskEveryRow
+		risk == statement.RiskRoutine || risk == statement.RiskDelete ||
+		risk == statement.RiskEveryRow
 }
 
 // ErrDatabase marks an error from a driver or a server.

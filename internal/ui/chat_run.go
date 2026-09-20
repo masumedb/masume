@@ -301,6 +301,10 @@ func askChatToRun(
 	ai.LogEvent("> asking to run (" + summary + "): " + strings.Join(statements, "; "))
 
 	plan, measured := buildChatWritePlan(ctx, question, risk, statements)
+	if raised := writeplan.RaiseRiskForRoutine(risk, plan); raised != risk {
+		summary = statement.DescribeRisk(raised, len(statements)) +
+			" on " + string(profile.Environment)
+	}
 	pending := app.PendingRun{Summary: summary, SQL: strings.Join(statements, ";\n")}
 	if measured {
 		pending.Plan = writeplan.DescribeLines(plan)

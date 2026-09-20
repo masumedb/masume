@@ -33,6 +33,8 @@ type Request struct {
 type Cascade struct {
 	// The trigger or foreign key action, such as trigger t_order_audit.
 	Reason string
+	// True for a trigger of the relation the write lands on.
+	Trigger bool
 	// The affected table, or empty for a trigger on the target table.
 	Table   string
 	Rows    int64
@@ -62,6 +64,27 @@ type Plan struct {
 	Undo UndoPlan
 	// True when the write uses an existing transaction.
 	InTransaction bool
+}
+
+// RunsTrigger is true where a trigger of the relation runs with the write. The body of a
+// trigger is text on the server, and this client reads none of it.
+func (plan Plan) RunsTrigger() bool {
+	for _, cascade := range plan.Cascades {
+		if cascade.Trigger {
+			return true
+		}
+	}
+	return false
+}
+
+// RaiseRiskForRoutine returns the risk a caller asks about. A write that runs a trigger
+// carries the risk of a routine, whatever the statement alone says.
+func RaiseRiskForRoutine(risk statement.WriteRisk, plan Plan) statement.WriteRisk {
+	if !plan.RunsTrigger() {
+		return risk
+	}
+	return statement.ResolveStrongestRisk(
+		[]statement.WriteRisk{risk, statement.RiskRoutine})
 }
 
 // NamesEveryRow is true when the write matches every row in a nonempty table.

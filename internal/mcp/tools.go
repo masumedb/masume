@@ -244,6 +244,9 @@ func askAgentToRun(
 	}
 
 	plan, measured := buildAgentWritePlan(ctx, profile, connection, risk, statements)
+	// A trigger of the relation runs statements this client cannot read. The write is
+	// asked about as a routine is.
+	risk = writeplan.RaiseRiskForRoutine(risk, plan)
 	allowed := agent.RunPermission{}
 	if !db.NeedsConfirmation(profile.ConfirmWrites, risk) {
 		return allowed, plan.Undo

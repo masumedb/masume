@@ -14,6 +14,7 @@ import (
 var riskNeeds = map[statement.WriteRisk]cfg.McpAccess{
 	statement.RiskNone:     cfg.McpReadOnly,
 	statement.RiskWrite:    cfg.McpReadWrite,
+	statement.RiskRoutine:  cfg.McpFull,
 	statement.RiskDelete:   cfg.McpFull,
 	statement.RiskEveryRow: cfg.McpFull,
 }
