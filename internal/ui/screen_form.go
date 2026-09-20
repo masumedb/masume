@@ -244,6 +244,10 @@ func (model *Model) saveForm() (tea.Model, tea.Cmd) {
 	if form.Editing {
 		replacing = form.Source.Name
 	}
+	if taken := model.findProfileNameTaken(profile.Name, replacing); taken != "" {
+		form.Test, form.Message = TestFailed, taken
+		return model, nil
+	}
 	// Passwords use the keyring when available.
 	typed := profile.Password != ""
 	profile, keyringErr := keepPasswordOutOfTheFile(profile)
@@ -274,6 +278,19 @@ func (model *Model) saveForm() (tea.Model, tea.Cmd) {
 	model.screen = ScreenPickingProfile
 	model.form = nil
 	return model, nil
+}
+
+// findProfileNameTaken returns why this name cannot be saved: another connection of the
+// config file holds it. A profile of a project file keeps its name, and the one saved here
+// stands in front of it.
+func (model *Model) findProfileNameTaken(name, replacing string) string {
+	for _, held := range model.profiles {
+		if !held.InConfigFile || held.Name != name || held.Name == replacing {
+			continue
+		}
+		return "another connection is named " + name
+	}
+	return ""
 }
 
 // movePasswordToNewName carries the keyring password of a renamed profile to its new name
