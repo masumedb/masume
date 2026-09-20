@@ -11,6 +11,10 @@ import (
 	"github.com/turanmahmudov/masume/internal/cfg"
 )
 
+// shownPathHead is how much of a directory path the card of the picker draws on every
+// platform.
+const shownPathHead = 24
+
 // buildCertificateFormModel opens the connection form on a profile with the tls fields
 // shown, with the caret on that field.
 func buildCertificateFormModel(t *testing.T, field string) *Model {
@@ -104,7 +108,13 @@ func TestTheFilePickerCardDrawsTheDirectory(t *testing.T) {
 	if !strings.Contains(drawn, "ssl root cert") {
 		t.Errorf("the card does not name the field:\n%s", drawn)
 	}
-	if !strings.Contains(drawn, directory) {
+	// macOS puts a temporary directory under a path longer than the card, and the card
+	// cuts what does not fit, so the head of the path is what it draws.
+	head := directory
+	if len(head) > shownPathHead {
+		head = head[:shownPathHead]
+	}
+	if !strings.Contains(drawn, head) {
 		t.Errorf("the card does not name the directory:\n%s", drawn)
 	}
 	if !strings.Contains(drawn, "ca.pem") {
