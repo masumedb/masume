@@ -110,11 +110,11 @@ Turso opens no read-only connection, because the libSQL server takes no `mode=ro
 
 TiDB does not enforce the session read-only statement. An explicit TiDB profile with `mode = "read-only"` fails during connection.
 
-MCP read-only access is separate from profile mode. For TiDB, MCP keeps the profile mode and applies its client access policy. A writable TiDB profile can open with MCP read-only access, but an explicitly read-only TiDB profile still fails.
+MCP read-only access opens a read-only connection, whatever the profile mode says. A server that holds no read-only session refuses the connection, so a TiDB profile an agent reaches read-only fails to connect.
 
 A statement an agent sends that the client classifies as a read runs inside a unit of work the server refuses a write in: `BEGIN READ ONLY` on the PostgreSQL family, `START TRANSACTION READ ONLY` on MySQL and MariaDB. A routine the statement calls writes nothing there. A server with no such unit, and a connection already inside a transaction, run the statement as it is.
 
-A classified read can still have side effects. Database permissions remain separate from client access checks.
+Database permissions remain separate from client access checks.
 
 ## Default port and TLS
 

@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/core"
 )
 
 // Refusal is an access error for a profile or statement.
@@ -76,12 +75,11 @@ func GetNamedProfile(deps AccessDeps, named any) (cfg.Profile, error) {
 	return profile, nil
 }
 
-// applyAccessMode requests a read-only connection for MCP read-only access when the engine supports read-only mode.
+// applyAccessMode requests a read-only connection for MCP read-only access. A server that
+// holds no read-only session refuses the connection, and an agent reaches it with no
+// statement.
 func applyAccessMode(config cfg.McpConfig, profile cfg.Profile) cfg.Profile {
 	if ResolveProfileAccess(config, profile) != cfg.McpReadOnly {
-		return profile
-	}
-	if !core.ResolveEngineInfo(profile.Engine).Capabilities.TakesReadOnlyMode {
 		return profile
 	}
 	profile.AccessMode = cfg.AccessReadOnly

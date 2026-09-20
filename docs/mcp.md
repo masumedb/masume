@@ -169,7 +169,7 @@ mcp = "read-only"
 
 `mode = "read-only"` also limits effective MCP access to reads. That profile mode applies outside MCP too.
 
-MCP asks for a read-only connection when effective access is read-only, and the engine must support that profile mode. TiDB is the exception. MCP `access = "read-only"` on a writable profile keeps the writable session and applies client checks. An explicit `mode = "read-only"` TiDB profile still fails to connect. See [read-only access](engines.md#read-only-access).
+MCP opens a read-only connection when effective access is read-only. A server that holds no read-only session refuses the connection, so a TiDB profile an agent reaches read-only fails to connect. See [read-only access](engines.md#read-only-access).
 
 A statement classified as a read runs inside a unit of work the server refuses a write in, so a routine it calls writes nothing. See [read-only access](engines.md#read-only-access). An agent holds no transaction of its own: `BEGIN` is a read, and the unit it runs in ends with it.
 
