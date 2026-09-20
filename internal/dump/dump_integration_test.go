@@ -563,3 +563,51 @@ func TestSqlserverDumpKeepsTheNumbersOfAnIdentityColumn(t *testing.T) {
 		t.Fatalf("the restored rows are %v", answered.Rows)
 	}
 }
+
+const dropMomentSchema = `drop schema if exists masume_moment cascade;`
+
+const momentSchema = `
+create schema masume_moment;
+create table masume_moment.events (
+  id       integer primary key,
+  happened timestamp not null
+);
+insert into masume_moment.events (id, happened)
+  values (1, '2024-03-04 05:06:07.123456'), (2, '2024-03-04 05:06:07');
+`
+
+// A server holds a moment to the microsecond, so the dump writes every digit of it and the
+// restore puts the same moment back.
+func TestPostgresDumpKeepsTheMicrosecondsOfAMoment(t *testing.T) {
+	session := dbtest.Open(t, dbtest.Postgres)
+	dbtest.RunStatements(t, session, dropMomentSchema, momentSchema)
+	t.Cleanup(func() {
+		_, _ = session.RunQuery(
+			context.Background(), dropMomentSchema, dbtest.ReadEverything, nil)
+	})
+
+	path, _ := writeDump(t, session, dump.Options{
+		Schema: "masume_moment", Content: dump.ContentAll, DropsFirst: true,
+	})
+	written, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(written), "05:06:07.123456") {
+		t.Fatalf("the dump holds no microseconds:\n%s", written)
+	}
+
+	if _, runErr := dump.RunFile(context.Background(), session, path,
+		session.Dialect().Syntax); runErr != nil {
+		t.Fatalf("the restore answered %v", runErr)
+	}
+	answered, readErr := session.RunQuery(context.Background(),
+		"select count(*) from masume_moment.events where happened = '2024-03-04 05:06:07.123456'",
+		dbtest.ReadEverything, nil)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if db.ReadNonNegativeCount(answered.Rows[0][0]) != 1 {
+		t.Errorf("the restored moment is not the one the row held: %v", answered.Rows)
+	}
+}

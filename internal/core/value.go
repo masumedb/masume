@@ -100,7 +100,8 @@ func FormatTimeLiteral(held time.Time, dataType string) string {
 	if held.UTC().Nanosecond() == 0 {
 		return held.UTC().Format("2006-01-02 15:04:05")
 	}
-	return held.UTC().Format("2006-01-02 15:04:05.000")
+	// The servers hold a fraction of six digits, and a shorter one is written as it is.
+	return held.UTC().Format("2006-01-02 15:04:05.999999")
 }
 
 // documentTypes is the set of JSON, document, and array column types.

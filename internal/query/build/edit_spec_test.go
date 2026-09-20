@@ -497,6 +497,9 @@ func TestBuildFilterSQLWritesEveryTestOfAStep(t *testing.T) {
 func TestRenderLiteralWritesTheFormOfEachServer(t *testing.T) {
 	moment := time.Date(2026, 9, 10, 14, 30, 0, 0, time.UTC)
 	fraction := time.Date(2026, 9, 10, 14, 30, 0, 250000000, time.UTC)
+	// A server holds a moment to the microsecond, and a literal of fewer digits would
+	// write back a moment the row never held.
+	microseconds := time.Date(2026, 9, 10, 14, 30, 0, 123456000, time.UTC)
 
 	for _, held := range []struct {
 		name     string
@@ -529,7 +532,9 @@ func TestRenderLiteralWritesTheFormOfEachServer(t *testing.T) {
 
 		{"a moment", postgres.Dialect, moment, "timestamp", "'2026-09-10 14:30:00'"},
 		{"a moment holding a fraction", postgres.Dialect, fraction, "timestamp",
-			"'2026-09-10 14:30:00.250'"},
+			"'2026-09-10 14:30:00.25'"},
+		{"a moment holding microseconds", postgres.Dialect, microseconds, "timestamp",
+			"'2026-09-10 14:30:00.123456'"},
 		{"a date", postgres.Dialect, moment, "date", "'2026-09-10'"},
 	} {
 		t.Run(held.name, func(t *testing.T) {
