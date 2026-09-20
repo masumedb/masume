@@ -38,6 +38,12 @@ var Dialect = &query.Dialect{
 		core.KindBoolean: "boolean", core.KindTimestamp: "timestamptz",
 	},
 	IdentityColumn: "id bigserial primary key",
+	// A GENERATED ALWAYS identity column takes a value of the client only with this clause.
+	InsertOverride: "overriding system value",
+	IdentityClause: "generated always as identity",
+	RenderGeneratedColumn: func(expression string) string {
+		return "generated always as (" + expression + ") stored"
+	},
 	DropSchema: func(dialect *query.Dialect, schema string) string {
 		return "drop schema " + dialect.QuoteIdentifier(schema) + " restrict;"
 	},

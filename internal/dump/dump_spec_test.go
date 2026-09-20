@@ -27,7 +27,9 @@ type fakeServer struct {
 	objectDDL     map[string][]string
 	relationships []db.Relationship
 	columns       []db.ResultColumn
-	rows          [][]any
+	// detail is the columns of each table, by name.
+	detail map[string]db.TableDetail
+	rows   [][]any
 	// batches is the batch size of every stream call.
 	batches []int
 	readErr error
@@ -70,6 +72,12 @@ func (server *fakeServer) BuildTableDDL(
 	_ context.Context, table db.TableRef,
 ) ([]string, error) {
 	return server.ddl[table.Name], nil
+}
+
+func (server *fakeServer) DescribeTable(
+	_ context.Context, table db.TableRef,
+) (db.TableDetail, error) {
+	return server.detail[table.Name], nil
 }
 
 func (server *fakeServer) StreamQuery(
@@ -401,6 +409,29 @@ func TestDropStatementsNameIfExists(t *testing.T) {
 	}
 }
 
+// The server refuses an INSERT that names a column it computes itself. The read of the rows
+// leaves that column out.
+func TestWriteLeavesOutAGeneratedColumn(t *testing.T) {
+	server := buildServer()
+	server.detail = map[string]db.TableDetail{
+		"orders": {Columns: []db.ColumnDetail{
+			{Name: "id", DataType: "integer"},
+			{Name: "total", DataType: "numeric", IsGenerated: true},
+		}},
+	}
+	written := &strings.Builder{}
+	if _, err := dump.Write(context.Background(), server, dump.Options{
+		Schema: "public", Content: dump.ContentRows,
+	}, written); err != nil {
+		t.Fatal(err)
+	}
+
+	read := strings.Join(server.readSQL, "\n")
+	if !strings.Contains(read, `select "id" from "public"."orders"`) {
+		t.Errorf("the rows were read with %q", read)
+	}
+}
+
 // A view that reads another view is created after it. A restore then finds what it reads.
 func TestWriteOrdersAViewAfterTheViewItReads(t *testing.T) {
 	server := buildServer()
@@ -423,5 +454,57 @@ func TestWriteOrdersAViewAfterTheViewItReads(t *testing.T) {
 	if strings.Index(text, "create view public.z_base") >
 		strings.Index(text, "create view public.a_on_z") {
 		t.Errorf("the views are written in this order:\n%s", text)
+	}
+}
+
+// An identity column holds data, so the dump keeps it and the INSERT overrides the numbering
+// of the server.
+func TestWriteKeepsAnIdentityColumnAndOverridesIt(t *testing.T) {
+	server := buildServer()
+	server.detail = map[string]db.TableDetail{
+		"orders": {Columns: []db.ColumnDetail{
+			{Name: "id", DataType: "integer", IsIdentityAlways: true},
+			{Name: "name", DataType: "text"},
+		}},
+	}
+	written := &strings.Builder{}
+	if _, err := dump.Write(context.Background(), server, dump.Options{
+		Schema: "public", Content: dump.ContentRows,
+	}, written); err != nil {
+		t.Fatal(err)
+	}
+
+	if read := strings.Join(server.readSQL, "\n"); !strings.Contains(read, "select * from") {
+		t.Errorf("the rows were read with %q", read)
+	}
+	if !strings.Contains(written.String(), "overriding system value") {
+		t.Errorf("the dump wrote\n%s", written.String())
+	}
+}
+
+// A SQL Server identity column takes a value of the client only between the two statements
+// that open and close it.
+func TestWriteOpensAndClosesTheIdentityInsertOfTheServer(t *testing.T) {
+	server := buildServer()
+	server.dialect = sqlserver.Dialect
+	server.detail = map[string]db.TableDetail{
+		"orders": {Columns: []db.ColumnDetail{
+			{Name: "id", DataType: "int", IsGenerated: true, IsIdentityAlways: true},
+			{Name: "name", DataType: "nvarchar"},
+		}},
+	}
+	written := &strings.Builder{}
+	if _, err := dump.Write(context.Background(), server, dump.Options{
+		Schema: "public", Content: dump.ContentRows,
+	}, written); err != nil {
+		t.Fatal(err)
+	}
+
+	text := written.String()
+	on := strings.Index(text, "set identity_insert [public].[orders] on;")
+	off := strings.Index(text, "set identity_insert [public].[orders] off;")
+	insert := strings.Index(text, "insert into [public].[orders]")
+	if on < 0 || off < 0 || insert < on || insert > off {
+		t.Errorf("the dump wrote\n%s", text)
 	}
 }

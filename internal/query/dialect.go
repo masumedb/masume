@@ -96,6 +96,19 @@ type Dialect struct {
 	DropSchema  func(dialect *Dialect, schema string) string
 	DropTrigger func(dialect *Dialect, schema, name, table string) string
 	DropRoutine func(dialect *Dialect, schema, name, identity string) string
+	// IdentityClause is what a CREATE TABLE writes after the type of a column the server
+	// numbers itself. A dialect that leaves it unset writes none.
+	IdentityClause string
+	// RenderGeneratedColumn writes what a CREATE TABLE puts after the type of a column the
+	// server computes from that expression. A dialect that leaves it unset writes none.
+	RenderGeneratedColumn func(expression string) string
+	// InsertOverride is the clause an INSERT carries to write a value into a column the
+	// server fills itself. A dialect that leaves it unset needs none.
+	InsertOverride string
+	// SwitchIdentityInsert writes the statement that lets an INSERT write into the identity
+	// column of a table, and the statement that ends it. A dialect that leaves it unset
+	// needs neither.
+	SwitchIdentityInsert func(dialect *Dialect, target string, on bool) string
 	// NamesWithoutQuotes is an optional additional check for identifiers that need no quotes.
 	NamesWithoutQuotes func(name string) bool
 }

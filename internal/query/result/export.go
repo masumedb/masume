@@ -398,9 +398,11 @@ func BuildInClause(
 	return "(" + strings.Join(written, ", ") + ")"
 }
 
-// BuildInsertScript writes the result as INSERT statements, one per row.
+// BuildInsertScript writes the result as INSERT statements, one per row. overrides carries
+// the clause of the dialect that writes a value into a column the server fills itself.
 func BuildInsertScript(
-	columns []query.ResultColumn, rows [][]any, table query.QualifiedName, dialect *query.Dialect,
+	columns []query.ResultColumn, rows [][]any, table query.QualifiedName,
+	dialect *query.Dialect, overrides bool,
 ) string {
 	if len(rows) == 0 {
 		return ""
@@ -409,6 +411,10 @@ func BuildInsertScript(
 	names := make([]string, 0, len(columns))
 	for _, column := range columns {
 		names = append(names, dialect.QuoteIdentifier(column.Name))
+	}
+	override := ""
+	if overrides && dialect.InsertOverride != "" {
+		override = dialect.InsertOverride + " "
 	}
 
 	statements := make([]string, 0, len(rows))
@@ -421,8 +427,8 @@ func BuildInsertScript(
 			}
 			values = append(values, renderSQLLiteral(cell, column.DataType, dialect))
 		}
-		statements = append(statements, fmt.Sprintf("insert into %s (%s) values (%s);",
-			target, strings.Join(names, ", "), strings.Join(values, ", ")))
+		statements = append(statements, fmt.Sprintf("insert into %s (%s) %svalues (%s);",
+			target, strings.Join(names, ", "), override, strings.Join(values, ", ")))
 	}
 	return strings.Join(statements, "\n") + "\n"
 }

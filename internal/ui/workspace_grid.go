@@ -1073,8 +1073,8 @@ func (model *Model) runCopy(
 			connection.Show("cannot create INSERT statements without an editable source table")
 			return model, nil
 		}
-		written = result.BuildInsertScript(
-			shape.Columns, shape.Rows, tab.Target.Table.Qualified(), dialect)
+		written = result.BuildInsertScript(shape.Columns, shape.Rows,
+			tab.Target.Table.Qualified(), dialect, db.HoldsIdentityAlways(tab.Target.Columns))
 	case copyColumnIn:
 		written = result.BuildInClause(shape.Columns, shape.Rows, tab.GridColumn, dialect)
 	}

@@ -449,3 +449,117 @@ insert into masume_dump.many select generate_series(1, 1500);
 		t.Errorf("the rows never moved: %+v", held)
 	}
 }
+
+const dropIdentitySchema = `drop schema if exists masume_identity cascade;`
+
+// The schema holds the two kinds of column a client may not write: a column the server
+// numbers itself, and a column it computes from another one.
+const identitySchema = `
+create schema masume_identity;
+create table masume_identity.tickets (
+  id    integer generated always as identity primary key,
+  price numeric not null,
+  tax   numeric generated always as (price * 0.2) stored
+);
+insert into masume_identity.tickets (price) values (100), (250);
+`
+
+// A dump of a table with an identity column carries the numbers back into the server, and
+// leaves out the column the server computes from another one.
+func TestPostgresDumpKeepsTheNumbersOfAnIdentityColumn(t *testing.T) {
+	session := dbtest.Open(t, dbtest.Postgres)
+	dbtest.RunStatements(t, session, dropIdentitySchema, identitySchema)
+	t.Cleanup(func() {
+		_, _ = session.RunQuery(
+			context.Background(), dropIdentitySchema, dbtest.ReadEverything, nil)
+	})
+
+	path, report := writeDump(t, session, dump.Options{
+		Schema: "masume_identity", Content: dump.ContentAll, DropsFirst: true,
+	})
+	if report.Tables != 1 || report.Rows != 2 {
+		t.Fatalf("report: %+v, want one table and two rows", report)
+	}
+	written, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := strings.ToLower(string(written))
+	if !strings.Contains(text, "overriding system value") {
+		t.Fatalf("the INSERT overrides nothing:\n%s", written)
+	}
+	if strings.Contains(text, `"tax"`) && strings.Contains(text, "insert into") {
+		if strings.Contains(text[strings.Index(text, "insert into"):], `"tax"`) {
+			t.Fatalf("the INSERT names the computed column:\n%s", written)
+		}
+	}
+
+	run, runErr := dump.RunFile(context.Background(), session, path,
+		session.Dialect().Syntax)
+	if runErr != nil {
+		t.Fatalf("the restore answered %v after %d statements", runErr, run.Statements)
+	}
+	answered, readErr := session.RunQuery(context.Background(),
+		"select id, tax from masume_identity.tickets order by id",
+		dbtest.ReadEverything, nil)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if len(answered.Rows) != 2 ||
+		db.ReadNonNegativeCount(answered.Rows[0][0]) != 1 ||
+		db.ReadNonNegativeCount(answered.Rows[1][0]) != 2 {
+		t.Fatalf("the restored rows are %v", answered.Rows)
+	}
+}
+
+var dropIdentityTable = []string{
+	"drop table if exists dbo.masume_identity_tickets",
+}
+
+var sqlserverIdentityTable = []string{
+	`create table dbo.masume_identity_tickets (
+  id    int identity(1,1) primary key,
+  price decimal(10,2) not null
+)`,
+	`insert into dbo.masume_identity_tickets (price) values (100), (250)`,
+}
+
+// A dump of a SQL Server table with an identity column carries the numbers back into the
+// server, between the two statements that open and close the column.
+func TestSqlserverDumpKeepsTheNumbersOfAnIdentityColumn(t *testing.T) {
+	session := dbtest.Open(t, dbtest.Sqlserver)
+	dbtest.RunStatements(t, session, append(dropIdentityTable, sqlserverIdentityTable...)...)
+	t.Cleanup(func() {
+		_, _ = session.RunQuery(
+			context.Background(), dropIdentityTable[0], dbtest.ReadEverything, nil)
+	})
+
+	table := db.TableRef{
+		Schema: "dbo", Name: "masume_identity_tickets", Kind: db.RelationTable,
+	}
+	path, report := writeDump(t, session, dump.Options{
+		Schema: "dbo", Content: dump.ContentAll, DropsFirst: true,
+		Tables: []db.TableRef{table},
+	})
+	if report.Tables != 1 || report.Rows != 2 {
+		t.Fatalf("report: %+v, want one table and two rows", report)
+	}
+
+	run, runErr := dump.RunFile(context.Background(), session, path,
+		session.Dialect().Syntax)
+	if runErr != nil {
+		written, _ := os.ReadFile(path)
+		t.Fatalf("the restore answered %v after %d statements:\n%s",
+			runErr, run.Statements, written)
+	}
+	answered, readErr := session.RunQuery(context.Background(),
+		"select id from dbo.masume_identity_tickets order by id", dbtest.ReadEverything, nil)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if len(answered.Rows) != 2 ||
+		db.ReadNonNegativeCount(answered.Rows[0][0]) != 1 ||
+		db.ReadNonNegativeCount(answered.Rows[1][0]) != 2 {
+		t.Fatalf("the restored rows are %v", answered.Rows)
+	}
+}

@@ -72,8 +72,23 @@ type ColumnDetail struct {
 	IsPrimaryKey bool
 	// The server rejects any value sent for this column.
 	IsGenerated bool
+	// The server numbers this column itself, and rejects a value sent for it unless the
+	// statement overrides that. A PostgreSQL GENERATED ALWAYS identity and a SQL Server
+	// IDENTITY are both this.
+	IsIdentityAlways bool
 	// Only an enum column has these.
 	Choices []string
+}
+
+// HoldsIdentityAlways is true where one of the columns is numbered by the server and takes a
+// value of the client only where the statement overrides that.
+func HoldsIdentityAlways(columns []ColumnDetail) bool {
+	for _, column := range columns {
+		if column.IsIdentityAlways {
+			return true
+		}
+	}
+	return false
 }
 
 // TableDetail is a table with its columns and foreign keys.

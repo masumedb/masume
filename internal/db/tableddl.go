@@ -6,6 +6,24 @@ import (
 	"github.com/turanmahmudov/masume/internal/query"
 )
 
+// describeColumnSource returns what a CREATE TABLE writes after the type of a column: the
+// numbering of the server, the expression it computes the column from, or the default value.
+func describeColumnSource(column ColumnDetail, dialect *query.Dialect) string {
+	if column.IsIdentityAlways {
+		return dialect.IdentityClause
+	}
+	if column.IsGenerated {
+		if !column.HasDefault || dialect.RenderGeneratedColumn == nil {
+			return ""
+		}
+		return dialect.RenderGeneratedColumn(column.DefaultValue)
+	}
+	if column.HasDefault {
+		return "default " + column.DefaultValue
+	}
+	return ""
+}
+
 // RenderTableDDL builds CREATE TABLE SQL from catalog metadata.
 func RenderTableDDL(
 	detail TableDetail, indexes []IndexDetail, constraints []ConstraintDetail,
@@ -16,8 +34,8 @@ func RenderTableDDL(
 	body := make([]string, 0, len(detail.Columns)+len(constraints))
 	for _, column := range detail.Columns {
 		parts := []string{"    " + dialect.QuoteIdentifier(column.Name) + " " + column.DataType}
-		if column.HasDefault {
-			parts = append(parts, "default "+column.DefaultValue)
+		if written := describeColumnSource(column, dialect); written != "" {
+			parts = append(parts, written)
 		}
 		if !column.Nullable {
 			parts = append(parts, "not null")

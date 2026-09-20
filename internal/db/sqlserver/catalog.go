@@ -142,7 +142,8 @@ func (session *sqlserverSession) DescribeTable(
 			Nullable:     readFlag(row["nullable"]),
 			IsPrimaryKey: readFlag(row["is_primary_key"]),
 			// A computed column and an identity column both refuse a value of the client.
-			IsGenerated: readFlag(row["is_generated"]),
+			IsGenerated:      readFlag(row["is_generated"]),
+			IsIdentityAlways: readFlag(row["is_identity_always"]),
 		}
 		if row["default_value"] != nil {
 			column.DefaultValue = db.ReadAnyText(row["default_value"])

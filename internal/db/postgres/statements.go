@@ -57,6 +57,7 @@ const describeColumnsSQL = `
          pg_get_expr(d.adbin, d.adrelid)                as default_value,
          coalesce(pk.is_primary_key, false)             as is_primary_key,
          a.attgenerated <> ''                           as is_generated,
+         a.attidentity = 'a'                            as is_identity_always,
          coalesce((select array_agg(e.enumlabel order by e.enumsortorder)
                      from pg_enum e
                     where e.enumtypid = a.atttypid), '{}')  as choices

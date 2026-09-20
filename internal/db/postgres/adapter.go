@@ -561,7 +561,9 @@ func readColumnDetails(rows []map[string]any) []db.ColumnDetail {
 		column := db.ColumnDetail{
 			Name: db.ReadAnyText(row["name"]), DataType: db.ReadAnyText(row["data_type"]),
 			Nullable: readFlag(row["nullable"]), IsPrimaryKey: readFlag(row["is_primary_key"]),
-			IsGenerated: readFlag(row["is_generated"]), Choices: ReadTextArray(row["choices"]),
+			IsGenerated:      readFlag(row["is_generated"]),
+			IsIdentityAlways: readFlag(row["is_identity_always"]),
+			Choices:          ReadTextArray(row["choices"]),
 		}
 		if row["default_value"] != nil {
 			column.DefaultValue = db.ReadAnyText(row["default_value"])

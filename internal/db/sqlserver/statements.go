@@ -60,7 +60,8 @@ var describeColumnsSQL = `
          d.definition as default_value,
          case when k.column_id is null then 0 else 1 end as is_primary_key,
          case when c.is_computed = 1 or c.is_identity = 1 or t.name = 'timestamp'
-              then 1 else 0 end as is_generated
+              then 1 else 0 end as is_generated,
+         c.is_identity as is_identity_always
     from sys.columns c
     join sys.types t on t.user_type_id = c.user_type_id
     left join sys.default_constraints d on d.object_id = c.default_object_id

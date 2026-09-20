@@ -64,6 +64,14 @@ func (session *dumpSession) BuildTableDDL(
 	return []string{"create table public.orders (id integer);"}, nil
 }
 
+func (session *dumpSession) DescribeTable(
+	context.Context, db.TableRef,
+) (db.TableDetail, error) {
+	return db.TableDetail{
+		Columns: []db.ColumnDetail{{Name: "id", DataType: "integer"}},
+	}, nil
+}
+
 func (session *dumpSession) StreamQuery(
 	_ context.Context, _ string, _ []any, _ int,
 	onBatch func(rows [][]any, columns []db.ResultColumn) error,

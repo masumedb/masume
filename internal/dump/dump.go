@@ -99,6 +99,7 @@ type Server interface {
 	ListSchemaObjects(ctx context.Context) ([]db.SchemaObject, error)
 	ListRelationships(ctx context.Context) ([]db.Relationship, error)
 	BuildTableDDL(ctx context.Context, table db.TableRef) ([]string, error)
+	DescribeTable(ctx context.Context, table db.TableRef) (db.TableDetail, error)
 	BuildObjectDDL(ctx context.Context, object db.SchemaObject) ([]string, error)
 	StreamQuery(
 		ctx context.Context, sql string, params []any, batchSize int,
@@ -457,10 +458,19 @@ func writeTable(
 		return writer.err
 	}
 
-	_, err := server.StreamQuery(ctx, "select * from "+target, nil, BatchRows,
+	detail, detailErr := server.DescribeTable(ctx, table)
+	if detailErr != nil {
+		return detailErr
+	}
+	// The rows of an identity column are data, and the restore writes them back.
+	overrides := db.HoldsIdentityAlways(detail.Columns)
+	if overrides && dialect.SwitchIdentityInsert != nil {
+		writer.writeLine(dialect.SwitchIdentityInsert(dialect, target, true))
+	}
+	_, err := server.StreamQuery(ctx, buildRowRead(detail, dialect, target), nil, BatchRows,
 		func(batch [][]any, columns []db.ResultColumn) error {
 			writer.write(result.BuildInsertScript(
-				columns, batch, table.Qualified(), dialect))
+				columns, batch, table.Qualified(), dialect, overrides))
 			if writer.err != nil {
 				return writer.err
 			}
@@ -471,7 +481,29 @@ func writeTable(
 	if err != nil {
 		return err
 	}
+	if overrides && dialect.SwitchIdentityInsert != nil {
+		writer.writeLine(dialect.SwitchIdentityInsert(dialect, target, false))
+	}
 	return writer.err
+}
+
+// buildRowRead returns the read of the rows of a table. A column the server computes from
+// other columns is left out, because the server refuses an INSERT that names one. An
+// identity column stays: its values are data, and the INSERT overrides the numbering.
+func buildRowRead(detail db.TableDetail, dialect *query.Dialect, target string) string {
+	names := make([]string, 0, len(detail.Columns))
+	skipped := 0
+	for _, column := range detail.Columns {
+		if column.IsGenerated && !column.IsIdentityAlways {
+			skipped++
+			continue
+		}
+		names = append(names, dialect.QuoteIdentifier(column.Name))
+	}
+	if len(names) == 0 || skipped == 0 {
+		return "select * from " + target
+	}
+	return "select " + strings.Join(names, ", ") + " from " + target
 }
 
 // writeView writes the definition of one view. A view holds no row of its own.

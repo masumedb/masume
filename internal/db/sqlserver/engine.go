@@ -54,7 +54,17 @@ var Dialect = &query.Dialect{
 		core.KindTimestamp: "datetime2",
 	},
 	IdentityColumn: "id bigint identity(1,1) primary key",
-	BindLimit:      sqlserverBindLimit,
+	IdentityClause: "identity(1,1)",
+	// An INSERT writes into an identity column only between these two statements, and the
+	// server holds one table open at a time.
+	SwitchIdentityInsert: func(_ *query.Dialect, target string, on bool) string {
+		state := "off"
+		if on {
+			state = "on"
+		}
+		return "set identity_insert " + target + " " + state + ";"
+	},
+	BindLimit: sqlserverBindLimit,
 	Paging: query.Paging{
 		BuildWindow: func(limit, offset int) string {
 			// The first page needs no window: the client stops reading at its own cap. A

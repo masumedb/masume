@@ -117,7 +117,7 @@ func TestBuildInsertScriptWritesOneStatementPerRow(t *testing.T) {
 	got := result.BuildInsertScript(shopColumns, [][]any{
 		{1, "Ada"},
 		{2, "Grace"},
-	}, query.QualifiedName{Schema: "public", Name: "customers"}, postgres.Dialect)
+	}, query.QualifiedName{Schema: "public", Name: "customers"}, postgres.Dialect, false)
 	want := `insert into "public"."customers" ("id", "customer") values (1, 'Ada');` + "\n" +
 		`insert into "public"."customers" ("id", "customer") values (2, 'Grace');` + "\n"
 	if got != want {
@@ -129,7 +129,7 @@ func TestBuildInsertScriptWritesAMissingValueAsANull(t *testing.T) {
 	got := result.BuildInsertScript(shopColumns, [][]any{
 		{1, nil},
 		{2},
-	}, query.QualifiedName{Schema: "public", Name: "customers"}, postgres.Dialect)
+	}, query.QualifiedName{Schema: "public", Name: "customers"}, postgres.Dialect, false)
 	want := `insert into "public"."customers" ("id", "customer") values (1, null);` + "\n" +
 		`insert into "public"."customers" ("id", "customer") values (2, null);` + "\n"
 	if got != want {
@@ -139,7 +139,7 @@ func TestBuildInsertScriptWritesAMissingValueAsANull(t *testing.T) {
 
 func TestBuildInsertScriptAnswersNothingForAnEmptyResult(t *testing.T) {
 	got := result.BuildInsertScript(shopColumns, nil,
-		query.QualifiedName{Schema: "public", Name: "customers"}, postgres.Dialect)
+		query.QualifiedName{Schema: "public", Name: "customers"}, postgres.Dialect, false)
 	if got != "" {
 		t.Errorf("got %q, want nothing", got)
 	}
@@ -149,10 +149,22 @@ func TestBuildInsertScriptQuotesAValueSoItCannotEndTheStatement(t *testing.T) {
 	got := result.BuildInsertScript(
 		[]query.ResultColumn{{Name: "note", DataType: "text"}},
 		[][]any{{"it's; drop table t --"}},
-		query.QualifiedName{Schema: "public", Name: "notes"}, postgres.Dialect)
+		query.QualifiedName{Schema: "public", Name: "notes"}, postgres.Dialect, false)
 	want := `insert into "public"."notes" ("note") values ('it''s; drop table t --');` + "\n"
 	if got != want {
 		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+// A column the server numbers itself refuses a value of the client. The INSERT carries the
+// clause of the dialect that overrides the numbering.
+func TestBuildInsertScriptOverridesTheNumberingOfAnIdentityColumn(t *testing.T) {
+	got := result.BuildInsertScript(shopColumns, [][]any{{1, "Ada"}},
+		query.QualifiedName{Schema: "public", Name: "customers"}, postgres.Dialect, true)
+	want := `insert into "public"."customers" ("id", "customer") ` +
+		`overriding system value values (1, 'Ada');` + "\n"
+	if got != want {
+		t.Errorf("got\n%s\nwant\n%s", got, want)
 	}
 }
 
