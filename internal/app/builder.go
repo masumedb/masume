@@ -44,10 +44,11 @@ type BuilderJoin struct {
 	// indexes into the tables of the builder.
 	Table int
 	Base  int
-	// Column and BaseColumn are the two sides of the condition.
-	Column     string
-	BaseColumn string
-	// On is the condition the user wrote in place of the two columns.
+	// Columns and BaseColumns are the two sides of the condition, one pair per column of
+	// the foreign key.
+	Columns     []string
+	BaseColumns []string
+	// On is the condition the user wrote in place of the column pairs.
 	On string
 }
 
@@ -359,11 +360,14 @@ func (builder *Builder) describeJoinCondition(
 		join.Base < 0 || join.Base >= len(builder.Tables) {
 		return ""
 	}
-	if join.Column == "" || join.BaseColumn == "" {
-		return ""
+	pairs := make([]string, 0, len(join.Columns))
+	for at := 0; at < min(len(join.Columns), len(join.BaseColumns)); at++ {
+		pairs = append(pairs,
+			BuildColumnReference(builder.Tables[join.Table].Alias, join.Columns[at], dialect)+
+				" = "+BuildColumnReference(
+				builder.Tables[join.Base].Alias, join.BaseColumns[at], dialect))
 	}
-	return BuildColumnReference(builder.Tables[join.Table].Alias, join.Column, dialect) +
-		" = " + BuildColumnReference(builder.Tables[join.Base].Alias, join.BaseColumn, dialect)
+	return strings.Join(pairs, " and ")
 }
 
 // BuildColumnReference writes one column with the alias of its table.
@@ -396,14 +400,14 @@ func (builder *Builder) FindForeignKeyJoin(table int) (BuilderJoin, bool) {
 		if key, found := findKeyTo(added.ForeignKeys, held.Ref); found {
 			return BuilderJoin{
 				Kind: statement.JoinInner, Table: table, Base: base,
-				Column: firstColumn(key.Columns), BaseColumn: firstColumn(key.TargetColumns),
+				Columns: key.Columns, BaseColumns: key.TargetColumns,
 			}, true
 		}
 		// A key of a table already in the builder that refers to the new table.
 		if key, found := findKeyTo(held.ForeignKeys, added.Ref); found {
 			return BuilderJoin{
 				Kind: statement.JoinInner, Table: table, Base: base,
-				Column: firstColumn(key.TargetColumns), BaseColumn: firstColumn(key.Columns),
+				Columns: key.TargetColumns, BaseColumns: key.Columns,
 			}, true
 		}
 	}
@@ -419,12 +423,4 @@ func findKeyTo(keys []query.ForeignKey, target db.TableRef) (query.ForeignKey, b
 		}
 	}
 	return query.ForeignKey{}, false
-}
-
-// firstColumn returns the first column of a key, and an empty name for a key without one.
-func firstColumn(columns []string) string {
-	if len(columns) == 0 {
-		return ""
-	}
-	return columns[0]
 }

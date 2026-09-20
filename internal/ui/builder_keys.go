@@ -473,7 +473,7 @@ func (model *Model) pressBuilderRow(
 			return model, nil
 		}
 		builder.Section, builder.Table = app.BuilderTables, join.Table
-		return model.openJoinCard(connection, builder, join.Table, join.Column != "")
+		return model.openJoinCard(connection, builder, join.Table, len(join.Columns) > 0)
 	case pressesField:
 		builder.Section = app.BuilderTables
 		builder.Table = held.row / builderFieldStride

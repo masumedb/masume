@@ -90,7 +90,8 @@ func TestBuilderJoinsTheSecondTableOnItsForeignKey(t *testing.T) {
 		t.Fatalf("the builder holds %d joins", len(tab.Builder.Joins))
 	}
 	join := tab.Builder.Joins[0]
-	if join.Column != "customer_id" || join.BaseColumn != "id" {
+	if len(join.Columns) != 1 || join.Columns[0] != "customer_id" ||
+		len(join.BaseColumns) != 1 || join.BaseColumns[0] != "id" {
 		t.Errorf("the join reads %+v", join)
 	}
 	if connection.Overlay.Kind != app.OverlayBuilderJoin {

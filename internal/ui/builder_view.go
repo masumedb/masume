@@ -289,13 +289,12 @@ func describeColumnNote(column app.BuilderColumn) string {
 func buildDiagramLinks(builder *app.Builder) []present.BuilderLink {
 	links := make([]present.BuilderLink, 0, len(builder.Joins))
 	for _, join := range builder.Joins {
-		if join.Column == "" || join.BaseColumn == "" {
-			continue
+		for at := 0; at < min(len(join.Columns), len(join.BaseColumns)); at++ {
+			links = append(links, present.BuilderLink{
+				From: join.Table, FromColumn: join.Columns[at],
+				To: join.Base, ToColumn: join.BaseColumns[at],
+			})
 		}
-		links = append(links, present.BuilderLink{
-			From: join.Table, FromColumn: join.Column,
-			To: join.Base, ToColumn: join.BaseColumn,
-		})
 	}
 	return links
 }
@@ -329,8 +328,12 @@ func (model *Model) describeJoin(builder *app.Builder, join app.BuilderJoin) str
 	if join.Table >= len(builder.Tables) || join.Base >= len(builder.Tables) {
 		return ""
 	}
-	return builder.Tables[join.Table].Alias + "." + join.Column + " = " +
-		builder.Tables[join.Base].Alias + "." + join.BaseColumn
+	pairs := make([]string, 0, len(join.Columns))
+	for at := 0; at < min(len(join.Columns), len(join.BaseColumns)); at++ {
+		pairs = append(pairs, builder.Tables[join.Table].Alias+"."+join.Columns[at]+" = "+
+			builder.Tables[join.Base].Alias+"."+join.BaseColumns[at])
+	}
+	return strings.Join(pairs, " and ")
 }
 
 // builderFieldStride packs the table and the column of a field row into one number, so a

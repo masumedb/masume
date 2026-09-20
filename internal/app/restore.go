@@ -180,8 +180,8 @@ func describeBuilderSignature(builder *Builder) string {
 	}
 	for _, join := range builder.Joins {
 		written.WriteString("\x00" + string(join.Kind) + "\x00" + strconv.Itoa(join.Table) +
-			"\x00" + strconv.Itoa(join.Base) + "\x00" + join.Column +
-			"\x00" + join.BaseColumn + "\x00" + join.On)
+			"\x00" + strconv.Itoa(join.Base) + "\x00" + strings.Join(join.Columns, ",") +
+			"\x00" + strings.Join(join.BaseColumns, ",") + "\x00" + join.On)
 	}
 	written.WriteString("\x00" + strings.Join(builder.Filters, "\x00"))
 	return written.String()
@@ -209,7 +209,7 @@ func buildSavedBuilder(builder *Builder) *hist.SavedBuilder {
 	for _, join := range builder.Joins {
 		saved.Joins = append(saved.Joins, hist.SavedBuilderJoin{
 			Kind: string(join.Kind), Table: join.Table, Base: join.Base,
-			Column: join.Column, BaseColumn: join.BaseColumn, On: join.On,
+			Columns: join.Columns, BaseColumns: join.BaseColumns, On: join.On,
 		})
 	}
 	return saved
@@ -240,10 +240,21 @@ func buildRestoredBuilder(saved *hist.SavedBuilder) *Builder {
 	for _, join := range saved.Joins {
 		builder.Joins = append(builder.Joins, BuilderJoin{
 			Kind: statement.JoinKind(join.Kind), Table: join.Table, Base: join.Base,
-			Column: join.Column, BaseColumn: join.BaseColumn, On: join.On,
+			Columns:     readSavedJoinColumns(join.Columns, join.Column),
+			BaseColumns: readSavedJoinColumns(join.BaseColumns, join.BaseColumn),
+			On:          join.On,
 		})
 	}
 	return builder
+}
+
+// readSavedJoinColumns returns the stored columns of one side of a join, and the one column
+// a client stored before a key of several columns was kept.
+func readSavedJoinColumns(columns []string, single string) []string {
+	if len(columns) > 0 || single == "" {
+		return columns
+	}
+	return []string{single}
 }
 
 // DescribeTabs returns a text signature of the active index, tab identities, and editor contents.

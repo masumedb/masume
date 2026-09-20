@@ -35,7 +35,7 @@ func TestBuilderWritesTheSQLOfItsTables(t *testing.T) {
 	orders := addTable(builder, "orders", []string{"id", "customer_id", "total"})
 	builder.AddJoin(BuilderJoin{
 		Kind: statement.JoinInner, Table: orders, Base: customers,
-		Column: "customer_id", BaseColumn: "id",
+		Columns: []string{"customer_id"}, BaseColumns: []string{"id"},
 	})
 	builder.Tables[customers].Columns[1].Picked = true
 	builder.Tables[orders].Columns[2].Picked = true
@@ -87,7 +87,7 @@ func TestBuilderProposesTheJoinOfAForeignKey(t *testing.T) {
 		t.Fatal("the foreign key proposed no join")
 	}
 	if join.Table != orders || join.Base != 0 ||
-		join.Column != "customer_id" || join.BaseColumn != "id" {
+		!matchesJoinColumns(join, "customer_id", "id") {
 		t.Errorf("the join reads %+v", join)
 	}
 }
@@ -106,8 +106,31 @@ func TestBuilderProposesTheJoinOfAKeyPointingAtTheNewTable(t *testing.T) {
 	if !found {
 		t.Fatal("the foreign key proposed no join")
 	}
-	if join.Column != "id" || join.BaseColumn != "customer_id" {
+	if !matchesJoinColumns(join, "id", "customer_id") {
 		t.Errorf("the join reads %+v", join)
+	}
+}
+
+// A foreign key of several columns proposes every pair. A join of the first pair alone
+// matches rows the key does not.
+func TestBuilderProposesEveryPairOfACompositeForeignKey(t *testing.T) {
+	builder := NewBuilder()
+	addTable(builder, "customers", []string{"region", "id"})
+	orders := addTable(builder, "orders", []string{"region", "customer_id"}, query.ForeignKey{
+		Columns: []string{"region", "customer_id"}, TargetSchema: "shop",
+		TargetTable: "customers", TargetColumns: []string{"region", "id"},
+	})
+
+	join, found := builder.FindForeignKeyJoin(orders)
+	if !found {
+		t.Fatal("the foreign key proposed no join")
+	}
+	builder.AddJoin(join)
+	written := builder.BuildSQL(buildBuilderDialect())
+	for _, wanted := range []string{"o.region = c.region", "o.customer_id = c.id", " and "} {
+		if !strings.Contains(written, wanted) {
+			t.Errorf("the builder wrote\n%s", written)
+		}
 	}
 }
 
@@ -144,8 +167,10 @@ func TestBuilderDropsTheTablesJoinedThroughTheOneItDrops(t *testing.T) {
 	customers := addTable(builder, "customers", []string{"id"})
 	orders := addTable(builder, "orders", []string{"id", "customer_id"})
 	items := addTable(builder, "order_items", []string{"order_id"})
-	builder.AddJoin(BuilderJoin{Table: orders, Base: customers, Column: "customer_id", BaseColumn: "id"})
-	builder.AddJoin(BuilderJoin{Table: items, Base: orders, Column: "order_id", BaseColumn: "id"})
+	builder.AddJoin(BuilderJoin{Table: orders, Base: customers,
+		Columns: []string{"customer_id"}, BaseColumns: []string{"id"}})
+	builder.AddJoin(BuilderJoin{Table: items, Base: orders,
+		Columns: []string{"order_id"}, BaseColumns: []string{"id"}})
 
 	builder.DropTable(orders)
 
@@ -164,8 +189,10 @@ func TestBuilderKeepsTheJoinsOfTheTablesItKeeps(t *testing.T) {
 	customers := addTable(builder, "customers", []string{"id", "name"})
 	orders := addTable(builder, "orders", []string{"id", "customer_id"})
 	items := addTable(builder, "order_items", []string{"order_id"})
-	builder.AddJoin(BuilderJoin{Table: orders, Base: customers, Column: "customer_id", BaseColumn: "id"})
-	builder.AddJoin(BuilderJoin{Table: items, Base: orders, Column: "order_id", BaseColumn: "id"})
+	builder.AddJoin(BuilderJoin{Table: orders, Base: customers,
+		Columns: []string{"customer_id"}, BaseColumns: []string{"id"}})
+	builder.AddJoin(BuilderJoin{Table: items, Base: orders,
+		Columns: []string{"order_id"}, BaseColumns: []string{"id"}})
 	builder.Tables[customers].Columns[1].Picked = true
 
 	builder.DropTable(items)
@@ -201,7 +228,8 @@ func TestBuilderGroupsByTheColumnsWithoutAnAggregate(t *testing.T) {
 	builder := NewBuilder()
 	customers := addTable(builder, "customers", []string{"id", "name"})
 	orders := addTable(builder, "orders", []string{"id", "customer_id"})
-	builder.AddJoin(BuilderJoin{Table: orders, Base: customers, Column: "customer_id", BaseColumn: "id"})
+	builder.AddJoin(BuilderJoin{Table: orders, Base: customers,
+		Columns: []string{"customer_id"}, BaseColumns: []string{"id"}})
 	builder.Tables[customers].Columns[1].Picked = true
 	builder.Tables[orders].Columns[0].Picked = true
 	builder.Tables[orders].Columns[0].Aggregate = statement.AggregateCount
@@ -256,7 +284,7 @@ func TestBuilderTabRoundTripsThroughTheWorkspace(t *testing.T) {
 	orders := addTable(builder, "orders", []string{"id", "customer_id", "total"})
 	builder.AddJoin(BuilderJoin{
 		Kind: statement.JoinLeft, Table: orders, Base: customers,
-		Column: "customer_id", BaseColumn: "id",
+		Columns: []string{"customer_id"}, BaseColumns: []string{"id"},
 	})
 	builder.Tables[customers].Columns[1].Picked = true
 	builder.Tables[orders].Columns[2].Picked = true
@@ -324,4 +352,10 @@ func TestBuilderChangeShowsInTheTabSignature(t *testing.T) {
 	if connection.DescribeTabs() == before {
 		t.Error("a filter left the signature unchanged")
 	}
+}
+
+// matchesJoinColumns is true where the join holds exactly that one column pair.
+func matchesJoinColumns(join BuilderJoin, column, baseColumn string) bool {
+	return len(join.Columns) == 1 && join.Columns[0] == column &&
+		len(join.BaseColumns) == 1 && join.BaseColumns[0] == baseColumn
 }

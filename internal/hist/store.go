@@ -82,12 +82,16 @@ type SavedBuilderTable struct {
 
 // SavedBuilderJoin is one join of a stored query builder.
 type SavedBuilderJoin struct {
-	Kind       string `json:"kind"`
-	Table      int    `json:"table"`
-	Base       int    `json:"base"`
+	Kind        string   `json:"kind"`
+	Table       int      `json:"table"`
+	Base        int      `json:"base"`
+	Columns     []string `json:"columns,omitempty"`
+	BaseColumns []string `json:"baseColumns,omitempty"`
+	On          string   `json:"on,omitempty"`
+	// The one column pair of a join, as an older client stored it. It is read, and never
+	// written.
 	Column     string `json:"column,omitempty"`
 	BaseColumn string `json:"baseColumn,omitempty"`
-	On         string `json:"on,omitempty"`
 }
 
 // SavedBuilder is the tables, the joins and the filters of a stored query builder.
