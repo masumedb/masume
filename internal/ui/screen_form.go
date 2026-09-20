@@ -245,6 +245,7 @@ func (model *Model) saveForm() (tea.Model, tea.Cmd) {
 		replacing = form.Source.Name
 	}
 	// Passwords use the keyring when available.
+	typed := profile.Password != ""
 	profile, keyringErr := keepPasswordOutOfTheFile(profile)
 	if keyringErr != nil {
 		form.Test, form.Message = TestFailed, keyringErr.Error()
@@ -254,6 +255,10 @@ func (model *Model) saveForm() (tea.Model, tea.Cmd) {
 		profile, replacing, cfg.ResolveConfigPath()); writeErr != nil {
 		form.Test, form.Message = TestFailed, writeErr.Error()
 		return model, nil
+	}
+	// The keyring holds one item per profile name. A rename carries the item with it.
+	if moveErr := movePasswordToNewName(replacing, profile, typed); moveErr != nil {
+		model.picker.problem = moveErr.Error()
 	}
 	profile.InConfigFile = true
 	// The config file of the user now holds it, so the project file no longer provides it.
@@ -269,6 +274,27 @@ func (model *Model) saveForm() (tea.Model, tea.Cmd) {
 	model.screen = ScreenPickingProfile
 	model.form = nil
 	return model, nil
+}
+
+// movePasswordToNewName carries the keyring password of a renamed profile to its new name
+// and removes the item under the old name. A password typed into the form is already saved
+// under the new name, and is kept.
+func movePasswordToNewName(replacing string, profile cfg.Profile, typed bool) error {
+	if replacing == "" || replacing == profile.Name || !secret.IsAvailable() {
+		return nil
+	}
+	if !typed && profile.Auth == cfg.AuthKeyring {
+		password, found, err := secret.FindPassword(replacing)
+		if err != nil {
+			return err
+		}
+		if found {
+			if saveErr := secret.SavePassword(profile.Name, password); saveErr != nil {
+				return saveErr
+			}
+		}
+	}
+	return secret.DeletePassword(replacing)
 }
 
 // forgetStateOfAnotherTarget drops the tabs, the object tree, the favourites and the visited
