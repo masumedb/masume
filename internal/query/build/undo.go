@@ -107,9 +107,13 @@ func writeUndoInsert(target WriteTarget, row []any, write writeValue) (string, e
 		quoted = append(quoted, target.Dialect.QuoteIdentifier(column.Name))
 		values = append(values, write(row[at]))
 	}
-	return fmt.Sprintf("insert into %s (%s) values (%s)",
+	override := ""
+	if target.Overrides && target.Dialect.InsertOverride != "" {
+		override = target.Dialect.InsertOverride + " "
+	}
+	return fmt.Sprintf("insert into %s (%s) %svalues (%s)",
 		target.Dialect.BuildQualifiedName(target.Table),
-		strings.Join(quoted, ", "), strings.Join(values, ", ")), nil
+		strings.Join(quoted, ", "), override, strings.Join(values, ", ")), nil
 }
 
 // BuildUndoInsert builds a parameterized insert to restore a deleted row.

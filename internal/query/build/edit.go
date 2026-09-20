@@ -16,6 +16,8 @@ type WriteTarget struct {
 	// An empty list means no column identifies one row, so the whole row is the key.
 	KeyColumns []string
 	Dialect    *query.Dialect
+	// Overrides is true where an INSERT writes into a column the server numbers itself.
+	Overrides bool
 }
 
 // resolveBindValue converts a cell value to a parameter. DEFAULT requires literal SQL.

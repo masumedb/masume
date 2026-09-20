@@ -251,3 +251,104 @@ func runPlanned(
 	}
 	return result, undo
 }
+
+const dropTicketSchema = `drop schema if exists masume_plan_ident cascade;`
+
+// The tickets are numbered by the server, and a restore writes those numbers back.
+const ticketSchema = `
+create schema masume_plan_ident;
+create table masume_plan_ident.tickets (
+  id    integer generated always as identity primary key,
+  price numeric not null,
+  tax   numeric generated always as (price * 0.2) stored
+);
+insert into masume_plan_ident.tickets (price) values (100), (250);
+`
+
+var ticketTable = db.TableRef{
+	Schema: "masume_plan_ident", Name: "tickets", Kind: db.RelationTable,
+}
+
+// The undo of a delete writes the rows back with the numbers they held, which the rows of
+// other relations refer to.
+func TestTheUndoOfADeleteKeepsTheNumbersOfAnIdentityColumn(t *testing.T) {
+	session := dbtest.Open(t, dbtest.Postgres)
+	dbtest.RunStatements(t, session, dropTicketSchema, ticketSchema)
+	t.Cleanup(func() {
+		_, _ = session.RunQuery(
+			context.Background(), dropTicketSchema, dbtest.ReadEverything, nil)
+	})
+
+	written := "delete from masume_plan_ident.tickets where price = 100"
+	plan, measured := writeplan.Build(context.Background(), session, writeplan.Request{
+		SQL: written, Tables: []db.TableRef{ticketTable}, Mode: cfg.PlanUndo,
+		UndoRows: cfg.DefaultUndoRows,
+	})
+	if !measured {
+		t.Fatalf("%q was not measured", written)
+	}
+	_, undo := runPlanned(t, session, plan, written)
+	if !undo.IsHeld() || undo.Rows != 1 {
+		t.Fatalf("the undo holds %d rows: %s", undo.Rows, undo.Reason)
+	}
+
+	if err := session.ApplyChanges(context.Background(), undo.Changes); err != nil {
+		t.Fatalf("the undo answered %v", err)
+	}
+	answered, err := session.RunQuery(context.Background(),
+		"select id, tax from masume_plan_ident.tickets order by id",
+		dbtest.ReadEverything, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(answered.Rows) != 2 || db.ReadNonNegativeCount(answered.Rows[0][0]) != 1 {
+		t.Errorf("the relation holds %v", answered.Rows)
+	}
+}
+
+var dropSqlserverTickets = []string{"drop table if exists dbo.masume_plan_tickets"}
+
+var sqlserverTickets = []string{
+	`create table dbo.masume_plan_tickets (
+  id    int identity(1,1) primary key,
+  price decimal(10,2) not null
+)`,
+	`insert into dbo.masume_plan_tickets (price) values (100), (250)`,
+}
+
+// A SQL Server identity column takes the numbers of a restore only between the two
+// statements that open and close it, which the undo carries with its rows.
+func TestTheSqlserverUndoKeepsTheNumbersOfAnIdentityColumn(t *testing.T) {
+	session := dbtest.Open(t, dbtest.Sqlserver)
+	dbtest.RunStatements(t, session, append(dropSqlserverTickets, sqlserverTickets...)...)
+	t.Cleanup(func() {
+		_, _ = session.RunQuery(
+			context.Background(), dropSqlserverTickets[0], dbtest.ReadEverything, nil)
+	})
+
+	table := db.TableRef{Schema: "dbo", Name: "masume_plan_tickets", Kind: db.RelationTable}
+	written := "delete from dbo.masume_plan_tickets where price = 100"
+	plan, measured := writeplan.Build(context.Background(), session, writeplan.Request{
+		SQL: written, Tables: []db.TableRef{table}, Mode: cfg.PlanUndo,
+		UndoRows: cfg.DefaultUndoRows,
+	})
+	if !measured {
+		t.Fatalf("%q was not measured", written)
+	}
+	_, undo := runPlanned(t, session, plan, written)
+	if !undo.IsHeld() || undo.Rows != 1 {
+		t.Fatalf("the undo holds %d rows: %s", undo.Rows, undo.Reason)
+	}
+
+	if err := session.ApplyChanges(context.Background(), undo.Changes); err != nil {
+		t.Fatalf("the undo answered %v", err)
+	}
+	answered, err := session.RunQuery(context.Background(),
+		"select id from dbo.masume_plan_tickets order by id", dbtest.ReadEverything, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(answered.Rows) != 2 || db.ReadNonNegativeCount(answered.Rows[0][0]) != 1 {
+		t.Errorf("the relation holds %v", answered.Rows)
+	}
+}

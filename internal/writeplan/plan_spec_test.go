@@ -9,6 +9,7 @@ import (
 	"github.com/turanmahmudov/masume/internal/core"
 	"github.com/turanmahmudov/masume/internal/db"
 	"github.com/turanmahmudov/masume/internal/db/postgres"
+	"github.com/turanmahmudov/masume/internal/db/sqlserver"
 	"github.com/turanmahmudov/masume/internal/query"
 	"github.com/turanmahmudov/masume/internal/query/statement"
 	"github.com/turanmahmudov/masume/internal/writeplan"
@@ -34,6 +35,9 @@ type planningSession struct {
 	relationships []db.Relationship
 	objects       []db.SchemaObject
 
+	// dialect is the server the plan is written for. Nothing set is PostgreSQL.
+	dialect *query.Dialect
+
 	asked []string
 	// True where the server takes no write the client can read as one relation.
 	plansNoWrite bool
@@ -43,7 +47,12 @@ func (session *planningSession) Describe() db.SessionDescriptor {
 	return db.SessionDescriptor{DefaultSchema: "public"}
 }
 
-func (session *planningSession) Dialect() *query.Dialect { return postgres.Dialect }
+func (session *planningSession) Dialect() *query.Dialect {
+	if session.dialect != nil {
+		return session.dialect
+	}
+	return postgres.Dialect
+}
 
 func (session *planningSession) Capabilities() core.Capabilities {
 	return core.Capabilities{PlansWrites: !session.plansNoWrite}
@@ -526,5 +535,75 @@ func TestDescribeUndoWithoutAReasonNamesNoSeparator(t *testing.T) {
 	held := writeplan.UndoPlan{Reason: "the table has no primary key"}
 	if got := writeplan.DescribeUndo(held); got != "none · the table has no primary key" {
 		t.Errorf("an undo with a reason reads %q", got)
+	}
+}
+
+// A column the server numbers itself holds data, so the undo of a delete reads it and
+// writes it back with the clause that overrides the numbering.
+func TestReadUndoRestoresTheNumbersOfAnIdentityColumn(t *testing.T) {
+	session := buildOrdersSession()
+	session.detail = db.TableDetail{Table: orders, Columns: []db.ColumnDetail{
+		{Name: "id", DataType: "integer", IsPrimaryKey: true, IsIdentityAlways: true},
+		{Name: "status", DataType: "text"},
+	}}
+	session.undo = [][]any{{int64(1), "open"}}
+	plan := buildPlan(t, session, "delete from orders where id = 1", cfg.PlanUndo)
+
+	if !strings.Contains(plan.Undo.Read, `"id"`) {
+		t.Fatalf("the undo reads:\n%s", plan.Undo.Read)
+	}
+	undo, err := writeplan.ReadUndo(context.Background(), session, plan.Undo)
+	if err != nil {
+		t.Fatalf("the undo answered %v", err)
+	}
+	if !strings.Contains(undo.Display[0], "overriding system value") {
+		t.Errorf("the undo reads:\n%s", undo.Display[0])
+	}
+}
+
+// The undo of an update never writes into the column the server numbers, so it carries no
+// clause that overrides the numbering.
+func TestReadUndoOfAnUpdateOverridesNothing(t *testing.T) {
+	session := buildOrdersSession()
+	session.detail = db.TableDetail{Table: orders, Columns: []db.ColumnDetail{
+		{Name: "id", DataType: "integer", IsPrimaryKey: true, IsIdentityAlways: true},
+		{Name: "status", DataType: "text"},
+	}}
+	plan := buildPlan(t, session,
+		"update orders set status = 'sent' where status = 'open'", cfg.PlanUndo)
+
+	undo, err := writeplan.ReadUndo(context.Background(), session, plan.Undo)
+	if err != nil {
+		t.Fatalf("the undo answered %v", err)
+	}
+	if strings.Contains(undo.Display[0], "overriding system value") {
+		t.Errorf("the undo reads:\n%s", undo.Display[0])
+	}
+}
+
+// A SQL Server identity column takes the numbers of a restore only between the two
+// statements that open and close it.
+func TestReadUndoOpensTheIdentityColumnOfTheServer(t *testing.T) {
+	session := buildOrdersSession()
+	session.dialect = sqlserver.Dialect
+	session.detail = db.TableDetail{Table: orders, Columns: []db.ColumnDetail{
+		{Name: "id", DataType: "int", IsPrimaryKey: true,
+			IsGenerated: true, IsIdentityAlways: true},
+		{Name: "status", DataType: "varchar"},
+	}}
+	session.undo = [][]any{{int64(1), "open"}}
+	plan := buildPlan(t, session, "delete from orders where id = 1", cfg.PlanUndo)
+
+	undo, err := writeplan.ReadUndo(context.Background(), session, plan.Undo)
+	if err != nil {
+		t.Fatalf("the undo answered %v", err)
+	}
+	if len(undo.Changes) != 3 {
+		t.Fatalf("the undo holds %d statements", len(undo.Changes))
+	}
+	first, last := undo.Changes[0].Display, undo.Changes[2].Display
+	if first != "set identity_insert [public].[orders] on;" ||
+		last != "set identity_insert [public].[orders] off;" {
+		t.Errorf("the undo runs %q and %q around the restore", first, last)
 	}
 }

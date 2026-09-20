@@ -28,6 +28,9 @@ type UndoPlan struct {
 	// Keys is the primary key. Columns is the query column list.
 	Keys    []string
 	Columns []string
+	// Overrides is true where the table holds a column the server numbers itself, which a
+	// restore writes back.
+	Overrides bool
 	// dialect writes the undo statements for the server of the write.
 	dialect *query.Dialect
 }
@@ -81,7 +84,8 @@ func (measure measurer) planUndo(ctx context.Context, plan Plan, undoRows int) U
 	return UndoPlan{
 		Kept: true, Rows: plan.Rows, Table: measure.table, Kind: measure.target.Kind,
 		Read: measure.buildUndoRead(columns), Limit: undoRows,
-		Keys: keys, Columns: columns, dialect: measure.dialect(),
+		Keys: keys, Columns: columns, Overrides: db.HoldsIdentityAlways(detail.Columns),
+		dialect: measure.dialect(),
 	}
 }
 
@@ -122,7 +126,9 @@ func (measure measurer) buildUndoColumns(
 	if measure.target.Kind != statement.WriteUpdate {
 		read := []string{}
 		for _, column := range detail.Columns {
-			if !column.IsGenerated {
+			// The numbers of an identity column are data, and the restore writes them
+			// back. Every other column the server fills is left to it.
+			if !column.IsGenerated || column.IsIdentityAlways {
 				read = append(read, column.Name)
 			}
 		}
@@ -174,9 +180,11 @@ func ReadUndo(ctx context.Context, runner db.QueryRunner, plan UndoPlan) (Undo, 
 func buildUndoStatements(
 	plan UndoPlan, rows [][]any, columns []db.ResultColumn,
 ) (Undo, error) {
+	// Only a restore of a deleted row writes into the column the server numbers.
+	overrides := plan.Overrides && plan.Kind != statement.WriteUpdate
 	target := build.WriteTarget{
 		Table: plan.Table.Qualified(), Columns: columns, KeyColumns: plan.Keys,
-		Dialect: plan.dialect,
+		Dialect: plan.dialect, Overrides: overrides,
 	}
 	restored := findRestoredColumns(columns, plan.Keys)
 
@@ -192,7 +200,30 @@ func buildUndoStatements(
 		})
 		undo.Display = append(undo.Display, shown)
 	}
+	if overrides && len(undo.Changes) > 0 && plan.dialect.SwitchIdentityInsert != nil {
+		undo.Changes = switchIdentityInsertAround(undo.Changes, plan)
+	}
 	return undo, nil
+}
+
+// switchIdentityInsertAround puts the statement that opens the identity column of the table
+// in front of the changes, and the statement that closes it after them.
+func switchIdentityInsertAround(changes []db.Change, plan UndoPlan) []db.Change {
+	target := plan.dialect.BuildQualifiedName(plan.Table.Qualified())
+	switchTo := func(on bool) db.Change {
+		written := plan.dialect.SwitchIdentityInsert(plan.dialect, target, on)
+		state := "close"
+		if on {
+			state = "open"
+		}
+		return db.Change{
+			Description: state + " the identity column of " + plan.Table.Name,
+			Display:     written,
+			Payload:     query.BoundStatement{SQL: written},
+		}
+	}
+	held := append([]db.Change{switchTo(true)}, changes...)
+	return append(held, switchTo(false))
 }
 
 // buildUndoRow returns the undo of one row, bound and written out.
