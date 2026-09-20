@@ -1015,7 +1015,7 @@ func (model *Model) pressExportChoice(
 	switch overlay.Kind {
 	case app.OverlayExport:
 		overlay.Field = field
-		StepExportField(overlay, step)
+		StepExportChoice(overlay, step)
 	case app.OverlayDump:
 		overlay.Field = field
 		StepDumpChoice(overlay, step)

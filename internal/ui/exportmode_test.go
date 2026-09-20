@@ -81,6 +81,36 @@ func TestDeleteInTheExportPathWritesItBack(t *testing.T) {
 	}
 }
 
+// A press on a mark of the export card steps the value of that field, as a press on a mark
+// of the dump card does. Moving the cursor instead leaves the format the reader pressed on.
+func TestAPressOnAnExportMarkStepsTheFormat(t *testing.T) {
+	model := buildOfflineModel(t, 120, 40)
+	connection := model.Active()
+	path := filepath.Join(t.TempDir(), "orders.csv")
+	connection.Open(app.Overlay{
+		Kind: app.OverlayExport, Title: " export ", Field: 1,
+		Export: app.ExportRequest{
+			Path: path, Format: result.ExportCSV, CSV: result.DefaultCSVOptions(),
+		},
+		Draft: app.NewEditorBuffer(path, len(path)),
+	})
+	model.render()
+
+	if len(model.layout.formChoices) != 1 {
+		t.Fatalf("%d fields drew a mark", len(model.layout.formChoices))
+	}
+	mark := model.layout.formChoices[0]
+	model.readMouse(tea.MouseClickMsg{X: mark.on, Y: mark.row, Button: tea.MouseLeft})
+
+	overlay := &connection.Overlay
+	if overlay.Export.Format == result.ExportCSV {
+		t.Errorf("the press left the format on %q", overlay.Export.Format)
+	}
+	if overlay.Field != 1 {
+		t.Errorf("the press moved the cursor to row %d", overlay.Field)
+	}
+}
+
 // The question about a file that already exists is asked over the export card, so a no
 // returns to the card with the path and the format the reader set.
 func TestRefusingTheOverwriteQuestionReturnsToTheExportCard(t *testing.T) {
