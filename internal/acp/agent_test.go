@@ -499,7 +499,7 @@ func TestAnAgentNeedsNoPermissionForTheToolsOfMasume(t *testing.T) {
 	held := &collectedReply{}
 	open := &session{
 		hooks: buildHooks(held, false), ctx: context.Background(), id: "session-1",
-		served: []string{"list_tables", "run_query"},
+		served: []string{"list_tables", "run_query"}, servers: []string{"masume"},
 	}
 
 	// Agents name a tool of a server after that server, in one of two forms.
@@ -526,11 +526,13 @@ func TestAnAgentAsksTheReaderForItsOwnTools(t *testing.T) {
 	held := &collectedReply{}
 	open := &session{
 		hooks: buildHooks(held, false), ctx: context.Background(), id: "session-1",
-		served: []string{"list_tables", "run_query"},
+		served: []string{"list_tables", "run_query"}, servers: []string{"masume"},
 	}
 
-	// A file named after the server is not a tool of the server.
-	for _, title := range []string{"Bash", "Read /home/turan/masume/notes", "write_file"} {
+	// A file named after the server is not a tool of the server, and neither is a tool of
+	// another server whose name ends with the name of one of these.
+	for _, title := range []string{"Bash", "Read /home/turan/masume/notes", "write_file",
+		"shell_run_query", "mcp__other__run_query"} {
 		answered, failure := open.answerRequest(
 			methodRequestPermission, buildPermissionParams(title))
 		if failure != nil {
@@ -541,7 +543,7 @@ func TestAnAgentAsksTheReaderForItsOwnTools(t *testing.T) {
 			t.Errorf("%s answered %+v", title, outcome)
 		}
 	}
-	if len(held.asked) != 3 {
+	if len(held.asked) != 5 {
 		t.Errorf("the reader was asked %v", held.asked)
 	}
 }

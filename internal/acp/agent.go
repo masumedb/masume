@@ -65,6 +65,8 @@ type session struct {
 	models modelChoice
 	// served is the tools masume serves, which it answers permission for itself.
 	served []string
+	// servers is the names the agent knows the MCP servers of masume by.
+	servers []string
 }
 
 // modelChoice is the model list of one session. An agent reports it as a config option or
@@ -108,7 +110,7 @@ func (held *Agent) start(hooks ai.RunHooks) (*exec.Cmd, *session, error) {
 
 	open := &session{
 		hooks: hooks, steps: map[string]bool{}, served: held.served,
-		ctx: context.Background(),
+		servers: held.readServerNames(), ctx: context.Background(),
 	}
 	open.connection = openConnection(input, handlers{
 		callMe:   open.answerRequest,
@@ -535,12 +537,27 @@ func (open *session) answerRequest(
 	}, nil
 }
 
+// readServerNames returns the names the agent knows the MCP servers of masume by.
+func (held *Agent) readServerNames() []string {
+	names := make([]string, 0, len(held.servers))
+	for _, server := range held.servers {
+		names = append(names, server.Name)
+	}
+	return names
+}
+
 // servesTool is true where this action is one of the tools masume serves. An agent names a
 // tool of a server after that server, as `mcp__masume__list_tables` or `masume_list_tables`.
+// The agent writes the title, and only these three forms are taken.
 func (open *session) servesTool(title string) bool {
 	for _, name := range open.served {
-		if title == name || strings.HasSuffix(title, "_"+name) {
+		if title == name {
 			return true
+		}
+		for _, server := range open.servers {
+			if title == server+"_"+name || title == "mcp__"+server+"__"+name {
+				return true
+			}
 		}
 	}
 	return false
