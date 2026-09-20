@@ -459,6 +459,7 @@ var (
 		takesKey(cfg.ScopeDialog, ActionPreviousValue),
 		takesKey(cfg.ScopeDialog, ActionNextValue),
 		takesKey(cfg.ScopeList, ActionChooseRow),
+		keyOf(cfg.ScopeList, ActionChooseRow, "pick the file").onlyWhen(picksFormFile),
 		keyOf(cfg.ScopeDialog, ActionTestConnection, "test"),
 		keyOf(cfg.ScopeDialog, ActionSaveForm, "save"),
 		keyOf(cfg.ScopeDialog, ActionClose, "cancel"),

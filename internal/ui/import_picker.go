@@ -135,6 +135,11 @@ func (model *Model) renderFilePicker(connectionID int, width int) []string {
 		return []string{model.styles.Muted().Render("the picker is not open")}
 	}
 
+	return model.buildPickerLines(picker, width)
+}
+
+// buildPickerLines draws the directory a picker stands in and the files of it.
+func (model *Model) buildPickerLines(picker *filepicker.Model, width int) []string {
 	lines := []string{
 		model.styles.Muted().Render(present.TruncateText(picker.CurrentDirectory, width)),
 		"",

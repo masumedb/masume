@@ -95,6 +95,8 @@ type Model struct {
 	keys cfg.KeySettings
 	// The connection form, which is a screen of its own.
 	form *FormState
+	// The file picker the connection form has open on one of its fields.
+	formPicker *formPickerState
 
 	connections openConnections
 
@@ -532,6 +534,9 @@ func (model *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		return model.readConversationKept(held)
 	}
 
+	if held, command, taken := model.readFormPickerMessage(message); taken {
+		return held, command
+	}
 	if held, command, taken := model.readPickerMessage(message); taken {
 		return held, command
 	}

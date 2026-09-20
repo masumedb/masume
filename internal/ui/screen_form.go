@@ -111,6 +111,10 @@ func (model *Model) readFormKey(key tea.Key) (tea.Model, tea.Cmd) {
 		return model, nil
 	}
 
+	if model.formPicker != nil {
+		return model.readFormPickerKey(key)
+	}
+
 	// Escape belongs to no action. It closes the form.
 	if key.Code == tea.KeyEscape {
 		model.screen = ScreenPickingProfile
@@ -122,6 +126,14 @@ func (model *Model) readFormKey(key tea.Key) (tea.Model, tea.Cmd) {
 	if matched {
 		if held, command, ran := model.runFormAction(match); ran {
 			return held, command
+		}
+		// A field that holds a file path opens the picker instead of stepping on.
+		if match.Action == ActionChooseRow {
+			if field, focused := form.findFocusedField(); focused &&
+				cfg.TakesFilePath(form.Fields, field.Key) {
+				form.keepField()
+				return model, model.openFormFilePicker(field)
+			}
 		}
 		switch match.Action {
 		case ActionNextField, ActionChooseRow:
@@ -451,6 +463,9 @@ const (
 
 // renderForm draws the connection form: one row per field, and how the last test went.
 func (model *Model) renderForm() string {
+	if model.formPicker != nil {
+		return model.renderFormPicker()
+	}
 	form := model.form
 	cardWidth := present.ResolveCardWidth(widestFormCard, narrowestFormCard, model.width)
 	valueWidth := max(cardWidth-6-formLabelWidth, 8)
@@ -487,6 +502,12 @@ func (model *Model) renderForm() string {
 			Ground: model.styles.Theme.Panel, Ink: model.styles.Theme.Muted,
 			Masked: field.Key == "password", Placeholder: cfg.DescribeFormValue(field),
 		}
+		// An empty path names the key that opens the picker, and it keeps naming it
+		// while the caret stands in the field.
+		if cfg.TakesFilePath(form.Fields, field.Key) {
+			look.Placeholder = model.describeFilePickerKey()
+			look.KeepsPlaceholder = true
+		}
 		if focused {
 			look.Ground, look.Ink, look.Focused =
 				model.styles.Theme.Header, model.styles.Theme.Text, true
@@ -514,7 +535,7 @@ func (model *Model) renderForm() string {
 		lines = append(lines, model.styles.Muted().Render("not tested"))
 	}
 
-	keys := model.buildKeyLineOf(connectionFormKeySpecs, keyScene{})
+	keys := model.buildKeyLineOf(connectionFormKeySpecs, keyScene{model: model})
 	// The keys are cut rather than wrapped, because the card keeps one row for them.
 	if text := present.TruncateText(keys.buildText(), cardWidth-4); text != "" {
 		lines = append(lines, model.renderKeyLine(keys, []string{text},
@@ -545,23 +566,21 @@ const formCardChrome = 8
 // describeFormHint returns the faint line under the fields: the password source of the auth
 // field, or the paste hint of the form.
 func (model *Model) describeFormHint() string {
-	if field, focused := model.form.findFocusedField(); focused && field.Key == "auth" {
-		return cfg.DescribeAuthMode(model.form.Draft.Text)
+	field, focused := model.form.findFocusedField()
+	if !focused {
+		return ""
 	}
-	if hasFormField(model.form.Shown(), "host") {
-		return "paste a postgres:// or mysql:// URL into host to fill the form"
-	}
-	return ""
+	return cfg.DescribeFormField(model.form.Fields, field.Key, model.form.Draft.Text)
 }
 
-// hasFormField is true where the form shows the field of this key.
-func hasFormField(fields []cfg.FormField, key string) bool {
-	for _, field := range fields {
-		if field.Key == key {
-			return true
-		}
+// describeFilePickerKey returns what an empty path field says: the key that opens the file
+// picker.
+func (model *Model) describeFilePickerKey() string {
+	chord := model.registry.FormatFirstActionChord(cfg.ScopeList, ActionChooseRow)
+	if chord == "" {
+		return "choose a file"
 	}
-	return false
+	return "press " + chord + " to choose a file"
 }
 
 // The marks a field that steps through a list of values draws on each side of its value.

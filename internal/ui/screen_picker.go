@@ -130,10 +130,12 @@ func (model *Model) runPickerAction(match Match) (tea.Model, tea.Cmd) {
 		model.picker.startFilter()
 	case ActionNewConnection:
 		model.form = NewFormState(cfg.Profile{}, false, model.secretStoreNames())
+		model.formPicker = nil
 		model.screen = ScreenEditingConnection
 	case ActionEditConnection:
 		if profile, found := model.pickedProfile(); found {
 			model.form = NewFormState(profile, true, model.secretStoreNames())
+			model.formPicker = nil
 			model.screen = ScreenEditingConnection
 		}
 	case ActionDeleteConnection:

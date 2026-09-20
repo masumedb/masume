@@ -503,7 +503,9 @@ func (model *Model) pressKey(mouse tea.Mouse) (tea.Model, tea.Cmd, bool) {
 // its value, and a press anywhere else marks the field the press landed on and leaves what was
 // typed into the one before it.
 func (model *Model) pressForm(mouse tea.Mouse) (tea.Model, tea.Cmd) {
-	if model.form == nil {
+	// The file picker covers the rows of the form, so a press belongs to the picker and
+	// never to what it hides.
+	if model.form == nil || model.formPicker != nil {
 		return model, nil
 	}
 	// Every key the form names is a button, and it is drawn over the rows, so it is read
@@ -524,10 +526,19 @@ func (model *Model) pressForm(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 		return model, nil
 	}
 	row, found := model.layout.formRows.holds(mouse.X, mouse.Y)
-	if !found || row == model.form.Cursor {
+	if !found {
 		return model, nil
 	}
-	model.form.StepField(row - model.form.Cursor)
+	if row != model.form.Cursor {
+		model.form.StepField(row - model.form.Cursor)
+		return model, nil
+	}
+	// A press on the field it already stands on opens the picker of a file path.
+	if field, focused := model.form.findFocusedField(); focused &&
+		cfg.TakesFilePath(model.form.Fields, field.Key) {
+		model.form.keepField()
+		return model, model.openFormFilePicker(field)
+	}
 	return model, nil
 }
 
