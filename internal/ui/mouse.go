@@ -960,6 +960,18 @@ func (model *Model) answerOverlayChip(
 			Match{Action: action, Scope: cfg.ScopeDialog})
 		return held, command
 	}
+	// A question closes on its own, and the card it was asked over returns, as the keys
+	// that answer it do.
+	if overlay.Kind == app.OverlayConfirm || overlay.Kind == app.OverlayWritePlan {
+		if action == ActionAnswerNo {
+			model.answerNothing(overlay)
+			connection.CloseOverlay()
+			return model, nil
+		}
+		answer := overlay.Answers.Answer
+		connection.CloseOverlay()
+		return model, model.runAnswer(answer, true)
+	}
 	if action == ActionAnswerYes {
 		return model.chooseOverlayRow(connection, tab, overlay, chooseInSameTab)
 	}

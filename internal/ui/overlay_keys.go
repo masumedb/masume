@@ -873,7 +873,7 @@ func (model *Model) chooseOverlayRow(
 
 	case app.OverlayConfirm:
 		answer := overlay.Answers.Answer
-		connection.CloseEveryOverlay()
+		connection.CloseOverlay()
 		return model, model.runAnswer(answer, true)
 
 	case app.OverlayCellEdit:
