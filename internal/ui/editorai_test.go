@@ -71,7 +71,7 @@ func TestAnEmptyEditorAsksTheModelForAQuery(t *testing.T) {
 func TestAWrittenStatementIsAskedAbout(t *testing.T) {
 	model, _, tab := buildEditingModel(t, "select id from orders", 0)
 	tab.Focus = app.PaneEditor
-	checkEditorOffers(t, model, ActionSendToAi, "ask about this")
+	checkEditorOffers(t, model, ActionSendToAi, "ask about the statement")
 }
 
 // A statement the scanner marked is diagnosed.
@@ -82,7 +82,7 @@ func TestAMarkedStatementIsDiagnosed(t *testing.T) {
 	if len(model.resolveLocalDiagnostics(model.Active(), tab)) == 0 {
 		t.Skip("the scanner found no fault in this statement")
 	}
-	checkEditorOffers(t, model, ActionAiFixError, "diagnose this")
+	checkEditorOffers(t, model, ActionAiFixError, "diagnose the fault")
 }
 
 // A run the server refused is explained.

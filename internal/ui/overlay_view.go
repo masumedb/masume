@@ -1862,10 +1862,10 @@ func drawsPromptBar(overlay app.Overlay) bool {
 
 // promptPlaceholders name what a card of a prompt takes while its field is empty.
 var promptPlaceholders = map[app.PromptKind]string{
-	app.PromptNotebookName:   "a name, or a path",
-	app.PromptNotebookRename: "a name",
-	app.PromptNotebookReport: "a path for the report",
-	app.PromptAiNotebook:     "the subject to cover",
+	app.PromptNotebookName:   "name or path",
+	app.PromptNotebookRename: "name",
+	app.PromptNotebookReport: "path for the report",
+	app.PromptAiNotebook:     "subject of the notebook",
 }
 
 // describePromptPlaceholder returns what the field of a card takes while it is empty.
@@ -1873,7 +1873,7 @@ func describePromptPlaceholder(prompt app.PromptKind) string {
 	if held, found := promptPlaceholders[prompt]; found {
 		return held
 	}
-	return "a name for this query"
+	return "name for this query"
 }
 
 // findPromptBar returns the prompt to draw at the foot of a pane, and whether there is one.

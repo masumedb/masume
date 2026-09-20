@@ -88,7 +88,7 @@ func TestTheOffModeHidesEveryKeyHint(t *testing.T) {
 
 	drawn := stripEscapes(model.render())
 	for _, said := range []string{
-		"palette", "? help", "full height", "ask ai", "ask about this",
+		"palette", "? help", "full height", "ask ai", "ask about the statement",
 	} {
 		if strings.Contains(drawn, said) {
 			t.Errorf("the frame drew the %q key with the hints off", said)
@@ -123,7 +123,7 @@ func TestTheMainModeShowsTheKeysOfTheModel(t *testing.T) {
 		if !strings.Contains(drawn, "ask ai") {
 			t.Errorf("the %q mode dropped the key that opens the chat", mode)
 		}
-		if !strings.Contains(drawn, "ask about this") {
+		if !strings.Contains(drawn, "ask about the statement") {
 			t.Errorf("the %q mode dropped the key that asks about the statement", mode)
 		}
 	}

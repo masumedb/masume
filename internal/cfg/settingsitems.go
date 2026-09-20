@@ -197,7 +197,7 @@ func buildAiItems(sources SettingsSources, path []string) []SettingItem {
 
 	items := []SettingItem{{
 		Key: ItemChatEnabled, Label: "ai chat", Kind: SettingToggle,
-		Detail: "toggle ai chat", Value: describeToggle(config.Enabled),
+		Value: describeToggle(config.Enabled),
 	}}
 	if !config.Enabled {
 		return items
@@ -274,7 +274,7 @@ func buildProviderItems(config AiConfig, id AiProviderID) []SettingItem {
 			Detail: "environment variable name",
 			Value:  settings.APIKeyEnv, Faint: settings.APIKeyEnv == ""},
 		{Key: ItemBaseURL, Label: "server address", Kind: SettingText,
-			Detail: "empty uses the default",
+			Detail: "empty uses the provider default",
 			Value:  settings.BaseURL, Faint: settings.BaseURL == ""},
 		{Key: ItemToolSteps, Label: "tool steps", Kind: SettingText,
 			Detail: "max tool rounds per question",
@@ -288,13 +288,13 @@ func buildProviderItems(config AiConfig, id AiProviderID) []SettingItem {
 func buildAgentItems(config AiConfig, name string) []SettingItem {
 	settings := config.Agents[name]
 	command := settings.Command
-	detail := "acp program to run"
+	detail := "acp executable"
 	if command != "" && !FindsAgentCommand(settings) {
 		detail = "not installed: " + command + " is not on the PATH"
 	}
 	items := []SettingItem{
 		{Key: ItemAgentName, Label: "name", Kind: SettingText,
-			Detail: "[ai.agents] table name", Value: name},
+			Detail: "agent name in the config file", Value: name},
 		{Key: ItemAgentCommand, Label: "command", Kind: SettingText,
 			Detail: detail, Value: command, Faint: command == ""},
 		{Key: ItemAgentArgs, Label: "arguments", Kind: SettingText,
@@ -484,7 +484,7 @@ func buildMcpItems(sources SettingsSources, path []string) []SettingItem {
 			Detail: "time limit in milliseconds",
 			Value:  strconv.Itoa(int(timeout / time.Millisecond))},
 		{Key: PageConnections, Page: PageConnections, Label: "connections",
-			Kind: SettingGroup, Detail: "connections the server opens",
+			Kind: SettingGroup, Detail: "connections served over MCP",
 			Value: describeServedCount(sources)},
 	}
 }
@@ -546,7 +546,7 @@ func buildNotebookItems(sources SettingsSources, path []string) []SettingItem {
 	}
 	return append(items, SettingItem{
 		Key: ItemNotebookAdd, Label: "add a directory", Kind: SettingText,
-		Detail: "beside the project and state directories",
+		Detail: "extra directory, beside project and state",
 	})
 }
 

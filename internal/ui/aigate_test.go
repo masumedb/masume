@@ -68,7 +68,7 @@ func TestTheFrameNamesNoAiWhereTheFeaturesAreOff(t *testing.T) {
 	model := buildModelWithoutAi(t, 120, 34)
 	frame := model.render()
 
-	for _, named := range []string{"ask ai", "ask about this", "ask for a query", "✦"} {
+	for _, named := range []string{"ask ai", "ask about the statement", "ask for a query", "✦"} {
 		if strings.Contains(frame, named) {
 			t.Errorf("the frame says %q, and the AI features are off", named)
 		}

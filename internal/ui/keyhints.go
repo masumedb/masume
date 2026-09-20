@@ -421,13 +421,13 @@ var (
 var (
 	pickerKeySpecs = []keySpec{
 		takesKey(cfg.ScopeDialog, ActionClose),
-		keyOf(cfg.ScopeList, ActionChooseRow, "or double click connects"),
+		keyOf(cfg.ScopeList, ActionChooseRow, "connect"),
 		keyOf(cfg.ScopeDialog, ActionNewConnection, "new").onlyWhen(listsConnections),
 		keyOf(cfg.ScopeDialog, ActionEditConnection, "edit").onlyWhen(listsConnections),
 		keyOf(cfg.ScopeDialog, ActionDeleteConnection, "delete").onlyWhen(listsConnections),
 		keyOf(cfg.ScopeDialog, ActionFilterConnections, "filter").
 			onlyWhen(listsConnections),
-		keyOf(cfg.ScopeDialog, ActionClose, "stops the filter").
+		keyOf(cfg.ScopeDialog, ActionClose, "clear the filter").
 			onlyWhen(filtersConnections),
 	}
 	passwordKeySpecs = []keySpec{
@@ -437,12 +437,12 @@ var (
 	}
 	settingsKeySpecs = []keySpec{
 		pairOf(cfg.ScopeList, ActionCursorUp, ActionCursorDown, "move", ""),
-		keyOf(cfg.ScopeDialog, ActionNextValue, "the rows").onlyWhen(showsSections),
+		keyOf(cfg.ScopeDialog, ActionNextValue, "rows").onlyWhen(showsSections),
 		pairOf(cfg.ScopeDialog, ActionPreviousValue, ActionNextValue, "change", "").
 			onlyWhen(stepsSettingValue),
 		keyOf(cfg.ScopeDialog, ActionPreviousValue, "back").
 			onlyWhen(leavesSettingPage),
-		keyOf(cfg.ScopeDialog, ActionPreviousValue, "the sections").
+		keyOf(cfg.ScopeDialog, ActionPreviousValue, "sections").
 			onlyWhen(leavesSettingRows),
 		keyOf(cfg.ScopeList, ActionChooseRow, "").
 			withLabel(describeSettingsChoose).onlyWhen(opensSettingRow),
@@ -490,7 +490,7 @@ var (
 		firstChordOf(cfg.ScopePlan, ActionAiCheckPlan, "ask ai"),
 	}
 	planCostKeySpecs = []keySpec{
-		firstChordOf(cfg.ScopeGlobal, ActionExplainAnalyze, "for actual times"),
+		firstChordOf(cfg.ScopeGlobal, ActionExplainAnalyze, "actual times"),
 	}
 	runningKeySpecs = []keySpec{
 		firstChordOf(cfg.ScopeGlobal, ActionCancelQuery, "stop").onlyWhen(stopsRunning),
@@ -498,11 +498,11 @@ var (
 	editorAiKeySpecs = []keySpec{
 		iconKeyOf(cfg.ScopeGlobal, ActionAiFixError, cfg.IconAi, "explain the failure").
 			onlyWhen(failedLastRun),
-		iconKeyOf(cfg.ScopeGlobal, ActionAiFixError, cfg.IconAi, "diagnose this").
+		iconKeyOf(cfg.ScopeGlobal, ActionAiFixError, cfg.IconAi, "diagnose the fault").
 			onlyWhen(showsFault),
 		iconKeyOf(cfg.ScopeGlobal, ActionShowAiChat, cfg.IconAi, "ask for a query").
 			onlyWhen(editsNothing),
-		iconKeyOf(cfg.ScopeGlobal, ActionSendToAi, cfg.IconAi, "ask about this").
+		iconKeyOf(cfg.ScopeGlobal, ActionSendToAi, cfg.IconAi, "ask about the statement").
 			onlyWhen(asksAboutStatement),
 	}
 )
