@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -170,5 +172,33 @@ func TestACardThatBeginsAnotherTakesItsPlace(t *testing.T) {
 	model.readKey(pressEscape())
 	if connection.Overlay.IsOpen() {
 		t.Errorf("Esc left %q", connection.Overlay.Kind)
+	}
+}
+
+// The field that renames a notebook is opened over the list, and answering it returns there,
+// so the reader sees the renamed file among the others.
+func TestRenamingANotebookReturnsToTheList(t *testing.T) {
+	directory := t.TempDir()
+	path := filepath.Join(directory, "revenue.masume.md")
+	if err := os.WriteFile(path, []byte("# revenue\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	model := buildOfflineModel(t, 120, 40)
+	connection := model.Active()
+	connection.Open(app.Overlay{
+		Kind: app.OverlayNotebooks, Draft: app.NewEditorBuffer("", 0),
+		Notebooks: []notebook.Entry{{Name: "revenue", Path: path}},
+	})
+	model.render()
+
+	model.readKey(tea.Key{Code: 'e', Text: "e"})
+	if connection.Overlay.Kind != app.OverlayPrompt {
+		t.Fatalf("the field did not open: %q", connection.Overlay.Kind)
+	}
+	connection.Overlay.Draft = app.NewEditorBuffer("earnings", len("earnings"))
+	model.readKey(tea.Key{Code: tea.KeyEnter})
+
+	if connection.Overlay.Kind != app.OverlayNotebooks {
+		t.Errorf("the rename left %q, wanted the list", connection.Overlay.Kind)
 	}
 }

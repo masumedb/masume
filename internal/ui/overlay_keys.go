@@ -1026,7 +1026,8 @@ func (model *Model) answerPrompt(
 	if overlay.Prompt == app.PromptFind || overlay.Prompt == app.PromptReplace {
 		written = overlay.Draft.Text
 	}
-	connection.CloseEveryOverlay()
+	// The field closes and the card it was opened over returns.
+	connection.CloseOverlay()
 
 	switch overlay.Prompt {
 	case app.PromptTabName:
