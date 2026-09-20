@@ -116,7 +116,8 @@ func (model *Model) stepDump(
 	// An existing file is never written over without a yes.
 	if _, err := os.Stat(path); err == nil {
 		options, target := held.Options, held.Target
-		connection.Open(app.Overlay{
+		// The question is asked over the form, which returns with its values on a no.
+		connection.OpenOver(app.Overlay{
 			Kind: app.OverlayConfirm, Title: " overwrite the file ",
 			Body: path + " already exists. Overwrite the file?",
 			Answers: app.OverlayAnswers{Answer: func(confirmed bool) app.AnswerCommand {

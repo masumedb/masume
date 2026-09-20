@@ -80,3 +80,43 @@ func TestDeleteInTheExportPathWritesItBack(t *testing.T) {
 			held.Export.Path, held.Draft.Text)
 	}
 }
+
+// The question about a file that already exists is asked over the export card, so a no
+// returns to the card with the path and the format the reader set.
+func TestRefusingTheOverwriteQuestionReturnsToTheExportCard(t *testing.T) {
+	model := buildOfflineModel(t, 160, 48)
+	connection := model.Active()
+	tab := connection.Active()
+	tab.Results.Start([]string{"select * from orders"}, 200)
+	tab.Results.Succeed(0,
+		db.ComposedRead{Text: "select * from orders", Display: "select * from orders"},
+		db.QueryResult{
+			Columns: []db.ResultColumn{{Name: "id", DataType: "integer"}},
+			Rows:    [][]any{{int64(1)}},
+		})
+
+	path := filepath.Join(t.TempDir(), "orders.csv")
+	if err := os.WriteFile(path, []byte("held\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	overlay := app.Overlay{
+		Kind: app.OverlayExport, Title: " export ",
+		Export: app.ExportRequest{
+			Path: path, Format: result.ExportCSV, CSV: result.DefaultCSVOptions(),
+		},
+		Draft: app.NewEditorBuffer(path, len(path)),
+	}
+	connection.Open(overlay)
+	model.writeExport(connection, tab, overlay)
+	if connection.Overlay.Kind != app.OverlayConfirm {
+		t.Fatalf("the question did not open: %q", connection.Overlay.Kind)
+	}
+
+	model.readKey(tea.Key{Code: 'n', Text: "n"})
+	if connection.Overlay.Kind != app.OverlayExport {
+		t.Errorf("no left %q, wanted the export card", connection.Overlay.Kind)
+	}
+	if connection.Overlay.Export.Path != path {
+		t.Errorf("the card came back with %q", connection.Overlay.Export.Path)
+	}
+}
