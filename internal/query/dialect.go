@@ -96,6 +96,9 @@ type Dialect struct {
 	DropSchema  func(dialect *Dialect, schema string) string
 	DropTrigger func(dialect *Dialect, schema, name, table string) string
 	DropRoutine func(dialect *Dialect, schema, name, identity string) string
+	// ReadOnlyUnit is how this server opens and closes a unit of work that refuses a
+	// write. A dialect that leaves it unset has none.
+	ReadOnlyUnit ReadOnlyUnit
 	// IdentityClause is what a CREATE TABLE writes after the type of a column the server
 	// numbers itself. A dialect that leaves it unset writes none.
 	IdentityClause string
@@ -112,6 +115,10 @@ type Dialect struct {
 	// NamesWithoutQuotes is an optional additional check for identifiers that need no quotes.
 	NamesWithoutQuotes func(name string) bool
 }
+
+// ReadOnlyUnit is the pair of statements that open and close a unit of work the server
+// refuses a write in.
+type ReadOnlyUnit struct{ Open, Close string }
 
 // plainIdentifier matches a name a server accepts without quotes.
 var plainIdentifier = regexp.MustCompile(`^[a-z_][a-z0-9_$]*$`)

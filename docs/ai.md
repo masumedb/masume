@@ -190,6 +190,8 @@ MongoDB `describe_table` samples up to 100 documents per collection and returns 
 
 The chat asks before every `run_query` call, including reads; it does not use `confirm_writes`. It also asks before `explain_query` of a statement classified as a write. `plan_write` runs without that question.
 
+A statement the chat classifies as a read runs inside a unit of work the server refuses a write in, so a routine it calls writes nothing. See [read-only access](engines.md#read-only-access).
+
 `write_plan` adds a plan when the profile, the engine, and the statement support measurement. After execution, `Alt+U` opens the undo. See [write plans](configuration.md#write-plans).
 
 The chat uses the profile `mode` and database permissions. `[mcp] access`, `row_limit`, and `timeout_ms` do not apply.

@@ -171,6 +171,8 @@ mcp = "read-only"
 
 MCP asks for a read-only connection when effective access is read-only, and the engine must support that profile mode. TiDB is the exception. MCP `access = "read-only"` on a writable profile keeps the writable session and applies client checks. An explicit `mode = "read-only"` TiDB profile still fails to connect. See [read-only access](engines.md#read-only-access).
 
+A statement classified as a read runs inside a unit of work the server refuses a write in, so a routine it calls writes nothing. See [read-only access](engines.md#read-only-access). An agent holds no transaction of its own: `BEGIN` is a read, and the unit it runs in ends with it.
+
 `explain_query` with `analyze: true` executes a statement classified as a read; a write receives an estimated plan only, subject to access and confirmation. `plan_write` runs counts that evaluate the write predicate.
 
 `row_limit` is the maximum returned rows for `run_query`. A call can ask for fewer rows, and catalog results, undo rows, changed rows, and plan results sit outside this cap.

@@ -210,9 +210,14 @@ type plannedWrite struct {
 func runRead(
 	ctx context.Context, session db.Session, deps ToolDeps, sql string, rowLimit int,
 ) (agent.StatementAnswer, error) {
-	result, err := agent.RunStatementWithin(ctx, session, deps.Config.Timeout,
-		func(limited context.Context) (db.QueryResult, error) {
-			return session.RunQuery(limited, sql, rowLimit, nil)
+	// The server refuses a write inside the unit. A routine the statement calls writes
+	// nothing there.
+	result, err := db.RunGuardedRead(ctx, session,
+		func(guarded context.Context) (db.QueryResult, error) {
+			return agent.RunStatementWithin(guarded, session, deps.Config.Timeout,
+				func(limited context.Context) (db.QueryResult, error) {
+					return session.RunQuery(limited, sql, rowLimit, nil)
+				})
 		})
 	if err != nil {
 		return agent.StatementAnswer{}, err

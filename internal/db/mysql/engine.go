@@ -34,6 +34,7 @@ var Dialect = &query.Dialect{
 		core.KindBoolean: "boolean", core.KindTimestamp: "datetime",
 	},
 	IdentityColumn: "id bigint auto_increment primary key",
+	ReadOnlyUnit:   query.ReadOnlyUnit{Open: "start transaction read only", Close: "commit"},
 	// A MySQL definition names no database, so a dump of one database selects it first.
 	SelectSchema: func(dialect *query.Dialect, schema string) string {
 		return "use " + dialect.QuoteIdentifier(schema) + ";"

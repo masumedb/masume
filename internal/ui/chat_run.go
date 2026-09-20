@@ -224,15 +224,20 @@ func (model *Model) buildChatToolDeps(
 				if err := beginManualTransaction(ctx, session, autocommit, sql); err != nil {
 					return agent.StatementAnswer{}, err
 				}
-				return runChatWrite(ctx, session, held, func(
-					running context.Context,
-				) (db.QueryResult, error) {
+				run := func(running context.Context) (db.QueryResult, error) {
 					return agent.RunStatementWithin(
 						running, session, model.ai.StatementTimeout,
 						func(limited context.Context) (db.QueryResult, error) {
 							return session.RunQuery(limited, sql, rowLimit, nil)
 						})
-				})
+				}
+				// The server refuses a write inside the unit. A routine the
+				// statement calls writes nothing there.
+				if session.Language().ResolveWriteRisk(sql) == statement.RiskNone {
+					result, err := db.RunGuardedRead(ctx, session, run)
+					return agent.StatementAnswer{Result: result}, err
+				}
+				return runChatWrite(ctx, session, held, run)
 			},
 			ReportRun: func(report agent.StatementReport) {
 				if held.kept.IsHeld() {

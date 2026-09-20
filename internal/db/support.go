@@ -13,6 +13,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/turanmahmudov/masume/internal/cfg"
 	"github.com/turanmahmudov/masume/internal/core"
 	"github.com/turanmahmudov/masume/internal/query"
 	"github.com/turanmahmudov/masume/internal/query/language"
@@ -187,6 +188,36 @@ func BuildCappedResult(read CappedRead) QueryResult {
 		Command: read.Command, Affected: read.Affected, HasAffected: read.HasAffected,
 		HoldsResultSet: read.HoldsResultSet,
 	}
+}
+
+// readOnlyUnitWait is the time the statement that closes a read-only unit has.
+const readOnlyUnitWait = 5 * time.Second
+
+// RunGuardedRead runs a statement this client classified as a read inside a unit of work the
+// server refuses a write in. A routine the statement calls writes nothing there. A server
+// with no such unit, a connection that is read-only already, and a connection inside a
+// transaction all run the statement as it is.
+func RunGuardedRead(
+	ctx context.Context, session Session, run func(context.Context) (QueryResult, error),
+) (QueryResult, error) {
+	unit := session.Dialect().ReadOnlyUnit
+	if unit.Open == "" || !session.Capabilities().TakesReadOnlyMode ||
+		session.Describe().Profile.AccessMode == cfg.AccessReadOnly ||
+		session.ReadTransactionState() != TransactionNone {
+		return run(ctx)
+	}
+	if _, err := session.RunQuery(ctx, unit.Open, 1, nil); err != nil {
+		return QueryResult{}, err
+	}
+
+	result, err := run(ctx)
+	closing, stop := context.WithTimeout(context.WithoutCancel(ctx), readOnlyUnitWait)
+	defer stop()
+	if _, closeErr := session.RunQuery(closing, unit.Close, 1, nil); closeErr != nil &&
+		err == nil {
+		return QueryResult{}, closeErr
+	}
+	return result, err
 }
 
 // RunStatement is how a session runs one statement, which is all paging and counting
