@@ -21,7 +21,7 @@ func TestIsPageableIsTrueOnlyForAStatementThatOnlyReads(t *testing.T) {
 		{"a comment after the statement", "select 1;\n-- trailing", true},
 		{"a select that already pages itself", "select * from t limit 5", true},
 		{"a select of a locking read", "select * from t for update", false},
-		{"a select that writes a table", "select * into new_t from t", true},
+		{"a select that writes a table", "select * into new_t from t", false},
 		{"a select holding a write word in text", "select 'insert' from t", true},
 		{"an insert", "insert into t (a) values (1)", false},
 		{"an update", "update t set a = 1 where id = 2", false},

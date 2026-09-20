@@ -7,6 +7,10 @@ import (
 // readStarts is the set of opening keywords eligible for paging.
 var readStarts = map[string]bool{"select": true, "with": true, "table": true, "values": true}
 
+// intoKeywords name the clause that writes the rows of a SELECT into a table, a file or a
+// variable.
+var intoKeywords = []string{"into"}
+
 // IsPageable is true if the client can read the statement one page at a time.
 func IsPageable(sql string, flavour syntax.SyntaxFlavour) bool {
 	tokens := syntax.ReadCodeTokens(sql, flavour)
@@ -14,7 +18,20 @@ func IsPageable(sql string, flavour syntax.SyntaxFlavour) bool {
 	if opening == "" || !readStarts[opening] {
 		return false
 	}
+	if len(syntax.FindKeywordsAnywhere(tokens, intoKeywords)) > 0 {
+		return false
+	}
 	return len(syntax.FindKeywordsAnywhere(tokens, WriteKeywords)) == 0
+}
+
+// ReturnsRowsToClient is true for a statement whose result the client reads. A statement
+// whose SELECT feeds a write returns false.
+func ReturnsRowsToClient(sql string, flavour syntax.SyntaxFlavour) bool {
+	tokens := syntax.ReadCodeTokens(sql, flavour)
+	if !readStarts[syntax.ReadOpeningWord(tokens)] {
+		return false
+	}
+	return len(syntax.FindKeywordsAnywhere(tokens, intoKeywords)) == 0
 }
 
 // rowLimitKeywords is the set of row limit clauses. OFFSET alone does not limit the result size.
