@@ -4,31 +4,72 @@ import (
 	"strings"
 	"testing"
 
+	driver "github.com/go-sql-driver/mysql"
+
 	"github.com/turanmahmudov/masume/internal/cfg"
 	"github.com/turanmahmudov/masume/internal/core"
 )
+
+// readMysqlTLS returns the TLS settings the driver opens this profile with.
+func readMysqlTLS(t *testing.T, profile cfg.Profile) *driver.Config {
+	t.Helper()
+	written, err := buildMysqlDsn(profile, "secret")
+	if err != nil {
+		t.Fatalf("the dsn answered %v", err)
+	}
+	config, parseErr := driver.ParseDSN(written)
+	if parseErr != nil {
+		t.Fatalf("the driver refused the dsn %q: %v", written, parseErr)
+	}
+	return config
+}
 
 // The mode of a profile decides what the connection asks of the server. A profile that
 // names no mode must still encrypt where the server offers it, because a connection in
 // the clear carries the password and every row over the network.
 func TestResolveMysqlTLSFollowsTheModeOfTheProfile(t *testing.T) {
 	for _, held := range []struct {
-		mode core.SSLMode
-		want string
+		mode         core.SSLMode
+		encrypts     bool
+		maysFallBack bool
+		checks       bool
 	}{
-		{core.SSLUnset, "preferred"},
-		{core.SSLPrefer, "preferred"},
-		{core.SSLAllow, "preferred"},
-		{core.SSLDisable, "false"},
-		{core.SSLVerifyFull, "true"},
+		{core.SSLUnset, true, true, false},
+		{core.SSLPrefer, true, true, false},
+		{core.SSLAllow, true, true, false},
+		{core.SSLDisable, false, false, false},
+		{core.SSLRequire, true, false, false},
+		{core.SSLVerifyCa, true, false, true},
+		{core.SSLVerifyFull, true, false, true},
 	} {
-		answered, err := resolveMysqlTLS(cfg.Profile{SSLMode: held.mode})
-		if err != nil {
-			t.Fatalf("%q was refused: %v", held.mode, err)
+		config := readMysqlTLS(t, cfg.Profile{Host: "held.example", SSLMode: held.mode})
+		if (config.TLS != nil) != held.encrypts {
+			t.Errorf("%q encrypts %v, wanted %v", held.mode, config.TLS != nil, held.encrypts)
 		}
-		if answered != held.want {
-			t.Errorf("%q asks for %q, wanted %q", held.mode, answered, held.want)
+		if config.AllowFallbackToPlaintext != held.maysFallBack {
+			t.Errorf("%q falls back %v, wanted %v",
+				held.mode, config.AllowFallbackToPlaintext, held.maysFallBack)
 		}
+		if config.TLS == nil {
+			continue
+		}
+		checks := !config.TLS.InsecureSkipVerify || config.TLS.VerifyPeerCertificate != nil
+		if checks != held.checks {
+			t.Errorf("%q checks the certificate %v, wanted %v",
+				held.mode, checks, held.checks)
+		}
+	}
+}
+
+// A certificate file the client cannot read stops the connection, and the message names
+// the path.
+func TestBuildMysqlDsnReportsAnUnreadableCertificate(t *testing.T) {
+	_, err := buildMysqlDsn(cfg.Profile{
+		Host: "held.example", SSLMode: core.SSLVerifyFull,
+		SSLRootCert: "/held/absent.pem",
+	}, "secret")
+	if err == nil || !strings.Contains(err.Error(), "/held/absent.pem") {
+		t.Errorf("the dsn answered %v, wanted the path of the missing file", err)
 	}
 }
 
@@ -36,14 +77,12 @@ func TestResolveMysqlTLSFollowsTheModeOfTheProfile(t *testing.T) {
 // and not the name the driver reads as a fallback.
 func TestResolveMysqlTLSNeverFallsBackWhereTheProfileRequiresTLS(t *testing.T) {
 	for _, mode := range []core.SSLMode{core.SSLRequire, core.SSLVerifyCa} {
-		answered, err := resolveMysqlTLS(cfg.Profile{SSLMode: mode})
-		if err != nil {
-			t.Fatalf("%q was refused: %v", mode, err)
+		config := readMysqlTLS(t, cfg.Profile{Host: "held.example", SSLMode: mode})
+		if config.TLS == nil {
+			t.Errorf("%q connects without TLS", mode)
 		}
-		for _, refused := range []string{"preferred", "false"} {
-			if answered == refused {
-				t.Errorf("%q asks for %q, which may connect in the clear", mode, answered)
-			}
+		if config.AllowFallbackToPlaintext {
+			t.Errorf("%q may connect in the clear", mode)
 		}
 	}
 }

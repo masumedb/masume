@@ -285,7 +285,11 @@ func (adapter *cassandraAdapter) Connect(
 		}
 	}
 	policy := core.ResolveSSLPolicy(profile.SSLMode)
-	if held := db.BuildPolicyTLS(policy, profile.Host); held != nil {
+	held, tlsErr := db.BuildPolicyTLS(policy, profile.Host, profile.BuildSSLFiles())
+	if tlsErr != nil {
+		return nil, tlsErr
+	}
+	if held != nil {
 		cluster.SslOpts = &gocql.SslOptions{
 			Config:                 held,
 			EnableHostVerification: core.VerifiesCertificate(policy),

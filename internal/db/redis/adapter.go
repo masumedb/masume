@@ -557,8 +557,12 @@ func (adapter *redisAdapter) Connect(
 		DB:       index,
 	}
 	// A profile that names no mode connects in the clear, as a Redis client does.
-	options.TLSConfig = db.BuildPolicyTLS(
-		core.ResolveSSLPolicy(profile.SSLMode), profile.Host)
+	tlsConfig, tlsErr := db.BuildPolicyTLS(
+		core.ResolveSSLPolicy(profile.SSLMode), profile.Host, profile.BuildSSLFiles())
+	if tlsErr != nil {
+		return nil, tlsErr
+	}
+	options.TLSConfig = tlsConfig
 
 	client := redis.NewClient(options)
 	info, infoErr := client.Info(ctx, "server").Result()

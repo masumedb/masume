@@ -69,6 +69,22 @@ ssh_host = "ssh.example.com"
 ssh_user = "ada"
 ssh_key  = "~/.ssh/id_ed25519"
 
+# A managed database with its own certificate authority, and a server that asks for a client
+# certificate.
+[profile.shop-rds]
+engine      = "postgres"
+host        = "shop.eu-central-1.rds.amazonaws.com"
+port        = 5432
+database    = "shop"
+user        = "reader"
+auth        = "prompt"
+env         = "prod"
+mode        = "read-only"
+sslmode     = "verify-full"
+sslrootcert = "~/.certs/rds-ca-rsa2048-g1.pem"
+sslcert     = "~/.certs/client.pem"
+sslkey      = "~/.certs/client.key"
+
 # A server behind a jump host. The command stays in the foreground. The client checks host:wait_for_port before connection.
 # Closing the connection stops the running process group. Detached processes are not reliably cleaned up.
 [profile.shop-tunnel]
@@ -144,6 +160,9 @@ paths = []
 # write_plan           = "off"        # off count undo. unset: off on dev, count on test, undo on prod
 # undo_rows            = 1000         # Maximum captured target rows. 0 uses an internal ceiling of 1048576.
 # sslmode              = "prefer"     # disable allow prefer require verify-ca verify-full
+# sslrootcert          = "~/.certs/rds-ca.pem"   # certificate authority bundle. without it the system trust store applies
+# sslcert              = "~/.certs/client.pem"   # client certificate the server asks for
+# sslkey               = "~/.certs/client.key"   # private key of sslcert. set with sslcert
 # statement_timeout_ms = 0            # time limit per statement. 0 uses the server default
 # keepalive_s          = 30           # seconds between connection checks. 0 disables the keepalive
 # page_size            = 200          # rows the grid loads per page

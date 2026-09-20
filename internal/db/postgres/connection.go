@@ -21,22 +21,21 @@ import (
 const postgresConnectTimeout = 15 * time.Second
 
 // buildPostgresTLS returns TLS settings and permission to retry without encryption. Unset and prefer modes permit unencrypted fallback.
-func buildPostgresTLS(profile cfg.Profile) (*tls.Config, bool) {
-	switch core.ResolveSSLPolicy(profile.SSLMode) {
-	case core.PolicyOff:
-		return nil, false
-	case core.PolicyVerifyFull:
-		return &tls.Config{ServerName: profile.Host, MinVersion: tls.VersionTLS12}, false
-	case core.PolicyVerifyCa:
-		return db.BuildAuthorityOnlyTLS(), false
-	case core.PolicyEncryptOnly:
-		// Require mode encrypts without certificate verification or unencrypted fallback.
-		return &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS12}, false
+func buildPostgresTLS(profile cfg.Profile) (*tls.Config, bool, error) {
+	policy := core.ResolveSSLPolicy(profile.SSLMode)
+	if policy == core.PolicyOff {
+		return nil, false, nil
 	}
-	return &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS12}, true
+	// Unset and prefer modes encrypt without certificate verification.
+	mayFallBack := policy == core.PolicyUnset || policy == core.PolicyPrefer
+	if mayFallBack {
+		policy = core.PolicyEncryptOnly
+	}
+	config, err := db.BuildPolicyTLS(policy, profile.Host, profile.BuildSSLFiles())
+	return config, mayFallBack, err
 }
 
-func buildPostgresConfig(profile cfg.Profile, password string) *pgx.ConnConfig {
+func buildPostgresConfig(profile cfg.Profile, password string) (*pgx.ConnConfig, error) {
 	config, err := pgx.ParseConfig("")
 	if err != nil {
 		config = &pgx.ConnConfig{}
@@ -58,12 +57,15 @@ func buildPostgresConfig(profile cfg.Profile, password string) *pgx.ConnConfig {
 			strconv.FormatInt(profile.StatementTimeout.Milliseconds(), 10)
 	}
 
-	tlsConfig, mayFallBack := buildPostgresTLS(profile)
+	tlsConfig, mayFallBack, err := buildPostgresTLS(profile)
+	if err != nil {
+		return nil, err
+	}
 	config.TLSConfig = tlsConfig
 	// A unix socket carries no TLS, and the server refuses a client that offers it.
 	if core.IsSocketHost(dialHost) {
 		config.TLSConfig = nil
-		return config
+		return config, nil
 	}
 	// Unset and prefer modes permit a retry without TLS.
 	if tlsConfig != nil && mayFallBack {
@@ -73,13 +75,17 @@ func buildPostgresConfig(profile cfg.Profile, password string) *pgx.ConnConfig {
 	}
 	// Proxies can lack named prepared statement support. Exec mode avoids the statement cache.
 	config.DefaultQueryExecMode = pgx.QueryExecModeExec
-	return config
+	return config, nil
 }
 
 func openPostgresConnection(
 	ctx context.Context, profile cfg.Profile, password string,
 ) (*pgx.Conn, error) {
-	return pgx.ConnectConfig(ctx, buildPostgresConfig(profile, password))
+	config, err := buildPostgresConfig(profile, password)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.ConnectConfig(ctx, config)
 }
 
 // keepJSONFieldOrder returns raw JSON bytes from the driver. The default map decoder loses field order.

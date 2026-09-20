@@ -109,6 +109,9 @@ func buildProfileKeys(profile Profile) ([]string, map[string]any, map[string]boo
 		"secret":                 profile.Secret,
 		"secret_ref":             profile.SecretRef,
 		"sslmode":                string(profile.SSLMode),
+		"sslrootcert":            profile.SSLRootCert,
+		"sslcert":                profile.SSLCert,
+		"sslkey":                 profile.SSLKey,
 		"description":            profile.Description,
 		"ai_instructions":        profile.AiInstructions,
 		"ssh_host":               profile.SSHHost,
@@ -132,7 +135,8 @@ func buildProfileKeys(profile Profile) ([]string, map[string]any, map[string]boo
 	order := []string{
 		"engine", "host", "port", "database", "user", "auth",
 		"password", "password_env", "password_command", "secret", "secret_ref",
-		"env", "mode", "sslmode", "confirm_writes", "description", "ai_instructions",
+		"env", "mode", "sslmode", "sslrootcert", "sslcert", "sslkey",
+		"confirm_writes", "description", "ai_instructions",
 		"ssh_host", "ssh_port", "ssh_user", "ssh_key", "ssh_key_passphrase_env",
 		"ssh_password_env", "ssh_known_hosts",
 	}

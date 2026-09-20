@@ -83,6 +83,9 @@ mode     = "write"
 | `write_plan` | `off` on dev, `count` on test, `undo` on prod | `off`, `count` or `undo`. See [Write plans](#write-plans) |
 | `undo_rows` | `1000` | Maximum captured rows for an undo. `0` uses a ceiling of 1048576 rows |
 | `sslmode` | per engine | The TLS mode. See [TLS](#tls) |
+| `sslrootcert` | the system trust store | Certificate authority bundle in PEM form. See [Certificate files](#certificate-files) |
+| `sslcert` | | Client certificate in PEM form, sent where the server asks for one |
+| `sslkey` | | Private key of `sslcert`. Required with `sslcert` |
 | `statement_timeout_ms` | `0` | Time limit for one statement in milliseconds. `0` uses the server default |
 | `keepalive_s` | `30` | Seconds between connection checks. `0` disables the keepalive |
 | `page_size` | `200` | Rows the grid loads per page, and rows one page of `masume run` holds. Must be above zero |
@@ -121,7 +124,40 @@ Redshift, Neon, Supabase, PlanetScale, Turso, Azure SQL Database, and Amazon Doc
 | `verify-ca` | TLS with certificate authority checks |
 | `verify-full` | TLS with certificate authority and host name checks |
 
-An unknown non-empty `sslmode` string skips the profile. It produces a report.
+An unknown non-empty `sslmode` string skips the profile. It produces a report. The connection form steps the `sslmode` field through the modes, and `default` in that field keeps the default of the engine.
+
+### Certificate files
+
+`sslrootcert` is the certificate authority bundle that verifies the server. `verify-ca` and `verify-full` check the chain against it. Without it the check uses the system trust store, which holds no private authority. A managed database with its own authority needs the bundle: Amazon RDS, Azure Database, Aliyun, and any internal PKI.
+
+`sslcert` and `sslkey` are the client certificate and its private key, for a server that asks for one. Both keys are required together; a profile that sets one alone is skipped. masume sends the pair under every mode that encrypts.
+
+```toml
+[profile.shop]
+engine      = "postgres"
+host        = "shop.eu-central-1.rds.amazonaws.com"
+database    = "shop"
+user        = "reader"
+sslmode     = "verify-full"
+sslrootcert = "~/.certs/rds-ca-rsa2048-g1.pem"
+sslcert     = "~/.certs/client.pem"
+sslkey      = "~/.certs/client.key"
+```
+
+A leading `~` expands to the home directory. A file masume cannot read fails the connection, and the error names the path. A bundle with no PEM certificate in it fails the same way.
+
+PostgreSQL-family, MySQL-family, SQL Server, ClickHouse, MongoDB, Redis, Cassandra, and ScyllaDB engines read the three keys. Turso opens `wss://` against the system trust store and reads none of them. SQLite uses no TLS. `disable` and a unix socket carry no TLS, and the files are unused.
+
+The connection form has a `tls files` toggle. Set it to `on`, and the form shows the three fields. Set it to `off`, and saving removes all three keys from the profile.
+
+On one of the three fields, `Enter` opens a file picker, and a press on the field opens the same one. The picker starts in the directory the field names, or in the startup directory where the field is empty. `Enter` takes the file into the field, and `Escape` leaves the field as it was. A path under the home directory is written with `~`. The same picker fills `ssh key`, `ssh known hosts`, and the file of a SQLite connection.
+
+The command line takes the same names, as a URL parameter and as a connection keyword.
+
+```
+masume "postgres://reader@db.internal/shop?sslmode=verify-full&sslrootcert=~/.certs/ca.pem"
+masume "host=db.internal dbname=shop user=reader sslmode=verify-ca sslrootcert=/certs/ca.pem"
+```
 
 ## Project file
 

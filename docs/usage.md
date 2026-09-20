@@ -8,7 +8,7 @@ Run `masume` to open the connection picker. Select a profile with Up and Down. P
 
 The picker has a filter field above the list, and `/` focuses the field. The filter matches the name, the environment, the engine, and the target. Up, Down, and Enter continue to work while the field has the focus; Esc unfocuses the field and keeps the filter.
 
-`n` opens a new connection form. `e` edits the selected profile. In the form, `Ctrl+T` tests the connection. `Ctrl+S` saves the profile. The `ssh tunnel` toggle shows the SSH fields. See [SSH tunnel](configuration.md#ssh-tunnel).
+`n` opens a new connection form. `e` edits the selected profile. In the form, `Ctrl+T` tests the connection. `Ctrl+S` saves the profile. The `ssh tunnel` toggle shows the SSH fields. See [SSH tunnel](configuration.md#ssh-tunnel). The `tls files` toggle shows the certificate fields, and `Enter` on a field that holds a file path opens a file picker. The line under the fields says what the selected `auth`, `sslmode` or `confirm` value does. See [Certificate files](configuration.md#certificate-files).
 
 An explicit target or `$DATABASE_URL` can open a connection directly. See [connection targets](#connection-targets), [container detection](#databases-in-a-container), and [passwords](configuration.md#passwords).
 
@@ -36,14 +36,14 @@ masume --profile shop-prod
 | Form | Read as |
 | --- | --- |
 | A URL | Supported schemes: `postgres`, `postgresql`, `mysql`, `mariadb`, `cockroachdb`, `yugabytedb`, `redshift`, `sqlserver`, `mssql`, `clickhouse`, `cassandra`, `scylla`, `libsql`, `redis`, `rediss`, `mongodb` |
-| A connection string | `key=value` pairs: `engine`, `host`, `hostaddr`, `port`, `dbname`, `database`, `user`, `password`, `sslmode`. The default engine is `postgres` |
+| A connection string | `key=value` pairs: `engine`, `host`, `hostaddr`, `port`, `dbname`, `database`, `user`, `password`, `sslmode`, `sslrootcert`, `sslcert`, `sslkey`. The default engine is `postgres` |
 | A file path | A SQLite path ending in `.db`, `.db3`, `.sqlite` or `.sqlite3`. Other extensions must have an existing SQLite header. `:memory:` is also accepted |
 
 A URL without a database uses the user name on PostgreSQL-family engines, database `0` on Redis, and `admin` on MongoDB. A MySQL-family URL without a database opens the server itself, and every other engine must have the database in the URL. A missing URL host uses `127.0.0.1`.
 
 Connection strings accept single-quoted values and backslash escapes inside quotes. `engine` accepts the profile engine names; unknown connection string keys are errors.
 
-URLs support one host, credentials, a port, a database, and `sslmode`, `ssl-mode`, or `sslMode`. Other native URL options are ignored; these include `authSource`, `replicaSet`, and `connect_timeout`. The client rejects `mongodb+srv` URLs.
+URLs support one host, credentials, a port, a database, `sslmode`, `ssl-mode`, or `sslMode`, and the certificate files `sslrootcert`, `sslcert`, and `sslkey`. Other native URL options are ignored; these include `authSource`, `replicaSet`, and `connect_timeout`. The client rejects `mongodb+srv` URLs.
 
 `rediss://` connects with TLS and verifies the certificate. Other settings use new-connection defaults; they include `env = "dev"`, `mode = "write"`, and `page_size = 200`.
 

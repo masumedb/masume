@@ -603,7 +603,11 @@ func NewAdapter(support db.EngineSupport) db.Adapter {
 func (adapter *clickhouseAdapter) Connect(
 	ctx context.Context, profile cfg.Profile, password string,
 ) (db.Session, error) {
-	pool := openClickhousePool(profile, password)
+	pool, poolErr := openClickhousePool(profile, password)
+	if poolErr != nil {
+		return nil, db.WrapDatabaseMessage(
+			db.BuildConnectMessage(profile, poolErr), poolErr)
+	}
 
 	// One connection holds the settings of the session. The connection takes no deadline
 	// of the caller: this driver would set that deadline on the socket for the life of the
@@ -640,7 +644,7 @@ func (adapter *clickhouseAdapter) Connect(
 		holdsStatementStats: readsStatementStats(ctx, connection),
 		listedIDs:           map[int64]string{},
 		side: db.NewSideConnection(func() (*sql.DB, error) {
-			return openClickhousePool(profile, password), nil
+			return openClickhousePool(profile, password)
 		}),
 		mainQueue: db.NewCallQueue(),
 	}, nil

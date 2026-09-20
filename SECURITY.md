@@ -113,7 +113,7 @@ Database functions, extensions, and engine features can reach files, networks, o
 
 Profile timeouts depend on engine and operation support. AI and MCP execution timeouts apply to `run_query`, not every database tool or confirmation wait. Cancellation can fail or leave a statement active. A timeout does not prove that a write had no effect.
 
-TLS behavior depends on the engine and `sslmode`. Verify certificate and host checks for the selected engine in [engines.md](docs/engines.md).
+TLS behavior depends on the engine and `sslmode`. Verify certificate and host checks for the selected engine in [engines.md](docs/engines.md). `sslrootcert` verifies a server whose authority is not in the system trust store, and `sslcert` with `sslkey` sends a client certificate.
 
 ## Confirmation
 

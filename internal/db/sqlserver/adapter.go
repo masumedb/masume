@@ -663,7 +663,11 @@ func NewAdapter(support db.EngineSupport) db.Adapter {
 func (adapter *sqlserverAdapter) Connect(
 	ctx context.Context, profile cfg.Profile, password string,
 ) (db.Session, error) {
-	pool := openSqlserverPool(profile, password)
+	pool, poolErr := openSqlserverPool(profile, password)
+	if poolErr != nil {
+		return nil, db.WrapDatabaseMessage(
+			db.BuildConnectMessage(profile, poolErr), poolErr)
+	}
 
 	// One connection retains the transaction of the user.
 	connection, connectionErr := pool.Conn(ctx)
@@ -684,7 +688,7 @@ func (adapter *sqlserverAdapter) Connect(
 		connection: connection, pool: pool,
 		holdsStatementStats: readsStatementStats(ctx, connection),
 		side: db.NewSideConnection(func() (*sql.DB, error) {
-			return openSqlserverPool(profile, password), nil
+			return openSqlserverPool(profile, password)
 		}),
 		mainQueue: db.NewCallQueue(),
 	}, nil

@@ -142,6 +142,12 @@ type Profile struct {
 	// The command built from the secret store and reference. This value is absent from the config file.
 	SecretCommand string
 	SSLMode       core.SSLMode
+	// The certificate authority bundle that verifies the server. Empty uses the system
+	// trust store.
+	SSLRootCert string
+	// The client certificate the server asks for, and its private key.
+	SSLCert       string
+	SSLKey        string
 	Autocommit    bool
 	ConfirmWrites ConfirmWrites
 	WritePlan     WritePlan
@@ -182,6 +188,13 @@ type Profile struct {
 	InConfigFile bool
 	// The source project file path, or empty for other profiles.
 	ProjectFile string
+}
+
+// BuildSSLFiles returns the certificate files of the profile.
+func (profile Profile) BuildSSLFiles() core.SSLFiles {
+	return core.SSLFiles{
+		RootCert: profile.SSLRootCert, Cert: profile.SSLCert, Key: profile.SSLKey,
+	}
 }
 
 // UsesSocket is true for a profile that connects over a unix socket.
@@ -333,6 +346,18 @@ func readSSLMode(source Table, engine core.Engine) (core.SSLMode, error) {
 	return mode, nil
 }
 
+// readSSLFiles returns the certificate files of the profile.
+func readSSLFiles(source Table) (core.SSLFiles, error) {
+	rootCert, _ := FindString(source, "sslrootcert")
+	cert, _ := FindString(source, "sslcert")
+	key, _ := FindString(source, "sslkey")
+	files := core.SSLFiles{RootCert: rootCert, Cert: cert, Key: key}
+	if reason := core.FindSSLFilesProblem(files); reason != "" {
+		return core.SSLFiles{}, failProfile("%s", reason)
+	}
+	return files, nil
+}
+
 func findProfileMcpAccess(source Table) (McpAccess, error) {
 	return resolveOneOf(source, "mcp", McpAccessLevels, McpUnset)
 }
@@ -378,6 +403,10 @@ func buildProfile(name string, source Table) (Profile, error) {
 		return Profile{}, err
 	}
 	sslMode, err := readSSLMode(source, engine)
+	if err != nil {
+		return Profile{}, err
+	}
+	sslFiles, err := readSSLFiles(source)
 	if err != nil {
 		return Profile{}, err
 	}
@@ -497,7 +526,8 @@ func buildProfile(name string, source Table) (Profile, error) {
 		Auth: auth, Environment: environment, AccessMode: accessMode,
 		PasswordEnv: passwordEnv, PasswordCommand: passwordCommand,
 		Secret: secretName, SecretRef: secretRef,
-		SSLMode: sslMode, Autocommit: autocommit, ConfirmWrites: confirmWrites,
+		SSLMode: sslMode, SSLRootCert: sslFiles.RootCert, SSLCert: sslFiles.Cert,
+		SSLKey: sslFiles.Key, Autocommit: autocommit, ConfirmWrites: confirmWrites,
 		WritePlan: writePlan, UndoRows: undoRows,
 		SSHHost: sshHost, SSHPort: sshPort, SSHUser: sshUser, SSHKey: sshKey,
 		SSHKeyPassphraseEnv: sshKeyPassphraseEnv, SSHPasswordEnv: sshPasswordEnv,

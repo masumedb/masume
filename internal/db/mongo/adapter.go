@@ -982,7 +982,7 @@ func NewAdapter(support db.EngineSupport) db.Adapter {
 }
 
 // BuildClientOptions returns the options the driver opens the profile with.
-func BuildClientOptions(profile cfg.Profile, password string) *options.ClientOptions {
+func BuildClientOptions(profile cfg.Profile, password string) (*options.ClientOptions, error) {
 	dialHost, dialPort := profile.DialAddress()
 	held := options.Client().
 		SetHosts([]string{fmt.Sprintf("%s:%d", dialHost, dialPort)}).
@@ -999,11 +999,15 @@ func BuildClientOptions(profile cfg.Profile, password string) *options.ClientOpt
 	if profile.User != "" {
 		held.SetAuth(options.Credential{Username: profile.User, Password: password})
 	}
-	if config := db.BuildPolicyTLS(
-		core.ResolveSSLPolicy(profile.SSLMode), profile.Host); config != nil {
+	config, err := db.BuildPolicyTLS(
+		core.ResolveSSLPolicy(profile.SSLMode), profile.Host, profile.BuildSSLFiles())
+	if err != nil {
+		return nil, err
+	}
+	if config != nil {
 		held.SetTLSConfig(config)
 	}
-	return held
+	return held, nil
 }
 
 // authenticationCodes are the server authentication and authorization error codes.
@@ -1058,7 +1062,11 @@ func ReadServerVersion(reply bson.D) string {
 func (adapter *mongoAdapter) Connect(
 	ctx context.Context, profile cfg.Profile, password string,
 ) (db.Session, error) {
-	client, err := mongo.Connect(BuildClientOptions(profile, password))
+	clientOptions, optionsErr := BuildClientOptions(profile, password)
+	if optionsErr != nil {
+		return nil, optionsErr
+	}
+	client, err := mongo.Connect(clientOptions)
 	if err != nil {
 		return nil, db.WrapDatabaseMessage(DescribeConnectFailure(profile, err), err)
 	}

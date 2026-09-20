@@ -42,6 +42,7 @@ var keywordAliases = map[string]string{
 	"host": "host", "hostaddr": "host", "port": "port",
 	"dbname": "database", "database": "database",
 	"user": "user", "password": "password", "sslmode": "sslmode",
+	"sslrootcert": "sslrootcert", "sslcert": "sslcert", "sslkey": "sslkey",
 	// `engine` is a masume extension to PostgreSQL connection keywords.
 	"engine": "engine",
 }
@@ -123,13 +124,7 @@ func resolveDefaultDatabase(engine core.Engine, user string) string {
 // readTargetSSLMode returns the SSL mode of a URL: the one its query names, the one its
 // scheme implies, or the default of its engine.
 func readTargetSSLMode(parsed *url.URL, engine core.Engine) (core.SSLMode, error) {
-	written := ""
-	for _, key := range sslKeys {
-		if held := parsed.Query().Get(key); held != "" {
-			written = held
-			break
-		}
-	}
+	written := readURLQuery(parsed, sslKeys)
 	if written == "" {
 		if implied, asks := tlsSchemes[strings.ToLower(parsed.Scheme)]; asks {
 			return implied, nil
@@ -205,6 +200,11 @@ func buildProfileFromURL(text string) (Profile, error) {
 	if built.SSLMode, err = readTargetSSLMode(parsed, engine); err != nil {
 		return Profile{}, err
 	}
+	files := readURLSSLFiles(parsed)
+	if reason := core.FindSSLFilesProblem(files); reason != "" {
+		return Profile{}, failTarget("%s", reason)
+	}
+	built.SSLRootCert, built.SSLCert, built.SSLKey = files.RootCert, files.Cert, files.Key
 	return built, nil
 }
 
@@ -332,7 +332,16 @@ func buildProfileFromKeywords(text string) (Profile, error) {
 					"sslmode %q is not one of %s", value, core.SSLModeNames())
 			}
 			built.SSLMode = mode
+		case "sslrootcert":
+			built.SSLRootCert = value
+		case "sslcert":
+			built.SSLCert = value
+		case "sslkey":
+			built.SSLKey = value
 		}
+	}
+	if reason := core.FindSSLFilesProblem(built.BuildSSLFiles()); reason != "" {
+		return Profile{}, failTarget("%s", reason)
 	}
 
 	if built.Host == "" {

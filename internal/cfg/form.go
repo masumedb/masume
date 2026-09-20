@@ -39,9 +39,11 @@ func resolveDatabaseLabel(engine core.Engine) string {
 	return "database"
 }
 
-// The ssh toggle shows the tunnel fields when it is on.
+// The ssh toggle shows the tunnel fields when it is on, and the tls toggle shows the
+// certificate fields.
 const (
 	sshToggleKey = "ssh"
+	tlsToggleKey = "tls"
 	toggleOff    = "off"
 	toggleOn     = "on"
 )
@@ -50,6 +52,61 @@ const (
 var sshFields = map[string]bool{
 	"sshHost": true, "sshPort": true, "sshUser": true, "sshKey": true,
 	"sshKeyPassphraseEnv": true, "sshPasswordEnv": true, "sshKnownHosts": true,
+}
+
+// tlsFields are the certificate fields the tls toggle shows.
+var tlsFields = map[string]bool{
+	"sslRootCert": true, "sslCert": true, "sslKey": true,
+}
+
+// filePathFields are the fields of a file path, whatever the engine is.
+var filePathFields = map[string]bool{
+	"sslRootCert": true, "sslCert": true, "sslKey": true,
+	"sshKey": true, "sshKnownHosts": true,
+}
+
+// TakesFilePath is true for a field that holds the path of a file the user can pick. The
+// database of a file engine is such a path, and of a server it is a name.
+func TakesFilePath(fields []FormField, key string) bool {
+	if filePathFields[key] {
+		return true
+	}
+	if key != "database" {
+		return false
+	}
+	engine, known := core.FindEngine(ReadField(fields, "engine"))
+	return known && core.OpensFile(engine)
+}
+
+// sslModeDefault is the sslmode choice that keeps the default of the engine.
+const sslModeDefault = "default"
+
+// listSSLModeChoices returns the sslmode values the form steps through, the engine default
+// first.
+func listSSLModeChoices() []string {
+	names := []string{sslModeDefault}
+	for _, mode := range core.SSLModes {
+		names = append(names, string(mode))
+	}
+	return names
+}
+
+// describeConfirmValue returns the confirmation as the form holds it. A profile without one
+// takes the default of its environment, as a connection does.
+func describeConfirmValue(profile Profile) string {
+	if profile.ConfirmWrites == "" {
+		return string(resolveDefaultConfirmWrites(profile.Environment))
+	}
+	return string(profile.ConfirmWrites)
+}
+
+// describeSSLModeValue returns the mode as the form holds it. An unset mode is the default
+// of the engine.
+func describeSSLModeValue(mode core.SSLMode) string {
+	if mode == core.SSLUnset {
+		return sslModeDefault
+	}
+	return string(mode)
 }
 
 // describeToggle returns the value of a toggle field.
@@ -72,7 +129,8 @@ func resolveFormSSHPort(profile Profile) int {
 var serverFields = map[string]bool{
 	"host": true, "port": true, "user": true, "auth": true,
 	"passwordEnv": true, "passwordCommand": true, "sslMode": true,
-	"secret": true, "secretRef": true,
+	"secret": true, "secretRef": true, tlsToggleKey: true,
+	"sslRootCert": true, "sslCert": true, "sslKey": true,
 }
 
 // passwordFields are the visible fields for each password source. Prompt and keyring modes have no source fields.
@@ -136,14 +194,26 @@ func BuildFormFields(profile Profile, editing bool, secretStoreNames []string) [
 		},
 		{Key: "secretRef", Label: "secret ref", Value: source.SecretRef},
 		{
-			Key: "environment", Label: "env", Value: string(source.Environment),
+			Key: "environment", Label: "environment", Value: string(source.Environment),
 			Choices: listModeNames(Environments),
 		},
 		{
 			Key: "accessMode", Label: "mode", Value: string(source.AccessMode),
 			Choices: listModeNames(AccessModes),
 		},
-		{Key: "sslMode", Label: "sslmode", Value: string(source.SSLMode)},
+		{
+			Key: "sslMode", Label: "sslmode",
+			Value:   describeSSLModeValue(source.SSLMode),
+			Choices: listSSLModeChoices(),
+		},
+		{
+			Key: tlsToggleKey, Label: "tls files",
+			Value:   describeToggle(source.BuildSSLFiles().HasFiles()),
+			Choices: []string{toggleOff, toggleOn},
+		},
+		{Key: "sslRootCert", Label: "ssl root cert", Value: source.SSLRootCert},
+		{Key: "sslCert", Label: "ssl cert", Value: source.SSLCert},
+		{Key: "sslKey", Label: "ssl key", Value: source.SSLKey},
 		{
 			Key: sshToggleKey, Label: "ssh tunnel",
 			Value:   describeToggle(source.OpensTunnel()),
@@ -160,7 +230,7 @@ func BuildFormFields(profile Profile, editing bool, secretStoreNames []string) [
 		{Key: "sshPasswordEnv", Label: "ssh password env", Value: source.SSHPasswordEnv},
 		{Key: "sshKnownHosts", Label: "ssh known hosts", Value: source.SSHKnownHosts},
 		{
-			Key: "confirmWrites", Label: "confirm", Value: string(source.ConfirmWrites),
+			Key: "confirmWrites", Label: "confirm", Value: describeConfirmValue(source),
 			Choices: listModeNames(ConfirmModes),
 		},
 		{Key: "description", Label: "description", Value: source.Description},
@@ -192,12 +262,16 @@ func FindShownFields(fields []FormField) []FormField {
 	read := passwordFields[auth]
 
 	opensTunnel := ReadField(fields, sshToggleKey) == toggleOn
+	sendsFiles := ReadField(fields, tlsToggleKey) == toggleOn
 	kept := make([]FormField, 0, len(fields))
 	for _, field := range fields {
 		if everyPasswordField[field.Key] && !read[field.Key] {
 			continue
 		}
 		if sshFields[field.Key] && !opensTunnel {
+			continue
+		}
+		if tlsFields[field.Key] && !sendsFiles {
 			continue
 		}
 		kept = append(kept, field)
@@ -261,7 +335,7 @@ func BuildProfileFromFields(fields []FormField, source Profile, editing bool) (P
 
 	written := read("sslMode")
 	built.SSLMode = core.SSLUnset
-	if written != "" {
+	if written != "" && written != sslModeDefault {
 		mode, known := core.FindSSLMode(written)
 		if !known {
 			return Profile{}, FormError{
@@ -269,6 +343,11 @@ func BuildProfileFromFields(fields []FormField, source Profile, editing bool) (P
 			}
 		}
 		built.SSLMode = mode
+	}
+
+	built, filesErr := applyFormSSLFiles(built, read)
+	if filesErr != nil {
+		return Profile{}, filesErr
 	}
 
 	built, tunnelErr := applyFormTunnel(built, read)
@@ -305,6 +384,22 @@ func BuildProfileFromFields(fields []FormField, source Profile, editing bool) (P
 		return Profile{}, FormError{
 			Reason: "auth = command requires a password command",
 		}
+	}
+	return built, nil
+}
+
+// applyFormSSLFiles writes the certificate fields into the profile. An off toggle clears
+// every path.
+func applyFormSSLFiles(built Profile, read func(string) string) (Profile, error) {
+	built.SSLRootCert, built.SSLCert, built.SSLKey = "", "", ""
+	if read(tlsToggleKey) != toggleOn {
+		return built, nil
+	}
+	built.SSLRootCert = read("sslRootCert")
+	built.SSLCert = read("sslCert")
+	built.SSLKey = read("sslKey")
+	if reason := core.FindSSLFilesProblem(built.BuildSSLFiles()); reason != "" {
+		return Profile{}, FormError{Reason: reason}
 	}
 	return built, nil
 }
@@ -349,6 +444,7 @@ type ConnectionURL struct {
 	Database string
 	User     string
 	SSLMode  string
+	SSLFiles core.SSLFiles
 }
 
 // urlSchemes are the engines for supported URL schemes and aliases.
@@ -364,6 +460,34 @@ var urlSchemes = func() map[string]core.Engine {
 
 // sslKeys are the query keys a URL can use for the SSL setting.
 var sslKeys = []string{"sslmode", "ssl-mode", "sslMode"}
+
+// sslRootCertKeys, sslCertKeys and sslKeyKeys are the query keys a URL can use for the
+// certificate files.
+var (
+	sslRootCertKeys = []string{"sslrootcert", "ssl-root-cert", "sslRootCert"}
+	sslCertKeys     = []string{"sslcert", "ssl-cert", "sslCert"}
+	sslKeyKeys      = []string{"sslkey", "ssl-key", "sslKey"}
+)
+
+// readURLQuery returns the first of these query keys the URL holds a value for.
+func readURLQuery(parsed *url.URL, keys []string) string {
+	query := parsed.Query()
+	for _, key := range keys {
+		if written := query.Get(key); written != "" {
+			return written
+		}
+	}
+	return ""
+}
+
+// readURLSSLFiles returns the certificate files of a URL query.
+func readURLSSLFiles(parsed *url.URL) core.SSLFiles {
+	return core.SSLFiles{
+		RootCert: readURLQuery(parsed, sslRootCertKeys),
+		Cert:     readURLQuery(parsed, sslCertKeys),
+		Key:      readURLQuery(parsed, sslKeyKeys),
+	}
+}
 
 // tlsSchemes are the schemes that request TLS by their name, with the mode of each one. A
 // Redis client reads `rediss://` as a TLS connection that verifies the certificate, so a
@@ -403,20 +527,14 @@ func ParseConnectionURL(text string) (ConnectionURL, bool) {
 		port = held
 	}
 
-	sslMode := ""
-	for _, key := range sslKeys {
-		if written := parsed.Query().Get(key); written != "" {
-			sslMode = written
-			break
-		}
-	}
+	sslMode := readURLQuery(parsed, sslKeys)
 	user := ""
 	if parsed.User != nil {
 		user = parsed.User.Username()
 	}
 	return ConnectionURL{
 		Engine: engine, Host: host, Port: port, Database: database,
-		User: user, SSLMode: sslMode,
+		User: user, SSLMode: sslMode, SSLFiles: readURLSSLFiles(parsed),
 	}, true
 }
 
@@ -444,11 +562,24 @@ func ApplyConnectionURL(fields []FormField, held ConnectionURL) []FormField {
 	for _, written := range [][2]string{
 		{"engine", string(held.Engine)}, {"host", held.Host},
 		{"port", strconv.Itoa(held.Port)}, {"database", held.Database},
-		{"user", held.User}, {"sslMode", held.SSLMode}, {"name", named},
+		{"user", held.User}, {"sslMode", describeURLSSLMode(held.SSLMode)},
+		{"name", named},
+		{"sslRootCert", held.SSLFiles.RootCert}, {"sslCert", held.SSLFiles.Cert},
+		{"sslKey", held.SSLFiles.Key},
+		{tlsToggleKey, describeToggle(held.SSLFiles.HasFiles())},
 	} {
 		filled = writeField(filled, written[0], written[1])
 	}
 	return filled
+}
+
+// describeURLSSLMode returns the mode of a pasted URL as the form holds it. A URL without
+// one keeps the default of the engine.
+func describeURLSSLMode(written string) string {
+	if strings.TrimSpace(written) == "" {
+		return sslModeDefault
+	}
+	return written
 }
 
 // ApplyFieldChange updates a field and related fields. A connection URL in the host field fills the form.
@@ -500,13 +631,92 @@ func DescribeAuthMode(written string) string {
 	case AuthCommand:
 		return "the first output line of password command"
 	case AuthPrompt:
-		return "masume asks at every connection"
+		return "prompt for the password at every connection"
 	case AuthKeyring:
 		return "the system keyring holds the password"
 	case AuthSecret:
 		return "the secret store at secret ref"
 	}
 	return ""
+}
+
+// DescribeSSLMode returns the line the form shows for the TLS mode of that name.
+func DescribeSSLMode(written string) string {
+	if strings.TrimSpace(written) == sslModeDefault {
+		return "the default of this engine"
+	}
+	mode, known := core.FindSSLMode(written)
+	if !known {
+		return ""
+	}
+	switch mode {
+	case core.SSLDisable:
+		return "no TLS"
+	case core.SSLAllow, core.SSLPrefer:
+		return "TLS if the server offers it, unverified"
+	case core.SSLRequire:
+		return "TLS, unverified"
+	case core.SSLVerifyCa:
+		return "TLS, verify the CA without host name"
+	case core.SSLVerifyFull:
+		return "TLS, verify the CA and the host name"
+	}
+	return ""
+}
+
+// DescribeConfirmWrites returns the line the form shows for the confirmation of that name.
+func DescribeConfirmWrites(written string) string {
+	mode, known := core.FindAllowed(ConfirmModes, strings.TrimSpace(written))
+	if !known {
+		return ""
+	}
+	switch mode {
+	case ConfirmOff:
+		return "no confirmation"
+	case ConfirmDelete:
+		return "confirm a delete"
+	case ConfirmWrite:
+		return "confirm every write"
+	case ConfirmAgent:
+		return "confirm every write; an agent may answer"
+	}
+	return ""
+}
+
+// pasteHint is the line the host field shows. A label says what every other field holds,
+// and only a field of values names what each one does.
+const pasteHint = "paste a postgres:// or mysql:// URL into host to fill the form"
+
+// formFieldLines are the fields whose label does not say enough on its own. Each one names
+// the value the field takes.
+var formFieldLines = map[string]string{
+	"passwordEnv":     "environment variable with the password",
+	"passwordCommand": "shell command; first line of stdout is the password",
+	"secret":          "store name from the config file",
+	"secretRef":       "path inside the secret store",
+	"environment":     "dev, test or prod; sets the confirm and write plan defaults",
+	tlsToggleKey:      "custom TLS certificate files",
+	"sslRootCert":     "CA certificate file, PEM",
+	"sslCert":         "client certificate file, PEM",
+	"sslKey":          "client key file, PEM",
+	sshToggleKey:      "connect through an ssh server",
+	"aiInstructions":  "context sent to the AI chat with every request",
+}
+
+// DescribeFormField returns the line under the fields: what the value under the caret
+// does. A field whose label already says it has no line.
+func DescribeFormField(fields []FormField, key, value string) string {
+	switch key {
+	case "auth":
+		return DescribeAuthMode(value)
+	case "sslMode":
+		return DescribeSSLMode(value)
+	case "confirmWrites":
+		return DescribeConfirmWrites(value)
+	case "host":
+		return pasteHint
+	}
+	return formFieldLines[key]
 }
 
 // DescribeFormValue returns a value as the form draws it. An empty field shows a

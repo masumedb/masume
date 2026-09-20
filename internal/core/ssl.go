@@ -70,3 +70,32 @@ func SSLModeNames() string {
 	}
 	return strings.Join(names, ", ")
 }
+
+// SSLFiles are the certificate files of a connection.
+type SSLFiles struct {
+	// RootCert is the certificate authority bundle that verifies the server. An empty
+	// path uses the system trust store.
+	RootCert string
+	// Cert is the client certificate the server asks for, and Key is its private key.
+	Cert string
+	Key  string
+}
+
+// HasFiles is true for a set with a path in it.
+func (files SSLFiles) HasFiles() bool {
+	return files.RootCert != "" || files.Cert != "" || files.Key != ""
+}
+
+// SendsClientCertificate is true for a set with a client certificate and a key.
+func (files SSLFiles) SendsClientCertificate() bool {
+	return files.Cert != "" && files.Key != ""
+}
+
+// FindSSLFilesProblem returns the reason the certificate files cannot be used, or an empty
+// string.
+func FindSSLFilesProblem(files SSLFiles) string {
+	if (files.Cert == "") != (files.Key == "") {
+		return "sslcert and sslkey must both be set"
+	}
+	return ""
+}

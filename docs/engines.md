@@ -146,7 +146,7 @@ Database permissions remain separate from client access checks.
 
 Most PostgreSQL-family and MySQL-family engines with an unset `sslmode` behave as `prefer`.
 
-For PostgreSQL-family and MySQL-family engines, `allow` and `prefer` permit unencrypted fallback. `require` needs TLS without certificate verification. `verify-ca` checks the certificate chain. `verify-full` also checks the host name. Verification uses the system trust roots.
+For PostgreSQL-family and MySQL-family engines, `allow` and `prefer` permit unencrypted fallback. `require` needs TLS without certificate verification. `verify-ca` checks the certificate chain. `verify-full` also checks the host name. Verification uses `sslrootcert`, or the system trust roots without it.
 
 ClickHouse differs. The native protocol does not negotiate. Unset, `allow`, and `prefer` connect without encryption. `require` encrypts without certificate verification. `verify-ca` and `verify-full` verify it. An encrypted ClickHouse listens on a port of its own. The default is 9440.
 
@@ -160,7 +160,9 @@ Amazon DocumentDB takes an encrypted connection only, and its default is `requir
 
 MongoDB differs. Unset or `disable` uses no TLS. Explicit `allow`, `prefer`, and `require` need TLS. They use no certificate verification. They have no unencrypted fallback. MongoDB also supports `verify-ca` and `verify-full`.
 
-Turso differs. `disable` opens `ws://`, and every other mode opens `wss://`. A hosted database accepts TLS only.
+Turso differs. `disable` opens `ws://`, and every other mode opens `wss://`. A hosted database accepts TLS only. Turso verifies against the system trust store and reads no certificate files.
+
+Every other engine reads `sslrootcert`, `sslcert`, and `sslkey`. `sslrootcert` replaces the system trust roots for `verify-ca` and `verify-full`. The client keypair is sent under every mode that encrypts. See [Certificate files](configuration.md#certificate-files).
 
 See [profiles](configuration.md#profiles) for the other profile keys. Connection targets do not forward native URL options. See [connection targets](usage.md#connection-targets).
 

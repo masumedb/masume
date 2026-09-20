@@ -25,9 +25,12 @@ func TestBuildPostgresTls(t *testing.T) {
 		{core.SSLVerifyFull, true, false, true},
 	}
 	for _, held := range cases {
-		settings, mayFallBack := buildPostgresTLS(cfg.Profile{
+		settings, mayFallBack, err := buildPostgresTLS(cfg.Profile{
 			Host: "held.example", SSLMode: held.mode,
 		})
+		if err != nil {
+			t.Fatalf("%s was refused: %v", held.mode, err)
+		}
 		if (settings != nil) != held.encrypts {
 			t.Errorf("%s encrypts %v, wanted %v", held.mode, settings != nil, held.encrypts)
 		}
@@ -46,9 +49,12 @@ func TestBuildPostgresTls(t *testing.T) {
 }
 
 func TestBuildPostgresConfigFallsBackToTheClear(t *testing.T) {
-	config := buildPostgresConfig(cfg.Profile{
+	config, err := buildPostgresConfig(cfg.Profile{
 		Host: "held.example", Port: 5432, Database: "held", User: "held",
 	}, "secret")
+	if err != nil {
+		t.Fatalf("the config answered %v", err)
+	}
 	if config.TLSConfig == nil {
 		t.Fatal("a profile that names no mode did not try TLS")
 	}
@@ -56,9 +62,12 @@ func TestBuildPostgresConfigFallsBackToTheClear(t *testing.T) {
 		t.Errorf("the fallbacks are %+v, wanted one without TLS", config.Fallbacks)
 	}
 
-	held := buildPostgresConfig(cfg.Profile{
+	held, heldErr := buildPostgresConfig(cfg.Profile{
 		Host: "held.example", Port: 5432, SSLMode: core.SSLRequire,
 	}, "secret")
+	if heldErr != nil {
+		t.Fatalf("the config answered %v", heldErr)
+	}
 	if len(held.Fallbacks) != 0 {
 		t.Errorf("`require` has %d fallbacks, wanted none", len(held.Fallbacks))
 	}
@@ -72,7 +81,10 @@ func TestBuildPostgresConfigDialsTheTunnel(t *testing.T) {
 		DialHost: "127.0.0.1", DialPort: 40000,
 	}
 
-	config := buildPostgresConfig(profile, "")
+	config, err := buildPostgresConfig(profile, "")
+	if err != nil {
+		t.Fatalf("the config answered %v", err)
+	}
 	if config.Host != "127.0.0.1" || config.Port != 40000 {
 		t.Errorf("the driver dials %s:%d", config.Host, config.Port)
 	}
@@ -87,7 +99,10 @@ func TestBuildPostgresConfigDialsTheSocket(t *testing.T) {
 		Host: "/var/run/postgresql", Port: 5432, SSLMode: core.SSLVerifyFull,
 	}
 
-	config := buildPostgresConfig(profile, "")
+	config, err := buildPostgresConfig(profile, "")
+	if err != nil {
+		t.Fatalf("the config answered %v", err)
+	}
 	if config.Host != "/var/run/postgresql" || config.Port != 5432 {
 		t.Errorf("the driver dials %s:%d", config.Host, config.Port)
 	}
