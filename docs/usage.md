@@ -424,6 +424,7 @@ Every change writes the table of that row alone, and every line outside it stays
 - Drag the divider between the editor and the result. This resizes both panes from either side: the foot of the editor or the head of the result. Click the foot of the editor without dragging to toggle results.
 - Drag the right border of the object tree to set its width. The tree keeps at least 16 columns and leaves the pane beside it at least 32.
 - Drag a scrollbar or turn the wheel to scroll. The wheel leaves the cursor in place. Keyboard movement returns to the cursor.
+- A trackpad or a tilting wheel scrolls the grid along its columns and the editor along the cells of its lines. `Shift` with a plain wheel does the same.
 - In the editor, click for the caret. Double-click for a word. Triple-click for a line. Drag to select text.
 - Drag other displayed text for a screen selection. `Ctrl+C` copies the selected display text.
 - Right-click objects, cells, headers, tabs, connections, or the editor for context menus.

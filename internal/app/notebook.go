@@ -393,6 +393,7 @@ type CellViewState struct {
 	GridRowOffset    int
 	GridColumnOffset int
 	GridRolled       bool
+	GridColumnRolled bool
 	GridColumnKey    string
 	Frozen           map[int]bool
 	ColumnWidths     map[int]int
@@ -441,8 +442,9 @@ func ReadCellView(tab *Tab) CellViewState {
 		Sort: tab.Sort, Filter: tab.Filter,
 		GridRow: tab.GridRow, GridColumn: tab.GridColumn,
 		GridRowOffset: tab.GridRowOffset, GridColumnOffset: tab.GridColumnOffset,
-		GridRolled: tab.GridRolled, GridColumnKey: tab.GridColumnKey,
-		Frozen: tab.Frozen, ColumnWidths: tab.ColumnWidths,
+		GridRolled: tab.GridRolled, GridColumnRolled: tab.GridColumnRolled,
+		GridColumnKey: tab.GridColumnKey,
+		Frozen:        tab.Frozen, ColumnWidths: tab.ColumnWidths,
 		Unmasked: tab.Unmasked, Screen: tab.Screen,
 		DetailOffset: tab.DetailOffset, Opened: tab.Opened,
 		TreeRow: tab.TreeRow, TreeRowOffset: tab.TreeRowOffset,
@@ -467,6 +469,7 @@ func ApplyCellView(tab *Tab, held CellViewState) {
 	tab.GridRow, tab.GridColumn = held.GridRow, held.GridColumn
 	tab.GridRowOffset, tab.GridColumnOffset = held.GridRowOffset, held.GridColumnOffset
 	tab.GridRolled, tab.GridColumnKey = held.GridRolled, held.GridColumnKey
+	tab.GridColumnRolled = held.GridColumnRolled
 	tab.Frozen, tab.ColumnWidths = held.Frozen, held.ColumnWidths
 	tab.Unmasked, tab.Screen = held.Unmasked, held.Screen
 	tab.DetailOffset, tab.Opened = held.DetailOffset, held.Opened

@@ -825,8 +825,8 @@ func (model *Model) renderEditor(
 	// counts cells of the screen, and the caret is read in cells for it, because a byte of
 	// the buffer is not a cell.
 	caretCell := tab.Editor.MeasureCellsBefore(tab.Editor.Caret)
-	columnOffset := scrollTo(caretCell, tab.EditorColumnOffset, textWidth,
-		measureWidestLine(lines, offset, offset+body)+1)
+	columnOffset := scrollFrom(caretCell, tab.EditorColumnOffset, textWidth,
+		measureWidestLine(lines, offset, offset+body)+1, tab.EditorRolled)
 	tab.EditorColumnOffset = columnOffset
 
 	// The cell of the caret on the screen, which the completion popup is placed from.

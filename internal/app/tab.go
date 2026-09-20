@@ -118,6 +118,8 @@ type Tab struct {
 	GridColumnOffset int
 	// True after scrolling independently of the grid cursor.
 	GridRolled bool
+	// True after scrolling the columns independently of the grid cursor.
+	GridColumnRolled bool
 	// The column key for retaining the cursor across compatible results.
 	GridColumnKey string
 	// The columns that always draw at the left, whatever the window shows.

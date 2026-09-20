@@ -640,6 +640,7 @@ func buildColumnOrder(tab *app.Tab, count int) []int {
 // moveGridColumn steps the cursor through the order the columns are drawn in, so a freeze
 // moves the walk with the columns.
 func moveGridColumn(tab *app.Tab, count, step int) {
+	tab.GridColumnRolled = false
 	order := buildColumnOrder(tab, count)
 	if len(order) == 0 {
 		return
@@ -1281,7 +1282,7 @@ func (model *Model) goToColumn(
 	}
 	for at, column := range shape.Columns {
 		if present.MatchesText(column.Name, wanted) {
-			tab.GridColumn = at
+			tab.GridColumn, tab.GridColumnRolled = at, false
 			return model, nil
 		}
 	}

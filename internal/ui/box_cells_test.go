@@ -90,6 +90,35 @@ func TestFollowColumnCursorMovesTheWindow(t *testing.T) {
 	}
 }
 
+// A window the wheel rolled sideways keeps where it stands, and follows the cursor again at
+// the next move of it.
+func TestFollowColumnCursorKeepsWhereTheWheelRolledTo(t *testing.T) {
+	shape := GridShape{Widths: []int{10, 10, 10, 10, 10}}
+	shape.Columns = make([]query.ResultColumn, len(shape.Widths))
+	model := &Model{styles: NewStyles(NewThemeRegistry())}
+	tab := &app.Tab{Frozen: map[int]bool{}}
+
+	tab.GridColumnOffset, tab.GridColumnRolled = 3, true
+	plan := model.followColumnCursor(tab, shape, 22)
+	if tab.GridColumnOffset != 3 || plan.WindowStart != 3 {
+		t.Errorf("the frame pulled the window back to %d", tab.GridColumnOffset)
+	}
+
+	// The wheel never runs past the last column.
+	tab.GridColumnOffset = 40
+	model.followColumnCursor(tab, shape, 22)
+	if tab.GridColumnOffset != 4 {
+		t.Errorf("the window ran to column %d", tab.GridColumnOffset)
+	}
+
+	tab.GridColumnRolled = false
+	model.followColumnCursor(tab, shape, 22)
+	if tab.GridColumnOffset != 0 {
+		t.Errorf("the window did not follow the cursor back, it stands at %d",
+			tab.GridColumnOffset)
+	}
+}
+
 func TestHiddenColumnCounts(t *testing.T) {
 	tab := &app.Tab{Frozen: map[int]bool{0: true}}
 	plan := present.ColumnPlan{WindowStart: 2, VisibleCount: 2}

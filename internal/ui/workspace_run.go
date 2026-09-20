@@ -460,6 +460,7 @@ func (model *Model) placeResultCursor(
 	tab.GridColumnKey = key
 	tab.GridRow, tab.GridColumn = 0, 0
 	tab.GridRowOffset, tab.GridColumnOffset = 0, 0
+	tab.GridColumnRolled = false
 	tab.TreeRow, tab.TreeRowOffset, tab.TreeRolled = 0, 0, false
 	tab.Opened = map[string]bool{}
 }

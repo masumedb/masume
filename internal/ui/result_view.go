@@ -517,7 +517,8 @@ func (model *Model) recordGridColumns(
 
 // followColumnCursor plans the columns that fit, and moves the window until the column under
 // the cursor is one of them. A window that keeps the cursor outside would leave the reader
-// with a cursor they cannot see.
+// with a cursor they cannot see. A window the wheel moved sideways keeps where it was rolled
+// to, and its cursor may stand off screen.
 func (model *Model) followColumnCursor(
 	tab *app.Tab, shape GridShape, available int,
 ) present.ColumnPlan {
@@ -526,6 +527,11 @@ func (model *Model) followColumnCursor(
 			Widths: shape.Widths, Frozen: tab.Frozen, ColumnOffset: tab.GridColumnOffset,
 			Available: available, Gap: columnGap,
 		})
+	}
+
+	if tab.GridColumnRolled {
+		tab.GridColumnOffset = clamp(tab.GridColumnOffset, len(shape.Widths))
+		return planColumns()
 	}
 
 	plan := planColumns()

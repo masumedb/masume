@@ -547,17 +547,17 @@ func (model *Model) readMouseWheel(turned tea.MouseWheelMsg) (tea.Model, tea.Cmd
 	sideways := mouse.Mod.Contains(uv.ModShift)
 	switch {
 	case mouse.Button == tea.MouseWheelUp && sideways:
-		return model.rollWheelSideways(mouse, -wheelColumns)
+		return model.rollWheelSideways(mouse, -1)
 	case mouse.Button == tea.MouseWheelDown && sideways:
-		return model.rollWheelSideways(mouse, wheelColumns)
+		return model.rollWheelSideways(mouse, 1)
 	case mouse.Button == tea.MouseWheelUp:
 		return model.rollWheel(mouse, -wheelRows)
 	case mouse.Button == tea.MouseWheelDown:
 		return model.rollWheel(mouse, wheelRows)
 	case mouse.Button == tea.MouseWheelLeft:
-		return model.rollWheelSideways(mouse, -wheelColumns)
+		return model.rollWheelSideways(mouse, -1)
 	case mouse.Button == tea.MouseWheelRight:
-		return model.rollWheelSideways(mouse, wheelColumns)
+		return model.rollWheelSideways(mouse, 1)
 	}
 	return model, nil
 }
@@ -933,7 +933,7 @@ func (model *Model) pressResultPane(
 	}
 	tab.GridRow = row
 	if column, over := findColumnUnder(model.layout.gridColumns, mouse.X); over {
-		tab.GridColumn = column
+		tab.GridColumn, tab.GridColumnRolled = column, false
 	}
 	if mouse.Button == tea.MouseRight {
 		return model.runGridAction(connection, tab,
@@ -1043,7 +1043,7 @@ func (model *Model) pressColumnHeader(
 	if !over {
 		return model, nil
 	}
-	tab.GridColumn = column
+	tab.GridColumn, tab.GridColumnRolled = column, false
 	// The right button opens what a reader does to the column itself, which is more than
 	// the order of the read.
 	if mouse.Button == tea.MouseRight {
@@ -1218,21 +1218,37 @@ func (model *Model) resolveEditorOffset(tab *app.Tab, x, y int) (int, bool) {
 	return tab.Editor.FindOffsetAt(line, cell), true
 }
 
-// rollWheelSideways returns one turn of the other axis of the wheel. The diagram of a
-// builder scrolls along its boxes, and the grid along its columns.
+// rollWheelSideways returns one turn of the other axis of the wheel, one step to the left or
+// to the right. The diagram of a builder scrolls along its boxes, the statement along the
+// cells of its lines, and the grid along its columns. The cursor stays where it is, so it may
+// scroll off screen.
 func (model *Model) rollWheelSideways(mouse tea.Mouse, step int) (tea.Model, tea.Cmd) {
 	connection := model.Active()
 	if model.screen != ScreenWorking || connection == nil || connection.Overlay.IsOpen() {
 		return model, nil
 	}
 	tab := connection.Active()
-	if tab == nil || !tab.BuildsQuery() {
+	if tab == nil {
 		return model, nil
 	}
-	if mouse.Y < model.layout.editorTop ||
-		mouse.Y >= model.layout.editorTop+model.layout.editorRows {
+	if mouse.Y >= model.layout.editorTop &&
+		mouse.Y < model.layout.editorTop+model.layout.editorRows {
+		if tab.BuildsQuery() {
+			tab.Builder.Roll(0, step*wheelColumns)
+			return model, nil
+		}
+		if tab.ListsCells() {
+			return model, nil
+		}
+		tab.EditorColumnOffset = max(tab.EditorColumnOffset+step*wheelColumns, 0)
+		tab.EditorRolled = true
 		return model, nil
 	}
-	tab.Builder.Roll(0, step)
+	if mouse.Y >= model.layout.resultTop &&
+		mouse.Y < model.layout.resultTop+model.layout.resultRows {
+		tab.GridColumnOffset = max(tab.GridColumnOffset+step, 0)
+		tab.GridColumnRolled = true
+		return model, nil
+	}
 	return model, nil
 }
