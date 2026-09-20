@@ -36,7 +36,7 @@ func (model *Model) runStatementAtCursor(
 		// The cell the list stands on, or the selection inside it.
 		if tab.EditsText() && strings.TrimSpace(tab.Editor.Selection()) != "" {
 			tab.View = resolveRowView(tab.View)
-			return model.execute(connection, tab, connection.Session.Language().
+			return model.runEditorStatements(connection, tab, connection.Session.Language().
 				SplitStatements(tab.Editor.Selection()))
 		}
 		return model.runNotebook(connection, tab, app.RunCell)
@@ -53,14 +53,14 @@ func (model *Model) runStatementAtCursor(
 	selected := strings.TrimSpace(tab.Editor.Selection())
 	if selected == "" {
 		statement := tab.Editor.ReadStatementAtCaret(connection.Session.Language())
-		return model.execute(connection, tab, []string{statement})
+		return model.runEditorStatements(connection, tab, []string{statement})
 	}
 
 	parts := connection.Session.Language().SplitStatements(selected)
 	if len(parts) == 0 {
 		parts = []string{selected}
 	}
-	return model.execute(connection, tab, parts)
+	return model.runEditorStatements(connection, tab, parts)
 }
 
 // runWholeBuffer runs every statement in the buffer, one result each.
@@ -81,8 +81,18 @@ func (model *Model) runWholeBuffer(
 	if !tab.EditorVisible() {
 		return model.runTabRead(connection, tab)
 	}
-	return model.execute(connection, tab, connection.Session.Language().SplitStatements(
-		tab.Editor.Text))
+	return model.runEditorStatements(connection, tab, connection.Session.Language().
+		SplitStatements(tab.Editor.Text))
+}
+
+// runEditorStatements runs what the user asked of the buffer. The grid sort and the grid
+// filter belong to the rows on show. A statement that is not the one behind them drops
+// both.
+func (model *Model) runEditorStatements(
+	connection *app.Connection, tab *app.Tab, statements []string,
+) (tea.Model, tea.Cmd) {
+	tab.DropRewriteOfAnotherStatement(statements)
+	return model.execute(connection, tab, statements)
 }
 
 // refuseSecondRun refuses another run while this tab has a running query.

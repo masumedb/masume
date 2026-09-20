@@ -148,3 +148,22 @@ func TestNothingIsStagedWhileTheWorkIsBeingWritten(t *testing.T) {
 		t.Error("a change was refused after the apply answered")
 	}
 }
+
+// The grid sort and the grid filter lie over the rows on show. Another statement takes
+// neither: a read would carry a filter written for other rows, and a write would be wrapped
+// in it.
+func TestTheGridFilterStaysWithTheStatementItWasWrittenFor(t *testing.T) {
+	tab := app.NewQueryTab(1, "select * from orders")
+	tab.Results.Start([]string{"select * from orders"}, 100)
+	tab.Filter = []core.FilterStep{core.BuildCellFilter("status", "new", false)}
+
+	tab.DropRewriteOfAnotherStatement([]string{"select * from orders"})
+	if len(tab.Filter) != 1 {
+		t.Error("the filter of the statement on show was dropped")
+	}
+
+	tab.DropRewriteOfAnotherStatement([]string{"insert into orders (id) values (1)"})
+	if len(tab.Filter) != 0 {
+		t.Errorf("another statement kept the filter: %+v", tab.Filter)
+	}
+}

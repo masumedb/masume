@@ -441,6 +441,25 @@ func (tab *Tab) Rewrite() core.ReadRewrite {
 	return core.ReadRewrite{Sort: tab.Sort, Filter: tab.Filter}
 }
 
+// DropRewriteOfAnotherStatement throws away the grid sort and the grid filter where this
+// batch is not the statement the rows on show came from.
+func (tab *Tab) DropRewriteOfAnotherStatement(statements []string) {
+	if !tab.HasRewrite() {
+		return
+	}
+	written := make([]string, 0, len(statements))
+	for _, held := range statements {
+		if strings.TrimSpace(held) != "" {
+			written = append(written, strings.TrimSpace(held))
+		}
+	}
+	active := tab.Results.Active()
+	if len(written) == 1 && active != nil && written[0] == strings.TrimSpace(active.Source) {
+		return
+	}
+	tab.Sort, tab.Filter = nil, nil
+}
+
 // HasRewrite is true while the grid applies a sort or a filter to the read.
 func (tab *Tab) HasRewrite() bool {
 	return len(tab.Sort) > 0 || len(tab.Filter) > 0

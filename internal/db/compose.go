@@ -36,11 +36,15 @@ func (composer SQLComposer) ComposeRelationRead(
 	}
 }
 
-// ComposeStatementRead applies sorting and filters outside the original statement.
+// ComposeStatementRead applies sorting and filters outside the original statement. A
+// statement whose SELECT feeds a write takes neither.
 func (composer SQLComposer) ComposeStatementRead(
 	written BoundText, rewrite core.ReadRewrite,
 ) ComposedRead {
 	dialect := composer.Dialect
+	if !statement.ReturnsRowsToClient(written.Text, dialect.Syntax) {
+		rewrite = core.ReadRewrite{}
+	}
 	// Filter parameters follow the original statement parameters.
 	filter := build.ComposeFilter(rewrite.Filter, dialect, len(written.Params)+1)
 	bound := statement.BuildEffectiveSQL(written.Text, filter, rewrite.Sort, dialect)
