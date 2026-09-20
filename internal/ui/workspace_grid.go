@@ -796,7 +796,8 @@ func (model *Model) duplicateRow(
 	}
 	generated := map[string]bool{}
 	for _, column := range tab.Target.Columns {
-		if column.IsGenerated {
+		// The copy is a new row, so the server numbers it itself.
+		if column.IsGenerated || column.IsIdentityAlways {
 			generated[strings.ToLower(column.Name)] = true
 		}
 	}
@@ -833,9 +834,9 @@ func (model *Model) insertRow(
 	form := map[string]any{}
 	names := []string{}
 	for _, column := range tab.Target.Columns {
-		// The server fills a generated column itself, and it fills a column with a
-		// default where the row names no value.
-		if column.IsGenerated || column.HasDefault {
+		// The server fills a generated column and an identity column itself, and it
+		// fills a column with a default where the row names no value.
+		if column.IsGenerated || column.IsIdentityAlways || column.HasDefault {
 			continue
 		}
 		form[column.Name] = ""

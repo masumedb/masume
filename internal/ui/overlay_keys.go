@@ -1297,7 +1297,7 @@ func (model *Model) buildInsertTemplate(
 
 	columns := make([]build.TemplateColumn, 0, len(state.Detail.Columns))
 	for _, column := range state.Detail.Columns {
-		if column.IsGenerated {
+		if column.IsGenerated || column.IsIdentityAlways {
 			continue
 		}
 		columns = append(columns, build.TemplateColumn{
