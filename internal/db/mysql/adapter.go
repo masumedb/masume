@@ -91,6 +91,15 @@ type queryRunner interface {
 	ExecContext(ctx context.Context, sql string, params ...any) (sql.Result, error)
 }
 
+// resolveSelectLimit returns the session row cap for a statement. A statement whose SELECT
+// feeds a write runs without the cap.
+func resolveSelectLimit(sql string, flavour syntax.SyntaxFlavour, rowLimit int) int {
+	if !statement.ReturnsRowsToClient(sql, flavour) {
+		return -1
+	}
+	return db.ReadOverscanRowLimit(rowLimit)
+}
+
 // applySelectLimit sets the session row limit.
 func (session *mysqlSession) applySelectLimit(ctx context.Context, cap int) error {
 	if session.hasSelectLimit && session.selectLimit == cap {
@@ -172,11 +181,12 @@ func (session *mysqlSession) RunQuery(
 	}
 	defer giveBack()
 
-	if err := session.applySelectLimit(ctx, db.ReadOverscanRowLimit(rowLimit)); err != nil {
+	flavour := session.Support.Dialect.Syntax
+	if err := session.applySelectLimit(
+		ctx, resolveSelectLimit(statement, flavour, rowLimit)); err != nil {
 		return db.QueryResult{}, db.WrapDatabaseError(err)
 	}
 
-	flavour := session.Support.Dialect.Syntax
 	lastStatement := db.ReadLastStatement(statement, flavour)
 	command := syntax.ReadCommandWord(lastStatement, flavour)
 	rows, err := session.connection.QueryContext(ctx, statement, params...)
