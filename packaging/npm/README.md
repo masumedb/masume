@@ -17,7 +17,7 @@ Or run it without an install:
 npx masume
 ```
 
-macOS and Linux, on x64 and arm64. Node 18 or later.
+macOS, Linux and Windows, on x64 and arm64. Node 18 or later.
 
 The package holds no binary. On install it downloads the release archive for the current platform from [GitHub](https://github.com/turanmahmudov/masume/releases) and checks it against the `checksums.txt` copy inside the package. With `--ignore-scripts` the download runs on the first `masume` command instead.
 

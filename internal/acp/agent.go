@@ -11,10 +11,10 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
-	"syscall"
 
 	"github.com/turanmahmudov/masume/internal/ai"
 	"github.com/turanmahmudov/masume/internal/cfg"
+	"github.com/turanmahmudov/masume/internal/proc"
 )
 
 // One coding agent, reached over ACP. masume starts the agent as a child process, hands it
@@ -91,7 +91,7 @@ func (held *Agent) start(hooks ai.RunHooks) (*exec.Cmd, *session, error) {
 	child.Env = append(os.Environ(), held.settings.Env...)
 	// The agent starts programs of its own, so it leads a process group. Ending the group
 	// ends the whole agent; ending the child alone leaves its programs running.
-	child.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	proc.LeadGroup(child)
 	input, err := child.StdinPipe()
 	if err != nil {
 		return nil, nil, err
@@ -129,8 +129,7 @@ func closeChild(child *exec.Cmd) {
 		_ = child.Wait()
 		return
 	}
-	// A negative id is the group, which the agent leads.
-	if err := syscall.Kill(-child.Process.Pid, syscall.SIGKILL); err != nil {
+	if err := proc.KillGroup(child); err != nil {
 		_ = child.Process.Kill()
 	}
 	_ = child.Wait()

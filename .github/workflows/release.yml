@@ -42,6 +42,7 @@ jobs:
         with:
           subject-path: |
             dist/*.tar.gz
+            dist/*.zip
             dist/*.deb
             dist/*.rpm
             dist/*.apk
@@ -88,9 +89,9 @@ jobs:
         run: |
           set -eu
           node -e 'const { version, goBinary } = require("./packaging/npm/package.json");
-          for (const platform of ["linux_amd64", "linux_arm64", "darwin_amd64", "darwin_arm64"]) {
+          for (const platform of ["linux_amd64", "linux_arm64", "darwin_amd64", "darwin_arm64", "windows_amd64", "windows_arm64"]) {
             const [os, arch] = platform.split("_");
-            console.log(goBinary.url.replace(/{{version}}/g, version).replace(/{{platform}}/g, os).replace(/{{arch}}/g, arch));
+            console.log(goBinary.url.replace(/{{version}}/g, version).replace(/{{platform}}/g, os).replace(/{{arch}}/g, arch).replace(/{{ext}}/g, os === "windows" ? "zip" : "tar.gz"));
           }' | while read -r url; do curl -fsIL -o /dev/null "$url"; done
 
       - name: publish

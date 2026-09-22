@@ -15,6 +15,7 @@ builds:
     goos:
       - linux
       - darwin
+      - windows
     goarch:
       - amd64
       - arm64
@@ -27,6 +28,9 @@ builds:
 archives:
   - id: masume
     formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
     name_template: >-
       {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
     files:
@@ -92,7 +96,7 @@ release:
     go install github.com/turanmahmudov/masume@{{ .Tag }}
     ```
 
-    Or take an archive, a `.deb`, an `.rpm` or an `.apk` below. Unpack an archive and put `masume` on the PATH.
+    Or take an archive, a `.deb`, an `.rpm` or an `.apk` below. Windows takes the `.zip`. Unpack an archive and put `masume` on the PATH.
 
     Check what you downloaded against `checksums.txt`:
 

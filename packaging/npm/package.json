@@ -27,7 +27,7 @@
   "type": "commonjs",
   "goBinary": {
     "name": "masume",
-    "url": "https://github.com/turanmahmudov/masume/releases/download/v{{version}}/masume_{{version}}_{{platform}}_{{arch}}.tar.gz"
+    "url": "https://github.com/turanmahmudov/masume/releases/download/v{{version}}/masume_{{version}}_{{platform}}_{{arch}}.{{ext}}"
   },
   "bin": {
     "masume": "bin/masume.js"
@@ -44,7 +44,8 @@
   },
   "os": [
     "darwin",
-    "linux"
+    "linux",
+    "win32"
   ],
   "cpu": [
     "x64",

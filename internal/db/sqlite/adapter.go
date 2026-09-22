@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"io/fs"
+	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -427,7 +429,21 @@ func buildFileSource(profile cfg.Profile, _ string) (string, error) {
 		// SQLite requires explicit foreign key enforcement for each connection.
 		settings = append(settings, "_pragma=foreign_keys(1)")
 	}
-	return "file:" + path + "?" + strings.Join(settings, "&"), nil
+	return buildFileURI(path) + "?" + strings.Join(settings, "&"), nil
+}
+
+// buildFileURI returns the `file:` URI of a database path. SQLite reads a URI path with
+// forward slashes, and a Windows drive letter takes a leading slash: file:///C:/db/shop.db.
+func buildFileURI(path string) string {
+	name := filepath.ToSlash(path)
+	if drive := filepath.VolumeName(path); len(drive) == 2 && drive[1] == ':' {
+		name = "/" + name
+	}
+	escaped := (&url.URL{Path: name}).EscapedPath()
+	if strings.HasPrefix(name, "/") {
+		return "file://" + escaped
+	}
+	return "file:" + escaped
 }
 
 // sqliteAdapter opens a SQLite database.

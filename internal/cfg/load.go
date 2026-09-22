@@ -31,11 +31,7 @@ type LoadedConfig struct {
 
 // ResolveConfigPath returns the path of the config file.
 func ResolveConfigPath() string {
-	configHome := os.Getenv("XDG_CONFIG_HOME")
-	if configHome == "" {
-		configHome = filepath.Join(core.HomeDirectory(), ".config")
-	}
-	return filepath.Join(configHome, "masume", "config.toml")
+	return filepath.Join(core.ResolveConfigHome(), "masume", "config.toml")
 }
 
 // ResolveThemesPath returns the directory of the themes of the user, one file per theme,

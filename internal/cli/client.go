@@ -10,6 +10,7 @@ import (
 
 	"github.com/turanmahmudov/masume/internal/acp"
 	"github.com/turanmahmudov/masume/internal/cfg"
+	"github.com/turanmahmudov/masume/internal/core"
 	"github.com/turanmahmudov/masume/internal/db/engines"
 	"github.com/turanmahmudov/masume/internal/hist"
 	"github.com/turanmahmudov/masume/internal/mcp"
@@ -44,8 +45,8 @@ A command-line connection remains temporary until saved.
 Press Ctrl+N, then e, then Ctrl+S to save the selected profile.
 With no target or profile, masume opens $DATABASE_URL.
 
-The config file is $XDG_CONFIG_HOME/masume/config.toml.
-The history file is $XDG_STATE_HOME/masume/history.sqlite.
+The config file is %s.
+The history file is %s.
 The nearest .masume.toml in or above the working directory supplies project profiles and queries.`
 
 // Run reads the arguments of the process and returns the exit code.
@@ -67,7 +68,7 @@ func Run(argv []string) int {
 		return runRestoreCommand(argv[1:])
 	}
 	if slices.Contains(argv, "--help") || slices.Contains(argv, "-h") {
-		fmt.Println(usage)
+		fmt.Printf(usage+"\n", cfg.ResolveConfigPath(), core.ResolveStatePath("history.sqlite"))
 		return 0
 	}
 	if slices.Contains(argv, "--version") || slices.Contains(argv, "-v") {

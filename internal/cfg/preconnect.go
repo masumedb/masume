@@ -1,14 +1,15 @@
 package cfg
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
 	"os/exec"
-	"syscall"
 	"time"
 
 	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/turanmahmudov/masume/internal/proc"
 	"github.com/turanmahmudov/masume/internal/tunnel"
 )
 
@@ -20,7 +21,7 @@ const pollInterval = 100 * time.Millisecond
 // portDialTimeout is the timeout of one test of the port.
 const portDialTimeout = time.Second
 
-// stopGrace is the time the process group has to stop after SIGTERM before it is killed.
+// stopGrace is the time the process group has to stop before it is killed.
 const stopGrace = 2 * time.Second
 
 // PreConnectHandle is the running pre-connect command and the open SSH tunnel.
@@ -51,13 +52,13 @@ func (handle *PreConnectHandle) Stop() {
 	default:
 	}
 
-	if syscall.Kill(-command.Process.Pid, syscall.SIGTERM) != nil {
+	if proc.StopGroup(command) != nil {
 		_ = command.Process.Kill()
 	}
 	select {
 	case <-handle.exited:
 	case <-time.After(stopGrace):
-		_ = syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
+		_ = proc.KillGroup(command)
 		<-handle.exited
 	}
 }
@@ -100,8 +101,8 @@ func StartPreConnectCommand(profile Profile) (*PreConnectHandle, error) {
 	}
 
 	// The command and its children share a separate process group.
-	command := exec.Command("sh", "-c", profile.Command)
-	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	command := buildShellCommand(context.Background(), profile.Command)
+	proc.LeadGroup(command)
 	if err := command.Start(); err != nil {
 		return nil, fmt.Errorf(
 			"the pre-connect command for %s failed to start: %w", profile.Name, err)

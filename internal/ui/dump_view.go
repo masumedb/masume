@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"path/filepath"
+
 	"github.com/turanmahmudov/masume/internal/app"
 	"github.com/turanmahmudov/masume/internal/cfg"
 	"github.com/turanmahmudov/masume/internal/present"
@@ -125,7 +127,7 @@ func buildDumpTitle(held app.DumpRequest) string {
 		if held.Path == "" {
 			return " restore "
 		}
-		return " restore " + present.TruncateText(baseName(held.Path), 40) + " "
+		return " restore " + present.TruncateText(filepath.Base(held.Path), 40) + " "
 	}
 	if held.Target == "" {
 		return " dump "

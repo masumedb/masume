@@ -210,14 +210,14 @@ func readPrivateKey(path, passphrase string) (ssh.Signer, error) {
 	return nil, fmt.Errorf("the ssh key %s is unusable: %w", path, err)
 }
 
-// readAgentSigners returns the signers of the agent on $SSH_AUTH_SOCK.
+// readAgentSigners returns the signers of the ssh agent.
 func readAgentSigners() (func() ([]ssh.Signer, error), bool) {
-	socket := os.Getenv("SSH_AUTH_SOCK")
-	if socket == "" {
+	address, found := resolveAgentAddress()
+	if !found {
 		return nil, false
 	}
 	return func() ([]ssh.Signer, error) {
-		connection, err := net.Dial("unix", socket)
+		connection, err := dialAgent(address)
 		if err != nil {
 			return nil, err
 		}

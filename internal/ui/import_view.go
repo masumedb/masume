@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -126,7 +127,7 @@ func buildImportTitle(held app.ImportRequest) string {
 	if held.Plan.Path == "" {
 		return " import "
 	}
-	title := " import " + present.TruncateText(baseName(held.Plan.Path), 40)
+	title := " import " + present.TruncateText(filepath.Base(held.Plan.Path), 40)
 	if held.Plan.CreatesTable {
 		title += " · new table"
 	}
@@ -136,14 +137,6 @@ func buildImportTitle(held app.ImportRequest) string {
 		title += " · " + strconv.Itoa(len(held.Plan.Sample.Rows)) + "+ rows"
 	}
 	return title + " "
-}
-
-// baseName returns the name of the file without the directories in front of it.
-func baseName(path string) string {
-	if at := strings.LastIndex(path, "/"); at != -1 {
-		return path[at+1:]
-	}
-	return path
 }
 
 // renderImportReview draws what the import would do: the rows it would write, the rows it

@@ -27,7 +27,7 @@ Before the first tagged release, fixes target `master`. After releases begin, on
 | Remembered database passwords | The operating system keyring, under service `masume` and the profile name |
 | Exported query results | The selected export path |
 
-Without XDG overrides, the config directory is `~/.config/masume` and the state directory is `~/.local/state/masume`.
+Without XDG overrides, the config directory is `~/.config/masume` and the state directory is `~/.local/state/masume`. Windows reads no XDG variable: the config directory is `%APPDATA%\masume` and the state directory is `%LOCALAPPDATA%\masume`.
 
 History can contain statement literals, errors, filter values, and unsent editor text. Stored chats can contain returned data in assistant replies and editor contexts. The catalog cache contains table, object, and role information.
 
@@ -37,7 +37,7 @@ A notebook file holds statements, prose and parameter defaults, and no result ro
 
 masume creates new state directories with mode `0700`. It applies mode `0600` to the history file and existing WAL and SHM files when opening history. New config files, notebooks and logs use mode `0600`. Terminal exports also use mode `0600`.
 
-Existing directory permissions do not automatically become restrictive. Log permission changes are best effort. These permissions are not encryption and do not protect against the same operating system user or an administrator.
+Existing directory permissions do not automatically become restrictive. Log permission changes are best effort. Windows applies no Unix mode, and these files keep the access control list they inherit from their directory. These permissions are not encryption and do not protect against the same operating system user or an administrator.
 
 ### Notebooks
 

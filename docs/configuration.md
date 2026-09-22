@@ -1,6 +1,6 @@
 # Configuration
 
-The user configuration file is `$XDG_CONFIG_HOME/masume/config.toml`. The default path is `~/.config/masume/config.toml`. A repository can provide profiles and queries in a [project file](#project-file), `.masume.toml`.
+The user configuration file is `$XDG_CONFIG_HOME/masume/config.toml`. The default path is `~/.config/masume/config.toml`, and `%APPDATA%\masume\config.toml` on Windows. A repository can provide profiles and queries in a [project file](#project-file), `.masume.toml`.
 
 [`config.example.toml`](../config.example.toml) lists the settings and sample profiles. The example values are not all defaults. The tables below give the defaults. [Usage](usage.md) covers the client workflows.
 
@@ -275,7 +275,7 @@ auth         = "password"
 password_env = "PGPASSWORD"
 ```
 
-A password command runs through `sh -c` with no stdin. The command must exit successfully within 30 seconds. It must print a non-empty first line. Later output is ignored.
+A password command runs through `sh -c` with no stdin, and through `%COMSPEC% /d /s /c` on Windows. The command must exit successfully within 30 seconds. It must print a non-empty first line. Later output is ignored.
 
 masume ignores profile passwords in configuration files. A non-empty `password` string produces this warning:
 
@@ -291,7 +291,7 @@ Ignoring `password` does not change `auth`; the configured environment variable,
 
 ### Keyring
 
-Linux keyring access uses Secret Service over D-Bus. GNOME Keyring and KWallet support it. macOS uses Keychain. Keyring entries use service `masume` and the profile name.
+Linux keyring access uses Secret Service over D-Bus. GNOME Keyring and KWallet support it. macOS uses Keychain. Windows uses Credential Manager. Keyring entries use service `masume` and the profile name.
 
 On a machine with a keyring, the password dialog includes a checkbox:
 
@@ -353,7 +353,7 @@ Each `{{ref}}` becomes one shell-quoted argument. The template must leave the pl
 
 Templates accept literal arguments, quoted flags, and pipelines. The client rejects shell expansion, escapes outside single quotes, redirects, command lists, and multiline templates. Complex commands need a script; pass `{{ref}}` as an argument.
 
-The invoked program still interprets its arguments. References must not be script text for `sh -c`, `eval`, or similar commands.
+The invoked program still interprets its arguments. References must not be script text for `sh -c`, `cmd /c`, `eval`, or similar commands.
 
 A failed store command reports the exit code and the first stderr line when present. Password command requirements also apply: successful exit within 30 seconds, a non-empty first output line, and no stdin.
 
@@ -385,7 +385,7 @@ user     = "turan"
 
 A PostgreSQL client dials the socket directory. `port` selects the file in it. `/var/run/postgresql` and `/var/run/postgresql/.s.PGSQL.5432` resolve to the same connection. A MySQL client dials the file; a directory resolves to `mysqld.sock` or `mysql.sock` in it. A path that resolves to no socket fails the connection, and the error lists the checked paths.
 
-A socket carries no TLS, and `sslmode` is ignored. The client rejects a socket with `ssh_host`. An SSH tunnel forwards TCP only. The PostgreSQL- and MySQL-protocol engines take a socket, but the rest do not. SQLite opens a file and needs no host.
+Windows has no unix socket, and a socket host fails the connection there. A socket carries no TLS, and `sslmode` is ignored. The client rejects a socket with `ssh_host`. An SSH tunnel forwards TCP only. The PostgreSQL- and MySQL-protocol engines take a socket, but the rest do not. SQLite opens a file and needs no host.
 
 ## SSH tunnel
 
@@ -694,4 +694,4 @@ See the [notebook guide](notebooks.md) for the file format and the run policy.
 | `$XDG_STATE_HOME/masume/mcp.log`, `mcp.log.1` | Partial MCP diagnostics and one rotated backup |
 | `$XDG_STATE_HOME/masume/ai-chat.log`, `ai-chat.log.1` | Partial chat diagnostics and one rotated backup |
 
-`XDG_CONFIG_HOME` is the configuration base directory, and `XDG_STATE_HOME` is the state base directory, normally `~/.local/state`. Keyring entries are separate from these files. See [security](../SECURITY.md#stored-data) for permissions, retention, and diagnostic limits.
+`XDG_CONFIG_HOME` is the configuration base directory, and `XDG_STATE_HOME` is the state base directory, normally `~/.local/state`. Windows reads neither: the configuration base directory is `%APPDATA%` and the state base directory is `%LOCALAPPDATA%`. Keyring entries are separate from these files. See [security](../SECURITY.md#stored-data) for permissions, retention, and diagnostic limits.

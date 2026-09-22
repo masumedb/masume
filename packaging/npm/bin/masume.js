@@ -7,9 +7,11 @@ const path = require("node:path");
 
 const packageDirectory = path.join(__dirname, "..");
 const { version, goBinary } = require("../package.json");
-const binaryPath = path.join(__dirname, goBinary.name);
+const onWindows = process.platform === "win32";
+const binaryName = onWindows ? `${goBinary.name}.exe` : goBinary.name;
+const binaryPath = path.join(__dirname, binaryName);
 
-const operatingSystems = { darwin: "darwin", linux: "linux" };
+const operatingSystems = { darwin: "darwin", linux: "linux", win32: "windows" };
 const architectures = { x64: "amd64", arm64: "arm64" };
 
 function buildDownloadUrl() {
@@ -21,7 +23,8 @@ function buildDownloadUrl() {
 	return goBinary.url
 		.replace(/{{version}}/g, version)
 		.replace(/{{platform}}/g, operatingSystem)
-		.replace(/{{arch}}/g, architecture);
+		.replace(/{{arch}}/g, architecture)
+		.replace(/{{ext}}/g, onWindows ? "zip" : "tar.gz");
 }
 
 function findExpectedChecksum(archiveName) {
@@ -52,7 +55,9 @@ async function downloadArchive(url, expectedChecksum) {
 }
 
 function extractBinary(directory, archiveName) {
-	const extraction = spawnSync("tar", ["-xzf", archiveName, goBinary.name], {
+	// Windows 10 and later ship bsdtar as tar, which reads a zip as well as a tar.gz.
+	const flags = onWindows ? "-xf" : "-xzf";
+	const extraction = spawnSync("tar", [flags, archiveName, binaryName], {
 		cwd: directory,
 		stdio: "inherit",
 	});
@@ -60,10 +65,13 @@ function extractBinary(directory, archiveName) {
 		throw new Error(`tar cannot run: ${extraction.error.message}`);
 	}
 	if (extraction.status !== 0) {
-		throw new Error(`${archiveName} holds no ${goBinary.name} binary`);
+		throw new Error(`${archiveName} holds no ${binaryName} binary`);
 	}
-	fs.copyFileSync(path.join(directory, goBinary.name), `${binaryPath}.download`);
-	fs.chmodSync(`${binaryPath}.download`, 0o755);
+	fs.copyFileSync(path.join(directory, binaryName), `${binaryPath}.download`);
+	if (!onWindows) {
+		fs.chmodSync(`${binaryPath}.download`, 0o755);
+	}
+	fs.rmSync(binaryPath, { force: true });
 	fs.renameSync(`${binaryPath}.download`, binaryPath);
 }
 

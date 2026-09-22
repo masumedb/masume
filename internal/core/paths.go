@@ -12,11 +12,7 @@ const stateDirectory = "masume"
 
 // ResolveStatePath returns the full path of a file this client writes.
 func ResolveStatePath(fileName string) string {
-	stateHome := os.Getenv("XDG_STATE_HOME")
-	if stateHome == "" {
-		stateHome = filepath.Join(HomeDirectory(), ".local", "state")
-	}
-	return filepath.Join(stateHome, stateDirectory, fileName)
+	return filepath.Join(ResolveStateHome(), stateDirectory, fileName)
 }
 
 // HomeDirectory returns the home directory of the user, or an empty string.
@@ -43,7 +39,8 @@ func ExpandHomePath(path string) string {
 	if path == "~" {
 		return HomeDirectory()
 	}
-	if strings.HasPrefix(path, "~/") {
+	if strings.HasPrefix(path, "~/") ||
+		(os.PathSeparator == '\\' && strings.HasPrefix(path, `~\`)) {
 		return filepath.Join(HomeDirectory(), path[2:])
 	}
 	return path

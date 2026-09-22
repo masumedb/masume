@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -44,6 +45,10 @@ func TakesSocket(engine Engine) bool {
 // default path of the engine that exists. postgres resolves to the socket directory, mysql
 // to the socket file.
 func FindSocketPath(engine Engine, host string, port int) (string, error) {
+	if runtime.GOOS == "windows" {
+		return "", fmt.Errorf(
+			"windows has no unix socket for %s; write a host and a port", engine)
+	}
 	if !TakesSocket(engine) {
 		return "", fmt.Errorf("%s does not connect over a unix socket", engine)
 	}

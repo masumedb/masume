@@ -31,7 +31,7 @@ func runPasswordCommand(source, name, written string) (string, error) {
 	defer stop()
 
 	// The command has no terminal input.
-	command := exec.CommandContext(ctx, "sh", "-c", written)
+	command := buildShellCommand(ctx, written)
 	command.Stdin = nil
 	printed, err := command.Output()
 

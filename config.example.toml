@@ -1,6 +1,6 @@
 # masume configuration examples. Values are not all defaults. See docs/configuration.md for defaults and docs/usage.md for workflows.
 #
-# The user file is $XDG_CONFIG_HOME/masume/config.toml, normally ~/.config/masume/config.toml. Custom themes are in the adjacent themes directory.
+# The user file is $XDG_CONFIG_HOME/masume/config.toml, normally ~/.config/masume/config.toml, and %APPDATA%\masume\config.toml on Windows. Custom themes are in the adjacent themes directory.
 # The connection form saves profiles in the user file. Text outside the edited profile block stays unchanged.
 #
 # Profile passwords in files are ignored. A non-empty password string produces a warning. The configured auth source still applies.

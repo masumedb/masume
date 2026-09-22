@@ -154,7 +154,7 @@ sudo apk add --allow-untrusted masume_0.0.4_linux_amd64.apk  # adapt the version
 
 ### Archive
 
-Unpack the `tar.gz` for the platform. Put `masume` on the PATH.
+Unpack the `tar.gz` for the platform, or the `zip` on Windows. Put `masume` on the PATH.
 
 ### Go
 
