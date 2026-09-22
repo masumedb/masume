@@ -1,10 +1,10 @@
 # Engines
 
-Engine problem reports should include the service, the server version, the statement, and the error.
+A bug report for an engine should include the service, the server version, the statement, and the error.
 
 ## Protocols
 
-Engines in one protocol family share a driver, but catalogs, SQL features, permissions, plans, and hosted restrictions can differ.
+Engines in one protocol family share a driver. Catalogs, SQL features, permissions, plans, and hosted restrictions can still differ.
 
 | Protocol | Engines |
 | --- | --- |
@@ -20,7 +20,7 @@ Engines in one protocol family share a driver, but catalogs, SQL features, permi
 
 ## Capabilities
 
-Most capabilities are static defaults. The interface uses these flags to decide which actions to show. A flag does not guarantee server support or permission; a shown action can still fail.
+Most capabilities are static defaults. The interface shows an action only when its flag is set. A flag does not guarantee server support or permission, and a shown action can still fail.
 
 | Engine | Plans | Measures | Transactions | Cancels | Activity | Locks | Load | Sorts | Truncates | DDL |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -53,68 +53,68 @@ Most capabilities are static defaults. The interface uses these flags to decide 
 | Plans | Query plans for supported statements |
 | Measures | Execution measurements in supported plans |
 | Transactions | Explicit begin, commit, and rollback |
-| Cancels | Dedicated cancellation of the current query. An engine without it hides the cancel key, and the run wheel shows `this engine cannot stop a running statement` |
-| Activity | Session or operation listing. Stopping another session also needs server permission |
+| Cancels | Cancel of the running query. Without it, the cancel key is hidden and the run spinner shows `this engine cannot stop a running statement` |
+| Activity | Session or operation list. Stopping another session also needs a server permission |
 | Locks | Blocking relationships between sessions |
-| Load | Connection counts, limits, and server start time. Additional metrics depend on the engine |
+| Load | Connection counts, limits, and server start time. Other metrics vary by engine |
 | Sorts | Server-side sorting for supported reads |
 | Truncates | `TRUNCATE` in the object menu |
-| DDL | Object definition retrieval or generation |
+| DDL | Object definitions, read from the server or generated |
 
-MongoDB transaction and atomic staged-write flags depend on the deployment's `hello` response. Replica sets and sharded clusters support transactions; standalone servers do not. A standalone server applies staged changes separately, so earlier changes can remain after a failure.
+On MongoDB, the transaction and atomic staged-change flags come from the deployment's `hello` response. Replica sets and sharded clusters support transactions; standalone servers do not. A standalone server applies staged changes one at a time, so earlier changes stay after a failure.
 
 | Flag | Default |
 | --- | --- |
 | Plans every statement | CockroachDB only |
-| Write previews | Every SQL engine except ClickHouse and Cassandra. No MongoDB |
-| Read-only mode | Every engine except TiDB. MongoDB, Amazon DocumentDB, SQL Server, Azure SQL Database, Redis, Cassandra, ScyllaDB and Turso enforcement is client-only |
-| Atomic staged changes | Every engine except ClickHouse, which holds no transaction. MongoDB adjusts this after connection |
-| Statement statistics | No engine before connection. PostgreSQL-family sessions enable this after an extension check, SQL Server sessions after a permission check, and ClickHouse sessions after a check of its query log |
+| Write previews | Every SQL engine except ClickHouse and Cassandra. Not MongoDB |
+| Read-only mode | Every engine except TiDB. Client-only on MongoDB, Amazon DocumentDB, SQL Server, Azure SQL Database, Redis, Cassandra, ScyllaDB and Turso |
+| Atomic staged changes | Every engine except ClickHouse, which has no transactions. Set after connection on MongoDB |
+| Statement statistics | Off on every engine until connection. Set after an extension check on the PostgreSQL family, a permission check on SQL Server, and a query log check on ClickHouse |
 
 ## Dashboard metrics
 
-The dashboard omits unsupported panels. Activity, lock relationships, server load, and statement statistics are separate capabilities.
+The dashboard hides unsupported panels. Activity, lock relationships, server load, and statement statistics are separate capabilities.
 
-| Engines | Implemented metrics | Dependencies |
+| Engines | Metrics | Requires |
 | --- | --- | --- |
 | PostgreSQL, TimescaleDB, Neon, Supabase, Aurora PostgreSQL | Activity, locks, connections, connection limit, start time, transaction count, WAL bytes, temporary files, cache hits, replication lag | PostgreSQL statistics views, functions, and sufficient permissions |
 | MySQL, MariaDB, Aurora MySQL | Activity, connections, connection limit, start time | `information_schema.processlist`, `performance_schema.global_status`, and `@@max_connections` |
 | ClickHouse | Running statements, connections, connection limit, start time, statement statistics | `system.processes`, `system.metrics`, `system.server_settings`, and `system.query_log` |
 | SQL Server | Activity, locks, connections, connection limit, start time, statement statistics | `sys.dm_exec_sessions`, `sys.dm_exec_requests`, `sys.dm_tran_locks`, `sys.dm_os_sys_info`, and the VIEW SERVER STATE permission |
 | Azure SQL Database | Activity, locks, statement statistics | The same views at database scope, and the VIEW DATABASE STATE permission |
-| YugabyteDB | Activity, locks, statement statistics | `pg_stat_activity`, `pg_locks`, and `pg_stat_statements`, which the server loads by itself |
+| YugabyteDB | Activity, locks, statement statistics | `pg_stat_activity`, `pg_locks`, and `pg_stat_statements`, which the server loads by default |
 | Redshift, TiDB | Activity only | The adapter's activity query and sufficient permissions |
 | MongoDB, Amazon DocumentDB | Current operations | `currentOp` and sufficient permissions |
-| Redis | Connected clients | `CLIENT LIST`, and `CLIENT KILL` to stop one |
+| Redis | Connected clients | `CLIENT LIST`, and `CLIENT KILL` to stop a client |
 | CockroachDB, PlanetScale, SQLite, Turso, Cassandra, ScyllaDB | No dashboard metrics | None |
 
-YugabyteDB holds no write ahead log of PostgreSQL. `pg_current_wal_lsn()` answers `not yet supported`, which fails the whole load read, so the server load panel is hidden there. Activity, lock waits and statement statistics all work.
+YugabyteDB has no PostgreSQL write-ahead log. `pg_current_wal_lsn()` returns `not yet supported` and fails the whole load query, so the server load panel is hidden. Activity, lock waits and statement statistics work.
 
-PostgreSQL metrics use `pg_stat_activity`, `pg_locks`, `pg_stat_database`, WAL functions, and replication statistics. Replication lag appears only when the query returns a value. Cache hit rate needs recorded block reads or hits, and rates need successive counter samples.
+PostgreSQL metrics use `pg_stat_activity`, `pg_locks`, `pg_stat_database`, WAL functions, and replication statistics. Replication lag is shown only when the query returns a value. The cache hit rate needs recorded block reads or hits. Every rate needs at least two counter samples.
 
-PostgreSQL-family statement statistics need the `pg_stat_statements` extension. masume checks the extension catalog when the session opens, except for engine variants without that catalog. The server must load the extension and permit access to its statistics. The panel contains call counts, mean execution time, total execution time, and returned rows.
+PostgreSQL-family statement statistics need the `pg_stat_statements` extension. masume checks the extension catalog when the session opens, on engines that have one. The server must load the extension and allow access to its statistics. The panel shows call counts, mean and total execution time, and returned rows.
 
-ClickHouse statement statistics come from `system.query_log`, and the server must be configured to write it. masume reads that table once when the session opens and shows the panel where the read succeeds. One row of the panel is one shape of statement, grouped by the hash the server normalizes it to.
+ClickHouse statement statistics come from `system.query_log`, which the server must be configured to write. masume reads the table once when the session opens and shows the panel if the read succeeds. Each row is one statement shape, grouped by normalized query hash.
 
-SQL Server statement statistics come from `sys.dm_exec_query_stats`. They need the VIEW SERVER STATE permission. masume reads that view once when the session opens and shows the panel where the read succeeds. SQL Server load metrics do not include the PostgreSQL counters, cache hit rate, or replication lag.
+SQL Server statement statistics come from `sys.dm_exec_query_stats` and need the VIEW SERVER STATE permission. masume reads the view once when the session opens and shows the panel if the read succeeds. SQL Server load metrics do not include the PostgreSQL counters, cache hit rate, or replication lag.
 
 MySQL-family load metrics do not include PostgreSQL counters, cache hit rate, replication lag, or statement statistics. MariaDB's `performance_schema.global_status` table needs version 10.5.2 or later and the Performance Schema. The adapter does not read MySQL lock relationships.
 
-Static capability flags do not check every statistics view, extension setting, or permission; missing dependencies can produce dashboard errors.
+The static flags do not check every statistics view, extension setting, or permission. A missing dependency can cause a dashboard error.
 
 ## Read-only access
 
-The client rejects recognized writes for read-only profiles. PostgreSQL-family sessions also ask for server read-only mode. MySQL and MariaDB use `SET SESSION TRANSACTION READ ONLY`. SQLite opens existing files with `mode=ro`. ClickHouse uses `SET readonly = 2`, which rejects a write but still takes the settings the driver sends. MongoDB, Amazon DocumentDB, SQL Server, Azure SQL Database, Redis, Cassandra and ScyllaDB have client-only checks.
+On a read-only profile, the client rejects every statement it recognizes as a write. PostgreSQL-family sessions also set read-only mode on the server. MySQL and MariaDB use `SET SESSION TRANSACTION READ ONLY`. SQLite opens existing files with `mode=ro`. ClickHouse uses `SET readonly = 2`, which rejects writes but still accepts the settings the driver sends. MongoDB, Amazon DocumentDB, SQL Server, Azure SQL Database, Redis, Cassandra and ScyllaDB have client-only checks.
 
-Turso opens no read-only connection, because the libSQL server takes no `mode=ro`. A read-only Turso profile has a client-only check.
+The libSQL server does not support `mode=ro`, so a read-only Turso profile has a client-only check.
 
-TiDB does not enforce the session read-only statement. An explicit TiDB profile with `mode = "read-only"` fails during connection.
+TiDB does not enforce a read-only session. A TiDB profile set to `mode = "read-only"` fails to connect.
 
-MCP read-only access opens a read-only connection, whatever the profile mode says. A server that holds no read-only session refuses the connection, so a TiDB profile an agent reaches read-only fails to connect.
+MCP read-only access opens a read-only connection, whatever the profile mode. The connection fails on a server without read-only sessions, so a TiDB profile with read-only MCP access cannot connect.
 
-A statement an agent sends that the client classifies as a read runs inside a unit of work the server refuses a write in: `BEGIN READ ONLY` on the PostgreSQL family, `START TRANSACTION READ ONLY` on MySQL and MariaDB. A routine the statement calls writes nothing there. A server with no such unit, and a connection already inside a transaction, run the statement as it is.
+When an agent sends a statement that the client classifies as a read, the statement runs in a read-only transaction: `BEGIN READ ONLY` on the PostgreSQL family, `START TRANSACTION READ ONLY` on MySQL and MariaDB. A routine that the statement calls cannot write either. On other servers, and on a connection already in a transaction, the statement runs as is.
 
-Database permissions remain separate from client access checks.
+Database permissions apply separately from the client checks.
 
 ## Default port and TLS
 
@@ -137,7 +137,7 @@ Database permissions remain separate from client access checks.
 | scylladb | 9042 | unset; no TLS |
 | sqlite | none | none |
 | azure-sql | 1433 | `require` |
-| sqlserver | 1433 | unset; the login only |
+| sqlserver | 1433 | unset; encrypts the login only |
 | supabase | 5432 | `require` |
 | tidb | 4000 | `prefer` |
 | timescale | 5432 | `prefer` |
@@ -146,23 +146,23 @@ Database permissions remain separate from client access checks.
 
 Most PostgreSQL-family and MySQL-family engines with an unset `sslmode` behave as `prefer`.
 
-For PostgreSQL-family and MySQL-family engines, `allow` and `prefer` permit unencrypted fallback. `require` needs TLS without certificate verification. `verify-ca` checks the certificate chain. `verify-full` also checks the host name. Verification uses `sslrootcert`, or the system trust roots without it.
+For PostgreSQL-family and MySQL-family engines, `allow` and `prefer` permit unencrypted fallback. `require` uses TLS without certificate verification. `verify-ca` checks the certificate chain. `verify-full` also checks the host name. Verification uses `sslrootcert` if set, otherwise the system trust roots.
 
-ClickHouse differs. The native protocol does not negotiate. Unset, `allow`, and `prefer` connect without encryption. `require` encrypts without certificate verification. `verify-ca` and `verify-full` verify it. An encrypted ClickHouse listens on a port of its own. The default is 9440.
+ClickHouse is different: the native protocol does not negotiate TLS. Unset, `allow`, and `prefer` connect without encryption. `require` encrypts without certificate verification. `verify-ca` and `verify-full` verify the certificate. Encrypted ClickHouse listens on a separate port, 9440 by default.
 
-SQL Server differs. Azure SQL Database takes an encrypted session only, and its default is `require`. On SQL Server, unset, `allow`, and `prefer` encrypt the login. The rest of the session goes unencrypted. `disable` encrypts nothing. `require` encrypts the whole session without certificate verification. `verify-ca` and `verify-full` verify it.
+SQL Server is different. Azure SQL Database accepts only encrypted sessions, and its default is `require`. On SQL Server, unset, `allow`, and `prefer` encrypt the login only, and the rest of the session is unencrypted. `disable` encrypts nothing. `require` encrypts the whole session without certificate verification. `verify-ca` and `verify-full` verify the certificate.
 
-Cassandra and ScyllaDB differ. Unset or `disable` uses no TLS. Every other mode uses TLS, and `verify-ca` and `verify-full` check the certificate.
+For Cassandra and ScyllaDB, unset or `disable` uses no TLS. Every other mode uses TLS, and `verify-ca` and `verify-full` check the certificate.
 
-Redis differs. Unset or `disable` uses no TLS. Every other mode uses TLS. A `rediss://` target sets `verify-full`.
+For Redis, unset or `disable` uses no TLS. Every other mode uses TLS. A `rediss://` target sets `verify-full`.
 
-Amazon DocumentDB takes an encrypted connection only, and its default is `require`.
+Amazon DocumentDB accepts only encrypted connections, and its default is `require`.
 
-MongoDB differs. Unset or `disable` uses no TLS. Explicit `allow`, `prefer`, and `require` need TLS. They use no certificate verification. They have no unencrypted fallback. MongoDB also supports `verify-ca` and `verify-full`.
+For MongoDB, unset or `disable` uses no TLS. Explicit `allow`, `prefer`, and `require` use TLS without certificate verification and without unencrypted fallback. MongoDB also supports `verify-ca` and `verify-full`.
 
-Turso differs. `disable` opens `ws://`, and every other mode opens `wss://`. A hosted database accepts TLS only. Turso verifies against the system trust store and reads no certificate files.
+For Turso, `disable` opens `ws://`, and every other mode opens `wss://`. A hosted database accepts only TLS. Turso connections verify against the system trust store and ignore the certificate files.
 
-Every other engine reads `sslrootcert`, `sslcert`, and `sslkey`. `sslrootcert` replaces the system trust roots for `verify-ca` and `verify-full`. The client keypair is sent under every mode that encrypts. See [Certificate files](configuration.md#certificate-files).
+Every other engine reads `sslrootcert`, `sslcert`, and `sslkey`. `sslrootcert` replaces the system trust roots for `verify-ca` and `verify-full`. The client key pair is sent in every mode that encrypts. See [Certificate files](configuration.md#certificate-files).
 
 See [profiles](configuration.md#profiles) for the other profile keys. Connection targets do not forward native URL options. See [connection targets](usage.md#connection-targets).
 
@@ -178,11 +178,11 @@ The parser accepts extended JSON, unquoted document keys, single-quoted strings,
 
 Supported value helpers are `ObjectId`, `ISODate`, `Date`, `NumberLong`, `NumberInt`, `NumberDouble`, `NumberDecimal`, and `UUID`. General JavaScript variables, loops, and function evaluation are unsupported.
 
-`db.getSiblingDB("name")` selects a database for a statement. `db.getCollection("name")` selects a collection with a quoted name. Statements end at a top-level semicolon or newline. Open documents and continuation lines starting with `.` can span lines.
+`db.getSiblingDB("name")` selects a database for a statement. `db.getCollection("name")` selects a collection by its quoted name. Statements end at a top-level semicolon or newline. A statement continues across lines inside an open document and on lines that start with `.`.
 
 ### Supported calls
 
-The adapter executes these database calls:
+Supported database calls:
 
 | Call | Supported arguments |
 | --- | --- |
@@ -191,7 +191,7 @@ The adapter executes these database calls:
 | `createCollection` | Collection name only |
 | `dropDatabase` | No options |
 
-The adapter executes these collection calls:
+Supported collection calls:
 
 | Call | Supported arguments and behavior |
 | --- | --- |
@@ -201,7 +201,7 @@ The adapter executes these collection calls:
 | `estimatedDocumentCount` | No options |
 | `distinct` | Field name and optional filter |
 | `getIndexes` | No options |
-| `insertOne`, `insertMany`, `insert` | Document or document array. The value shape selects single or multiple insertion |
+| `insertOne`, `insertMany`, `insert` | Document or document array. A document inserts one, an array inserts many |
 | `updateOne`, `updateMany`, `replaceOne` | Filter and update or replacement only |
 | `deleteOne`, `deleteMany` | Filter only |
 | `remove` | Filter and optional boolean or `{justOne: true}` |
@@ -211,63 +211,63 @@ The adapter executes these collection calls:
 | `dropIndex` | Index name |
 | `drop` | No options |
 
-Find chains apply `sort`, `projection`, `limit`, and `skip`. The parser accepts `pretty`, `toArray`, `batchSize`, `hint`, `allowDiskUse`, and `collation`, but execution ignores those chains. Other find chains fail.
+Find chains apply `sort`, `projection`, `limit`, and `skip`. The parser accepts `pretty`, `toArray`, `batchSize`, `hint`, `allowDiskUse`, and `collation`, but ignores them at execution. Other find chains fail.
 
-Most methods ignore extra arguments and chains instead of rejecting them; unsupported options are not forwarded. Update options such as `upsert`, find-and-update options such as `returnDocument`, and aggregate options such as `allowDiskUse` have no effect. Index options other than `name`, `unique`, and `sparse` are ignored.
+Most methods ignore extra arguments and chains without an error, and do not forward unsupported options. Update options such as `upsert`, find-and-update options such as `returnDocument`, and aggregate options such as `allowDiskUse` have no effect. Index options other than `name`, `unique`, and `sparse` are ignored.
 
-Command documents passed to `runCommand` or `adminCommand` reach the server as documents, and their replies remain command documents. Cursor replies are not automatically exhausted. Client access checks still apply.
+`runCommand` and `adminCommand` send the command document to the server as is, and the result is the raw reply document. Cursor replies are not iterated. Client access checks still apply.
 
 Completion and syntax highlighting include more methods than execution supports. Calls such as `bulkWrite`, `update`, `save`, and `createIndexes` are not implemented as shell methods.
 
-Plans support `find`, `aggregate`, `count`, `countDocuments`, and `distinct`. Shell `.explain()` chaining is unsupported. Use the interface plan action or headless `--explain` instead.
+Plans support `find`, `aggregate`, `count`, `countDocuments`, and `distinct`. Shell `.explain()` chaining is unsupported. Use the plan action or headless `--explain`.
 
 ### Documents and access
 
-Collection metadata samples up to 100 documents. Result columns come from the returned documents. Streaming columns come from the first batch. A column with different non-null types is `mixed`. Staged edits use the row's `_id`.
+Collection metadata comes from a sample of up to 100 documents. Result columns come from the returned documents. When streaming, columns come from the first batch. A column with different non-null types is `mixed`. Staged edits use the row's `_id`.
 
-Streaming omits fields first encountered after the first batch and reports an error. Headless output can already be incomplete at that point. See [headless streaming](headless.md#memory-and-streaming).
+Streaming drops a field that first appears after the first batch and reports an error. By then, headless output can already be incomplete. See [headless streaming](headless.md#memory-and-streaming).
 
-Amazon DocumentDB speaks the same wire protocol and takes the same calls, as the `documentdb` engine. The cluster takes an encrypted connection only, so its default `sslmode` is `require`, and it reaches this client through an SSH tunnel or a bastion where the VPC has no public route. A transaction needs an engine version of 4.0 or later, and the session reads the deployment at connect as it does for MongoDB.
+Amazon DocumentDB, the `documentdb` engine, uses the same wire protocol and calls. The cluster accepts only encrypted connections, so its default `sslmode` is `require`. A cluster in a VPC with no public route needs an SSH tunnel or a bastion. Transactions need engine version 4.0 or later. As on MongoDB, the session checks the deployment at connect.
 
-Set a user only for authenticated MongoDB connections. With a user, the adapter supplies credentials; without one, it supplies none. The client has no authentication settings beyond the profile fields. Native URL query options do not provide them.
+Set `user` only for authenticated MongoDB connections. Without a user, no credentials are sent. The profile fields are the only authentication settings, and native URL query options cannot add others.
 
 ## SQL Server
 
-masume connects to SQL Server 2016 and later, and to Azure SQL Database as the `azure-sql` engine. Both use TDS. The connection opens one database, and the relations of that database appear under their schemas. `dbo` is the default schema of most logins.
+masume connects to SQL Server 2016 and later, and to Azure SQL Database as the `azure-sql` engine. Both use TDS. The connection opens one database, and its relations are listed under their schemas. `dbo` is the default schema for most logins.
 
-A page after the first uses `OFFSET` and `FETCH NEXT`, which the server reads after a sort only. A page of a read with no sort of its own gets `ORDER BY (SELECT NULL)`, which keeps the rows in the order the server returns them; that order is not guaranteed between pages. Sort a read whose pages must line up. The first page takes no window, and the client caps the rows as it reads them. A read the server will not sort, such as `select next value for`, still runs. The generated `SELECT` of the object menu caps its rows with `TOP` instead.
+Pages after the first use `OFFSET` and `FETCH NEXT`, which the server accepts only after `ORDER BY`. A read without its own sort gets `ORDER BY (SELECT NULL)`. The rows then come in server order, which can change between pages. Add a sort when pages must line up. The first page has no `OFFSET`, and the client limits the rows as it reads them. A read that the server cannot sort, such as `select next value for`, still runs. The `SELECT` that the object menu generates uses `TOP` instead.
 
-The statement separator is the semicolon. `GO` is a separator of the command-line tools, not of the server, and a buffer that holds `GO` fails. The server also takes `CREATE VIEW`, `CREATE FUNCTION`, `CREATE PROCEDURE`, and `CREATE TRIGGER` as the first statement of a batch only. Each one needs a tab or a cell of its own.
+The statement separator is the semicolon. `GO` is a batch separator of the command-line tools, not of the server, and a buffer that contains `GO` fails. The server accepts `CREATE VIEW`, `CREATE FUNCTION`, `CREATE PROCEDURE`, and `CREATE TRIGGER` only as the first statement in a batch. Put each one in its own tab or cell.
 
-An identity column and a computed column reject a value from the client, and the row form leaves them out. A rename goes through `sp_rename`. The object menu writes it.
+Identity and computed columns reject client values, and the row form leaves them out. The object menu renames with `sp_rename`.
 
-A write with an `OUTPUT` clause returns rows, and masume shows them in place of a count. The server rejects `OUTPUT` without `INTO` on a table that has an enabled trigger; such a write needs `OUTPUT INTO` or a disabled trigger.
+A write with an `OUTPUT` clause returns rows, and masume shows them instead of a count. The server rejects `OUTPUT` without `INTO` on a table with an enabled trigger. Use `OUTPUT INTO` or disable the trigger.
 
-Statement diagnostics use `sys.dm_exec_describe_first_result_set`, which compiles the statement and returns the fault as a row. A statement with a `:name` parameter is checked once the parameters have values.
+Statement diagnostics use `sys.dm_exec_describe_first_result_set`, which compiles the statement and returns the error as a row. A statement with a `:name` parameter is checked after the parameters have values.
 
-An estimated plan comes from `SET SHOWPLAN_ALL ON`. A measured plan comes from `SET STATISTICS PROFILE ON`. Both carry estimated and counted rows per step, but neither carries a time per step.
+An estimated plan comes from `SET SHOWPLAN_ALL ON`. A measured plan comes from `SET STATISTICS PROFILE ON`. Both show estimated and actual rows per step, but no time per step.
 
-The dashboard stops another session with `KILL`, which ends the session and its transaction. T-SQL has no statement that stops one statement of another session. The activity list has no cancel, and the interface also has no cancel for a statement of this connection; `Ctrl+X` is not shown on a SQL Server connection. Set `statement_timeout_ms` to bound a statement instead. The client stops such a statement through the driver and opens the connection again afterwards. A stopped statement leaves the connection unusable, a transaction is lost with that connection, and the client says so.
+The dashboard stops another session with `KILL`, which ends the session and its transaction. T-SQL cannot cancel one statement in another session. The activity list has no cancel action, and a running statement on this connection has no cancel either; `Ctrl+X` is hidden on SQL Server. Set `statement_timeout_ms` to limit statement time. On a timeout, the driver stops the statement and the client reconnects. The old connection is unusable, an open transaction is lost with it, and the client reports this.
 
-The server has no read-only session, and a read-only profile is enforced by this client alone. It also has no materialized view; an indexed view appears as a view.
+SQL Server has no read-only session, so only the client enforces a read-only profile. SQL Server also has no materialized views; an indexed view is shown as a view.
 
-Azure SQL Database holds one database per connection, and `USE` does not reach another one. Its dynamic management views are scoped to that database and need the VIEW DATABASE STATE permission. The server load panel is hidden there: `@@max_connections` is a value of a whole instance, which the service does not hold.
+Azure SQL Database allows one database per connection, and `USE` cannot switch to another. Its dynamic management views are scoped to that database and need the VIEW DATABASE STATE permission. The server load panel is hidden.
 
 ## Cassandra
 
-masume connects to Cassandra 4 and 5 over the native protocol; the default port is 9042. A keyspace is the schema, and the connection opens one of them. The tree draws every keyspace of the cluster.
+masume connects to Cassandra 4 and 5 over the native protocol; the default port is 9042. A keyspace is the schema, and the connection opens one of them. The tree shows every keyspace in the cluster.
 
-A query tab takes CQL. The statement separator is the semicolon, and a buffer that holds several statements runs them one at a time.
+A query tab takes CQL. The statement separator is the semicolon, and a buffer that contains several statements runs them one at a time.
 
-The catalog comes from `system_schema`. A table lists its partition key first, then its clustering columns, then the rest by name, and a column outside the key takes a null. The definition of a table is built from that catalog, with the clustering order and the secondary indexes of the table.
+The catalog comes from `system_schema`. A table lists the partition key first, then the clustering columns, then the other columns by name. A column outside the key is nullable. The table definition is built from the catalog, with the clustering order and the secondary indexes.
 
-CQL has no `EXPLAIN`, no join, no transaction the user drives, and no `OFFSET`. A page after the first is taken from the rows above it, so a deep page costs the rows it skips. A row count is not offered, because counting reads every partition of the table. Staged changes run in one logged batch, which the server applies whole or not at all.
+CQL has no `EXPLAIN`, no join, no user transaction, and no `OFFSET`. Each page after the first reads past the rows before it, so a deep page reads every row it skips. There is no row count. Staged changes run in one logged batch, which the server applies in full or not at all.
 
-The grid writes an edited cell as text, and the driver marshals a value by its Go type, so each value is cast to the type of its column before it is bound: a decimal, a uuid, a timestamp and a whole number each take their own form.
+The grid stores an edited cell as text, and the driver marshals a value by its Go type. Each value is therefore converted to its column type before binding, with separate forms for decimal, uuid, timestamp, and integer columns.
 
-The server has no read-only session, and a read-only profile is enforced by this client alone. The dashboard has no panel: `system_views.clients` lists the connections of one node, and no statement stops one.
+Cassandra has no read-only session, so only the client enforces a read-only profile. The dashboard has no panels.
 
-ScyllaDB speaks the same protocol and takes the same CQL, as the `scylladb` engine with the `scylla://` scheme. It keeps `system_replicated_keys` and `audit` beside the keyspaces Cassandra reserves, and the tree hides those as well.
+ScyllaDB, the `scylladb` engine with the `scylla://` scheme, uses the same protocol and CQL. The tree also hides `system_replicated_keys` and `audit`, which ScyllaDB reserves in addition to the Cassandra system keyspaces.
 
 ## Redis
 
@@ -278,34 +278,34 @@ SET user:1 "a name"
 GET user:1
 ```
 
-A command ends at the line break, because a key can hold a semicolon. masume holds the Redis command set, marks a command it does not know, and rates each one as a read, a write, a delete, a sweep of the whole database, or a script. A script is rated at the highest risk, because its body can call any command.
+A command ends at the line break. A key can contain a semicolon. masume knows the Redis command set and marks unknown commands. Each command is classed as a read, a write, a delete, a whole-database operation, or a script. A script gets the highest risk class.
 
-The tree is built from a scan of the key space, so it shows the keys of the last scan. A key written after that scan appears after the next one. A prefix of the key names stands for a relation, and the four columns of every prefix are the key, its type, its time to live, and its value.
+The tree comes from a scan of the key space and shows the keys of the last scan. A new key appears after the next scan. Each key name prefix is shown as a relation with four columns: key, type, TTL, and value.
 
-The connection opens one numbered database, and the profile holds that number. A password without a user is accepted: the server setting is `requirepass`, which has no user.
+The connection opens one numbered database, set by `database` in the profile. A password without a user works with the `requirepass` server setting, which has no user.
 
 ## Turso
 
-masume connects to Turso and to any libSQL server over the websocket protocol of the server. The database is the host name, and the auth token is the password. A `libsql://` target carries the token as its `authToken` parameter.
+masume connects to Turso and to any libSQL server over the websocket protocol. The host name is the database, and the auth token is the password. In a `libsql://` target, the token is the `authToken` parameter.
 
-The SQL is SQLite, and the catalog is read through the same `pragma` functions. The HTTP protocol of the same server runs each statement on a connection of its own, which ends a transaction before the next statement arrives, so masume opens the websocket protocol instead.
+The SQL dialect is SQLite, and the catalog comes from the same `pragma` functions.
 
-The server sends no column type. A result column takes the type of its first value: `text`, `integer`, `real`, or `blob`. A local file of libSQL opens as a SQLite profile.
+The server sends no column types. A result column gets the type of its first value: `text`, `integer`, `real`, or `blob`. A local libSQL file opens as a SQLite profile.
 
 ## ClickHouse
 
-masume connects to ClickHouse over its native protocol; the default port is 9000. A ClickHouse database is a schema, and the connected one is the default. The object tree draws that database alone.
+masume connects to ClickHouse over its native protocol; the default port is 9000. Each ClickHouse database is a schema, and the connected database is the default. The object tree shows only that database.
 
-The protocol takes one statement per call. A buffer of several statements runs one at a time and answers with the result of the last one. Such a buffer binds no values. A `:name` parameter belongs to a buffer that holds one statement.
+The protocol accepts one statement per call. A buffer of several statements runs them one at a time and returns the result of the last one. Such a buffer cannot bind values; `:name` parameters work only in a buffer with one statement.
 
-The server holds no user transaction. The server rejects begin, commit, and rollback. Staged changes are applied one after another. A change that fails leaves the changes before it in place, and the report names the change that failed.
+The server has no user transactions and rejects begin, commit, and rollback. Staged changes are applied one at a time. If a change fails, the earlier changes stay, and the report shows the failed change.
 
-A staged edit of a row is written as `ALTER TABLE … UPDATE`. This is a mutation of the table. The session sets `mutations_sync = 1`, the server finishes the mutation before it answers, and the grid reads the row back as it now stands. A staged delete is written as `DELETE FROM`. A write reports no row count. The server counts the rows of a mutation nowhere the client can read.
+A staged row edit is written as `ALTER TABLE … UPDATE`, which is a table mutation. The session sets `mutations_sync = 1`, so the server finishes the mutation before it replies, and the grid then reads the row back. A staged delete is written as `DELETE FROM`. A write reports no row count, because the server does not expose the row count of a mutation.
 
-The server has no foreign key and keeps the constraints of a table in the statement that made it. The relation panes show neither, and the diagram draws no relationship. The sorting key of a table appears as its primary index, and the data-skipping indexes appear beside it. A materialized view appears as one, and the table that keeps its rows is hidden.
+The server has no foreign keys and stores table constraints only in the `CREATE TABLE` statement. The relation panes show neither, and the diagram shows no relationships. The table sorting key is shown as its primary index, with the data-skipping indexes next to it. A materialized view is shown as a materialized view, and its storage table is hidden.
 
-A new table needs an engine. The object menu writes `ENGINE = MergeTree` and uses the order the table keeps its rows in. An import writes the same and orders by the first column of the file. The server numbers no column of its own, so a new table carries a plain `UInt64` key.
+A new table needs a table engine. The object menu writes `ENGINE = MergeTree` with an `ORDER BY` clause. An import writes the same and orders by the first column of the file. ClickHouse has no auto-increment column, so a new table gets a plain `UInt64` key.
 
-`EXPLAIN` returns the plan of a read, one step per line. No plan carries a measurement of a run, so the pane shows the estimate alone. Statement diagnostics use `EXPLAIN PLAN`, which reads every name of a read without running it. A statement that is not a read is not checked.
+`EXPLAIN` returns the plan of a read, one step per line. Plans have no run measurements, so the pane shows only the estimate. Statement diagnostics use `EXPLAIN PLAN`, which resolves every name in a read without running it. Statements other than reads are not checked.
 
-`KILL QUERY` stops one statement, and both stop actions of the activity list use it. A statement of this server belongs to no session that can be closed. The server names a statement with a text of its own, so the list of this client counts its rows instead. A stop acts on the row that was listed.
+`KILL QUERY` stops one statement, and both stop actions in the activity list use it. A ClickHouse statement has no session to close. The server identifies a statement by a text query ID, so the activity list numbers its rows instead. A stop applies to the statement in the listed row.

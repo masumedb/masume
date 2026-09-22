@@ -2,7 +2,7 @@
 
 Default bindings and their configuration names. The [user guide](usage.md) describes the workflows.
 
-`?` outside text entry opens help. `Ctrl+K` opens the command palette. Help shows the current bindings of every configurable action, including overrides. Keys a pane or field handles itself, such as `Tab`, `Esc`, and the Shift selection keys, are fixed and appear in help with those names. The palette searches commands by name.
+`?` outside text entry opens help. `Ctrl+K` opens the command palette. Help shows the current bindings of every configurable action, including overrides. Keys that a pane or field handles itself, such as `Tab`, `Esc`, and the Shift selection keys, are fixed. Help lists them by name. The palette searches commands by name.
 
 ## Scopes
 
@@ -10,24 +10,24 @@ A scope is the pane or card where a binding applies. Cards and input fields hand
 
 | Scope | Focus |
 | --- | --- |
-| `global` | The workspace, outside cards and prompts |
-| `tree` | The object tree |
-| `editor` | The SQL editor |
-| `grid` | The result grid |
-| `document` | The result document tree |
-| `plan` | The plan view |
-| `notebook` | The cell list of a notebook tab |
-| `builder` | The diagram of a query builder tab |
+| `global` | Workspace, outside cards and prompts |
+| `tree` | Object tree |
+| `editor` | SQL editor |
+| `grid` | Result grid |
+| `document` | Result document tree |
+| `plan` | Plan view |
+| `notebook` | Cell list in a notebook tab |
+| `builder` | Diagram in a query builder tab |
 | `list` | Lists in cards, and scrolling in detail views |
-| `dialog` | The active card, connection picker, or form |
+| `dialog` | Active card, connection picker, or form |
 
-Plain global keys type characters while the editor has focus. These include `?`, digits, brackets, braces, commas, periods, semicolons, and apostrophes. Use a modified binding or the palette during text entry.
+While the editor has focus, unmodified global keys type characters: `?`, digits, brackets, braces, commas, periods, semicolons, and apostrophes. Use a modified binding or the palette during text entry.
 
-`return` is Enter. `digit` is any number from `1` through `9`. Uppercase letters need Shift. `F` differs from `f`.
+`return` is Enter. `digit` is any digit from `1` through `9`. Uppercase letters need Shift. `F` differs from `f`.
 
 `alt`, `meta`, and `option` are the same modifier. This reference and the help screen use Alt. Spaces separate key presses. `alt+p s` is Alt+P, then lowercase `s`. `C c` is uppercase C, then lowercase c.
 
-`Ctrl+C` copies an editor or mouse text selection and clears it. Without a selection, `Ctrl+C` quits after asking about staged changes and open transactions, then about a connection that is in no config file. `Esc` closes a card, dismisses completion, and clears a workspace selection.
+`Ctrl+C` copies the editor selection or a mouse text selection. The mouse selection is cleared, and the editor selection stays. When nothing new is selected, `Ctrl+C` quits after asking about staged changes and open transactions, then about a connection that is in no config file. `Esc` closes a card, closes the completion list, and clears a workspace selection.
 
 `Tab` accepts a listed completion; otherwise it moves focus. `Enter` inserts a newline in the editor. `Ctrl+V` pastes the system clipboard, and the terminal paste command does the same.
 
@@ -35,7 +35,7 @@ Some terminals merge `Ctrl+I` with Tab, `Ctrl+H` with Backspace, `Ctrl+M` with E
 
 ## Rebinding
 
-Add overrides to [config.toml](configuration.md#keys). Each entry replaces that action's preset bindings. Unlisted actions keep their defaults. `[]` removes a binding.
+Add overrides to [config.toml](configuration.md#keys). Each entry replaces the preset bindings of that action. Unlisted actions keep their defaults. `[]` removes every binding of the action.
 
 ```toml
 [keys]
@@ -49,7 +49,7 @@ run-at-cursor = ["ctrl+r", "f5"]
 sort-column = ["o"]
 ```
 
-The example removes the default F5 refresh binding and assigns F5 to execution. The palette still lists refresh.
+The example removes the default F5 binding of `refresh-objects` and binds F5 to `run-at-cursor`. The palette still lists refresh.
 
 Every registered action has a default binding. Some palette operations have no registered action or binding. See [palette operations](usage.md#palette-operations).
 
@@ -57,7 +57,7 @@ Every registered action has a default binding. Some palette operations have no r
 
 `[keys.dialog]`
 
-One card returns only its own actions. Two rows of this table can carry the same key without a conflict.
+Each card uses only its own actions, so two rows in this table can share a key without a conflict.
 
 | Action | Key |
 | --- | --- |
@@ -293,7 +293,7 @@ See [editing SQL](usage.md#editing-sql) for search, replacement, completion, and
 
 `[keys.document]`
 
-The Tree view opens result values with fields or elements, including MongoDB documents and SQL JSON values. See [result views](usage.md#result-views).
+The Tree view shows result values that have fields or elements, such as MongoDB documents and SQL JSON values. See [result views](usage.md#result-views).
 
 | Action | Key |
 | --- | --- |
@@ -317,7 +317,7 @@ The Tree view opens result values with fields or elements, including MongoDB doc
 
 `[keys.notebook]`
 
-The cell list takes no typed text. Single letters are free there. `Enter` puts the caret in the focused cell. `Esc` returns it to the list.
+The cell list takes no text input, so single letters are free for bindings. `Enter` moves the caret into the focused cell, and `Esc` moves the focus back to the list.
 
 | Action | Key |
 | --- | --- |
@@ -349,7 +349,7 @@ The cell list takes no typed text. Single letters are free there. `Enter` puts t
 
 `[keys.builder]`
 
-The diagram of a query builder tab takes no typed text; single letters are free there.
+The query builder diagram takes no text input, so single letters are free for bindings.
 
 | Action | Key |
 | --- | --- |

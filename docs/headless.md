@@ -1,12 +1,12 @@
 # Headless mode
 
-`masume run`, `masume nb run`, `masume dump`, and `masume restore` open a connection, do the work, and write to stdout. They use profiles, connection commands, timeouts, and read-only checks, but they have no write confirmation, write plan, or undo.
+`masume run`, `masume nb run`, `masume dump`, and `masume restore` open a connection, do the work, and write to stdout. They use profiles, connection commands, timeouts, and read-only checks. They have no write confirmation, write plan, or undo.
 
 ```sh
 masume run -p shop-prod -f json 'select count(*) from orders'
 ```
 
-A target, `--profile`, and `$DATABASE_URL` follow the same rules as the client. See [connection targets](usage.md#connection-targets).
+A target, `--profile`, and `$DATABASE_URL` follow the same rules as in the client. See [connection targets](usage.md#connection-targets).
 
 ## Arguments
 
@@ -17,23 +17,23 @@ masume run [TARGET] -e FILE
 
 | Argument | Meaning |
 | --- | --- |
-| `TARGET` | A connection URL, keyword connection string, or existing SQLite file. Without a target, use `--profile` or `$DATABASE_URL` |
-| `-p`, `--profile NAME` | A user or project profile |
-| `-e`, `--execute FILE` | The statement file. A single `-` reads stdin |
+| `TARGET` | Connection URL, keyword connection string, or existing SQLite file. Without a target, use `--profile` or `$DATABASE_URL` |
+| `-p`, `--profile NAME` | User or project profile |
+| `-e`, `--execute FILE` | Statement file. `-` reads stdin |
 | `-f`, `--format FORMAT` | `table` by default, or `csv`, `json`, or `markdown` |
-| `-l`, `--limit ROWS` | A positive output cap per statement, including statements with their own limit |
-| `--param NAME=VALUE` | A string value for `:NAME`. Repeat for each parameter |
-| `--explain` | A JSON plan, with execution measurements for reads it can measure |
+| `-l`, `--limit ROWS` | Maximum output rows per statement, above zero. Also applies to a statement with its own limit |
+| `--param NAME=VALUE` | String value for `:NAME`. Repeat for each parameter |
+| `--explain` | JSON plan. Reads are measured where the engine supports it |
 
-The target precedes the statement when both are positional. A target and `--profile` cannot appear together.
+When both the target and the statement are positional, the target comes first. A target and `--profile` cannot be used together.
 
-`-h` takes priority over the positional arguments and prints the help. An unknown option takes priority over `-h` and exits with code 2.
+`-h` prints the help and ignores the positional arguments. An unknown option wins over `-h` and exits with code 2.
 
-Only one `-e` file is used, and repeated `-e` options use the last file. SQL that starts with `--` must come from a file or stdin; the argument parser has no `--` separator.
+With several `-e` options, only the last file is used. SQL that starts with `--` must come from a file or stdin; the argument parser has no `--` separator.
 
 ## Writes and access
 
-The profile `autocommit` setting does not start a transaction. SQL transactions need explicit `BEGIN`, `COMMIT`, or `ROLLBACK`.
+The profile `autocommit` setting does not apply. A transaction needs an explicit `BEGIN`, `COMMIT`, or `ROLLBACK`.
 
 A read-only profile rejects recognized writes before execution. A TiDB profile with `mode = "read-only"` fails to open and exits with `2`. See [read-only access](engines.md#read-only-access).
 
@@ -41,18 +41,18 @@ A read-only profile rejects recognized writes before execution. A TiDB profile w
 
 | Code | Meaning |
 | --- | --- |
-| `0` | The run completed, possibly with an intentional cap or a default read cap |
+| `0` | Success, also when `--limit` or the default read cap cut the output |
 | `1` | Statement, parameter, plan, or output failure; an empty batch; or incomplete write results without `--limit` |
 | `2` | Argument, input file, password, connection command, or connection failure |
-| `3` | The profile's read-only check rejected a write |
+| `3` | Write rejected by the read-only profile |
 
-Exit `1` can follow a successful write when output fails after the write or returned rows exceed the default cap. An explicit `--limit` makes truncation return `0`, including truncation of write results.
+A write can succeed and still exit with `1`: when output fails after the write, or when the returned rows exceed the default cap. With an explicit `--limit`, truncated output exits with `0`, write results included.
 
 Diagnostics and truncation notices go to stderr.
 
 ## Formats
 
-`table` uses spaces between columns and measures each column's widest cell. `markdown` writes a pipe-separated table without measuring column widths. Both formats replace newlines inside cells with spaces.
+`table` separates columns with spaces and pads each column to its widest cell. `markdown` writes a pipe table without padding. Both formats replace newlines inside cells with spaces.
 
 ```text
 id  total_cents  status
@@ -62,15 +62,15 @@ id  total_cents  status
 3   99           cancelled
 ```
 
-CSV uses commas, a header, LF endings, and quoting as needed. Null and empty string values both produce empty fields. Newlines remain inside quoted fields.
+CSV uses commas, a header, LF line endings, and quoting where needed. Null and the empty string both become an empty field. Newlines stay inside quoted fields.
 
-CSV formula guarding is on, and non-numeric fields receive a leading apostrophe when they start with `=`, `+`, `-`, `@`, tab, or carriage return. Plain numbers stay unchanged. Headless runs have no flags for these CSV settings.
+CSV formula guarding is on: a non-numeric field that starts with `=`, `+`, `-`, `@`, tab, or carriage return gets a leading apostrophe. Plain numbers are unchanged. Headless runs have no flags for these CSV settings.
 
-JSON output is an array of records. A result without rows produces an empty array. CSV writes the column header even when there are no rows. An empty MongoDB result has no discovered columns.
+JSON output is an array of records. A result without rows is an empty array. CSV writes the column header even when there are no rows. An empty MongoDB result has no discovered columns.
 
 | JSON value | Form |
 | --- | --- |
-| Top-level record keys | Sorted by byte value, so uppercase names come first; repeated column names receive suffixes such as `_2` |
+| Top-level record keys | Sorted by byte value, so uppercase names come first. Repeated column names get suffixes such as `_2` |
 | Native numbers and booleans | JSON numbers and booleans |
 | Driver-specific decimals | Text, with the driver's decimal precision |
 | Null | `null` |
@@ -78,17 +78,17 @@ JSON output is an array of records. A result without rows produces an empty arra
 | Newline inside text | The escape `\n` |
 | Other driver values | Formatted text |
 
-MongoDB output contains columns from documents. Object IDs become hexadecimal strings. Decimal values become text.
+MongoDB columns come from the document fields. Object IDs become hexadecimal strings. Decimal values become text.
 
-A statement without a result set writes its command and the affected count to stderr, for example `UPDATE 1`. Such statements write nothing to stdout.
+A statement without a result set writes nothing to stdout. Its command and affected row count go to stderr, for example `UPDATE 1`.
 
 ## Parameters
 
-Parameter names are case-insensitive. Every CLI parameter value is a string. `42`, `true`, and `null` stay strings. The database can convert them as the statement needs.
+Parameter names are case-insensitive. Every CLI parameter value is a string: `42`, `true`, and `null` stay strings. The database can convert them as the statement needs.
 
-Repeated parameter names use the last supplied value.
+A repeated parameter takes the last value.
 
-SQL execution uses driver parameters. MongoDB parameters become quoted inline values. Explain parameters also become quoted inline values through the engine dialect.
+SQL runs use driver parameters. MongoDB statements get the values inline, as quoted literals. `--explain` also inlines them, quoted for the engine dialect.
 
 ```sh
 masume run -p shop -f csv \
@@ -96,13 +96,13 @@ masume run -p shop -f csv \
   'select id from orders where created_at::date = :day and status = :status'
 ```
 
-Typed MongoDB values belong in the statement. Examples are `ObjectId("507f1f77bcf86cd799439011")` and `{quantity: 42}`.
+Write typed MongoDB values in the statement, for example `ObjectId("507f1f77bcf86cd799439011")` or `{quantity: 42}`.
 
 ## Plans
 
-`--explain` always writes JSON; `--format` does not change this. A read executes for measurement when the engine supports measured plans. Reads can take locks and call functions with side effects.
+`--explain` always writes JSON, whatever `--format` is. When the engine supports measured plans, a read runs to be measured. That run can take locks and call functions with side effects.
 
-Recognized writes receive an estimated plan only, when the engine supports that statement. Read-only checks still apply before planning.
+A recognized write gets an estimated plan only, if the engine supports one for that statement. The read-only check still runs before planning.
 
 ```sh
 masume run -p shop --explain --param s=paid \
@@ -114,27 +114,27 @@ The top-level fields are `analyzed`, `summary`, and `nodes`. `analyzed` is `true
 
 Each node contains `depth`, `label`, `detail`, `estimatedRows`, `actualRows`, `selfMs`, `shareOfTotal`, `slowest`, and `misestimated`. Missing estimates or measurements are `null`.
 
-Use one statement per explain run; several statements produce consecutive JSON objects with no enclosing array. `--format json` rejects the batch first.
+Explain one statement per run. Several statements produce consecutive JSON objects with no enclosing array. `--format json` rejects the batch first.
 
 ## Passwords
 
-A `password` value in a TOML profile is ignored and produces a warning. Passwords supplied in connection targets remain supported.
+A `password` value in a TOML profile is ignored, with a warning. A password in a connection target still works.
 
 | Authentication | Headless source |
 | --- | --- |
-| `auth = "password"` | `password_env`, or a password supplied in the connection target |
-| `auth = "command"` | The first stdout line from `password_command` |
-| `auth = "secret"` | The first stdout line from the configured `[secret.NAME]` command |
-| `auth = "keyring"` | The existing keyring entry for the profile name |
+| `auth = "password"` | `password_env`, or a password in the connection target |
+| `auth = "command"` | First stdout line of `password_command` |
+| `auth = "secret"` | First stdout line of the `[secret.NAME]` command |
+| `auth = "keyring"` | Existing keyring entry for the profile name |
 | `auth = "prompt"` | Unsupported when the connection needs a prompt |
 
-Commands have no stdin and a 30-second timeout. Missing passwords, missing keyring entries, and password resolution errors return `2`. SQLite needs no password. MongoDB can omit the user when authentication is disabled.
+Commands have no stdin and a 30-second timeout. A missing password, a missing keyring entry, or a password error exits with `2`. SQLite needs no password. MongoDB can omit the user when authentication is disabled.
 
 ## Several statements
 
 A statement argument or file can contain several statements. Headless runs execute them in order on one session and stop at the first failure; later statements do not run.
 
-A batch is not automatically atomic. Earlier writes can remain committed after a later failure. Supported SQL engines accept explicit transaction statements within the batch. Separate invocations share no session.
+A batch is not atomic by itself. Earlier writes can stay committed after a later failure. On SQL engines that support transactions, the batch can contain its own transaction statements. Each invocation opens its own session.
 
 ```sql
 BEGIN;
@@ -147,15 +147,15 @@ COMMIT;
 masume run -p shop -e payment.sql
 ```
 
-Engine DDL restrictions still apply. Nontransactional table restrictions still apply.
+Engine restrictions on DDL and on nontransactional tables still apply.
 
-`--format json` rejects several statements before executing any and exits with `1`. Other formats write consecutive results, and each tabular result has a separate header. Empty input returns `1`, and SQL containing only comments returns `1`.
+`--format json` rejects several statements before running any, and exits with `1`. Other formats write the results one after another, with a separate header for each tabular result. Empty input exits with `1`, and so does SQL that contains only comments.
 
 ## Row limits
 
-Without `--limit`, a read with a recognized limit returns all rows within that limit. Other reads return at most `page_size` rows. The default is 200.
+Without `--limit`, a read with its own recognized limit returns every row up to that limit. Other reads return at most `page_size` rows, 200 by default.
 
-Recognized limits include SQL `LIMIT`, `FETCH FIRST`, MongoDB `.limit(n)`, and `findOne()`. A MongoDB pipeline's `$limit` stage alone does not select the streaming path.
+Recognized limits are SQL `LIMIT`, `FETCH FIRST`, MongoDB `.limit(n)`, and `findOne()`. A `$limit` stage alone in a MongoDB pipeline does not select the streaming path.
 
 ```sh
 masume run -p shop 'select * from orders limit 250'
@@ -165,23 +165,23 @@ masume run -p shop --limit 100 'select * from orders limit 250'
 
 The first command returns up to 250 rows. The second returns one profile page. The third returns at most 100 rows, despite the SQL limit.
 
-`--limit` applies separately to each statement and disables batch streaming. Both a default read cap and an explicit cap return `0` and a notice when more rows exist.
+`--limit` applies to each statement separately and turns off batch streaming. When more rows exist, both the default read cap and an explicit cap exit with `0` and write a notice.
 
 ### Memory and streaming
 
-Batch streaming applies only to recognized reads that have their own limit and no CLI `--limit`. The batch size is `page_size`, and CSV and JSON write each batch as it arrives.
+Batch streaming applies only to a recognized read with its own limit and no `--limit` flag. The batch size is `page_size`. CSV and JSON write each batch as it arrives.
 
-Table and Markdown output buffer the whole returned result before writing. Other reads use one capped read before output. All writes use one capped read before output.
+`table` and `markdown` output buffer the whole result before writing. Every other read, and every write, fetches its rows in one capped read before output.
 
-MongoDB streaming columns are the fields in the first batch; fields first encountered later are omitted from the output, and the driver reports those fields as an error after reading the cursor.
+When MongoDB output streams, the columns are the fields of the first batch. A field that first appears in a later batch is left out of the output. The driver reports that field as an error after the cursor is read.
 
-Such a MongoDB run returns `1`. CSV can already contain incomplete records, JSON can lack its closing bracket, and buffered table and Markdown output remains unwritten. Cursor errors and output errors can leave partial output.
+That MongoDB run exits with `1`. By then CSV output can contain incomplete records, JSON can lack its closing bracket, and buffered `table` and `markdown` output is never written. A cursor error or an output error can also leave partial output.
 
 ### Write results
 
-A write executes once and never uses the streaming path. A write such as `UPDATE ... RETURNING` can succeed and return more rows than the cap.
+A write runs once and never streams. A write such as `UPDATE ... RETURNING` can succeed and return more rows than the cap.
 
-Without `--limit`, truncated write results return `1`. An explicit `--limit` makes the same truncation return `0`. A larger `--limit` can hold the complete returned result in one read. The output cap does not limit affected rows.
+Without `--limit`, truncated write results exit with `1`. With an explicit `--limit`, the same truncation exits with `0`. A `--limit` large enough for all returned rows gets the complete result in one read. The output cap does not limit affected rows.
 
 ### Report profile
 
@@ -201,26 +201,26 @@ page_size    = 50000
 
 ## Notebooks
 
-`masume nb run FILE` runs a notebook file. The profile, timeouts, and read-only check are the same as `masume run`. A write cell needs `--allow-writes`.
+`masume nb run FILE` runs a notebook file. Profiles, timeouts, and the read-only check work as in `masume run`. A write cell needs `--allow-writes`.
 
 ```sh
 masume nb run reports/revenue-review.masume.md -p shop --param day=2026-09-01 -f markdown
 ```
 
-`--only CELL` runs one cell by id. `--explain` writes a JSON plan of every statement without running any of them. `markdown` writes the whole notebook with the rows of every cell.
+`--only CELL` runs one cell by id. `--explain` writes a JSON plan for every statement and runs none of them. `-f markdown` writes the whole notebook with the rows of each cell.
 
 | Code | Meaning |
 | --- | --- |
-| `0` | The run completed |
+| `0` | Success |
 | `1` | A cell failed, or a write cell ran without `--allow-writes` |
 | `2` | Argument, input file, password, or connection failure |
-| `3` | The profile is read-only and a cell writes |
+| `3` | A cell writes and the profile is read-only |
 
 See the [notebook guide](notebooks.md#headless-mode).
 
 ## Dump and restore
 
-`masume dump` dumps schema and data to a SQL file, and `masume restore` restores that dump. Both use the profiles, connection commands, and timeouts above.
+`masume dump` writes schema and data to a SQL file, and `masume restore` runs that file. Both use the profiles, connection commands, and timeouts above.
 
 ```sh
 masume dump -p shop --schema public --drop shop.sql
@@ -235,30 +235,30 @@ masume restore [TARGET] FILE
 
 | Argument | Meaning |
 | --- | --- |
-| `FILE` | The dump file. A single `-` writes stdout, and a restore reads stdin |
-| `-p`, `--profile NAME` | A user or project profile |
-| `-s`, `--schema NAME` | The schema to dump. Without it, the default schema of the connection |
-| `-t`, `--table NAME` | One table, as `name` or `schema.name`. Repeat for more, and the objects are left out |
+| `FILE` | Dump file. `-` is stdout for a dump and stdin for a restore |
+| `-p`, `--profile NAME` | User or project profile |
+| `-s`, `--schema NAME` | Schema to dump. Default: the default schema of the connection |
+| `-t`, `--table NAME` | One table, as `name` or `schema.name`. Repeat for more tables. With `-t`, the dump has no types, sequences, functions, views, or triggers |
 | `-c`, `--content WHAT` | `schema and rows` by default, or `schema only` or `rows only` |
-| `--drop` | Write a `DROP … IF EXISTS` for everything the dump makes |
+| `--drop` | Add a `DROP … IF EXISTS` for each object the dump creates |
 
-A dump holds the types, sequences, and functions of the schema, then its tables and their rows, the views over them, and its triggers. Every table stands after the tables its foreign keys name. Roles, grants, and owners are omitted. A dump only reads, so a read-only profile can dump.
+A dump contains the types, sequences, and functions of the schema, then its tables with their rows, the views over them, and its triggers. Each table comes after the tables its foreign keys reference. Roles, grants, and owners are left out. A dump only reads, so a read-only profile can dump.
 
-Neither command runs on an engine that reports no definitions. MongoDB is an example.
+Neither command works on an engine that reports no definitions, such as MongoDB.
 
-A restore runs each statement on its own, in file order, with no wrapping transaction. It stops at the first failure, reports the statement that failed and how many ran before it, and exits with code `1`. A read-only profile exits with code `3` and sends nothing.
+A restore runs each statement on its own, in file order, with no wrapping transaction. At the first failure it stops, reports the failed statement and the number of statements run before it, and exits with code `1`. A read-only profile exits with code `3` before any statement is sent.
 
 | Code | `dump` | `restore` |
 | --- | --- | --- |
-| `0` | The dump was written | Every statement ran |
-| `1` | A read, a definition, or the file failed | A statement failed; the statements before it stand |
+| `0` | Dump written | Every statement ran |
+| `1` | A read, a definition, or the file failed | A statement failed; earlier statements stay applied |
 | `2` | Argument, password, or connection failure | Argument, input file, password, or connection failure |
-| `3` | | The profile is read-only |
+| `3` | | Read-only profile |
 
 See [dump and restore](usage.md#dump-and-restore) for the file layout.
 
 ## Config and history
 
-`masume run` reads the config and project files but writes neither. A run without a config file does not create the starter file; the terminal client and `masume --detect` can create it.
+`masume run` reads the config and project files but writes neither. A run without a config file does not create the starter file; the terminal client, `masume --detect` and `masume --mcp` create it.
 
 Headless runs do not record query history in `history.sqlite`.

@@ -1,13 +1,13 @@
 # Themes
 
-`Alt+O t` opens the theme picker. Movement previews a theme, and Enter applies it. It writes `[ui] theme` in the user configuration file. Esc cancels. A save error appears in the client.
+`Alt+O t` opens the theme picker. Moving the cursor previews a theme. Enter applies it and writes `[ui] theme` to the user configuration file. Esc cancels. A save error is shown in the client.
 
 ```toml
 [ui]
 theme = "tokyonight"
 ```
 
-The value is the file name without `.toml`; `ayu-dark` is the default and the fallback parent.
+The value is the theme file name without `.toml`. `ayu-dark` is the default and the fallback parent.
 
 ## Built-in themes
 
@@ -44,7 +44,7 @@ The value is the file name without `.toml`; `ayu-dark` is the default and the fa
 | `rose-pine-dawn` | Rosé Pine Dawn | light |
 | `high-contrast-light` | High Contrast Light | light |
 
-`high-contrast` and `high-contrast-light` are the widest separation of ink and ground, for a screen or an eye that needs it.
+`high-contrast` and `high-contrast-light` have the strongest contrast between text and background.
 
 ## System theme
 
@@ -53,11 +53,11 @@ The value is the file name without `.toml`; `ayu-dark` is the default and the fa
 theme = "system"
 ```
 
-masume uses the terminal background, the foreground, and the sixteen palette colours. It queries those colours about every two seconds; updates need terminal support for colour queries.
+masume uses the terminal background, foreground, and sixteen palette colours, and queries them about every two seconds. Live updates need a terminal that supports colour queries.
 
 ## Custom themes
 
-A custom theme is a TOML file in `$XDG_CONFIG_HOME/masume/themes/`, normally `~/.config/masume/themes/`. The file name without `.toml` is the `[ui] theme` value. A custom file with a built-in name replaces that theme. `system` is reserved; masume reports `system.toml` and ignores it.
+A custom theme is a TOML file in `$XDG_CONFIG_HOME/masume/themes/`, normally `~/.config/masume/themes/`. The file name without `.toml` is the `[ui] theme` value. A custom file with a built-in name replaces that theme. `system` is reserved: a `system.toml` file is reported and ignored.
 
 ```toml
 title = "My Theme"
@@ -78,48 +78,48 @@ accent       = "blue"
 
 | Key | Meaning |
 | --- | --- |
-| `title` | The picker title. The file name is the default |
-| `appearance` | `dark` or `light`. An absent value inherits from the parent, with `dark` as the final fallback |
-| `extends` | The parent theme. A built-in or custom theme, not `system`. An absent parent uses `ayu-dark`, except in `ayu-dark` itself |
+| `title` | Picker title. Defaults to the file name |
+| `appearance` | `dark` or `light`. Inherited from the parent when absent, with `dark` as the final fallback |
+| `extends` | Parent theme: a built-in or custom theme, not `system`. Defaults to `ayu-dark`, except in `ayu-dark` itself |
 
-Child values override inherited palette entries, colours, and syntax properties. Missing parents and inheritance cycles produce reports. The inheritance chain is at most eight themes.
+Child values override inherited palette entries, colours, and syntax properties. A missing parent or an inheritance cycle is reported. An inheritance chain has at most eight themes.
 
-`[palette]` holds named hex colours. Palette values cannot reference other names. Hex colours are `#RGB`, `#RGBA`, `#RRGGBB`, or `#RRGGBBAA`.
+`[palette]` contains named hex colours. A palette value cannot refer to another name. Hex colours are `#RGB`, `#RGBA`, `#RRGGBB`, or `#RRGGBBAA`.
 
-`[colors]` holds the colour roles. A value is a hex colour, a palette name, or another colour role. Examples are `border_focus = "blue"` and `border_focus = "accent"`.
+`[colors]` sets the colour roles. A value is a hex colour, a palette name, or another colour role. Examples are `border_focus = "blue"` and `border_focus = "accent"`.
 
-`[ui.palette]`, `[ui.colors]`, and `[ui.syntax]` in the user configuration overlay the selected theme. The overlay remains after a theme change.
+`[ui.palette]`, `[ui.colors]`, and `[ui.syntax]` in the user configuration override the selected theme, and still apply after a theme change.
 
 ## Colour names
 
 | Name | Meaning |
 | --- | --- |
-| `background` | The background of the whole screen |
-| `panel` | A pane or a card |
-| `header` | The row of column names |
-| `zebra` | Every second row of the grid |
-| `border` | A pane border |
-| `border_focus` | The border of the focused pane |
-| `selection` | A selected row or drag selection. Derived from `panel` and `text` when absent |
+| `background` | Screen background |
+| `panel` | Pane or card |
+| `header` | Column header row |
+| `zebra` | Every second grid row |
+| `border` | Pane border |
+| `border_focus` | Focused pane border |
+| `selection` | Selected row or drag selection. Derived from `panel` and `text` when absent |
 | `text` | Normal text |
-| `muted` | A hint or a label |
-| `faint` | A line number or a separator line |
-| `accent` | The main highlight |
-| `accent_alt` | A second highlight |
-| `accent_warm` | A third highlight |
+| `muted` | Hint or label |
+| `faint` | Line number or separator line |
+| `accent` | Main highlight |
+| `accent_alt` | Second highlight |
+| `accent_warm` | Third highlight |
 | `on_accent` | Text on an accent background. Derived for contrast when absent |
-| `info` | An informational message |
-| `success` | A statement that succeeded |
-| `warning` | A warning |
-| `danger` | A destructive action |
-| `error` | A failure |
-| `env_dev` | The development title bar. Defaults to `success` when absent |
-| `env_test` | The test title bar. Defaults to `warning` when absent |
-| `env_prod` | The production title bar. Defaults to `danger` when absent |
+| `info` | Informational message |
+| `success` | Successful statement |
+| `warning` | Warning |
+| `danger` | Destructive action |
+| `error` | Failure |
+| `env_dev` | Development title bar. Defaults to `success` when absent |
+| `env_test` | Test title bar. Defaults to `warning` when absent |
+| `env_prod` | Production title bar. Defaults to `danger` when absent |
 
 ## Syntax
 
-A theme file uses `[syntax]`. The user configuration uses `[ui.syntax]`. Each token kind is a table. Missing properties inherit from the parent theme.
+A theme file uses `[syntax]`, and the user configuration uses `[ui.syntax]`. Each token kind is a table. Missing properties are inherited from the parent theme.
 
 ```toml
 [syntax]
@@ -139,20 +139,20 @@ match      = { fg = "on_accent", bg = "accent_warm" }
 | `bold` | Boolean |
 | `italic` | Boolean |
 | `underline` | Boolean |
-| `link` | Another token kind. The linked rule replaces the inherited rule, then local properties overlay it |
+| `link` | Another token kind. The linked rule replaces the inherited rule, and local properties override it |
 
 | Kind | Applies to |
 | --- | --- |
 | `keyword` | `SELECT`, `FROM`, and other keywords |
-| `type` | A type name |
-| `string` | A quoted string |
-| `comment` | A comment |
-| `number` | A number |
-| `identifier` | A name |
-| `quoted` | A quoted identifier |
-| `operator` | An operator |
-| `parameter` | A `:name` placeholder |
-| `problem` | An error found by the scanner |
-| `bracket` | The bracket at the caret, and its matching bracket |
-| `guide` | The indent guide of a line |
-| `match` | A search match in the statement |
+| `type` | Type name |
+| `string` | Quoted string |
+| `comment` | Comment |
+| `number` | Number |
+| `identifier` | Name |
+| `quoted` | Quoted identifier |
+| `operator` | Operator |
+| `parameter` | `:name` placeholder |
+| `problem` | Error found by the scanner |
+| `bracket` | Bracket at the caret and its matching bracket |
+| `guide` | Indent guide |
+| `match` | Search match in the statement |
