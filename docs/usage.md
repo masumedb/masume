@@ -191,7 +191,7 @@ A server filter searches the whole statement, not only the rows already fetched.
 
 In the `F` card, Space toggles a value. `o` keeps only the selected value, and `a` keeps all values. Enter applies the selection. Counts cover loaded rows before screen filtering. An empty `/` entry clears the screen search.
 
-**Sorting, server filtering, and rerunning discard staged grid edits without asking.** The status bar reports the discarded changes. These operations also clear screen filters, so apply staged changes before them.
+Sorting, server filtering, and rerunning discard staged grid edits. With staged edits, they ask for confirmation first. Answering no keeps the edits and the rows. The status bar reports the discarded changes. These operations also clear screen filters.
 
 ## Loading rows
 

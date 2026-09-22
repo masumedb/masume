@@ -32,6 +32,15 @@ func (model *Model) runStatementAtCursor(
 	if model.refuseSecondRun(connection, tab) {
 		return model, nil
 	}
+	return model.askBeforeDiscardingChanges(connection, tab, func() (tea.Model, tea.Cmd) {
+		return model.runStatementAtCursorNow(connection, tab)
+	})
+}
+
+// runStatementAtCursorNow runs the selection, or the statement under the caret.
+func (model *Model) runStatementAtCursorNow(
+	connection *app.Connection, tab *app.Tab,
+) (tea.Model, tea.Cmd) {
 	if tab.Kind == app.TabNotebook {
 		// The cell the list stands on, or the selection inside it.
 		if tab.EditsText() && strings.TrimSpace(tab.Editor.Selection()) != "" {
@@ -70,6 +79,15 @@ func (model *Model) runWholeBuffer(
 	if model.refuseSecondRun(connection, tab) {
 		return model, nil
 	}
+	return model.askBeforeDiscardingChanges(connection, tab, func() (tea.Model, tea.Cmd) {
+		return model.runWholeBufferNow(connection, tab)
+	})
+}
+
+// runWholeBufferNow runs every statement in the buffer.
+func (model *Model) runWholeBufferNow(
+	connection *app.Connection, tab *app.Tab,
+) (tea.Model, tea.Cmd) {
 	if tab.Kind == app.TabNotebook {
 		return model.runNotebook(connection, tab, app.RunEveryCell)
 	}
@@ -248,6 +266,30 @@ func (model *Model) askPlainWriteQuestion(
 			}
 			return carryAnswer(model.startRun(
 				connection, tab, kept, reads, writeplan.UndoPlan{}))
+		}},
+	})
+	return model, nil
+}
+
+// askBeforeDiscardingChanges runs next at once on a tab with nothing staged, and asks first
+// on a tab with staged changes.
+func (model *Model) askBeforeDiscardingChanges(
+	connection *app.Connection, tab *app.Tab, next func() (tea.Model, tea.Cmd),
+) (tea.Model, tea.Cmd) {
+	staged := core.CountChanges(tab.Pending)
+	if staged == 0 {
+		return next()
+	}
+	connection.Open(app.Overlay{
+		Kind:  app.OverlayConfirm,
+		Title: " discard changes ",
+		Body:  "Discard " + present.DescribeStagedChanges(staged) + " and run again?",
+		Answers: app.OverlayAnswers{Answer: func(confirmed bool) app.AnswerCommand {
+			if !confirmed {
+				return nil
+			}
+			_, command := next()
+			return carryAnswer(command)
 		}},
 	})
 	return model, nil

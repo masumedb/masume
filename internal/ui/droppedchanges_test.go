@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/masumedb/masume/internal/app"
 	"github.com/masumedb/masume/internal/core"
 	"github.com/masumedb/masume/internal/db"
@@ -96,22 +98,120 @@ func TestReadingTheRelationAgainReportsTheChangesItDropped(t *testing.T) {
 	}
 }
 
+// answerQuestion presses the key that answers the open question.
+func answerQuestion(model *Model, yes bool) tea.Cmd {
+	key := tea.KeyPressMsg{Code: 'n', Text: "n"}
+	if yes {
+		key = tea.KeyPressMsg{Code: 'y', Text: "y"}
+	}
+	_, command := model.Update(key)
+	return command
+}
+
 // Sorting a relation reads it again in another order, so the same rows stand in other places.
 // Work staged before the sort would be written to whichever row landed in its place.
-func TestSortingARelationDropsTheStagedChanges(t *testing.T) {
+func TestSortingARelationDropsTheStagedChangesAfterAYes(t *testing.T) {
 	model, connection, tab := buildTableTabModel(t)
 	stageCellEdits(tab, 1)
 
 	shape := model.buildGridShape(connection, tab)
 	model.sortByColumn(connection, tab, shape, false)
+	if connection.Overlay.Kind != app.OverlayConfirm {
+		t.Fatalf("the sort did not ask; the card is %q", connection.Overlay.Kind)
+	}
+	if !strings.Contains(connection.Overlay.Body, "1 change staged") {
+		t.Errorf("the question does not count the changes: %q", connection.Overlay.Body)
+	}
+	answerQuestion(model, true)
 
 	if core.CountChanges(tab.Pending) != 0 {
 		t.Errorf("the sort left %d changes staged, which name places the rows have left",
 			core.CountChanges(tab.Pending))
 	}
+	if len(tab.Sort) != 1 {
+		t.Errorf("the sort was not applied after the yes: %v", tab.Sort)
+	}
 	if connection.Notice == nil ||
 		!strings.Contains(connection.Notice.Text, "1 staged change was dropped") {
 		t.Error("the sort dropped the staged change and did not report it")
+	}
+}
+
+// Every rerun of a grid key and every run key asks before it discards staged changes. A no
+// keeps the changes, the rows and the rewrite as they were.
+func TestARerunWithStagedChangesKeepsThemOnANo(t *testing.T) {
+	cases := []struct {
+		name string
+		run  func(model *Model, connection *app.Connection, tab *app.Tab)
+	}{
+		{"sort", func(model *Model, connection *app.Connection, tab *app.Tab) {
+			model.runGridAction(connection, tab, Match{Action: ActionSortColumn})
+		}},
+		{"filter by the cell", func(model *Model, connection *app.Connection, tab *app.Tab) {
+			model.runGridAction(connection, tab, Match{Action: ActionFilterByCell})
+		}},
+		{"exclude the cell", func(model *Model, connection *app.Connection, tab *app.Tab) {
+			model.runGridAction(connection, tab, Match{Action: ActionExcludeCell})
+		}},
+		{"remove the last filter", func(model *Model, connection *app.Connection, tab *app.Tab) {
+			model.runGridAction(connection, tab, Match{Action: ActionPopFilter})
+		}},
+		{"clear the rewrites", func(model *Model, connection *app.Connection, tab *app.Tab) {
+			model.runGridAction(connection, tab, Match{Action: ActionClearRewrites})
+		}},
+		{"run the statement", func(model *Model, connection *app.Connection, tab *app.Tab) {
+			model.runStatementAtCursor(connection, tab)
+		}},
+		{"run the buffer", func(model *Model, connection *app.Connection, tab *app.Tab) {
+			model.runWholeBuffer(connection, tab)
+		}},
+	}
+	for _, held := range cases {
+		t.Run(held.name, func(t *testing.T) {
+			model, connection, tab := buildTableTabModel(t)
+			tab.Filter = []core.FilterStep{{Kind: core.FilterRaw, Text: "id > 1"}}
+			stageCellEdits(tab, 2)
+			filter := len(tab.Filter)
+
+			held.run(model, connection, tab)
+			if connection.Overlay.Kind != app.OverlayConfirm {
+				t.Fatalf("%s did not ask; the card is %q", held.name, connection.Overlay.Kind)
+			}
+			if command := answerQuestion(model, false); command != nil {
+				t.Error("the no started a run")
+			}
+
+			if left := core.CountChanges(tab.Pending); left != 2 {
+				t.Errorf("%d changes staged after the no, wanted 2", left)
+			}
+			if tab.Results.IsRunning() {
+				t.Error("the no started a run")
+			}
+			if len(tab.Sort) != 0 || len(tab.Filter) != filter {
+				t.Errorf("the no changed the rewrite: sort %v, filter %v", tab.Sort, tab.Filter)
+			}
+		})
+	}
+}
+
+// The where prompt asks before it discards staged changes, and a no keeps the old filter.
+func TestTheWherePromptAsksBeforeItDiscardsStagedChanges(t *testing.T) {
+	model, connection, tab := buildTableTabModel(t)
+	stageCellEdits(tab, 1)
+
+	model.runGridAction(connection, tab, Match{Action: ActionFilterWhere})
+	connection.Overlay.Draft = app.NewEditorBuffer("id > 2", len("id > 2"))
+	pressKey(t, model, tea.KeyPressMsg{Code: tea.KeyEnter})
+	if connection.Overlay.Kind != app.OverlayConfirm {
+		t.Fatalf("the where prompt did not ask; the card is %q", connection.Overlay.Kind)
+	}
+	answerQuestion(model, false)
+
+	if len(tab.Filter) != 0 {
+		t.Errorf("the no applied the filter: %v", tab.Filter)
+	}
+	if core.CountChanges(tab.Pending) != 1 {
+		t.Error("the no discarded the staged change")
 	}
 }
 
@@ -172,6 +272,7 @@ func TestNoResultIsReplacedWithStagedWorkLeftOnIt(t *testing.T) {
 			run: func(model *Model, connection *app.Connection, tab *app.Tab) {
 				shape := model.buildGridShape(connection, tab)
 				model.sortByColumn(connection, tab, shape, false)
+				answerQuestion(model, true)
 			},
 		},
 		{
@@ -179,6 +280,7 @@ func TestNoResultIsReplacedWithStagedWorkLeftOnIt(t *testing.T) {
 			run: func(model *Model, connection *app.Connection, tab *app.Tab) {
 				tab.Filter = []core.FilterStep{{Kind: core.FilterRaw, Text: "id > 1"}}
 				model.runGridAction(connection, tab, Match{Action: ActionClearRewrites})
+				answerQuestion(model, true)
 			},
 		},
 	}

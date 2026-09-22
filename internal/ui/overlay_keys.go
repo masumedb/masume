@@ -1049,8 +1049,10 @@ func (model *Model) answerPrompt(
 		if step, holds := core.BuildRawFilter(written); holds {
 			kept = append(kept, step)
 		}
-		tab.Filter = kept
-		return model.runTabRead(connection, tab)
+		return model.askBeforeDiscardingChanges(connection, tab, func() (tea.Model, tea.Cmd) {
+			tab.Filter = kept
+			return model.runTabRead(connection, tab)
+		})
 
 	case app.PromptSearch:
 		tab.Screen = present.ApplySearchTerm(tab.Screen, written)
