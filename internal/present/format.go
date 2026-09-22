@@ -3,6 +3,7 @@
 package present
 
 import (
+	"encoding/hex"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -226,9 +227,22 @@ func FormatRow(row []any, dataTypes []string, masked map[int]bool) []string {
 			written = append(written, held.DescribeShape())
 			continue
 		}
+		if held, isBinary := cell.([]byte); isBinary && len(held) > binaryPreviewBytes {
+			written = append(written, formatBinaryPreview(held))
+			continue
+		}
 		written = append(written, SafeText(core.CollapseWhitespace(core.FormatCell(cell, dataType))))
 	}
 	return written
+}
+
+// binaryPreviewBytes is the most bytes of a binary value a grid cell shows.
+const binaryPreviewBytes = 32
+
+// formatBinaryPreview returns the first bytes of a binary value in hex, and the value size.
+func formatBinaryPreview(value []byte) string {
+	shown := value[:min(len(value), binaryPreviewBytes)]
+	return `\x` + hex.EncodeToString(shown) + "… (" + core.FormatByteSize(len(value)) + ")"
 }
 
 // FormatRows returns every row as cell text.

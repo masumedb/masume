@@ -256,12 +256,22 @@ func FormatByteRate(perSecond float64) string {
 	if perSecond < 0 {
 		perSecond = 0
 	}
+	return formatByteAmount(perSecond) + "/s"
+}
+
+// FormatByteSize returns a byte count with the largest applicable unit and at most one decimal place.
+func FormatByteSize(count int) string {
+	return formatByteAmount(float64(count))
+}
+
+// formatByteAmount returns an amount of bytes with the largest applicable unit.
+func formatByteAmount(amount float64) string {
 	for _, unit := range byteUnits {
-		if perSecond >= unit.of {
-			return trimTrailingZero(fmt.Sprintf("%.1f", perSecond/unit.of)) + unit.mark + "/s"
+		if amount >= unit.of {
+			return trimTrailingZero(fmt.Sprintf("%.1f", amount/unit.of)) + unit.mark
 		}
 	}
-	return fmt.Sprintf("%.0fB/s", perSecond)
+	return fmt.Sprintf("%.0fB", amount)
 }
 
 // FormatRate formats a count per second, with a k suffix for thousands.

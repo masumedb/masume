@@ -165,6 +165,8 @@ Tree appears when a result contains documents or structured values. Left and Rig
 
 In Data, arrows move between cells. `v` opens the full cell value. Enter opens the full row. `g` follows a foreign key. `a` finds a column by name. `z` freezes or unfreezes the current column at the left.
 
+A binary value longer than 32 bytes shows its first 32 bytes in hex and its size, as in `\x89504e47… (4.2MB)`. The cell viewer, the row viewer, copies, and exports use the whole value.
+
 Foreign-key navigation filters by the selected column only. For a composite foreign key, add filters for the remaining key columns.
 
 A mask hides the values in columns with sensitive names. `M` toggles masking, which affects only the grid display. Cell viewers, row viewers, document trees, structured copies, and exports show the original values.

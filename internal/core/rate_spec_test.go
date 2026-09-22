@@ -30,6 +30,24 @@ func TestFormatByteRateWritesTheLargestSizeThatLeavesAWholeNumber(t *testing.T) 
 	}
 }
 
+// A size uses the same units as a rate, without the per second.
+func TestFormatByteSizeWritesTheLargestUnit(t *testing.T) {
+	for _, one := range []struct {
+		count   int
+		written string
+	}{
+		{0, "0B"},
+		{1023, "1023B"},
+		{1024, "1kB"},
+		{4404019, "4.2MB"},
+		{1 << 30, "1GB"},
+	} {
+		if held := core.FormatByteSize(one.count); held != one.written {
+			t.Errorf("%d bytes reads %q, wanted %q", one.count, held, one.written)
+		}
+	}
+}
+
 // The count of a rate is written the way a reader reads it, so a thousand is a k and a
 // number under ten keeps the decimal that tells it from zero.
 func TestFormatRateWritesACountAReaderSays(t *testing.T) {
