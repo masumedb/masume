@@ -3,7 +3,7 @@ package mcp
 import (
 	"sync"
 
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // ResolveLogPath returns the MCP log path.

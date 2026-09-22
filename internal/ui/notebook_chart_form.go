@@ -5,10 +5,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/notebook"
-	"github.com/turanmahmudov/masume/internal/present"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/notebook"
+	"github.com/masumedb/masume/internal/present"
 )
 
 // A chart cell holds no text of its own, so it is written through a form: the cell it

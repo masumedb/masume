@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/headless"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/headless"
 )
 
 // The statement is the only positional argument of a run, and the connection stands before

@@ -3,7 +3,7 @@ package db
 import (
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/query"
+	"github.com/masumedb/masume/internal/query"
 )
 
 // describeColumnSource returns what a CREATE TABLE writes after the type of a column: the

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/core"
 )
 
 func TestFindSSLModeReadsANameInAnyCase(t *testing.T) {

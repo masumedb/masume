@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/app"
+	"github.com/masumedb/masume/internal/app"
 )
 
 // Every card that draws a field takes a paste, so a value too long to type by hand can be

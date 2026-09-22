@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/cfg"
 )
 
 // slowSession answers a statement that runs until its context is done, and records the

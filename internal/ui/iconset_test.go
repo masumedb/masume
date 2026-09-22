@@ -4,11 +4,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/present"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/present"
 )
 
 // The glyphs that say what a thing is come from the icon set, so `[ui] icons` chooses which

@@ -3,8 +3,8 @@ package ui
 import (
 	"image/color"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/query/syntax"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/query/syntax"
 )
 
 // The words of a theme: every colour it names and every highlight it can style. A theme

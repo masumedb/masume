@@ -10,10 +10,10 @@ import (
 
 	driver "github.com/go-sql-driver/mysql"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/query/statement"
-	"github.com/turanmahmudov/masume/internal/query/syntax"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/query/syntax"
 )
 
 type mysqlSession struct {

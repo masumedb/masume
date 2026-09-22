@@ -8,7 +8,7 @@ import (
 	"github.com/gocql/gocql"
 	"gopkg.in/inf.v0"
 
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // The layouts a timestamp is written in, from the widest to the narrowest.

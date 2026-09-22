@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/app"
+	"github.com/masumedb/masume/internal/app"
 )
 
 // hoverKind says what the pointer stands on, and how the frame marks it.

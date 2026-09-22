@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/db/engines"
-	"github.com/turanmahmudov/masume/internal/mcp"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db/engines"
+	"github.com/masumedb/masume/internal/mcp"
 )
 
 // What an agent may send to a connection, and what the connection does with it. A SQLite

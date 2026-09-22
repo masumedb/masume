@@ -4,8 +4,8 @@ package mcp
 import (
 	"slices"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/query/statement"
 )
 
 // MCP access combines the profile allowlist, global access, profile access, and read-only mode.

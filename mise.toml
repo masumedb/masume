@@ -11,7 +11,7 @@ staticcheck = "2026.2.1"
 "go:github.com/kisielk/errcheck" = "latest"
 
 [env]
-GOIMPORTS_LOCAL = "github.com/turanmahmudov/masume"
+GOIMPORTS_LOCAL = "github.com/masumedb/masume"
 
 [tasks.build]
 description = "Build every package"
@@ -22,7 +22,7 @@ description = "Build a stripped release binary, stamped with the version"
 run = """
 set -eu
 version=$(git describe --tags --always --dirty 2>/dev/null || echo dev)
-go build -trimpath -ldflags "-s -w -X github.com/turanmahmudov/masume/internal/cli.Version=$version" -o masume .
+go build -trimpath -ldflags "-s -w -X github.com/masumedb/masume/internal/cli.Version=$version" -o masume .
 echo "built masume $version"
 ls -la masume
 """
@@ -32,7 +32,7 @@ description = "Install a release binary into the Go bin directory"
 run = """
 set -eu
 version=$(git describe --tags --always --dirty 2>/dev/null || echo dev)
-go install -trimpath -ldflags "-s -w -X github.com/turanmahmudov/masume/internal/cli.Version=$version" .
+go install -trimpath -ldflags "-s -w -X github.com/masumedb/masume/internal/cli.Version=$version" .
 echo "installed masume $version to $(go env GOBIN GOPATH | head -1)"
 """
 
@@ -114,7 +114,7 @@ go tool cover -func=coverage.out | tail -1
 echo
 go test -cover ./... 2>&1 \
   | grep -oE '^ok[[:space:]]+[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+coverage: [0-9.]+%' \
-  | sed -E 's|github.com/turanmahmudov/masume/||' \
+  | sed -E 's|github.com/masumedb/masume/||' \
   | awk '{printf "%-34s %s\n", $2, $NF}' | sort -k2 -rn
 '''
 
@@ -131,7 +131,7 @@ description = "Report uncovered functions, per package"
 run = '''
 go test -coverpkg=./internal/... -coverprofile=coverage.out ./... >/dev/null
 go tool cover -func=coverage.out | awk '$NF=="0.0%"' \
-  | sed -E 's|github.com/turanmahmudov/masume/||' \
+  | sed -E 's|github.com/masumedb/masume/||' \
   | awk '{split($1,p,":"); n=split(p[1],d,"/"); pkg=""; for(i=1;i<n;i++) pkg=pkg d[i] "/"; count[pkg]++} END {for (k in count) printf "%-34s %d\n", k, count[k]}' \
   | sort -k2 -rn
 '''

@@ -3,7 +3,7 @@ package ui
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/cfg"
 )
 
 // The card tells the reader to paste a connection string into the host field, so the paste

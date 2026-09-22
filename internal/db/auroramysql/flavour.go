@@ -3,7 +3,7 @@ package auroramysql
 import (
 	"strconv"
 
-	"github.com/turanmahmudov/masume/internal/db/mysql"
+	"github.com/masumedb/masume/internal/db/mysql"
 )
 
 // Flavour refuses KILL, because on Aurora and RDS the administrator is the

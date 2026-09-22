@@ -3,9 +3,9 @@ package ui
 import (
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/present"
-	"github.com/turanmahmudov/masume/internal/query/result"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/present"
+	"github.com/masumedb/masume/internal/query/result"
 )
 
 // The export form contains file options. CSV options appear only for CSV exports.

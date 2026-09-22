@@ -15,7 +15,7 @@ Report a vulnerability as described in `SECURITY.md`, not in an issue.
 The project uses Go 1.27 and [mise](https://mise.jdx.dev) for tools and tasks. `mise.toml` contains the tool versions.
 
 ```sh
-git clone https://github.com/turanmahmudov/masume.git
+git clone https://github.com/masumedb/masume.git
 cd masume
 mise install
 mise run build

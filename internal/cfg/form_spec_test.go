@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // buildFormProfile returns a profile the connection form can be built from.

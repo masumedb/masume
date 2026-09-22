@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/hist"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/hist"
 )
 
 // SavedRow is a saved statement from query history or the project file.

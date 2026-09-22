@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/cfg"
 )
 
 // buildChatEvent returns one event of this stream, which carries no event name.

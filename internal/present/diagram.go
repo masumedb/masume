@@ -3,8 +3,8 @@ package present
 import (
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/query"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/query"
 )
 
 // An ER diagram drawn with box characters: the table in the middle, the tables that refer to

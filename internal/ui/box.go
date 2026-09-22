@@ -8,7 +8,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/turanmahmudov/masume/internal/present"
+	"github.com/masumedb/masume/internal/present"
 )
 
 // The frame every pane and card is drawn in. The box is written cell by cell rather than

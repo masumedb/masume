@@ -3,8 +3,8 @@ package ui
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/cfg"
 )
 
 func TestOpenConnectionsStepRoundTheList(t *testing.T) {

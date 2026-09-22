@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/query"
-	"github.com/turanmahmudov/masume/internal/query/result"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/query"
+	"github.com/masumedb/masume/internal/query/result"
 )
 
 var shopColumns = []query.ResultColumn{

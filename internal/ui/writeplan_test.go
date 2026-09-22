@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/writeplan"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/writeplan"
 )
 
 // undoingSession records the statements the undo applied.

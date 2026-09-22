@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // describeRows returns the tree as one line per row, so a case states the shape it wants

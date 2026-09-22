@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/query/syntax"
+	"github.com/masumedb/masume/internal/query/syntax"
 )
 
 // clauseStarts are the clauses that take their own line when a buffer is formatted.

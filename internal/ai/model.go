@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // Shared provider requests, responses, and streaming interface.

@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // scanTimeout is the time the container tool has to answer.

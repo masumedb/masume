@@ -11,10 +11,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/dump"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/dump"
 )
 
 // dumpSession answers the catalog reads of a dump and keeps the statements of a restore.

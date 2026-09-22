@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // A filter over the rows on screen. It hides rows and reads none, so its counts are the

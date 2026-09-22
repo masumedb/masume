@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/db/dbtest"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/db/dbtest"
 )
 
 const dropKeylessSchema = `drop schema if exists masume_guard cascade;`

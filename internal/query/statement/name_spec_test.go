@@ -3,7 +3,7 @@ package statement_test
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/query/statement"
 )
 
 func TestFindQueryNameReadsTheLineCommentAtTheStart(t *testing.T) {

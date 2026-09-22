@@ -4,7 +4,7 @@ package ai
 import (
 	"sync"
 
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // ResolveLogPath returns the path of the chat traffic log, to read with `tail -f`.

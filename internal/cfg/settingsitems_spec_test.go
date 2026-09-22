@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/cfg"
 )
 
 // buildTestSources returns everything the settings screen reads.

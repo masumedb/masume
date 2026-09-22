@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/query/editor"
-	"github.com/turanmahmudov/masume/internal/query/statement"
-	"github.com/turanmahmudov/masume/internal/query/syntax"
+	"github.com/masumedb/masume/internal/query/editor"
+	"github.com/masumedb/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/query/syntax"
 )
 
 // The risk of a call decides whether the user is asked before it runs. A call that

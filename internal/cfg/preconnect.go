@@ -8,9 +8,9 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/proc"
-	"github.com/turanmahmudov/masume/internal/tunnel"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/proc"
+	"github.com/masumedb/masume/internal/tunnel"
 )
 
 // A pre-connect command starts a tunnel or proxy before the database connection opens.

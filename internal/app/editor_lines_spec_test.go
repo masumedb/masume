@@ -4,7 +4,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"github.com/turanmahmudov/masume/internal/app"
+	"github.com/masumedb/masume/internal/app"
 )
 
 func TestSelectedLineRangeTakesTheWholeLineUnderTheCaret(t *testing.T) {

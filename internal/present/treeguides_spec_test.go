@@ -3,8 +3,8 @@ package present_test
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/present"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/present"
 )
 
 // buildGuidedRows returns rows at every depth of the tree, with branches that end at each

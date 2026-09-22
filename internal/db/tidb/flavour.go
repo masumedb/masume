@@ -1,8 +1,8 @@
 package tidb
 
 import (
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/db/mysql"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/db/mysql"
 )
 
 // Flavour writes a plan as rows, and it has no read-only session. The server

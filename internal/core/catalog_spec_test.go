@@ -3,7 +3,7 @@ package core_test
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/core"
 )
 
 func TestBuildSchemaIDRoundTrips(t *testing.T) {

@@ -3,8 +3,8 @@ package ai_test
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/ai"
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/ai"
+	"github.com/masumedb/masume/internal/db"
 )
 
 func TestBuildSchemaContextDescribesNamespacesWithoutTableNames(t *testing.T) {

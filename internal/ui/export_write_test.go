@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/query/result"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/query/result"
 )
 
 // streamingSession records whether the export asked the server for the statement again, and

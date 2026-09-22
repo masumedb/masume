@@ -18,7 +18,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/turanmahmudov/masume/internal/tunnel"
+	"github.com/masumedb/masume/internal/tunnel"
 )
 
 // User is the login the server accepts.

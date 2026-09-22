@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/query"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/query"
 )
 
 // An import plan contains column mappings, row validation, and generated statements.

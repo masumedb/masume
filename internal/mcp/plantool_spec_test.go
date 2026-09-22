@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/db/engines"
-	"github.com/turanmahmudov/masume/internal/mcp"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db/engines"
+	"github.com/masumedb/masume/internal/mcp"
 )
 
 // The two steps an agent takes on a client that cannot show a question: measure the write,

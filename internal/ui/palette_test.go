@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/notebook"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/notebook"
 )
 
 // Every row the palette offers has to run something. A row whose id names no action is

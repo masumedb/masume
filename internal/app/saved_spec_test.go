@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/hist"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/hist"
 )
 
 // describeSavedRows returns one line per row, so a case states the list it wants rather than

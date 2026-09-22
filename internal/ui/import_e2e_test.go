@@ -12,13 +12,13 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/db/engines"
-	"github.com/turanmahmudov/masume/internal/load"
-	"github.com/turanmahmudov/masume/internal/query/result"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/db/engines"
+	"github.com/masumedb/masume/internal/load"
+	"github.com/masumedb/masume/internal/query/result"
 )
 
 // openImportModel answers a model on a real SQLite file that holds an empty orders table.

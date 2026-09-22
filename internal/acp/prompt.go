@@ -3,7 +3,7 @@ package acp
 import (
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/ai"
+	"github.com/masumedb/masume/internal/ai"
 )
 
 // The prompt of an agent is one block of text. The agent reaches the database through the

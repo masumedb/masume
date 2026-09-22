@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/present"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/present"
 )
 
 // buildTreeInput returns a small catalog: two schemas of the user and one system schema.

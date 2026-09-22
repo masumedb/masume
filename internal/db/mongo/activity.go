@@ -7,7 +7,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // $currentOp lists running operations. killOp stops an operation.

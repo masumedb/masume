@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // KeyScope is the interface area for a binding. Focus selects the active scope; dialogs receive all keys while open.

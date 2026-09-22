@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/cfg"
 )
 
 // focusFormField puts the caret on the field of that key.

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/dump"
+	"github.com/masumedb/masume/internal/dump"
 )
 
 func TestParseDumpArgumentsReadsTheFileAndTheSettings(t *testing.T) {

@@ -8,8 +8,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // buildWideModel answers a model whose result holds more columns than the pane can draw.

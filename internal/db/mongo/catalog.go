@@ -11,7 +11,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // The catalog includes databases, collections, and fields inferred from sampled documents.

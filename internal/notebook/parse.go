@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/query/statement"
 )
 
 // FrontMatterMark opens and closes the front matter block.

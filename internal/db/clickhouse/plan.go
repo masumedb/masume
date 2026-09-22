@@ -3,9 +3,9 @@ package clickhouse
 import (
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/query"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/query"
 )
 
 // planPrefix is what the client writes before a statement it asks the plan of.

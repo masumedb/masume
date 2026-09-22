@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/query/statement"
-	"github.com/turanmahmudov/masume/internal/query/syntax"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/query/syntax"
 )
 
 // A read asks for one row more than the limit, and the extra row is what tells a full page

@@ -3,7 +3,7 @@ package ui
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/cfg"
 )
 
 // A slow server that answers after the user went back and asked for another profile must

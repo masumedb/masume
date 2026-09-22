@@ -7,11 +7,11 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/query"
-	"github.com/turanmahmudov/masume/internal/query/language"
-	"github.com/turanmahmudov/masume/internal/query/result"
-	"github.com/turanmahmudov/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/query"
+	"github.com/masumedb/masume/internal/query/language"
+	"github.com/masumedb/masume/internal/query/result"
+	"github.com/masumedb/masume/internal/query/statement"
 )
 
 // Database tools for models.

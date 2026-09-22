@@ -3,7 +3,7 @@ package statement
 import (
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/query/syntax"
+	"github.com/masumedb/masume/internal/query/syntax"
 )
 
 // SelectSource is a relation named by a statement.

@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/query"
+	"github.com/masumedb/masume/internal/query"
 )
 
 // conditionKeys are the conditions the pane shows, in order.

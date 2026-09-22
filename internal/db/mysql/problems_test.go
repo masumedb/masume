@@ -6,7 +6,7 @@ import (
 
 	driver "github.com/go-sql-driver/mysql"
 
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // MySQL says where a statement went wrong by quoting the text it stopped on, and the editor

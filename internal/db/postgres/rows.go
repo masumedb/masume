@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // relationKindByRelkind reads the one-letter kind Postgres stores.

@@ -6,7 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/turanmahmudov/masume/internal/app"
+	"github.com/masumedb/masume/internal/app"
 )
 
 // openMenuWith presses the right button on this cell and answers what the menu offers.

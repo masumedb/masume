@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // readCommands is the set of commands that answer with rows.

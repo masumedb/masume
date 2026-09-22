@@ -22,7 +22,7 @@ builds:
     flags:
       - -trimpath
     ldflags:
-      - -s -w -X github.com/turanmahmudov/masume/internal/cli.Version={{ .Version }}
+      - -s -w -X github.com/masumedb/masume/internal/cli.Version={{ .Version }}
     mod_timestamp: "{{ .CommitTimestamp }}"
 
 archives:
@@ -45,7 +45,7 @@ nfpms:
     formats: [deb, rpm, apk]
     maintainer: Turan Mahmudov <turan.mahmudov@gmail.com>
     description: A database client for the terminal
-    homepage: https://github.com/turanmahmudov/masume
+    homepage: https://github.com/masumedb/masume
     license: Apache-2.0
     section: database
     contents:
@@ -85,7 +85,7 @@ release:
     ## Install
 
     ```sh
-    curl -fsSL https://raw.githubusercontent.com/turanmahmudov/masume/{{ .Tag }}/install.sh | MASUME_VERSION={{ .Tag }} sh
+    curl -fsSL https://raw.githubusercontent.com/masumedb/masume/{{ .Tag }}/install.sh | MASUME_VERSION={{ .Tag }} sh
     ```
 
     ```sh
@@ -93,7 +93,7 @@ release:
     ```
 
     ```sh
-    go install github.com/turanmahmudov/masume@{{ .Tag }}
+    go install github.com/masumedb/masume@{{ .Tag }}
     ```
 
     Or take an archive, a `.deb`, an `.rpm` or an `.apk` below. Windows takes the `.zip`. Unpack an archive and put `masume` on the PATH.

@@ -8,8 +8,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/hist"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/hist"
 )
 
 // buildChatModel answers a model with a conversation of a few turns open in the chat panel.

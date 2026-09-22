@@ -4,8 +4,8 @@ import (
 	"hash/fnv"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/present"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/present"
 )
 
 // Cache the object tree until its input fingerprint changes.

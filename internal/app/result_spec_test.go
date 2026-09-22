@@ -3,8 +3,8 @@ package app_test
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/db"
 )
 
 func TestSkipRestMarksTheStatementsABatchNeverReached(t *testing.T) {

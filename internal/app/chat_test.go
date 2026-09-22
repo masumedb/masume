@@ -3,7 +3,7 @@ package app
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/hist"
+	"github.com/masumedb/masume/internal/hist"
 )
 
 func TestStartTurnSendsTheEditorOnce(t *testing.T) {

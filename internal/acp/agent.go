@@ -12,9 +12,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/turanmahmudov/masume/internal/ai"
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/proc"
+	"github.com/masumedb/masume/internal/ai"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/proc"
 )
 
 // One coding agent, reached over ACP. masume starts the agent as a child process, hands it

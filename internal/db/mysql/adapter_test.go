@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/query/syntax"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/query/syntax"
 )
 
 // Cancellation requires a known connection ID.

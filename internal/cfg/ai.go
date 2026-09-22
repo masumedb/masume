@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // AiProviderID is the name of one provider the AI chat can use. Each one has its own SDK.

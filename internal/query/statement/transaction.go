@@ -1,7 +1,7 @@
 package statement
 
 import (
-	"github.com/turanmahmudov/masume/internal/query/syntax"
+	"github.com/masumedb/masume/internal/query/syntax"
 )
 
 // Transaction state classification for statements entered in the editor.

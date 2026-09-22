@@ -5,13 +5,13 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/present"
-	"github.com/turanmahmudov/masume/internal/query"
-	"github.com/turanmahmudov/masume/internal/query/build"
-	"github.com/turanmahmudov/masume/internal/query/editor"
-	"github.com/turanmahmudov/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/present"
+	"github.com/masumedb/masume/internal/query"
+	"github.com/masumedb/masume/internal/query/build"
+	"github.com/masumedb/masume/internal/query/editor"
+	"github.com/masumedb/masume/internal/query/statement"
 )
 
 // EditTarget is the table and key columns for result edits.

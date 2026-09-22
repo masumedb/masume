@@ -1,7 +1,7 @@
 package app
 
 import (
-	"github.com/turanmahmudov/masume/internal/query/editor"
+	"github.com/masumedb/masume/internal/query/editor"
 )
 
 // CompletionList is the list of suggestions over the statement and the selected entry.

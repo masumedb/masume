@@ -4,9 +4,9 @@ import (
 	"context"
 	"sync"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/query"
-	"github.com/turanmahmudov/masume/internal/query/language"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/query"
+	"github.com/masumedb/masume/internal/query/language"
 )
 
 // Reconnection replaces the session without rebuilding tabs. Statements are never retried; a failed statement can still reach the server.

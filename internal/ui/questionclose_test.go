@@ -5,7 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/turanmahmudov/masume/internal/app"
+	"github.com/masumedb/masume/internal/app"
 )
 
 // openQuestionOverAList opens a question over a list of notebooks and returns what the

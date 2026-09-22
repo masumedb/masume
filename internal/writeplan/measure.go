@@ -4,9 +4,9 @@ import (
 	"context"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/query"
-	"github.com/turanmahmudov/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/query"
+	"github.com/masumedb/masume/internal/query/statement"
 )
 
 // measurer is the connection and target for one write plan.

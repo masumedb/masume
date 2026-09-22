@@ -8,8 +8,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // A card names its keys at its foot. Each one is a button, so the cells it is recorded at

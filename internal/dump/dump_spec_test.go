@@ -6,15 +6,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/db/clickhouse"
-	"github.com/turanmahmudov/masume/internal/db/mysql"
-	"github.com/turanmahmudov/masume/internal/db/postgres"
-	"github.com/turanmahmudov/masume/internal/db/sqlite"
-	"github.com/turanmahmudov/masume/internal/db/sqlserver"
-	"github.com/turanmahmudov/masume/internal/dump"
-	"github.com/turanmahmudov/masume/internal/query"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/db/clickhouse"
+	"github.com/masumedb/masume/internal/db/mysql"
+	"github.com/masumedb/masume/internal/db/postgres"
+	"github.com/masumedb/masume/internal/db/sqlite"
+	"github.com/masumedb/masume/internal/db/sqlserver"
+	"github.com/masumedb/masume/internal/dump"
+	"github.com/masumedb/masume/internal/query"
 )
 
 // fakeServer answers the reads of a dump from values held in the test.

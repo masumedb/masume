@@ -3,8 +3,8 @@ package statement_test
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/query/statement"
-	"github.com/turanmahmudov/masume/internal/query/syntax"
+	"github.com/masumedb/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/query/syntax"
 )
 
 // The client holds a mark of the transaction the connection is in. A `commit` written into

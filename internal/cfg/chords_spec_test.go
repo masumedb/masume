@@ -3,8 +3,8 @@ package cfg_test
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // A chord in the config file must parse into the key press the user makes, or the key is

@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/db/engines"
-	"github.com/turanmahmudov/masume/internal/headless"
-	"github.com/turanmahmudov/masume/internal/notebook"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/db/engines"
+	"github.com/masumedb/masume/internal/headless"
+	"github.com/masumedb/masume/internal/notebook"
 )
 
 const bookText = "+++\ntitle = \"orders\"\n\n[run]\ntransaction = \"autocommit\"\n" +

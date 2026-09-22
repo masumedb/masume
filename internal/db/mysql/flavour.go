@@ -3,9 +3,9 @@ package mysql
 import (
 	"strconv"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/query/result"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/query/result"
 )
 
 // Flavour is the engine-specific configuration for the shared MySQL adapter.

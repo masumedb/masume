@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/cfg"
 )
 
 // stubSession answers only the parts of a session this test asks for.

@@ -1,6 +1,6 @@
 package ui
 
-import "github.com/turanmahmudov/masume/internal/cfg"
+import "github.com/masumedb/masume/internal/cfg"
 
 // Help groups actions by task and reads key bindings from the registry.
 

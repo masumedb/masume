@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/query/statement"
-	"github.com/turanmahmudov/masume/internal/query/syntax"
+	"github.com/masumedb/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/query/syntax"
 )
 
 // Diagnostic is a statement error and its buffer range.

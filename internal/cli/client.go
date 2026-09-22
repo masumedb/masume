@@ -8,13 +8,13 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/turanmahmudov/masume/internal/acp"
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/db/engines"
-	"github.com/turanmahmudov/masume/internal/hist"
-	"github.com/turanmahmudov/masume/internal/mcp"
-	"github.com/turanmahmudov/masume/internal/ui"
+	"github.com/masumedb/masume/internal/acp"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db/engines"
+	"github.com/masumedb/masume/internal/hist"
+	"github.com/masumedb/masume/internal/mcp"
+	"github.com/masumedb/masume/internal/ui"
 )
 
 // Dispatch of the process arguments. internal/ui draws the client the arguments select.

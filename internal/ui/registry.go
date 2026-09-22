@@ -8,7 +8,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/cfg"
 )
 
 // The key registry combines a preset with configured key bindings.

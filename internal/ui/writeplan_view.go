@@ -4,10 +4,10 @@ import (
 	"image/color"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/present"
-	"github.com/turanmahmudov/masume/internal/writeplan"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/present"
+	"github.com/masumedb/masume/internal/writeplan"
 )
 
 // The write-plan dialog.

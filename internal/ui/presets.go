@@ -1,7 +1,7 @@
 package ui
 
 import (
-	"github.com/turanmahmudov/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/cfg"
 )
 
 // A preset is a whole set of keys, not a change over another one, so every key is readable

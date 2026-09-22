@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/cfg"
 )
 
 // The keys the client ships with must not fight each other. Two actions on one chord in one

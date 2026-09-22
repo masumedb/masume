@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // FileFormat is the import file format.

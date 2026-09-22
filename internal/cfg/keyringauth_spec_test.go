@@ -6,9 +6,9 @@ import (
 
 	"github.com/zalando/go-keyring"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/secret"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/secret"
 )
 
 // useMockKeyring points the keyring at one in memory, so a case neither reads nor writes the

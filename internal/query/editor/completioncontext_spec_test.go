@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/query/editor"
-	"github.com/turanmahmudov/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/query/editor"
+	"github.com/masumedb/masume/internal/query/statement"
 )
 
 // The list over the statement offers relations in one place and columns in another, so where

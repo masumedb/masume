@@ -6,8 +6,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // readRowCells answers the cells of a drawn row, with the escapes taken off, so a hit box can

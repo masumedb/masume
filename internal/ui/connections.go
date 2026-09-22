@@ -3,7 +3,7 @@ package ui
 import (
 	"iter"
 
-	"github.com/turanmahmudov/masume/internal/app"
+	"github.com/masumedb/masume/internal/app"
 )
 
 type openConnection struct {

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/present"
+	"github.com/masumedb/masume/internal/present"
 )
 
 // A document can hold kilobytes in one field, and its column is drawn at the maximum width in

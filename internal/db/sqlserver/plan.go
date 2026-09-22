@@ -4,9 +4,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/query"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/query"
 )
 
 // planSetting returns the setting that makes the server write the plan. SHOWPLAN_ALL

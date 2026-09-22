@@ -3,7 +3,7 @@ package present_test
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/present"
+	"github.com/masumedb/masume/internal/present"
 )
 
 // The report gives the number of discarded changes, and the verb matches the count: a user

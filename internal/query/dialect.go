@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/query/syntax"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/query/syntax"
 )
 
 // QualifiedName is a relation named by schema and name.

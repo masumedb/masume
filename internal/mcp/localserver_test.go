@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/agent"
-	"github.com/turanmahmudov/masume/internal/mcp"
+	"github.com/masumedb/masume/internal/agent"
+	"github.com/masumedb/masume/internal/mcp"
 )
 
 // openLocalServer returns a server of one tool, and closes it with the test.

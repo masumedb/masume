@@ -5,11 +5,11 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/load"
-	"github.com/turanmahmudov/masume/internal/present"
-	"github.com/turanmahmudov/masume/internal/query"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/load"
+	"github.com/masumedb/masume/internal/present"
+	"github.com/masumedb/masume/internal/query"
 )
 
 // Import reads the file, checks the rows, then writes the rows outside the render loop.

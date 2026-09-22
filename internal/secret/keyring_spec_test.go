@@ -6,7 +6,7 @@ import (
 
 	"github.com/zalando/go-keyring"
 
-	"github.com/turanmahmudov/masume/internal/secret"
+	"github.com/masumedb/masume/internal/secret"
 )
 
 // useMockKeyring points the package at a keyring in memory, so a case neither reads nor

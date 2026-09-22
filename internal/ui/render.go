@@ -6,12 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/notebook"
-	"github.com/turanmahmudov/masume/internal/present"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/notebook"
+	"github.com/masumedb/masume/internal/present"
 )
 
 // titleBarRows is the row the title bar takes over every screen. A renderer that places

@@ -3,7 +3,7 @@ package ai
 import (
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // The system prompt contains the role, tools, and connection metadata. Each question includes the current editor text separately.

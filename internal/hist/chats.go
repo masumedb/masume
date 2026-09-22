@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // Chat storage saves conversations and their turns per profile.

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/present"
+	"github.com/masumedb/masume/internal/present"
 )
 
 // The plan view draws the share of the run one node took as a bar of eight cells, and the

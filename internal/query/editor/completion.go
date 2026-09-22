@@ -7,7 +7,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/turanmahmudov/masume/internal/query"
+	"github.com/masumedb/masume/internal/query"
 )
 
 // CompletionKind is the suggestion category.

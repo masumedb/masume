@@ -3,7 +3,7 @@ package ui
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/db"
 )
 
 func TestRunBatchesStopEveryRunOfAConnection(t *testing.T) {

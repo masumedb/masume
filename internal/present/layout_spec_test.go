@@ -3,7 +3,7 @@ package present_test
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/present"
+	"github.com/masumedb/masume/internal/present"
 )
 
 // The panes are laid out for every terminal size, down to a very narrow one. A width below

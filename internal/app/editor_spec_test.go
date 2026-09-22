@@ -3,7 +3,7 @@ package app_test
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/app"
+	"github.com/masumedb/masume/internal/app"
 )
 
 // The caret is an offset into the text, and every move has to leave it inside. A caret past

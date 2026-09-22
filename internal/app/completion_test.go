@@ -3,7 +3,7 @@ package app
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/query/editor"
+	"github.com/masumedb/masume/internal/query/editor"
 )
 
 func TestCompletionListStepsRoundTheEnds(t *testing.T) {

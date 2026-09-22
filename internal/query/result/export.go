@@ -7,9 +7,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/query"
-	"github.com/turanmahmudov/masume/internal/query/build"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/query"
+	"github.com/masumedb/masume/internal/query/build"
 )
 
 // ExportFormat is a format an export can write.

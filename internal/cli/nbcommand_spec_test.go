@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/notebook"
+	"github.com/masumedb/masume/internal/notebook"
 )
 
 // A --only id no cell carries would otherwise run nothing and exit zero, so a typo in a

@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/agent"
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/hist"
-	"github.com/turanmahmudov/masume/internal/query/language"
-	"github.com/turanmahmudov/masume/internal/query/statement"
-	"github.com/turanmahmudov/masume/internal/writeplan"
+	"github.com/masumedb/masume/internal/agent"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/hist"
+	"github.com/masumedb/masume/internal/query/language"
+	"github.com/masumedb/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/writeplan"
 )
 
 // Every call an agent can make: the profiles, and the tools of one connection.

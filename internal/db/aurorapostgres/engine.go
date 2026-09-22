@@ -1,8 +1,8 @@
 package aurorapostgres
 
 import (
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/db/postgres"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db/postgres"
 )
 
 // Support is everything known about Aurora PostgreSQL before a connection exists. It speaks

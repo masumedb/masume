@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // Connection targets are URLs, keyword DSNs, or database file paths.

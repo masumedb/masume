@@ -6,7 +6,7 @@ import (
 	"crypto/x509"
 	"os"
 
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // BuildPolicyTLS returns TLS settings for the policy and the certificate files, or nil for

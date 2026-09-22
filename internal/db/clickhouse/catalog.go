@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // ListSchemas returns the databases the tree draws: the one the profile names, or every

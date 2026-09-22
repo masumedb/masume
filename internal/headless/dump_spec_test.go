@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/db/engines"
-	"github.com/turanmahmudov/masume/internal/dump"
-	"github.com/turanmahmudov/masume/internal/headless"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/db/engines"
+	"github.com/masumedb/masume/internal/dump"
+	"github.com/masumedb/masume/internal/headless"
 )
 
 // runDump writes a dump of that database and answers the exit code and what it reported.

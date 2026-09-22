@@ -8,7 +8,7 @@ import (
 
 	driver "github.com/ClickHouse/clickhouse-go/v2"
 
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // failedAt matches the place a parse error stopped at, which the server counts from one.

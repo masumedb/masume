@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/hist"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/hist"
 )
 
 // findDroppedGround answers where a row lets its ground go: a reset with text after it that

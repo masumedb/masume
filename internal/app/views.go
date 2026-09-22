@@ -4,8 +4,8 @@ package app
 import (
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/query"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/query"
 )
 
 // ResultView is one display mode of a result.

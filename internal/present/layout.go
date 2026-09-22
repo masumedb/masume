@@ -4,8 +4,8 @@ import (
 	"math"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/query/editor"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/query/editor"
 )
 
 // The width limits of a tab label. With many tabs the labels shrink, so they stay inside the

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/cfg"
 )
 
 // The chat completions client sends to any server with the OpenAI chat endpoint: xAI, and a

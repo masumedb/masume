@@ -8,9 +8,9 @@ import (
 	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/notebook"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/notebook"
 )
 
 // pressEscape returns the press that closes a card.

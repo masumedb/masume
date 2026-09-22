@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // Nothing here reaches the server. This holds the shape of the key browser and builds

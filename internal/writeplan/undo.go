@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/present"
-	"github.com/turanmahmudov/masume/internal/query"
-	"github.com/turanmahmudov/masume/internal/query/build"
-	"github.com/turanmahmudov/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/present"
+	"github.com/masumedb/masume/internal/query"
+	"github.com/masumedb/masume/internal/query/build"
+	"github.com/masumedb/masume/internal/query/statement"
 )
 
 // UndoPlan is the undo availability and query for original rows. Capture uses the write transaction and dialect row locking.

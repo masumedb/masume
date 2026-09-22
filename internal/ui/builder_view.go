@@ -5,10 +5,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/present"
-	"github.com/turanmahmudov/masume/internal/query"
-	"github.com/turanmahmudov/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/present"
+	"github.com/masumedb/masume/internal/query"
+	"github.com/masumedb/masume/internal/query/statement"
 )
 
 // The builder stands where a query tab draws its editor: the diagram of the tables at the

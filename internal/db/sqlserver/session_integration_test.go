@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/db/dbtest"
-	"github.com/turanmahmudov/masume/internal/query"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/db/dbtest"
+	"github.com/masumedb/masume/internal/query"
 )
 
 // The relation every test here reads. Each statement runs on its own, because the server

@@ -9,9 +9,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/db/dbtest"
-	"github.com/turanmahmudov/masume/internal/present"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/db/dbtest"
+	"github.com/masumedb/masume/internal/present"
 )
 
 // openProfiles answers a session on a table holding a document in a column.

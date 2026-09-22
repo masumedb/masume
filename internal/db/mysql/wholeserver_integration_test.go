@@ -9,9 +9,9 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/db/dbtest"
-	"github.com/turanmahmudov/masume/internal/db/engines"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/db/dbtest"
+	"github.com/masumedb/masume/internal/db/engines"
 )
 
 // emptyDatabase is a database of these tests that holds no relation.

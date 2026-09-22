@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/dump"
-	"github.com/turanmahmudov/masume/internal/query/syntax"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/dump"
+	"github.com/masumedb/masume/internal/query/syntax"
 )
 
 // fakeRunner keeps the statements it was given and fails on the one named.

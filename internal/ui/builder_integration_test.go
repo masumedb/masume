@@ -16,9 +16,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/db/dbtest"
-	"github.com/turanmahmudov/masume/internal/db/engines"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/db/dbtest"
+	"github.com/masumedb/masume/internal/db/engines"
 )
 
 // The schema of the test: two tables and the foreign key between them.

@@ -3,7 +3,7 @@ package ui
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/app"
+	"github.com/masumedb/masume/internal/app"
 )
 
 // A chat still asking the model holds the session and writes into a channel nobody reads

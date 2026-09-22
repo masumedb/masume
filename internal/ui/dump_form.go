@@ -3,8 +3,8 @@ package ui
 import (
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/dump"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/dump"
 )
 
 // The dump form contains the file and what the dump holds. A restore asks for the file

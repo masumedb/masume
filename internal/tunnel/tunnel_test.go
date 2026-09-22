@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/tunnel"
-	"github.com/turanmahmudov/masume/internal/tunnel/tunneltest"
+	"github.com/masumedb/masume/internal/tunnel"
+	"github.com/masumedb/masume/internal/tunnel/tunneltest"
 )
 
 // echoServer echoes every connection it accepts.

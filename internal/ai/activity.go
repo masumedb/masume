@@ -3,7 +3,7 @@ package ai
 import (
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // Tool activity labels with table names or statements.

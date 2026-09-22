@@ -9,8 +9,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // JSON-RPC 2.0 uses one message per line on stdin and stdout. stdout is reserved for protocol messages.

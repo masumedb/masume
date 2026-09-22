@@ -3,7 +3,7 @@ package present_test
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/present"
+	"github.com/masumedb/masume/internal/present"
 )
 
 // A key press or a click lands on a screen column, and these functions return the target. A

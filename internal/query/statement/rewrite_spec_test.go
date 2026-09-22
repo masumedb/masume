@@ -3,11 +3,11 @@ package statement_test
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/db/postgres"
-	"github.com/turanmahmudov/masume/internal/db/sqlserver"
-	"github.com/turanmahmudov/masume/internal/query/statement"
-	"github.com/turanmahmudov/masume/internal/query/syntax"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db/postgres"
+	"github.com/masumedb/masume/internal/db/sqlserver"
+	"github.com/masumedb/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/query/syntax"
 )
 
 func TestSplitStatementCutsAroundTheOrderByAndTheTrailingClauses(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // Project files contain shared connection profiles and queries. Personal settings and secret access settings are excluded.

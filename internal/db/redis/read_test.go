@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // A key is grouped in the tree by its prefix, which is the part before the first separator.

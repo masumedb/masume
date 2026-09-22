@@ -3,13 +3,13 @@ package build_test
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/db/mysql"
-	"github.com/turanmahmudov/masume/internal/db/postgres"
-	"github.com/turanmahmudov/masume/internal/db/redis"
-	"github.com/turanmahmudov/masume/internal/db/sqlite"
-	"github.com/turanmahmudov/masume/internal/db/sqlserver"
-	"github.com/turanmahmudov/masume/internal/query"
-	"github.com/turanmahmudov/masume/internal/query/build"
+	"github.com/masumedb/masume/internal/db/mysql"
+	"github.com/masumedb/masume/internal/db/postgres"
+	"github.com/masumedb/masume/internal/db/redis"
+	"github.com/masumedb/masume/internal/db/sqlite"
+	"github.com/masumedb/masume/internal/db/sqlserver"
+	"github.com/masumedb/masume/internal/query"
+	"github.com/masumedb/masume/internal/query/build"
 )
 
 // The object menu writes these into the editor. The wording is the same for every

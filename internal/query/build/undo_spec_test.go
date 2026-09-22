@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/query/build"
+	"github.com/masumedb/masume/internal/query/build"
 )
 
 func TestBuildUndoUpdateBindsEveryValue(t *testing.T) {

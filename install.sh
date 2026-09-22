@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-REPO="turanmahmudov/masume"
+REPO="masumedb/masume"
 INSTALL_DIR="${MASUME_INSTALL_DIR:-$HOME/.local/bin}"
 
 fail() {

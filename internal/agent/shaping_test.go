@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/query"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/query"
 )
 
 // A value goes to the model as JSON. A number sent as a number can be compared and used in

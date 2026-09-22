@@ -9,9 +9,9 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/query"
-	"github.com/turanmahmudov/masume/internal/query/syntax"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/query"
+	"github.com/masumedb/masume/internal/query/syntax"
 )
 
 // readCatalog returns a catalog read as rows keyed by column name. It waits for its turn

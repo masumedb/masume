@@ -3,9 +3,9 @@ package turso_test
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/db/turso"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db/turso"
 )
 
 func TestBuildSourceWritesTheWebsocketURL(t *testing.T) {

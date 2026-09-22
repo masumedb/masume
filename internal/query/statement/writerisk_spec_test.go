@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/query/statement"
-	"github.com/turanmahmudov/masume/internal/query/syntax"
+	"github.com/masumedb/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/query/syntax"
 )
 
 // The risk of a statement decides whether an agent may run it and whether the user is asked

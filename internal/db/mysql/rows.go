@@ -4,8 +4,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/query"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/query"
 )
 
 // relationKindByTableType reads the table type `information_schema` reports.

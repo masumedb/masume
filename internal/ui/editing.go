@@ -3,7 +3,7 @@ package ui
 import (
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // What the editor writes and reads around the caret: the indent of a new line, the guides

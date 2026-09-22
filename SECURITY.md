@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-Do not open a public issue for a vulnerability. Report vulnerabilities privately through [GitHub security advisories](https://github.com/turanmahmudov/masume/security/advisories/new).
+Do not open a public issue for a vulnerability. Report vulnerabilities privately through [GitHub security advisories](https://github.com/masumedb/masume/security/advisories/new).
 
 A first reply can take up to seven days. Confirmed vulnerabilities receive fixes in a release. The advisory credits the reporter unless the reporter requests otherwise.
 

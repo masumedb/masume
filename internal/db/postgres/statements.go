@@ -3,7 +3,7 @@ package postgres
 import (
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // Catalog queries use the engine metadata for excluded system schemas.

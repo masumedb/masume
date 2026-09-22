@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // KeySettings is the preset and binding configuration under `[keys]`.

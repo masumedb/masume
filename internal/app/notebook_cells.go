@@ -4,8 +4,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/notebook"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/notebook"
 )
 
 // The cells of a notebook are moved, added and deleted from the cell list. Every change of

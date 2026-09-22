@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/query"
-	"github.com/turanmahmudov/masume/internal/query/result"
+	"github.com/masumedb/masume/internal/query"
+	"github.com/masumedb/masume/internal/query/result"
 )
 
 // The plan a server prints is text, and the pane draws it as a tree. The indentation is what

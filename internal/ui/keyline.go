@@ -4,8 +4,8 @@ import (
 	"image/color"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/present"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/present"
 )
 
 // keyPart is one part of the line a card names its keys on: the key, what it does, and what

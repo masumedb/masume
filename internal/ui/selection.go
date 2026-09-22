@@ -3,7 +3,7 @@ package ui
 import (
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/present"
+	"github.com/masumedb/masume/internal/present"
 )
 
 // What the pointer was dragged over. A terminal reports the drag; this keeps where it began

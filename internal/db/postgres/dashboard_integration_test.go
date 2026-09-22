@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/db/dbtest"
-	"github.com/turanmahmudov/masume/internal/db/postgres"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/db/dbtest"
+	"github.com/masumedb/masume/internal/db/postgres"
 )
 
 const dropLockSchema = `drop schema if exists masume_locks cascade;`

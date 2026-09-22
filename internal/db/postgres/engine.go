@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/query"
-	"github.com/turanmahmudov/masume/internal/query/language"
-	"github.com/turanmahmudov/masume/internal/query/syntax"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/query"
+	"github.com/masumedb/masume/internal/query/language"
+	"github.com/masumedb/masume/internal/query/syntax"
 )
 
 // postgresIncomparableTypes is the set of types without equality operators. jsonb supports equality.

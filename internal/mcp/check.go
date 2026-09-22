@@ -4,8 +4,8 @@ import (
 	"context"
 	"strconv"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // Connection reports for --mcp --check.

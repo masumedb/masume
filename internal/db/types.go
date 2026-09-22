@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/query"
-	"github.com/turanmahmudov/masume/internal/query/language"
-	"github.com/turanmahmudov/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/query"
+	"github.com/masumedb/masume/internal/query/language"
+	"github.com/masumedb/masume/internal/query/statement"
 )
 
 // The pure data types the query tier already holds, named here as the db tier reads

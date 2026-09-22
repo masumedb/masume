@@ -5,8 +5,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/query/statement"
 )
 
 // StatementReport is one statement that ran or failed, in the form the caller stores.

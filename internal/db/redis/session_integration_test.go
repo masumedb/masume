@@ -11,9 +11,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/db/dbtest"
-	"github.com/turanmahmudov/masume/internal/db/redis"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/db/dbtest"
+	"github.com/masumedb/masume/internal/db/redis"
 )
 
 // openKeys answers a session on an empty database with a few keys written.

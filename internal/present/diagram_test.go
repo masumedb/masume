@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/query"
+	"github.com/masumedb/masume/internal/query"
 )
 
 func TestRenderErDiagram(t *testing.T) {

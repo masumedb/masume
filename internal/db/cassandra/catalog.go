@@ -6,8 +6,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/query"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/query"
 )
 
 // The kinds system_schema.columns reports for a column of the key.

@@ -4,8 +4,8 @@ import (
 	"image/color"
 	"maps"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/query/editor"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/query/editor"
 )
 
 // IconSet holds one glyph per object kind.

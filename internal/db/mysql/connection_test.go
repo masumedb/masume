@@ -6,8 +6,8 @@ import (
 
 	driver "github.com/go-sql-driver/mysql"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // readMysqlTLS returns the TLS settings the driver opens this profile with.

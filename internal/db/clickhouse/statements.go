@@ -3,7 +3,7 @@ package clickhouse
 import (
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // systemSchemaList is the set of databases the server holds for itself, as a statement

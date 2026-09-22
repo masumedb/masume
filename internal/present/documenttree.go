@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // A result displayed as documents. One row of the result is one folded row of the tree. An

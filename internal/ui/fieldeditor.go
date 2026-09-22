@@ -1,8 +1,8 @@
 package ui
 
 import (
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/cfg"
 )
 
 // A form of fields, the caret in them, and the text being typed into one. The connection

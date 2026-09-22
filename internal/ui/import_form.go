@@ -4,11 +4,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/db/postgres"
-	"github.com/turanmahmudov/masume/internal/load"
-	"github.com/turanmahmudov/masume/internal/present"
-	"github.com/turanmahmudov/masume/internal/query"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/db/postgres"
+	"github.com/masumedb/masume/internal/load"
+	"github.com/masumedb/masume/internal/present"
+	"github.com/masumedb/masume/internal/query"
 )
 
 // The import form contains file options and column mappings.

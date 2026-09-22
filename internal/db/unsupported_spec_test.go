@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/db"
 )
 
 func TestPlainCatalogAnswersEmptyLists(t *testing.T) {

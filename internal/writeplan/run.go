@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // Undo capture and the write use one transaction, with row locking where the dialect supports it.

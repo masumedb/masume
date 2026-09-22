@@ -6,7 +6,7 @@ import (
 	"github.com/gocql/gocql"
 	"gopkg.in/inf.v0"
 
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // readColumns returns the result columns of an iterator, with the CQL type of each.

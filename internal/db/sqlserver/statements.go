@@ -3,7 +3,7 @@ package sqlserver
 import (
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // systemSchemaList is the set of schemas the server holds for itself, as a statement reads it.

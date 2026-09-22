@@ -5,11 +5,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/agent"
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/query/language"
-	"github.com/turanmahmudov/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/agent"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/query/language"
+	"github.com/masumedb/masume/internal/query/statement"
 )
 
 // Every tool is described to the model as JSON Schema, and the model can send any input. A

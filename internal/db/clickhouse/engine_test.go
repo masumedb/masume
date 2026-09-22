@@ -3,9 +3,9 @@ package clickhouse
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/query"
-	"github.com/turanmahmudov/masume/internal/query/build"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/query"
+	"github.com/masumedb/masume/internal/query/build"
 )
 
 // A name is quoted with backticks, and a backtick inside a name is doubled, or the name

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // The settings of the client, as one list of rows per section. A row carries what it is now,

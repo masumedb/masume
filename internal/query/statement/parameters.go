@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/query"
-	"github.com/turanmahmudov/masume/internal/query/build"
-	"github.com/turanmahmudov/masume/internal/query/syntax"
+	"github.com/masumedb/masume/internal/query"
+	"github.com/masumedb/masume/internal/query/build"
+	"github.com/masumedb/masume/internal/query/syntax"
 )
 
 // parameterMark is a `:name` parameter, and its place in the statement.

@@ -3,13 +3,13 @@
 <h3 align="center">A keyboard-first terminal database client with AI chat and an MCP server</h3>
 
 <p align="center">
-  <a href="https://github.com/turanmahmudov/masume/actions/workflows/check.yml"><img src="https://github.com/turanmahmudov/masume/actions/workflows/check.yml/badge.svg" alt="check"></a>
+  <a href="https://github.com/masumedb/masume/actions/workflows/check.yml"><img src="https://github.com/masumedb/masume/actions/workflows/check.yml/badge.svg" alt="check"></a>
   <img src="https://img.shields.io/badge/go-1.27+-00ADD8.svg?logo=go&logoColor=white" alt="Go">
   <img src="https://img.shields.io/badge/license-Apache--2.0-green.svg" alt="License">
 </p>
 
 <p align="center">
-  <code>mise use -g github:turanmahmudov/masume@latest</code>
+  <code>mise use -g github:masumedb/masume@latest</code>
 </p>
 
 <p align="center">
@@ -108,12 +108,12 @@ Both interfaces share database tools, but their policies differ. See [AI data sh
 
 ## Install
 
-Each command below installs the latest tagged release. The packages and archives are on the [releases page](https://github.com/turanmahmudov/masume/releases/latest).
+Each command below installs the latest tagged release. The packages and archives are on the [releases page](https://github.com/masumedb/masume/releases/latest).
 
 ### Script
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/turanmahmudov/masume/master/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/masumedb/masume/master/install.sh | sh
 ```
 
 The script puts `masume` in `~/.local/bin`.
@@ -121,7 +121,7 @@ The script puts `masume` in `~/.local/bin`.
 ### mise
 
 ```sh
-mise use -g github:turanmahmudov/masume@latest
+mise use -g github:masumedb/masume@latest
 ```
 
 ### npm
@@ -159,7 +159,7 @@ Unpack the `tar.gz` for the platform, or the `zip` on Windows. Put `masume` on t
 ### Go
 
 ```sh
-go install github.com/turanmahmudov/masume@latest
+go install github.com/masumedb/masume@latest
 ```
 
 Go 1.27 or later builds it from the module proxy.
@@ -167,7 +167,7 @@ Go 1.27 or later builds it from the module proxy.
 ### From source
 
 ```sh
-git clone https://github.com/turanmahmudov/masume.git
+git clone https://github.com/masumedb/masume.git
 cd masume
 mise install
 mise run install

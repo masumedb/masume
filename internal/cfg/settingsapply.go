@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // One change of one row, applied to the settings and written to the config file. A change

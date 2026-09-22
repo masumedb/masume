@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/app"
+	"github.com/masumedb/masume/internal/app"
 )
 
 // A counter of a server counts up from the moment it started, so a rate is the difference

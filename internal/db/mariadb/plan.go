@@ -5,7 +5,7 @@ import (
 	"math"
 	"slices"
 
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // MariaDB returns a plan as JSON, not as lines. A block holds its own numbers, and the

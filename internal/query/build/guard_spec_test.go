@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/query/build"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/query/build"
 )
 
 func TestNeedsRowCountGuardOnlyWhereTheTableHasNoKey(t *testing.T) {

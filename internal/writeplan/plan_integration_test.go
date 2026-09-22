@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/db/dbtest"
-	"github.com/turanmahmudov/masume/internal/writeplan"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/db/dbtest"
+	"github.com/masumedb/masume/internal/writeplan"
 )
 
 const dropPlanSchema = `drop schema if exists masume_plan cascade;`

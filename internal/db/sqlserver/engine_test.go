@@ -3,8 +3,8 @@ package sqlserver
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/query"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/query"
 )
 
 // A name is quoted with brackets, and a bracket inside a name is doubled, or the name would

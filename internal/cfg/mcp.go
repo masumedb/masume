@@ -3,7 +3,7 @@ package cfg
 import (
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // McpConfig is the profile access and limit configuration under `[mcp]`.

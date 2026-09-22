@@ -1,8 +1,8 @@
 package mariadb
 
 import (
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/db/mysql"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/db/mysql"
 )
 
 // Flavour has neither the plan tree of MySQL nor `explain analyze`. It

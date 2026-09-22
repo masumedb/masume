@@ -1,8 +1,8 @@
 package ui
 
 import (
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/writeplan"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/writeplan"
 )
 
 type runBatch struct {

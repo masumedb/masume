@@ -14,8 +14,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/db/dbtest"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/db/dbtest"
 )
 
 const dropShop = `drop table if exists orders;`

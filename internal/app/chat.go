@@ -5,11 +5,11 @@ import (
 	"slices"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/hist"
-	"github.com/turanmahmudov/masume/internal/present"
-	"github.com/turanmahmudov/masume/internal/query"
-	"github.com/turanmahmudov/masume/internal/writeplan"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/hist"
+	"github.com/masumedb/masume/internal/present"
+	"github.com/masumedb/masume/internal/query"
+	"github.com/masumedb/masume/internal/writeplan"
 )
 
 // Connection chat state and stored conversations. The UI handles model requests and passes response events to this state.

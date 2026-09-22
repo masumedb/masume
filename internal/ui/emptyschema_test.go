@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // A database that holds no relation reaches the tree through the schema list of the catalog

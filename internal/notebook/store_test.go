@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/notebook"
+	"github.com/masumedb/masume/internal/notebook"
 )
 
 // The notebook file is written whole. A write that stops in the middle would otherwise

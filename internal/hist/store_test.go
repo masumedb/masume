@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // The client holds a nil store if the history file could not be opened. Every call must

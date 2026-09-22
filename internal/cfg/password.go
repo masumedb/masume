@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/secret"
+	"github.com/masumedb/masume/internal/secret"
 )
 
 // Password sources include memory, environment variables, commands, and the system keyring.

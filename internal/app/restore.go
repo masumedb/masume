@@ -4,11 +4,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/hist"
-	"github.com/turanmahmudov/masume/internal/notebook"
-	"github.com/turanmahmudov/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/hist"
+	"github.com/masumedb/masume/internal/notebook"
+	"github.com/masumedb/masume/internal/query/statement"
 )
 
 // Workspace persistence restores tab state. Table and object tabs load data on first display.

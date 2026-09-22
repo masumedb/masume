@@ -7,8 +7,8 @@ import (
 
 	mssql "github.com/microsoft/go-mssqldb"
 
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/query/syntax"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/query/syntax"
 )
 
 // analyzerErrorFloor is the first error number the statement analyzer writes about itself.

@@ -4,7 +4,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/query/syntax"
+	"github.com/masumedb/masume/internal/query/syntax"
 )
 
 // StatementRange is one statement of a buffer, and its place in it.

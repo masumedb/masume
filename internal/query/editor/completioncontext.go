@@ -3,7 +3,7 @@ package editor
 import (
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/query/syntax"
+	"github.com/masumedb/masume/internal/query/syntax"
 )
 
 // NamePosition is the kind of name that can follow a caret with no word under it.

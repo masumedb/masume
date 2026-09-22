@@ -6,10 +6,10 @@ import (
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
-	"github.com/turanmahmudov/masume/internal/query/editor"
-	"github.com/turanmahmudov/masume/internal/query/language"
-	"github.com/turanmahmudov/masume/internal/query/statement"
-	"github.com/turanmahmudov/masume/internal/query/syntax"
+	"github.com/masumedb/masume/internal/query/editor"
+	"github.com/masumedb/masume/internal/query/language"
+	"github.com/masumedb/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/query/syntax"
 )
 
 // MongoDB takes a call rather than SQL, and a call carries a document as its argument.

@@ -3,8 +3,8 @@ package app_test
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // An inserted row is a map, so a snapshot that shared it would let a later edit write into

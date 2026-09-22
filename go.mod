@@ -1,4 +1,4 @@
-module github.com/turanmahmudov/masume
+module github.com/masumedb/masume
 
 go 1.27
 

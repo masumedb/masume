@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/ai"
-	"github.com/turanmahmudov/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/ai"
+	"github.com/masumedb/masume/internal/cfg"
 )
 
 func TestFindAPIKeyPrefersTheWrittenKey(t *testing.T) {

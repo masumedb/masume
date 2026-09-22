@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // writeCertificateFiles writes a self-signed authority and a client keypair, and returns

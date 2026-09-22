@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/cfg"
 )
 
 func TestEnsureConfigFileWritesTheStarterWhereThereIsNone(t *testing.T) {

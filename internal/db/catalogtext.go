@@ -3,7 +3,7 @@ package db
 import (
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/query"
+	"github.com/masumedb/masume/internal/query"
 )
 
 // SplitCommaList reads a comma-separated catalog column back into its parts.

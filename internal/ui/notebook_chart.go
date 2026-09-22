@@ -4,9 +4,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/notebook"
-	"github.com/turanmahmudov/masume/internal/present"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/notebook"
+	"github.com/masumedb/masume/internal/present"
 )
 
 // A chart cell reads the result of another cell of the same notebook. It holds no rows of

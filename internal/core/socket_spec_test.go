@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // writeSocketFile writes a file where a server would open its socket. The path is read with

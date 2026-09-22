@@ -3,7 +3,7 @@ package db
 import (
 	"sync"
 
-	"github.com/turanmahmudov/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/query/statement"
 )
 
 // TransactionMark is a session transaction state with synchronized reads and writes.

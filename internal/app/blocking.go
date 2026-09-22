@@ -5,7 +5,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // Lock wait relationships displayed as a session tree.

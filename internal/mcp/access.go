@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/cfg"
 )
 
 // Refusal is an access error for a profile or statement.

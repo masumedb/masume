@@ -3,7 +3,7 @@ package result
 import (
 	"io"
 
-	"github.com/turanmahmudov/masume/internal/query"
+	"github.com/masumedb/masume/internal/query"
 )
 
 // Shared streaming result output for interactive and headless clients.

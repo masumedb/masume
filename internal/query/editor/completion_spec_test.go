@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/db/postgres"
-	"github.com/turanmahmudov/masume/internal/query/editor"
+	"github.com/masumedb/masume/internal/db/postgres"
+	"github.com/masumedb/masume/internal/query/editor"
 )
 
 // The list stands over the statement while the user types. It offers what the caret can

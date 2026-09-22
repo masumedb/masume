@@ -5,10 +5,10 @@ import (
 	"io"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/present"
-	"github.com/turanmahmudov/masume/internal/query"
-	"github.com/turanmahmudov/masume/internal/query/result"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/present"
+	"github.com/masumedb/masume/internal/query"
+	"github.com/masumedb/masume/internal/query/result"
 )
 
 // Result writers for streaming and buffered output formats.

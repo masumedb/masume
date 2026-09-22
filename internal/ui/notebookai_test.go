@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/hist"
-	"github.com/turanmahmudov/masume/internal/notebook"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/hist"
+	"github.com/masumedb/masume/internal/notebook"
 )
 
 // reply is what the model writes when it is asked for a notebook: prose between the

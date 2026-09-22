@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/query"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/query"
 )
 
 // nullListElement is the element of a list that holds no value, as every server writes it.

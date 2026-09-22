@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/detect"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/detect"
 )
 
 // inspectedContainers is the answer of `docker inspect`, cut down to the fields this client

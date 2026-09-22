@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // noEnvironment is the reader used by a test that must not see $DATABASE_URL of the machine

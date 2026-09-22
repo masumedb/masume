@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/load"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/load"
 )
 
 // The picker offers the files this client can read and no others, so a file it would refuse

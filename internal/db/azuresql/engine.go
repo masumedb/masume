@@ -1,8 +1,8 @@
 package azuresql
 
 import (
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/db/sqlserver"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db/sqlserver"
 )
 
 // Support is everything known about Azure SQL Database before a connection exists. It speaks

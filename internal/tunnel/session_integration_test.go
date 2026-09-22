@@ -13,10 +13,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/db/dbtest"
-	"github.com/turanmahmudov/masume/internal/db/engines"
-	"github.com/turanmahmudov/masume/internal/tunnel/tunneltest"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/db/dbtest"
+	"github.com/masumedb/masume/internal/db/engines"
+	"github.com/masumedb/masume/internal/tunnel/tunneltest"
 )
 
 // openTimeout is the time the connection through the tunnel has.

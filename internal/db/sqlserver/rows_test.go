@@ -3,9 +3,9 @@ package sqlserver
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/query"
-	"github.com/turanmahmudov/masume/internal/query/syntax"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/query"
+	"github.com/masumedb/masume/internal/query/syntax"
 )
 
 // An OUTPUT clause makes a write answer with rows, so that write is read and not counted.

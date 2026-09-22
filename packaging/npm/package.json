@@ -16,18 +16,18 @@
     "mongodb",
     "mcp"
   ],
-  "homepage": "https://github.com/turanmahmudov/masume",
-  "bugs": "https://github.com/turanmahmudov/masume/issues",
+  "homepage": "https://github.com/masumedb/masume",
+  "bugs": "https://github.com/masumedb/masume/issues",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/turanmahmudov/masume.git"
+    "url": "git+https://github.com/masumedb/masume.git"
   },
   "license": "Apache-2.0",
   "author": "Turan Mahmudov",
   "type": "commonjs",
   "goBinary": {
     "name": "masume",
-    "url": "https://github.com/turanmahmudov/masume/releases/download/v{{version}}/masume_{{version}}_{{platform}}_{{arch}}.{{ext}}"
+    "url": "https://github.com/masumedb/masume/releases/download/v{{version}}/masume_{{version}}_{{platform}}_{{arch}}.{{ext}}"
   },
   "bin": {
     "masume": "bin/masume.js"

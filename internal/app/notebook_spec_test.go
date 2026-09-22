@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/notebook"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/notebook"
 )
 
 // splitOnSemicolons stands in for the splitter of an engine.

@@ -3,9 +3,9 @@ package language_test
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/db/redis"
-	"github.com/turanmahmudov/masume/internal/query/language"
-	"github.com/turanmahmudov/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/db/redis"
+	"github.com/masumedb/masume/internal/query/language"
+	"github.com/masumedb/masume/internal/query/statement"
 )
 
 // Every statement of a buffer runs, so a buffer that opens with a read is as risky as

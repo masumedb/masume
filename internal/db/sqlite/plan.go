@@ -5,8 +5,8 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // sqlitePlanHeader is the header the command line writes over a plan of several steps.

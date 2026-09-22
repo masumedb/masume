@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/db/postgres"
-	"github.com/turanmahmudov/masume/internal/query"
-	"github.com/turanmahmudov/masume/internal/query/result"
+	"github.com/masumedb/masume/internal/db/postgres"
+	"github.com/masumedb/masume/internal/query"
+	"github.com/masumedb/masume/internal/query/result"
 )
 
 func TestBuildMarkdownWritesAHeaderARuleAndOneRowPerRow(t *testing.T) {

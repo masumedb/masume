@@ -3,7 +3,7 @@ package result
 import (
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/query"
+	"github.com/masumedb/masume/internal/query"
 )
 
 // A report is a Markdown document of several statements and their rows: the prose between

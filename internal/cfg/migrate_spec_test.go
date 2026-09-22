@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/cfg"
 )
 
 // buildOldConfigFile writes a config file of the kind a client with no version wrote.

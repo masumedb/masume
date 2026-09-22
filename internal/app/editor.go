@@ -5,9 +5,9 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/present"
-	"github.com/turanmahmudov/masume/internal/query/language"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/present"
+	"github.com/masumedb/masume/internal/query/language"
 )
 
 // EditorBuffer is the editable statement and caret state. Offsets count bytes.

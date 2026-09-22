@@ -2,9 +2,9 @@
 package language
 
 import (
-	"github.com/turanmahmudov/masume/internal/query/editor"
-	"github.com/turanmahmudov/masume/internal/query/statement"
-	"github.com/turanmahmudov/masume/internal/query/syntax"
+	"github.com/masumedb/masume/internal/query/editor"
+	"github.com/masumedb/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/query/syntax"
 )
 
 // Language is the interface for local statement processing.

@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/secret"
-	"github.com/turanmahmudov/masume/internal/tunnel"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/secret"
+	"github.com/masumedb/masume/internal/tunnel"
 )
 
 // AuthMode is the password source: memory, a command, a store, the system keyring, or a prompt.

@@ -3,7 +3,7 @@ package mysql
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/db"
 )
 
 func TestReadFirstCellReadsThePlanCell(t *testing.T) {

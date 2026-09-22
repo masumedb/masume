@@ -3,8 +3,8 @@ package mcp
 import (
 	"context"
 
-	"github.com/turanmahmudov/masume/internal/agent"
-	"github.com/turanmahmudov/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/agent"
+	"github.com/masumedb/masume/internal/cfg"
 )
 
 // A connection source gives one tool call the connection it runs on. The server serves the

@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // startRunOn puts a running statement on the tab of an engine with these capabilities.

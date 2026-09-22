@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // Time limits for statements started by a model.

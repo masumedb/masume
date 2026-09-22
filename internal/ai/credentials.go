@@ -1,6 +1,6 @@
 package ai
 
-import "github.com/turanmahmudov/masume/internal/cfg"
+import "github.com/masumedb/masume/internal/cfg"
 
 // Provider credential lookup and diagnostics.
 

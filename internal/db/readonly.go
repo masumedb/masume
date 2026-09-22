@@ -3,8 +3,8 @@ package db
 import (
 	"context"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/query/statement"
 )
 
 // Read-only checks reject writes before driver calls, including engines without server-side read-only sessions.

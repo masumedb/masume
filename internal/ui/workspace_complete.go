@@ -5,11 +5,11 @@ import (
 
 	"charm.land/lipgloss/v2"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/present"
-	"github.com/turanmahmudov/masume/internal/query/editor"
-	"github.com/turanmahmudov/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/present"
+	"github.com/masumedb/masume/internal/query/editor"
+	"github.com/masumedb/masume/internal/query/statement"
 )
 
 // buildCompletionColumns returns the columns of the relations that text reads, keyed in lower

@@ -3,10 +3,10 @@ package mcp
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/agent"
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/agent"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/query/statement"
 )
 
 // buildTestProfile returns one profile with that name and the settings of the test.

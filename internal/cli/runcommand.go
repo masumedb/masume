@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/db/engines"
-	"github.com/turanmahmudov/masume/internal/headless"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/db/engines"
+	"github.com/masumedb/masume/internal/headless"
 )
 
 // Parse masume run arguments. internal/headless runs the statements and returns an exit code.

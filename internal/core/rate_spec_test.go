@@ -3,7 +3,7 @@ package core_test
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // A rate is read beside other numbers on one line, so it is written short and its mark

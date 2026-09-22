@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/tunnel"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/tunnel"
 )
 
 // FormField is one field of the connection form.

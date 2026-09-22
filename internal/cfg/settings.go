@@ -3,7 +3,7 @@ package cfg
 import (
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // IconKind is the kind of one tree row. The config file uses these words.

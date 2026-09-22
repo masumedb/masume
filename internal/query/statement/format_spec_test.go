@@ -3,8 +3,8 @@ package statement_test
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/query/statement"
-	"github.com/turanmahmudov/masume/internal/query/syntax"
+	"github.com/masumedb/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/query/syntax"
 )
 
 func TestFormatStatementPutsEveryTopLevelClauseOnItsOwnLine(t *testing.T) {

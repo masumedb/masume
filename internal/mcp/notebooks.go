@@ -4,10 +4,10 @@ import (
 	"context"
 	"slices"
 
-	"github.com/turanmahmudov/masume/internal/agent"
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/notebook"
-	"github.com/turanmahmudov/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/agent"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/notebook"
+	"github.com/masumedb/masume/internal/query/statement"
 )
 
 // The notebook tools read files and send no statement. An agent that wants to run a cell

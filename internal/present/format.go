@@ -12,7 +12,7 @@ import (
 
 	"github.com/mattn/go-runewidth"
 
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // NullDisplay is the grid form of a null, because the text "NULL" can be a stored value.

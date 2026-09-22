@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/present"
-	"github.com/turanmahmudov/masume/internal/query/editor"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/present"
+	"github.com/masumedb/masume/internal/query/editor"
 )
 
 // buildScannedModel answers a model whose editor holds a statement over a catalog that was

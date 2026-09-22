@@ -4,7 +4,7 @@ import (
 	"context"
 	"strconv"
 
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // Chat execution sends tool results to the model until the model stops requesting tools or reaches the step limit.

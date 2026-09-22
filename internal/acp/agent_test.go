@@ -10,8 +10,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/ai"
-	"github.com/turanmahmudov/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/ai"
+	"github.com/masumedb/masume/internal/cfg"
 )
 
 // The tests drive the real client against a fake agent, which is this test binary run again

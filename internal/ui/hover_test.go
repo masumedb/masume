@@ -9,8 +9,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/turanmahmudov/masume/internal/app"
-	"github.com/turanmahmudov/masume/internal/core"
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/core"
 )
 
 // movePointer sends one move with no button down, as the terminal reports one for every cell

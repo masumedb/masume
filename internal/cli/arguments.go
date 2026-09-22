@@ -4,9 +4,9 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/detect"
-	"github.com/turanmahmudov/masume/internal/notebook"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/detect"
+	"github.com/masumedb/masume/internal/notebook"
 )
 
 // Startup arguments select a connection target or a configured profile.

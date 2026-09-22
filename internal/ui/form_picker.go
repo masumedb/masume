@@ -7,9 +7,9 @@ import (
 	"charm.land/bubbles/v2/filepicker"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/present"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/present"
 )
 
 // The connection form picks a certificate file with the picker the import card uses.

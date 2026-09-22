@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/present"
-	"github.com/turanmahmudov/masume/internal/query/editor"
+	"github.com/masumedb/masume/internal/present"
+	"github.com/masumedb/masume/internal/query/editor"
 )
 
 func TestFormatResultSizeNeverClaimsMoreThanTheClientKnows(t *testing.T) {

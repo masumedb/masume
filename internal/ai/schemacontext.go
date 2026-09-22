@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // maxOtherSchemasNamed is the maximum number of other schemas or databases in the summary.

@@ -6,9 +6,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/db/engines"
-	"github.com/turanmahmudov/masume/internal/hist"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/db/engines"
+	"github.com/masumedb/masume/internal/hist"
 )
 
 // buildFrameModel opens the config the environment names and reads the first relation, so the

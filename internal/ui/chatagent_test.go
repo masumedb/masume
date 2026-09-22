@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/mcp"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/mcp"
 )
 
 // buildAgentSettings returns one agent, as a config file with `[ai.agents]` has.

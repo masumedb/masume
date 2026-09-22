@@ -3,7 +3,7 @@ package sqlserver
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // buildPlanResult returns the plan the server writes, in the columns it names.

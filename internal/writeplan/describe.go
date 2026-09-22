@@ -3,9 +3,9 @@ package writeplan
 import (
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/present"
-	"github.com/turanmahmudov/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/present"
+	"github.com/masumedb/masume/internal/query/statement"
 )
 
 // Plain text write plans for chat and agent confirmations.

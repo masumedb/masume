@@ -3,7 +3,7 @@ package clickhouse
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // A command that answers with rows is read; every other command is run.

@@ -7,9 +7,9 @@ import (
 
 	mssql "github.com/microsoft/go-mssqldb"
 
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/query"
-	"github.com/turanmahmudov/masume/internal/query/syntax"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/query"
+	"github.com/masumedb/masume/internal/query/syntax"
 )
 
 // relationKindByObjectType reads the one-letter type `sys.objects` stores.

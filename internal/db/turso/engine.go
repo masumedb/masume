@@ -8,9 +8,9 @@ import (
 
 	_ "github.com/tursodatabase/libsql-client-go/libsql"
 
-	"github.com/turanmahmudov/masume/internal/cfg"
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/db/sqlite"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db/sqlite"
 )
 
 // Support is everything known about Turso before a connection exists. It speaks the libSQL

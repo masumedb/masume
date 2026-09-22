@@ -1,7 +1,7 @@
 package planetscale
 
 import (
-	"github.com/turanmahmudov/masume/internal/db/mysql"
+	"github.com/masumedb/masume/internal/db/mysql"
 )
 
 // Flavour stops no session for a client. The platform does that in its

@@ -3,7 +3,7 @@ package syntax_test
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/query/syntax"
+	"github.com/masumedb/masume/internal/query/syntax"
 )
 
 func TestReadCommandWordReadsTheOpeningWord(t *testing.T) {

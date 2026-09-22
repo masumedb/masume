@@ -5,14 +5,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/db/clickhouse"
-	"github.com/turanmahmudov/masume/internal/db/mysql"
-	"github.com/turanmahmudov/masume/internal/db/postgres"
-	"github.com/turanmahmudov/masume/internal/db/sqlite"
-	"github.com/turanmahmudov/masume/internal/db/sqlserver"
-	"github.com/turanmahmudov/masume/internal/query"
-	"github.com/turanmahmudov/masume/internal/query/build"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db/clickhouse"
+	"github.com/masumedb/masume/internal/db/mysql"
+	"github.com/masumedb/masume/internal/db/postgres"
+	"github.com/masumedb/masume/internal/db/sqlite"
+	"github.com/masumedb/masume/internal/db/sqlserver"
+	"github.com/masumedb/masume/internal/query"
+	"github.com/masumedb/masume/internal/query/build"
 )
 
 // buildOrdersTarget answers a write against a small relation with one key column.

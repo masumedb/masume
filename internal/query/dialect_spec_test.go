@@ -4,11 +4,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/db/mysql"
-	"github.com/turanmahmudov/masume/internal/db/postgres"
-	"github.com/turanmahmudov/masume/internal/db/redis"
-	"github.com/turanmahmudov/masume/internal/db/sqlite"
-	"github.com/turanmahmudov/masume/internal/query"
+	"github.com/masumedb/masume/internal/db/mysql"
+	"github.com/masumedb/masume/internal/db/postgres"
+	"github.com/masumedb/masume/internal/db/redis"
+	"github.com/masumedb/masume/internal/db/sqlite"
+	"github.com/masumedb/masume/internal/query"
 )
 
 // A placeholder is numbered where the server numbers them, and counted where it counts them.

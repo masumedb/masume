@@ -8,11 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/core"
-	"github.com/turanmahmudov/masume/internal/db/postgres"
-	"github.com/turanmahmudov/masume/internal/db/sqlite"
-	"github.com/turanmahmudov/masume/internal/load"
-	"github.com/turanmahmudov/masume/internal/query"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db/postgres"
+	"github.com/masumedb/masume/internal/db/sqlite"
+	"github.com/masumedb/masume/internal/load"
+	"github.com/masumedb/masume/internal/query"
 )
 
 // writeFile writes one file for a test to read, and returns its path.

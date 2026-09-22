@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // TiDB returns a plan as one row per operator, not one cell. The tree is drawn in the

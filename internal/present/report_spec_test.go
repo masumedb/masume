@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/present"
+	"github.com/masumedb/masume/internal/present"
 )
 
 func TestFormatWhenShowsTheDateOnlyForAnotherDay(t *testing.T) {

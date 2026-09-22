@@ -6,7 +6,7 @@ import (
 
 	driver "github.com/ClickHouse/clickhouse-go/v2"
 
-	"github.com/turanmahmudov/masume/internal/db"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // buildServerError returns the error of the server, as the driver hands it over.

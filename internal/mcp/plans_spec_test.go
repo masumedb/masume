@@ -3,7 +3,7 @@ package mcp_test
 import (
 	"testing"
 
-	"github.com/turanmahmudov/masume/internal/mcp"
+	"github.com/masumedb/masume/internal/mcp"
 )
 
 func TestATokenRunsTheWriteItWasIssuedFor(t *testing.T) {

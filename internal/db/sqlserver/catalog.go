@@ -4,8 +4,8 @@ import (
 	"context"
 	"strings"
 
-	"github.com/turanmahmudov/masume/internal/db"
-	"github.com/turanmahmudov/masume/internal/query"
+	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/query"
 )
 
 // ListSchemas returns the schemas of the connected database, including one that holds

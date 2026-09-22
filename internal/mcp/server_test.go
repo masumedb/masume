@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/turanmahmudov/masume/internal/agent"
+	"github.com/masumedb/masume/internal/agent"
 )
 
 // buildTestResponder returns a responder with one tool, and its log lines.
