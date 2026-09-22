@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/masumedb/masume/internal/cfg"
 	"github.com/masumedb/masume/internal/core"
@@ -147,6 +148,7 @@ func (session *postgresSession) readResultColumns(
 	for _, field := range fields {
 		columns = append(columns, db.ResultColumn{
 			Name: field.Name, DataType: session.readTypeName(field.DataTypeOID),
+			Zoned: field.DataTypeOID == pgtype.TimestamptzOID,
 		})
 	}
 	return columns
@@ -188,6 +190,7 @@ func (session *postgresSession) runOn(
 	if rows.Err() != nil {
 		return db.QueryResult{}, rows.Err()
 	}
+	placeInSessionZone(connection, columns, read)
 
 	tag := rows.CommandTag()
 	command := readCommandName(tag.String())
@@ -237,6 +240,7 @@ func (session *postgresSession) runBatch(
 	if !answered {
 		return db.QueryResult{Elapsed: time.Since(startedAt)}, nil
 	}
+	placeInSessionZone(connection, columns, read)
 
 	command := readCommandName(tag.String())
 	result := db.BuildCappedResult(db.CappedRead{

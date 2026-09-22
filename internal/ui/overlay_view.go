@@ -1097,7 +1097,8 @@ func (model *Model) renderDiagram(overlay app.Overlay, width int) string {
 func (model *Model) renderCellViewer(overlay app.Overlay, width int) string {
 	theme := model.styles.Theme
 	room := max(width-present.CardChrome, 1)
-	written := present.FormatForViewer(overlay.Cell.Value, overlay.Cell.Column.DataType)
+	written := present.FormatColumnForViewer(overlay.Cell.Value, overlay.Cell.Column,
+		model.settings.TimeZone.ResolveLocation())
 	held := []string{}
 	for line := range strings.SplitSeq(present.SafeLines(written), "\n") {
 		held = append(held, model.wrapText(line, room)...)
@@ -1201,7 +1202,8 @@ func (model *Model) renderRowDetail(overlay app.Overlay, width int) string {
 		if at < len(row) {
 			value = row[at]
 		}
-		written := present.SafeLines(present.FormatForViewer(value, column.DataType))
+		written := present.SafeLines(present.FormatColumnForViewer(value, column,
+			model.settings.TimeZone.ResolveLocation()))
 		ink := theme.Text
 		if value == nil {
 			ink = theme.Muted

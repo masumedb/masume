@@ -39,7 +39,7 @@ func ApplySetting(
 		return applyAddedAgent(sources)
 	case ItemRemoveAgent:
 		return applyRemovedAgent(sources, readPage(path, 1))
-	case ItemTheme, ItemIcons, ItemKeyHints, ItemHideSystem:
+	case ItemTheme, ItemIcons, ItemKeyHints, ItemTimeZone, ItemHideSystem:
 		return applyAppearanceSetting(sources, key, value)
 	case ItemKeyPreset:
 		sources.Keys.Preset = findChoice(PresetIDs, value, PresetDefault)
@@ -306,7 +306,8 @@ func describeChordValue(sequences []ChordSequence) any {
 	return written
 }
 
-// applyAppearanceSetting reads the theme, the icons, the key hints or the system schemas.
+// applyAppearanceSetting reads the theme, the icons, the key hints, the time zone or the system
+// schemas.
 func applyAppearanceSetting(
 	sources SettingsSources, key, value string,
 ) (SettingsSources, []TableUpdate, error) {
@@ -318,6 +319,8 @@ func applyAppearanceSetting(
 		settings.IconSet = findChoice(IconSetNames, value, IconsPlain)
 	case ItemKeyHints:
 		settings.KeyHints = findChoice(KeyHintsModes, value, KeyHintsFull)
+	case ItemTimeZone:
+		settings.TimeZone = findChoice(TimeZoneModes, value, TimeZoneServer)
 	case ItemHideSystem:
 		settings.HideSystemSchemas = value == toggleOn
 	}
@@ -325,10 +328,11 @@ func applyAppearanceSetting(
 
 	return sources, []TableUpdate{{
 		Header: []string{"ui"},
-		Order:  []string{"theme", "icons", "key_hints", "hide_system_schemas"},
+		Order:  []string{"theme", "icons", "key_hints", "timezone", "hide_system_schemas"},
 		Values: map[string]any{
 			"theme": settings.Theme, "icons": string(settings.IconSet),
 			"key_hints":           string(settings.KeyHints),
+			"timezone":            string(settings.TimeZone),
 			"hide_system_schemas": settings.HideSystemSchemas,
 		},
 	}}, nil

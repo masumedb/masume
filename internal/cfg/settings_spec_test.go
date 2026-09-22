@@ -76,6 +76,7 @@ theme = "gruvbox-dark"
 icons = "ascii"
 hide_system_schemas = true
 key_hints = "main"
+timezone = "local"
 `)
 
 	if held.Theme != "gruvbox-dark" {
@@ -89,6 +90,23 @@ key_hints = "main"
 	}
 	if held.KeyHints != cfg.KeyHintsMain {
 		t.Errorf("the key hints read %q, wanted the main mode", held.KeyHints)
+	}
+	if held.TimeZone != cfg.TimeZoneLocal {
+		t.Errorf("the time zone reads %q, wanted local", held.TimeZone)
+	}
+}
+
+func TestParseUiSettingsReportsAnUnknownTimeZone(t *testing.T) {
+	held := readSettings(t, `
+[ui]
+timezone = "Mars/Olympus"
+`)
+
+	if held.TimeZone != cfg.TimeZoneServer {
+		t.Errorf("an unknown zone left the time zone at %q, wanted server", held.TimeZone)
+	}
+	if len(held.Problems) != 1 {
+		t.Fatalf("an unknown zone reported %v", held.Problems)
 	}
 }
 

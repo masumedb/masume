@@ -105,6 +105,7 @@ icons               = "plain"
 theme               = "ayu-dark"
 hide_system_schemas = true
 key_hints           = "full"
+timezone            = "server"
 
 [keys]
 preset = "default"
@@ -196,6 +197,7 @@ paths = []
 # theme               = "ayu-dark" # system, a built-in theme, or a custom theme from the themes directory.
 # hide_system_schemas = true      # false lists pg_catalog and other system schemas in the tree
 # key_hints           = "full"    # full main off. main names the primary keys only, off names none
+# timezone            = "server"  # server utc local. the zone of a timestamp with a time zone in the grid
 
 # Example glyph overrides by row kind. An empty string hides that glyph.
 # These examples are Nerd Font glyphs. A terminal without that font draws empty boxes.

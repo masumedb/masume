@@ -11,7 +11,7 @@ import (
 func TestFormatRowCapsALongBinaryValue(t *testing.T) {
 	value := bytes.Repeat([]byte{0xab}, 5<<20)
 
-	written := present.FormatRow([]any{value}, []string{"bytea"}, nil)
+	written := present.FormatRow([]any{value}, present.RowFormat{DataTypes: []string{"bytea"}})
 
 	wanted := `\x` + string(bytes.Repeat([]byte("ab"), 32)) + "… (5MB)"
 	if written[0] != wanted {
@@ -23,7 +23,7 @@ func TestFormatRowCapsALongBinaryValue(t *testing.T) {
 func TestFormatRowKeepsAShortBinaryValue(t *testing.T) {
 	value := bytes.Repeat([]byte{0x01}, 32)
 
-	written := present.FormatRow([]any{value}, []string{"bytea"}, nil)
+	written := present.FormatRow([]any{value}, present.RowFormat{DataTypes: []string{"bytea"}})
 
 	wanted := `\x` + string(bytes.Repeat([]byte("01"), 32))
 	if written[0] != wanted {

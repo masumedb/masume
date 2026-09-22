@@ -75,6 +75,19 @@ func TestBuildDocumentColumnsNamesTheTypeOfEachField(t *testing.T) {
 	}
 }
 
+// A date field is zoned, and a field of another type is not.
+func TestBuildDocumentColumnsMarksADateFieldZoned(t *testing.T) {
+	documents := []bson.D{
+		{{Key: "placed", Value: bson.NewDateTimeFromTime(time.Now())}, {Key: "note", Value: "late"}},
+	}
+
+	for _, column := range BuildDocumentColumns(documents) {
+		if column.Zoned != (column.Name == "placed") {
+			t.Errorf("the %s field reads zoned %v", column.Name, column.Zoned)
+		}
+	}
+}
+
 // A cell draws one line, so an identity is written as the text another client would print.
 // A document is answered whole, with the text it holds and how much it holds, because the
 // grid draws the shape of it and the tree opens the text.

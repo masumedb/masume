@@ -119,6 +119,7 @@ const (
 	ItemTheme        = "theme"
 	ItemIcons        = "icons"
 	ItemKeyHints     = "keyHints"
+	ItemTimeZone     = "timeZone"
 	ItemHideSystem   = "hideSystemSchemas"
 	ItemKeyPreset    = "keyPreset"
 	ItemMcpAccess    = "mcp.access"
@@ -431,7 +432,7 @@ func DescribeScopeFocus(scope KeyScope) string {
 	return "the card, the connection picker or the form on show"
 }
 
-// buildAppearanceItems returns the theme, the icons and the key hints.
+// buildAppearanceItems returns the theme, the icons, the key hints and the time zone.
 func buildAppearanceItems(sources SettingsSources) []SettingItem {
 	settings := sources.UI
 	theme := settings.Theme
@@ -450,6 +451,11 @@ func buildAppearanceItems(sources SettingsSources) []SettingItem {
 			Value: string(findChoice(
 				KeyHintsModes, string(settings.KeyHints), KeyHintsFull)),
 			Choices: listModeNames(KeyHintsModes)},
+		{Key: ItemTimeZone, Label: "time zone", Kind: SettingChoice,
+			Detail: "zone of timestamps with a time zone",
+			Value: string(findChoice(
+				TimeZoneModes, string(settings.TimeZone), TimeZoneServer)),
+			Choices: listModeNames(TimeZoneModes)},
 		{Key: ItemHideSystem, Label: "hide system schemas", Kind: SettingToggle,
 			Value: describeToggle(settings.HideSystemSchemas)},
 	}

@@ -13,8 +13,9 @@ import (
 func readColumns(held []gocql.ColumnInfo) []db.ResultColumn {
 	columns := make([]db.ResultColumn, 0, len(held))
 	for _, column := range held {
+		dataType := readTypeName(column.TypeInfo)
 		columns = append(columns, db.ResultColumn{
-			Name: column.Name, DataType: readTypeName(column.TypeInfo),
+			Name: column.Name, DataType: dataType, Zoned: dataType == "timestamp",
 		})
 	}
 	return columns

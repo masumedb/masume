@@ -62,6 +62,7 @@ theme               = "ayu-dark"   # a built-in theme, a theme in the adjacent t
 icons               = "plain"      # plain ascii nerd. nerd needs a Nerd Font in the terminal
 hide_system_schemas = true         # false lists pg_catalog and the rest in the tree
 key_hints           = "full"       # full main off. main names the primary keys only, off names none
+timezone            = "server"     # server utc local. the zone of a timestamp with a time zone in the grid
 
 # Glyphs overlay the selected set. An empty string hides that kind.
 # These examples are Nerd Font glyphs. A terminal without that font draws empty boxes.

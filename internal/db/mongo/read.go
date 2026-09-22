@@ -178,7 +178,9 @@ func BuildDocumentColumns(documents []bson.D) []db.ResultColumn {
 	names, types := collectDocumentFields(documents)
 	columns := make([]db.ResultColumn, 0, len(names))
 	for _, name := range names {
-		columns = append(columns, db.ResultColumn{Name: name, DataType: types[name]})
+		columns = append(columns, db.ResultColumn{
+			Name: name, DataType: types[name], Zoned: types[name] == TypeDate,
+		})
 	}
 	return columns
 }
@@ -219,8 +221,9 @@ func BuildDocumentResult(
 // of a command.
 func BuildValueResult(name string, value any, elapsed time.Duration, command string) db.QueryResult {
 	held := FormatValue(value)
+	dataType := ReadValueType(value)
 	return db.QueryResult{
-		Columns: []db.ResultColumn{{Name: name, DataType: ReadValueType(value)}},
+		Columns: []db.ResultColumn{{Name: name, DataType: dataType, Zoned: dataType == TypeDate}},
 		Rows:    [][]any{{held}}, Elapsed: elapsed, Command: command,
 	}
 }

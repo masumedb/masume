@@ -131,7 +131,9 @@ func buildSqlserverColumns(rows *sql.Rows) ([]db.ResultColumn, rowReader, error)
 			// The server names no column of a computed expression.
 			name = "column" + strconv.Itoa(at+1)
 		}
-		columns = append(columns, db.ResultColumn{Name: name, DataType: dataType})
+		columns = append(columns, db.ResultColumn{
+			Name: name, DataType: dataType, Zoned: dataType == "datetimeoffset",
+		})
 		guid := dataType == "uniqueidentifier"
 		reader.guid = append(reader.guid, guid)
 		reader.binary = append(reader.binary, guid || db.IsBinaryColumnType(dataType))

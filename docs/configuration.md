@@ -443,6 +443,7 @@ icons               = "plain"
 theme               = "tokyonight"
 hide_system_schemas = true
 key_hints           = "full"
+timezone            = "server"
 ```
 
 | Key | Type | Default | Meaning |
@@ -451,6 +452,20 @@ key_hints           = "full"
 | `theme` | string | `ayu-dark` | A built-in theme name, a file name in `themes/` without `.toml`, or `system` for the colours of the terminal. See [themes.md](themes.md) |
 | `hide_system_schemas` | boolean | `true` | `false` displays system schemas, including `pg_catalog` and `information_schema`. `h` in the tree toggles visibility for the session |
 | `key_hints` | `full`, `main` or `off` | `full` | How many key hints the status bar, the title bar, the tab row, the pane strips and the pane borders draw. An unknown mode produces a report and uses `full`. See [Key hint modes](#key-hint-modes) |
+| `timezone` | `server`, `utc` or `local` | `server` | The zone of a timestamp with a time zone in the grid. `server` is the zone the server returns. `local` is the zone of this computer. An unknown zone produces a report and uses `server`. See [Time zones](#time-zones) |
+
+### Time zones
+
+`timezone` applies to PostgreSQL `timestamptz`, SQL Server `datetimeoffset`, ClickHouse `DateTime`, Cassandra `timestamp`, and MongoDB dates. The grid shows these values in the selected zone with the offset, as in `2026-09-23 14:30:00.000 +02:00`. A timestamp without a time zone shows its stored value with no offset. MySQL returns timestamps as text in the session time zone, so `timezone` does not change them.
+
+| Engine | Zone in `server` mode |
+| --- | --- |
+| PostgreSQL | The session `TimeZone`, also after `SET TIME ZONE` |
+| SQL Server | The offset stored in the `datetimeoffset` value |
+| ClickHouse | The time zone of the column, or of the server |
+| Cassandra, MongoDB | UTC |
+
+Cell viewers and row viewers show the same text as the grid. Copies, exports, and filters use UTC.
 
 ### Icons
 

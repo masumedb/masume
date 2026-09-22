@@ -45,7 +45,10 @@ func (model *Model) buildGridShape(connection *app.Connection, tab *app.Tab) Gri
 
 	key := model.buildTabKey(connection, tab)
 	head := model.resolveGridHead(key, connection, tab, active)
-	formatted := model.resolveGridText(key, tab, active, head.dataTypes, head.masked)
+	formatted := model.resolveGridText(key, tab, active, present.RowFormat{
+		DataTypes: head.dataTypes, Masked: head.masked, Zoned: head.zoned,
+		Zone: model.settings.TimeZone.ResolveLocation(),
+	})
 	text, indexes, widths := model.resolveGridShape(
 		key, tab, formatted, answered.Rows, head.labels)
 
@@ -115,6 +118,7 @@ type gridHead struct {
 	dataTypes []string
 	labels    []string
 	masked    map[int]bool
+	zoned     map[int]bool
 }
 
 // resolveGridHead returns the head of the result on screen, reading it only where the one it
@@ -138,8 +142,12 @@ func (model *Model) resolveGridHead(
 		names:     make([]string, 0, len(result.Columns)),
 		dataTypes: make([]string, 0, len(result.Columns)),
 		labels:    make([]string, 0, len(result.Columns)),
+		zoned:     map[int]bool{},
 	}
-	for _, column := range result.Columns {
+	for at, column := range result.Columns {
+		if column.Zoned {
+			built.zoned[at] = true
+		}
 		built.names = append(built.names, column.Name)
 		built.dataTypes = append(built.dataTypes, column.DataType)
 		built.labels = append(built.labels,
@@ -241,6 +249,7 @@ type gridText struct {
 	// True while the values of a column whose name suggests a secret are shown, because
 	// that decides what a masked cell says.
 	unmasked bool
+	timeZone cfg.TimeZoneMode
 	rows     [][]string
 	// How many rows of the result the text was written from. A page added to the end
 	// leaves the rows before it as they were, so only the new ones are written again.
@@ -265,27 +274,28 @@ type gridText struct {
 // resolveGridText returns the rows as text, writing them only where the ones it kept belong
 // to another result, another page of it, or another masking.
 func (model *Model) resolveGridText(
-	key tabKey, tab *app.Tab, active *app.StatementResult,
-	dataTypes []string, masked map[int]bool,
+	key tabKey, tab *app.Tab, active *app.StatementResult, format present.RowFormat,
 ) [][]string {
 	rows := active.State.Result.Rows
 	held, found := model.caches.readText(key)
 	if found && held.result == active.ID && held.revision == active.Revision &&
-		held.unmasked == tab.Unmasked && held.sourceRows <= len(rows) {
+		held.unmasked == tab.Unmasked && held.timeZone == model.settings.TimeZone &&
+		held.sourceRows <= len(rows) {
 		if held.sourceRows == len(rows) {
 			return held.rows
 		}
 		// The rows up to the ones it wrote did not change, so the page on the end is
 		// written on its own and the shape it built is kept for the same reason.
-		held.rows = append(held.rows, present.FormatRows(rows[held.sourceRows:], dataTypes, masked)...)
+		held.rows = append(held.rows, present.FormatRows(rows[held.sourceRows:], format)...)
 		held.sourceRows = len(rows)
 		model.caches.keepText(key, held)
 		return held.rows
 	}
-	written := present.FormatRows(rows, dataTypes, masked)
+	written := present.FormatRows(rows, format)
 	model.caches.keepText(key, gridText{
 		result: active.ID, revision: active.Revision, unmasked: tab.Unmasked,
-		rows: written, sourceRows: len(rows),
+		timeZone: model.settings.TimeZone,
+		rows:     written, sourceRows: len(rows),
 	})
 	return written
 }
@@ -917,11 +927,18 @@ func (model *Model) askValueFilter(
 	// The counts are of the rows already read, before this filter hides any of them.
 	names := make([]string, 0, len(shape.Columns))
 	dataTypes := make([]string, 0, len(shape.Columns))
-	for _, column := range shape.Columns {
+	zoned := map[int]bool{}
+	for at, column := range shape.Columns {
 		names = append(names, column.Name)
 		dataTypes = append(dataTypes, column.DataType)
+		if column.Zoned {
+			zoned[at] = true
+		}
 	}
-	everyRow := present.FormatRows(shape.Rows, dataTypes, shape.Masked)
+	everyRow := present.FormatRows(shape.Rows, present.RowFormat{
+		DataTypes: dataTypes, Masked: shape.Masked, Zoned: zoned,
+		Zone: model.settings.TimeZone.ResolveLocation(),
+	})
 	values := present.CountColumnValues(everyRow, tab.GridColumn)
 
 	kept := map[string]bool{}

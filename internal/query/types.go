@@ -8,6 +8,8 @@ import "strings"
 type ResultColumn struct {
 	Name     string
 	DataType string
+	// Zoned marks a column of moments, such as timestamptz.
+	Zoned bool
 }
 
 // BoundStatement is a statement with the values it binds.

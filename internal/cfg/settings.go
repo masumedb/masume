@@ -2,6 +2,7 @@ package cfg
 
 import (
 	"strings"
+	"time"
 
 	"github.com/masumedb/masume/internal/core"
 )
@@ -129,6 +130,47 @@ func FindKeyHintsMode(written string) (KeyHintsMode, bool) {
 	return core.FindAllowed(KeyHintsModes, written)
 }
 
+// TimeZoneMode is the zone the grid shows a moment in. The config file uses these words.
+type TimeZoneMode string
+
+// The zones a config file can set.
+const (
+	// TimeZoneServer shows a moment in the zone the server returns.
+	TimeZoneServer TimeZoneMode = "server"
+	// TimeZoneUTC shows a moment in UTC.
+	TimeZoneUTC TimeZoneMode = "utc"
+	// TimeZoneLocal shows a moment in the zone of this computer.
+	TimeZoneLocal TimeZoneMode = "local"
+)
+
+// TimeZoneModes lists the zones a config file can use.
+var TimeZoneModes = []TimeZoneMode{TimeZoneServer, TimeZoneUTC, TimeZoneLocal}
+
+// DescribeTimeZoneModes returns the supported zones.
+func DescribeTimeZoneModes() string {
+	written := make([]string, 0, len(TimeZoneModes))
+	for _, mode := range TimeZoneModes {
+		written = append(written, string(mode))
+	}
+	return "The zones are " + strings.Join(written, ", ") + "."
+}
+
+// FindTimeZoneMode parses the text as a zone name.
+func FindTimeZoneMode(written string) (TimeZoneMode, bool) {
+	return core.FindAllowed(TimeZoneModes, written)
+}
+
+// ResolveLocation returns the location of the zone, or nil for the zone the server returns.
+func (mode TimeZoneMode) ResolveLocation() *time.Location {
+	switch mode {
+	case TimeZoneUTC:
+		return time.UTC
+	case TimeZoneLocal:
+		return time.Local
+	}
+	return nil
+}
+
 // UISettings is the app configuration under `[ui]`.
 type UISettings struct {
 	IconSet IconSetName
@@ -137,6 +179,7 @@ type UISettings struct {
 	HideSystemSchemas bool
 	// The key hints mode of the bars, the strips, the borders and the cards.
 	KeyHints KeyHintsMode
+	TimeZone TimeZoneMode
 	// The name of the colour theme, or empty for the default theme.
 	Theme string
 	// Colours set here and not in a theme file. They are applied over the selected theme.
@@ -154,6 +197,7 @@ func DefaultUISettings() UISettings {
 		IconGlyphs:        map[IconKind]string{},
 		HideSystemSchemas: true,
 		KeyHints:          KeyHintsFull,
+		TimeZone:          TimeZoneServer,
 		Colors:            NewThemeTables(),
 	}
 }
@@ -203,6 +247,15 @@ func ParseUISettings(document Table) UISettings {
 			settings.Problems = append(settings.Problems,
 				"key_hints: unsupported mode \""+written+"\". Using "+
 					string(settings.KeyHints)+". "+DescribeKeyHintsModes())
+		}
+	}
+	if written, named := FindString(ui, "timezone"); named {
+		if mode, known := FindTimeZoneMode(written); known {
+			settings.TimeZone = mode
+		} else {
+			settings.Problems = append(settings.Problems,
+				"timezone: unsupported zone \""+written+"\". Using "+
+					string(settings.TimeZone)+". "+DescribeTimeZoneModes())
 		}
 	}
 	settings.Theme, _ = FindString(ui, "theme")

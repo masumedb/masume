@@ -14,6 +14,7 @@ import (
 	"github.com/mattn/go-runewidth"
 
 	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // NullDisplay is the grid form of a null, because the text "NULL" can be a stored value.
@@ -204,9 +205,23 @@ func FitText(text string, width int) string {
 	return PadText(TruncateText(text, width), width)
 }
 
+// RowFormat is the column information the grid writes a row with.
+type RowFormat struct {
+	DataTypes []string
+	Masked    map[int]bool
+	// Zoned marks the columns of moments, which are written in Zone with the offset. A nil
+	// Zone keeps the zone of each value.
+	Zoned map[int]bool
+	Zone  *time.Location
+}
+
+// zonedTimeLayout is the layout of a moment in a zoned column.
+const zonedTimeLayout = "2006-01-02 15:04:05.000 -07:00"
+
 // FormatRow returns one row as cell text, which the grid draws, searches and measures. A
 // masked column is hidden on screen only. A copy or an export keeps the value.
-func FormatRow(row []any, dataTypes []string, masked map[int]bool) []string {
+func FormatRow(row []any, format RowFormat) []string {
+	dataTypes, masked := format.DataTypes, format.Masked
 	written := make([]string, 0, len(row))
 	for index, cell := range row {
 		if masked[index] {
@@ -225,6 +240,10 @@ func FormatRow(row []any, dataTypes []string, masked map[int]bool) []string {
 		// characters of the text show only the name of the first field.
 		if held, isDocument := cell.(core.DocumentValue); isDocument {
 			written = append(written, held.DescribeShape())
+			continue
+		}
+		if held, isTime := cell.(time.Time); isTime && format.Zoned[index] {
+			written = append(written, formatZonedMoment(held, format.Zone))
 			continue
 		}
 		if held, isBinary := cell.([]byte); isBinary && len(held) > binaryPreviewBytes {
@@ -246,10 +265,10 @@ func formatBinaryPreview(value []byte) string {
 }
 
 // FormatRows returns every row as cell text.
-func FormatRows(rows [][]any, dataTypes []string, masked map[int]bool) [][]string {
+func FormatRows(rows [][]any, format RowFormat) [][]string {
 	written := make([][]string, 0, len(rows))
 	for _, row := range rows {
-		written = append(written, FormatRow(row, dataTypes, masked))
+		written = append(written, FormatRow(row, format))
 	}
 	return written
 }
@@ -386,6 +405,24 @@ func CompactJSON(text string) (string, bool) {
 		return "", false
 	}
 	return value.Write(), true
+}
+
+// formatZonedMoment returns a moment in the zone, with the offset. A nil zone keeps the zone
+// of the moment.
+func formatZonedMoment(moment time.Time, zone *time.Location) string {
+	if zone != nil {
+		moment = moment.In(zone)
+	}
+	return moment.Format(zonedTimeLayout)
+}
+
+// FormatColumnForViewer returns a value of the column for the full-height viewer. A moment of
+// a zoned column is written as the grid writes it.
+func FormatColumnForViewer(value any, column db.ResultColumn, zone *time.Location) string {
+	if held, isTime := value.(time.Time); isTime && column.Zoned {
+		return formatZonedMoment(held, zone)
+	}
+	return FormatForViewer(value, column.DataType)
 }
 
 // FormatForViewer returns a value for the full-height viewer: JSON is indented, and every
