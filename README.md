@@ -118,6 +118,19 @@ curl -fsSL https://raw.githubusercontent.com/masumedb/masume/master/install.sh |
 
 The script puts `masume` in `~/.local/bin`.
 
+### Homebrew
+
+```sh
+brew install masumedb/tap/masume
+```
+
+### Scoop
+
+```powershell
+scoop bucket add masumedb https://github.com/masumedb/scoop-bucket
+scoop install masumedb/masume
+```
+
 ### mise
 
 ```sh

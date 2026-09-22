@@ -63,6 +63,41 @@ nfpms:
         dst: /usr/share/doc/masume/LICENSE
         packager: apk
 
+homebrew_casks:
+  - name: masume
+    ids: [masume]
+    binaries: [masume]
+    description: Database client for the terminal
+    homepage: https://github.com/masumedb/masume
+    license: Apache-2.0
+    directory: Casks
+    skip_upload: auto
+    url:
+      verified: github.com/masumedb/masume/
+    repository:
+      owner: masumedb
+      name: homebrew-tap
+      token: "{{ .Env.PACKAGES_TOKEN }}"
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/masume"]
+          end
+
+scoops:
+  - name: masume
+    ids: [masume]
+    description: A database client for the terminal
+    homepage: https://github.com/masumedb/masume
+    license: Apache-2.0
+    directory: bucket
+    skip_upload: auto
+    repository:
+      owner: masumedb
+      name: scoop-bucket
+      token: "{{ .Env.PACKAGES_TOKEN }}"
+
 checksum:
   name_template: checksums.txt
   algorithm: sha256
@@ -90,6 +125,15 @@ release:
 
     ```sh
     npm install -g masume@{{ trimprefix .Tag "v" }}
+    ```
+
+    ```sh
+    brew install masumedb/tap/masume
+    ```
+
+    ```powershell
+    scoop bucket add masumedb https://github.com/masumedb/scoop-bucket
+    scoop install masumedb/masume
     ```
 
     ```sh
