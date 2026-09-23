@@ -188,6 +188,10 @@ func (model *Model) resolveWorkspaceHover(x, y int) hoverTarget {
 			noFilledRow, x, y); target.isSomething() {
 			return target
 		}
+		if row, found := layout.overlayRows.holds(x, y); found &&
+			model.isMenuDivider(overlay, row) {
+			return hoverTarget{}
+		}
 		return resolveRowHover(layout.overlayRows,
 			model.overlayRowCount(connection, overlay), overlay.List.Cursor, x, y)
 	}

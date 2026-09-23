@@ -663,11 +663,9 @@ const (
 // selectedThemeMark stands on the theme that was applied when the picker opened.
 const selectedThemeMark = "✓"
 
-// The columns of one row of a menu: the key it is bound to, and its name.
+// The name column of one row of a menu.
 const (
-	menuChordWidth = 13
-	menuLabelWidth = 22
-	// The menus that carry no key of their own give the name the room instead.
+	menuLabelWidth   = 26
 	copyLabelWidth   = 22
 	objectLabelWidth = 24
 )
@@ -973,15 +971,6 @@ func (model *Model) renderSaved(overlay app.Overlay, width int) string {
 // renderMenu draws a menu of actions, one row each.
 func (model *Model) renderMenu(overlay app.Overlay, width int) string {
 	actions := model.filterMenu(overlay)
-	// A menu whose rows carry no key of their own drops the column that would hold one.
-	chordWidth := 0
-	for _, action := range overlay.Actions {
-		if action.Chord != "" {
-			chordWidth = menuChordWidth
-			break
-		}
-	}
-
 	labelWidth := menuLabelWidth
 	switch overlay.Kind {
 	case app.OverlayCopyMenu:
@@ -1003,12 +992,17 @@ func (model *Model) renderMenu(overlay app.Overlay, width int) string {
 		labelWidth -= listRowIconWidth
 	}
 
+	term := model.readOverlayTerm(overlay)
 	rows := make([]string, 0, len(actions))
 	for at, action := range actions {
+		if action.Divider {
+			rows = append(rows, model.renderMenuDivider(width))
+			continue
+		}
 		rows = append(rows, model.renderListRow(ListRowSpec{
-			Lead: action.Chord, LeadWidth: chordWidth,
 			Icon: action.Icon, HasIcon: icons,
 			Label: action.Label, LabelWidth: labelWidth, Detail: action.Detail,
+			Key: action.Chord, Match: term,
 			Selected: at == overlay.List.Cursor, Destructive: action.Destructive, Width: width,
 		}))
 	}
@@ -1029,8 +1023,18 @@ func (model *Model) renderMenu(overlay app.Overlay, width int) string {
 		Cursor: overlay.List.Cursor, Offset: overlay.List.Offset, Rolled: overlay.List.Rolled, Width: width,
 		ReportsNoMatch: true, Keys: text,
 		// The filter line stands over the rows and takes one of them.
-		ContentRows: len(overlay.Actions) + 1,
+		ContentRows: len(insertMenuDivider(overlay.Actions)) + 1,
 	})
+}
+
+// renderMenuDivider draws the line above the destructive rows of a menu.
+func (model *Model) renderMenuDivider(width int) string {
+	theme := model.styles.Theme
+	rule := strings.Repeat(" ", rowPaddingLeft) +
+		strings.Repeat("─", max(width-4-rowPaddingLeft-rowScrollbarWidth, 0))
+	pad := paintOn(theme.Panel, " ")
+	return pad + padStyledOn(paintText(theme.Faint, theme.Panel, rule), width-4, theme.Panel) +
+		pad + pad
 }
 
 // The columns of one answer of a question with more than two of them.

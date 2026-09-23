@@ -73,6 +73,8 @@ type MenuAction struct {
 	Chord       string
 	Detail      string
 	Destructive bool
+	// Divider is the line drawn above the destructive rows. The cursor does not stop on it.
+	Divider bool
 }
 
 // Choice is one answer to a question with more than two answers.
@@ -470,16 +472,16 @@ var schemaActions = []MenuAction{
 		Icon: cfg.IconTable,
 	},
 	{
-		ID: ObjectRestoreFile, Label: "Restore a dump…", Detail: "runs a SQL file",
-		Icon: cfg.IconQuery, Destructive: true,
-	},
-	{
 		ID: ObjectCreateTable, Label: "Create table…", Detail: "into the editor",
 		Icon: cfg.IconTable,
 	},
 	{
 		ID: ObjectCreateView, Label: "Create view…", Detail: "into the editor",
 		Icon: cfg.IconView,
+	},
+	{
+		ID: ObjectRestoreFile, Label: "Restore a dump…", Detail: "runs a SQL file",
+		Icon: cfg.IconQuery, Destructive: true,
 	},
 	{
 		ID: ObjectDropSchema, Label: "Drop schema", Detail: "DROP SCHEMA into the editor",

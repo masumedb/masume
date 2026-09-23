@@ -40,9 +40,12 @@ func TestTheRowsOfTheObjectMenuCarryTheirGlyph(t *testing.T) {
 	frame := strings.Split(model.render(), "\n")
 
 	block := model.layout.overlayRows
-	for at, action := range connection.Overlay.Actions {
+	for at, action := range model.filterMenu(connection.Overlay) {
 		if at >= block.count {
 			break
+		}
+		if action.Divider {
+			continue
 		}
 		if action.Icon == "" {
 			t.Errorf("the row %q names no glyph", action.Label)

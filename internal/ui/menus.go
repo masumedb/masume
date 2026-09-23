@@ -61,7 +61,7 @@ func (model *Model) openTabMenu(connection *app.Connection) (tea.Model, tea.Cmd)
 		model.buildActionMenu(connection.Session.Capabilities(), cfg.ScopeGlobal, []menuEntry{
 			{ActionNewQueryTab, "New query tab", "beside this tab", cfg.IconQuery, true},
 			{
-				ActionNameTab, "Rename tab", "name this tab",
+				ActionNameTab, "Rename tab", "",
 				cfg.IconNote, tab.Kind == app.TabQuery,
 			},
 			{
@@ -126,8 +126,8 @@ func (model *Model) openColumnMenu(
 	sorts := connection.Session.Capabilities().SortsRead
 	return model.openActionMenu(connection, name, cfg.ScopeGrid,
 		model.buildActionMenu(connection.Session.Capabilities(), cfg.ScopeGrid, []menuEntry{
-			{ActionSortColumn, "Sort by column", "sort rows by this column", cfg.IconIndex, sorts},
-			{ActionAddSortColumn, "Add column to sort", "add another sort column", cfg.IconIndex, sorts},
+			{ActionSortColumn, "Sort by column", "", cfg.IconIndex, sorts},
+			{ActionAddSortColumn, "Add column to sort", "", cfg.IconIndex, sorts},
 			{ActionFilterByValues, "Filter by values", "choose values to keep", cfg.IconColumn, len(shape.Text) > 0},
 			{ActionFreezeColumns, "Freeze column", "freeze or unfreeze this column", cfg.IconPrimaryKey, true},
 			{ActionGoToColumn, "Go to column…", "by name", cfg.IconRecent, true},

@@ -1162,7 +1162,7 @@ func (model *Model) pressOverlay(
 		return model, nil
 	}
 	count := model.overlayRowCount(connection, *overlay)
-	if row >= count {
+	if row >= count || model.isMenuDivider(*overlay, row) {
 		return model, nil
 	}
 	overlay.List.Cursor = row

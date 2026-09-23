@@ -63,7 +63,7 @@ func pressKey(t *testing.T, model *Model, key tea.KeyPressMsg) tea.Cmd {
 // chooseMenuRow moves the cursor of the menu to the action and presses Enter.
 func chooseMenuRow(t *testing.T, model *Model, connection *app.Connection, id string) tea.Cmd {
 	t.Helper()
-	for at, action := range connection.Overlay.Actions {
+	for at, action := range model.filterMenu(connection.Overlay) {
 		if action.ID == id {
 			connection.Overlay.List.Cursor = at
 			return pressKey(t, model, tea.KeyPressMsg{Code: tea.KeyEnter})

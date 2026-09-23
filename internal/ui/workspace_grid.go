@@ -1017,15 +1017,15 @@ func (model *Model) buildGridMenu(
 		needs   bool
 		harmful bool
 	}{
-		{ActionViewCell, "View value", "the value under the cursor", hasRow, false},
-		{ActionEditCell, "Edit value", "the value under the cursor", hasRow && editable, false},
+		{ActionViewCell, "View value", "", hasRow, false},
+		{ActionEditCell, "Edit value", "", hasRow && editable, false},
 		{ActionFilterByCell, "Filter by value", "keep rows that match", hasRow, false},
 		{ActionExcludeCell, "Exclude value", "drop rows that match", hasRow, false},
 		{ActionFollowForeignKey, "Follow foreign key", "open the row it points to", hasRow, false},
 		{ActionFilterByValues, "Filter by values", "choose values to keep", hasRow, false},
-		{ActionSortColumn, "Sort by column", "sort rows by this column", capabilities.SortsRead, false},
+		{ActionSortColumn, "Sort by column", "", capabilities.SortsRead, false},
 		{
-			ActionAddSortColumn, "Add column to sort", "add another sort column",
+			ActionAddSortColumn, "Add column to sort", "",
 			capabilities.SortsRead, false,
 		},
 		{ActionOpenRow, "Open row", "all columns in the row", hasRow, false},

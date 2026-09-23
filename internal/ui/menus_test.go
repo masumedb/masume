@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -184,5 +185,52 @@ func TestAPressOnAMenuRowRunsTheRowItLooksLike(t *testing.T) {
 	default:
 		t.Errorf("the press opened %q, and the row it landed on draws the diagram",
 			connection.Overlay.Kind)
+	}
+}
+
+func TestTheGridMenuRowLeadsWithTheNameAndEndsWithTheKey(t *testing.T) {
+	model := buildLoadedModel(t, 1, 3, 8, 3)
+	connection := model.Active()
+	tab := connection.Active()
+	shape := model.buildGridShape(connection, tab)
+	connection.Overlay = app.Overlay{
+		Kind: app.OverlayActionMenu, Title: model.describeGridMenuTitle(tab, shape),
+		Draft: app.NewEditorBuffer("", 0), Actions: model.buildGridMenu(connection, tab, shape),
+	}
+	frame := strings.Split(model.render(), "\n")
+
+	first := connection.Overlay.Actions[0]
+	block := model.layout.overlayRows
+	text := strings.TrimSpace(strings.TrimPrefix(
+		strings.TrimSpace(cutRowText(frame[block.top], block.from, block.to)), "❯"))
+	if first.Chord == "" || !strings.HasPrefix(text, first.Label) ||
+		!strings.HasSuffix(text, first.Chord) {
+		t.Errorf("the first row reads %q, wanted %q first and %q last",
+			text, first.Label, first.Chord)
+	}
+}
+
+func TestTheObjectMenuCursorSkipsTheDivider(t *testing.T) {
+	model, connection := buildObjectMenuModel(t)
+	rows := model.filterMenu(connection.Overlay)
+	divider := slices.IndexFunc(rows, func(action app.MenuAction) bool { return action.Divider })
+	if divider < 1 || !rows[divider+1].Destructive || rows[divider-1].Destructive {
+		t.Fatalf("the divider is row %d of %v", divider, rows)
+	}
+	frame := strings.Split(model.render(), "\n")
+	block := model.layout.overlayRows
+	text := strings.TrimSpace(cutRowText(frame[block.top+divider], block.from, block.to))
+	if strings.Trim(text, "─") != "" {
+		t.Errorf("the divider row reads %q", text)
+	}
+
+	connection.Overlay.List.Cursor = divider - 1
+	pressKey(t, model, tea.KeyPressMsg{Code: tea.KeyDown})
+	if held := connection.Overlay.List.Cursor; held != divider+1 {
+		t.Errorf("down from the row above the divider stopped on row %d", held)
+	}
+	pressKey(t, model, tea.KeyPressMsg{Code: tea.KeyUp})
+	if held := connection.Overlay.List.Cursor; held != divider-1 {
+		t.Errorf("up from the row below the divider stopped on row %d", held)
 	}
 }

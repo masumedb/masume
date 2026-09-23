@@ -376,20 +376,20 @@ func (model *Model) askNotebookPolicy(
 		Kind: app.OverlayActionMenu, Title: " run policy ", Actions: []app.MenuAction{
 			{
 				ID:    policyTransactionPrefix + notebook.TransactionAutocommit,
-				Label: "autocommit", Detail: "each statement commits" +
+				Label: "Autocommit", Detail: "each statement commits" +
 					mark(!policy.RunsInOneTransaction()),
 			},
 			{
 				ID:    policyTransactionPrefix + notebook.TransactionSingle,
-				Label: "one transaction", Detail: "commit after the last cell" +
+				Label: "One transaction", Detail: "commit after the last cell" +
 					mark(policy.RunsInOneTransaction()),
 			},
 			{
-				ID: policyErrorPrefix + notebook.ErrorStop, Label: "stop on error",
+				ID: policyErrorPrefix + notebook.ErrorStop, Label: "Stop on error",
 				Detail: "the first failure ends it" + mark(policy.StopsOnError()),
 			},
 			{
-				ID: policyErrorPrefix + notebook.ErrorContinue, Label: "continue on error",
+				ID: policyErrorPrefix + notebook.ErrorContinue, Label: "Continue on error",
 				Detail: "the later cells still run" + mark(!policy.StopsOnError()),
 			},
 		},

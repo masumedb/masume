@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -519,17 +520,21 @@ func (model *Model) runOverlayAction(
 
 	case ActionCursorUp:
 		overlay.List.Cursor = wrap(overlay.List.Cursor-1, count)
+		model.skipMenuDivider(overlay, -1)
 		return true, model, nil
 	case ActionCursorDown:
 		overlay.List.Cursor = wrap(overlay.List.Cursor+1, count)
+		model.skipMenuDivider(overlay, 1)
 		return true, model, nil
 	case ActionCursorPageUp, ActionScrollBack:
 		overlay.List.Cursor = clamp(overlay.List.Cursor-listPage, count)
 		overlay.List.Offset = clamp(overlay.List.Offset-listPage, count)
+		model.skipMenuDivider(overlay, -1)
 		return true, model, nil
 	case ActionCursorPageDown, ActionScrollForward:
 		overlay.List.Cursor = clamp(overlay.List.Cursor+listPage, count)
 		overlay.List.Offset = clamp(overlay.List.Offset+listPage, count)
+		model.skipMenuDivider(overlay, 1)
 		return true, model, nil
 	case ActionCursorFirstRow:
 		overlay.List.Cursor, overlay.List.Offset = 0, 0
@@ -1606,8 +1611,38 @@ func (model *Model) filterSaved(overlay app.Overlay) []app.SavedRow {
 
 // filterMenu returns the rows of a menu the term at the top of it keeps.
 func (model *Model) filterMenu(overlay app.Overlay) []app.MenuAction {
-	return keepMatchingRows(overlay.Actions, model.readOverlayTerm(overlay),
-		func(action app.MenuAction) string { return action.Label + " " + action.Detail })
+	return insertMenuDivider(keepMatchingRows(overlay.Actions, model.readOverlayTerm(overlay),
+		func(action app.MenuAction) string { return action.Label + " " + action.Detail }))
+}
+
+// insertMenuDivider returns the rows with a divider above the destructive rows at the end.
+func insertMenuDivider(actions []app.MenuAction) []app.MenuAction {
+	at := len(actions)
+	for at > 0 && actions[at-1].Destructive {
+		at--
+	}
+	if at == 0 || at == len(actions) {
+		return actions
+	}
+	return slices.Concat(actions[:at], []app.MenuAction{{Divider: true}}, actions[at:])
+}
+
+// isMenuDivider is true where the row of a menu is its divider.
+func (model *Model) isMenuDivider(overlay app.Overlay, row int) bool {
+	switch overlay.Kind {
+	case app.OverlayObjectMenu, app.OverlayCopyMenu, app.OverlayActionMenu:
+		actions := model.filterMenu(overlay)
+		return row >= 0 && row < len(actions) && actions[row].Divider
+	}
+	return false
+}
+
+// skipMenuDivider moves the cursor one more row in the direction of the step where it
+// stopped on the divider of a menu.
+func (model *Model) skipMenuDivider(overlay *app.Overlay, step int) {
+	if model.isMenuDivider(*overlay, overlay.List.Cursor) {
+		overlay.List.Cursor += step
+	}
 }
 
 // filterThemes returns the themes the term at the top of the list keeps.
