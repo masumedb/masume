@@ -68,10 +68,6 @@ func TestTheMainModeHidesTheStepKeys(t *testing.T) {
 			t.Errorf("the frame drew the %q key in the main mode", said)
 		}
 	}
-	// The border of the editor and the strip of the plan name keys no chip stands for.
-	if !strings.Contains(drawn, "full height") {
-		t.Error("the border of the editor dropped its key in the main mode")
-	}
 }
 
 // The off mode hides every key hint. The bars and the borders keep their reports.

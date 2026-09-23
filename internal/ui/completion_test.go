@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -102,23 +103,41 @@ func TestOneKeyAsksForTheList(t *testing.T) {
 	}
 }
 
-// The title of the pane names the keys of the list while it stands, and the same ones however
-// the list opened.
-func TestTheTitleNamesTheKeysOfTheList(t *testing.T) {
+func TestThePopupCountsItsRowsOnItsOwnBorder(t *testing.T) {
 	for _, written := range []string{"select * from ", "select * from ord"} {
 		model, _, tab := buildListingModel(t, written)
 		frame := strings.Split(model.render(), "\n")
 		title := stripStyles(frame[firstPaneRow])
-		for _, key := range []string{"↑↓", "⇥ accept", "Esc"} {
-			if !strings.Contains(title, key) {
-				t.Errorf("the title of %q reads %q and does not name %q",
+		for _, key := range []string{"↑↓", "accept", "Esc", "1/"} {
+			if strings.Contains(title, key) {
+				t.Errorf("the title of %q reads %q and still has %q",
 					written, strings.TrimSpace(title), key)
 			}
 		}
-		if strings.Contains(title, "Space") {
-			t.Errorf("the title of %q still names a key that asks for the list", written)
+		count := "1/" + strconv.Itoa(len(tab.Completion.Candidates))
+		bottom := model.layout.completionRows.top + model.layout.completionRows.count
+		if drawn := stripStyles(frame[bottom]); !strings.Contains(drawn, count) {
+			t.Errorf("the popup border of %q reads %q, wanted %q", written, drawn, count)
 		}
-		_ = tab
+	}
+}
+
+func TestThePopupLeavesTheFaultRowInView(t *testing.T) {
+	model, connection, tab := buildListingModel(t, "select * from ord")
+	faults := model.findDiagnostics(connection, tab)
+	if len(faults) == 0 {
+		t.Fatal("the statement has no fault")
+	}
+	frame := strings.Split(model.render(), "\n")
+	if model.faultRow == 0 {
+		t.Fatal("the editor drew no fault row")
+	}
+	drawn := stripStyles(frame[model.faultRow+titleBarRows])
+	if !strings.Contains(drawn, faults[0].Message) {
+		t.Errorf("the fault row reads %q, wanted %q", drawn, faults[0].Message)
+	}
+	if model.layout.completionRows.count == 0 {
+		t.Error("the popup shows no row")
 	}
 }
 

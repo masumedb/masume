@@ -114,6 +114,8 @@ type Model struct {
 	caretRow    int
 	caretColumn int
 	editorLeft  int
+	// The frame row of the fault row under the statement, and 0 while the editor draws none.
+	faultRow int
 
 	// Where the parts of the last frame were drawn, so a press of a button can be read
 	// as a press on a row, a cell or a tab.

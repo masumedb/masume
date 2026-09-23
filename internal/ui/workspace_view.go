@@ -896,7 +896,9 @@ func (model *Model) renderEditor(
 	for len(written) < body {
 		written = append(written, "")
 	}
+	model.faultRow = 0
 	if hasFault {
+		model.faultRow = tabRowHeight + 1 + len(written)
 		written = append(written, model.renderFaultRow(shown, faults, tab, inner,
 			firstPaneRow+1+len(written)))
 	}
@@ -989,8 +991,7 @@ func findShownFault(
 // so it names what is written in it and not the language that writes it.
 const editorPaneName = "query"
 
-// describeEditorTitle names the pane, and what the list or the scan found. The list shows
-// its place and its keys in the title, to save a row.
+// describeEditorTitle returns the pane title with the problem count.
 func (model *Model) describeEditorTitle(tab *app.Tab, faults int) string {
 	if tab.Kind == app.TabNotebook && tab.Notebook != nil {
 		text := " cell " + strconv.Itoa(tab.Notebook.Focused+1) + "/" +
@@ -999,18 +1000,6 @@ func (model *Model) describeEditorTitle(tab *app.Tab, faults int) string {
 		if chord := model.registry.FormatFirstActionChord(
 			cfg.ScopeEditor, ActionLeaveCell); chord != "" && model.showsKeyHints() {
 			text += " · " + chord + " back to the cells"
-		}
-		return text + " "
-	}
-	if total := len(tab.Completion.Candidates); total > 0 {
-		text := " " + editorPaneName + " · " + strconv.Itoa(tab.Completion.Selected+1) + "/" +
-			strconv.Itoa(total)
-		if model.showsKeyHints() {
-			accept := model.registry.FormatFirstActionChord(
-				cfg.ScopeDialog, ActionAcceptCompletion)
-			text += " · " + model.registry.FormatChordPair(
-				cfg.ScopeList, ActionCursorUp, ActionCursorDown, "") +
-				" " + accept + " accept · Esc"
 		}
 		return text + " "
 	}
@@ -1126,17 +1115,13 @@ func describeEditorPlace(tab *app.Tab) string {
 	return " " + strconv.Itoa(at.Line) + ":" + strconv.Itoa(at.Column) + " "
 }
 
-// describeEditorBorder names the key on the border between this pane and the result.
+// describeEditorBorder returns the key that shows the result again while it is hidden.
 func (model *Model) describeEditorBorder(connection *app.Connection) string {
-	text := "full height"
-	if !connection.ResultVisible {
-		text = "show the result"
-	}
-	if !model.showsKeyHints() {
+	if connection.ResultVisible || !model.showsKeyHints() {
 		return ""
 	}
 	return " " + model.registry.FormatFirstActionChord(
-		cfg.ScopeGlobal, ActionToggleResult) + " " + text + " "
+		cfg.ScopeGlobal, ActionToggleResult) + " show the result "
 }
 
 // findLocalDiagnostics returns the faults the scanner found in the buffer.

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strconv"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -139,11 +140,28 @@ func (model *Model) renderCompletionPopup(tab *app.Tab, height int) (string, int
 	shownRows := min(len(list.Candidates), completionRows)
 	popupHeight := shownRows + completionChrome
 
+	// Below the caret where there is room, and above it where there is not. A popup
+	// past the bottom of the screen would show one row only. The fault row under the
+	// statement stays in view: the popup opens above the caret, or shows fewer rows.
+	top := model.caretRow + 1
+	limit := height
+	if model.faultRow > 0 {
+		limit = model.faultRow
+	}
+	if top+popupHeight > limit {
+		above := model.caretRow - popupHeight
+		if above < 0 && model.faultRow > 0 && limit-top > completionChrome {
+			shownRows = limit - top - completionChrome
+			popupHeight = limit - top
+		} else {
+			top = max(above, 0)
+		}
+	}
+
 	// The window follows the marked row, because the list is longer than the popup.
 	start := 0
-	if len(list.Candidates) > completionRows {
-		start = core.ClampWithin(
-			list.Selected-completionRows/2, len(list.Candidates)-completionRows)
+	if len(list.Candidates) > shownRows {
+		start = core.ClampWithin(list.Selected-shownRows/2, len(list.Candidates)-shownRows)
 	}
 
 	lines := make([]string, 0, shownRows)
@@ -152,15 +170,6 @@ func (model *Model) renderCompletionPopup(tab *app.Tab, height int) (string, int
 			list.Candidates[at], at == list.Selected, width-completionChrome))
 	}
 
-	// Below the caret where there is room, and above it where there is not. A popup
-	// past the bottom of the screen would show one row only.
-	top := model.caretRow + 1
-	if top+popupHeight > height {
-		top = model.caretRow - popupHeight
-	}
-	if top < 0 {
-		top = 0
-	}
 	left := core.ClampWithin(model.caretColumn, model.width-width)
 
 	// The rows of the popup, so a press takes the candidate it lands on. The box is placed
@@ -172,8 +181,10 @@ func (model *Model) renderCompletionPopup(tab *app.Tab, height int) (string, int
 		from: left + 1, to: left + width - 2,
 	}
 
+	count := " " + strconv.Itoa(list.Selected+1) + "/" + strconv.Itoa(len(list.Candidates)) + " "
 	return model.styles.RenderBox(BoxOptions{
 		Width: width, Height: popupHeight, Lines: lines, Ground: theme.Header,
+		BottomNote: model.styles.Muted().Background(theme.Header).Render(count),
 	}), left, top
 }
 
