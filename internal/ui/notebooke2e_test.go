@@ -1090,3 +1090,25 @@ func TestNotebookStopEndsTheRunEndToEnd(t *testing.T) {
 		}
 	}
 }
+
+// A result of a notebook carries the name of its cell, or the words of its statement, and
+// the key pairs of the two strips carry what they move.
+func TestNotebookNamesEveryResultAfterItsCellEndToEnd(t *testing.T) {
+	held := buildLiveWorkspace(t, cfg.AccessWrite)
+	held.openLiveNotebook(t,
+		"```sql id=a\n-- by status\nselect 1 as one; select 2 as two\n```\n\n"+
+			"```sql id=b\nselect 3\n  as three\n```\n")
+	held.press(t, tea.KeyPressMsg{Code: 'r', Mod: tea.ModAlt})
+
+	frame := strings.Join(held.readFrame(t), "\n")
+	for _, wanted := range []string{
+		" by status ", " by status (2) ", " select 3 as three ", "' result", ". view",
+	} {
+		if !strings.Contains(frame, wanted) {
+			t.Errorf("the frame does not have %q:\n%s", wanted, frame)
+		}
+	}
+	if strings.Contains(frame, "prev/next") {
+		t.Errorf("a strip still has prev/next:\n%s", frame)
+	}
+}

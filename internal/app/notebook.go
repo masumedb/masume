@@ -245,6 +245,23 @@ func (book *Notebook) FindCellOfResult(index int) int {
 	return -1
 }
 
+// BuildResultLabels returns the label of each statement of a run: the name of its cell, or
+// the first words of the statement.
+func (book *Notebook) BuildResultLabels(statements []string) []string {
+	labels := make([]string, 0, len(statements))
+	for index, written := range statements {
+		name := ""
+		if at := book.FindCellOfResult(index); at >= 0 {
+			name = statement.FindQueryName(book.Cells[at].Editor.Text)
+		}
+		if name == "" {
+			name = strings.Join(strings.Fields(statement.ApplyQueryName(written, "")), " ")
+		}
+		labels = append(labels, name)
+	}
+	return labels
+}
+
 // MarkedCells returns the cells the reader marked, in the order they stand.
 func (book *Notebook) ListMarkedCells() []int {
 	marked := []int{}

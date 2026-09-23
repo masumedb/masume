@@ -303,6 +303,9 @@ func (model *Model) replaceResults(
 		connection.Show(present.DescribeDroppedChanges(dropped))
 	}
 	tab.Results.Start(statements, pageSize)
+	if tab.Kind == app.TabNotebook && tab.Notebook != nil {
+		tab.Results.ApplyLabels(tab.Notebook.BuildResultLabels(statements))
+	}
 	tab.Screen = present.NoScreenFilter()
 	tab.DiscardChanges()
 }

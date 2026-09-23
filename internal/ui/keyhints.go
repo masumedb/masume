@@ -507,11 +507,10 @@ var (
 	}
 	statementStripKeySpecs = []keySpec{
 		readoutOf(readSceneText),
-		pairOf(cfg.ScopeGlobal, ActionPreviousStatement, ActionNextStatement,
-			"prev/next", " "),
+		pairOf(cfg.ScopeGlobal, ActionPreviousStatement, ActionNextStatement, "result", " "),
 	}
 	viewStripKeySpecs = []keySpec{
-		pairOf(cfg.ScopeGlobal, ActionPreviousView, ActionNextView, "prev/next", " "),
+		pairOf(cfg.ScopeGlobal, ActionPreviousView, ActionNextView, "view", " "),
 	}
 	planStripKeySpecs = []keySpec{
 		firstChordOf(cfg.ScopePlan, ActionToggleRawPlan, "").withLabel(describePlanForm),

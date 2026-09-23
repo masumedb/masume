@@ -87,9 +87,8 @@ func BuildStatementLabel(written string) string {
 	return "statement"
 }
 
-// resolveStatementLabel separates two results of one table, as `orders` and `orders (2)`.
-func resolveStatementLabel(written string, taken map[string]bool) string {
-	base := BuildStatementLabel(written)
+// resolveUniqueLabel separates two results of one base, as `orders` and `orders (2)`.
+func resolveUniqueLabel(base string, taken map[string]bool) string {
 	label := base
 	for count := 2; taken[label]; count++ {
 		label = base + " (" + strconv.Itoa(count) + ")"
@@ -153,11 +152,22 @@ func (store *ResultStore) Start(statements []string, pageSize int) {
 	for _, written := range statements {
 		store.nextID++
 		store.results = append(store.results, &StatementResult{
-			ID: store.nextID, Label: resolveStatementLabel(written, taken), Source: written,
-			State: QueryState{Kind: QueryRunning}, PageSize: pageSize, StartedAt: startedAt,
+			ID: store.nextID, Label: resolveUniqueLabel(BuildStatementLabel(written), taken),
+			Source: written,
+			State:  QueryState{Kind: QueryRunning}, PageSize: pageSize, StartedAt: startedAt,
 		})
 	}
 	store.activeIndex = 0
+}
+
+// ApplyLabels sets the result labels in order and numbers a repeated label.
+func (store *ResultStore) ApplyLabels(labels []string) {
+	taken := map[string]bool{}
+	for at, held := range store.results {
+		if at < len(labels) {
+			held.Label = resolveUniqueLabel(labels[at], taken)
+		}
+	}
 }
 
 // IsRunning is true while a statement of the run waits for the server.
