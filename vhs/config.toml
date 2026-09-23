@@ -74,3 +74,12 @@ mode           = "write"
 confirm_writes = "write"
 write_plan     = "undo"
 description    = "the demo shop database, as a production profile"
+
+# The AI chat frame in vhs/chat.tape runs opencode over ACP.
+[ai]
+default_agent = "opencode"
+
+[ai.agents.opencode]
+command = "opencode"
+args    = ["acp"]
+model   = "opencode-go/deepseek-v4-flash"

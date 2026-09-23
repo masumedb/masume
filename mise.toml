@@ -227,6 +227,18 @@ rm -rf .demo
 ls -la vhs/notebook.mp4
 """
 
+[tasks.shot-chat]
+description = "Rebuild the AI chat frame in vhs/shots. Needs opencode, signed in"
+depends = ["demo-fixture"]
+run = """
+set -eu
+PATH="$PWD/.demo/bin:$PATH" mise exec \\
+  "go:github.com/charmbracelet/vhs@0.10.0" ttyd@latest ffmpeg@latest \\
+  -- vhs vhs/chat.tape
+rm -rf .demo
+ls -la vhs/shots/20-ai-chat.png
+"""
+
 [tasks.shots]
 description = "Rebuild the still frames in vhs/shots"
 depends = ["demo-fixture"]
