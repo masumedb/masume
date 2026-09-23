@@ -11,9 +11,9 @@ import (
 	"github.com/masumedb/masume/internal/cfg"
 )
 
-// shownPathHead is how much of a directory path the card of the picker draws on every
+// shownPathTail is how much of a directory path the card of the picker draws on every
 // platform.
-const shownPathHead = 24
+const shownPathTail = 24
 
 // buildCertificateFormModel opens the connection form on a profile with the tls fields
 // shown, with the caret on that field.
@@ -109,12 +109,12 @@ func TestTheFilePickerCardDrawsTheDirectory(t *testing.T) {
 		t.Errorf("the card does not name the field:\n%s", drawn)
 	}
 	// macOS puts a temporary directory under a path longer than the card, and the card
-	// cuts what does not fit, so the head of the path is what it draws.
-	head := directory
-	if len(head) > shownPathHead {
-		head = head[:shownPathHead]
+	// cuts the start of the path, so the tail of the path is what it draws.
+	tail := directory
+	if len(tail) > shownPathTail {
+		tail = tail[len(tail)-shownPathTail:]
 	}
-	if !strings.Contains(drawn, head) {
+	if !strings.Contains(drawn, tail) {
 		t.Errorf("the card does not name the directory:\n%s", drawn)
 	}
 	if !strings.Contains(drawn, "ca.pem") {

@@ -1870,7 +1870,7 @@ func (model *Model) renderExport(overlay app.Overlay, width int) string {
 
 		value := field.Value
 		written := model.styles.Muted().Render(
-			present.TruncateText(describeFieldValue(field), valueWidth))
+			truncateFieldValue(field, valueWidth))
 		switch {
 		case len(field.Choices) > 0:
 			written = model.renderChoiceField(value, valueWidth, at,

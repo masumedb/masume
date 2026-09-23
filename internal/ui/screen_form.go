@@ -507,6 +507,9 @@ func (model *Model) renderForm() string {
 		if cfg.TakesFilePath(form.Fields, field.Key) {
 			look.Placeholder = model.describeFilePickerKey()
 			look.KeepsPlaceholder = true
+			if !focused {
+				value = present.TruncatePath(value, valueWidth)
+			}
 		}
 		if focused {
 			look.Ground, look.Ink, look.Focused =

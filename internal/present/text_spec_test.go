@@ -90,6 +90,52 @@ func TestTruncateTextDoesNotSplitAWideCharacter(t *testing.T) {
 	}
 }
 
+// A cut from the start keeps the end of the text and never passes the width.
+func TestTruncateTextStartKeepsTheEnd(t *testing.T) {
+	for _, held := range []struct {
+		text  string
+		width int
+		want  string
+	}{
+		{"orders.csv", 20, "orders.csv"},
+		{"orders.csv", 7, "…rs.csv"},
+		{"orders.csv", 1, "…"},
+		{"orders.csv", 0, ""},
+		{"漢字漢", 4, "… 漢"},
+	} {
+		written := present.TruncateTextStart(held.text, held.width)
+		if written != held.want {
+			t.Errorf("%q cut to %d is %q, wanted %q", held.text, held.width, written, held.want)
+		}
+	}
+}
+
+// A path is cut from the start at a separator, and the home directory is shown as `~`.
+func TestTruncatePathKeepsTheFileName(t *testing.T) {
+	t.Setenv("HOME", "/home/ada")
+	for _, held := range []struct {
+		path  string
+		width int
+		want  string
+	}{
+		{"/tmp/app/orders.csv", 40, "/tmp/app/orders.csv"},
+		{"/tmp/scratchpad/app/orders.csv", 26, "…/app/orders.csv"},
+		{"/tmp/scratchpad/app/orders.csv", 28, "…/scratchpad/app/orders.csv"},
+		{"/tmp/app/a-very-long-file-name.csv", 12, "…le-name.csv"},
+		{"/home/ada/work/orders.csv", 40, "~/work/orders.csv"},
+		{"/home/ada/work/scratchpad/orders.csv", 20, "…/orders.csv"},
+		{"/home/adam/orders.csv", 40, "/home/adam/orders.csv"},
+	} {
+		written := present.TruncatePath(held.path, held.width)
+		if written != held.want {
+			t.Errorf("%q cut to %d is %q, wanted %q", held.path, held.width, written, held.want)
+		}
+		if measured := present.MeasureText(written); measured > held.width {
+			t.Errorf("%q cut to %d measures %d", held.path, held.width, measured)
+		}
+	}
+}
+
 // A pad fills the column, so every row of a grid has the same width.
 func TestPadTextFillsToTheWidth(t *testing.T) {
 	for _, held := range []struct {

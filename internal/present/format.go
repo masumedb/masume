@@ -5,6 +5,7 @@ package present
 import (
 	"encoding/hex"
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -187,6 +188,49 @@ func TruncateText(text string, width int) string {
 		used += cost
 	}
 	return kept.String() + strings.Repeat(" ", width-1-used) + "…"
+}
+
+// TruncateTextStart cuts the text to the width from the start and adds an ellipsis at the
+// cut.
+func TruncateTextStart(text string, width int) string {
+	text = SafeText(text)
+	if width <= 0 {
+		return ""
+	}
+	if MeasureText(text) <= width {
+		return text
+	}
+	if width == 1 {
+		return "…"
+	}
+
+	characters := []rune(text)
+	start, used := len(characters), 0
+	for start > 0 {
+		cost := runewidth.RuneWidth(characters[start-1])
+		if used+cost > width-1 {
+			break
+		}
+		start--
+		used += cost
+	}
+	return "…" + strings.Repeat(" ", width-1-used) + string(characters[start:])
+}
+
+// TruncatePath cuts a file path to the width from the start, at a separator where the rest
+// fits. The home directory is shown as `~`.
+func TruncatePath(path string, width int) string {
+	path = SafeText(core.ShortenHomePath(path))
+	cut := TruncateTextStart(path, width)
+	if cut == path {
+		return cut
+	}
+	rest := strings.TrimPrefix(cut, "…")
+	at := strings.IndexAny(rest, "/"+string(filepath.Separator))
+	if at < 0 || at == len(rest)-1 {
+		return cut
+	}
+	return "…" + rest[at:]
 }
 
 // PadText fills the text to the width with spaces.

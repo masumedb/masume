@@ -141,7 +141,7 @@ func (model *Model) renderFilePicker(connectionID int, width int) []string {
 // buildPickerLines draws the directory a picker stands in and the files of it.
 func (model *Model) buildPickerLines(picker *filepicker.Model, width int) []string {
 	lines := []string{
-		model.styles.Muted().Render(present.TruncateText(picker.CurrentDirectory, width)),
+		model.styles.Muted().Render(present.TruncatePath(picker.CurrentDirectory, width)),
 		"",
 	}
 	for line := range strings.SplitSeq(picker.View(), "\n") {

@@ -4,6 +4,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+
+	"github.com/masumedb/masume/internal/present"
 )
 
 // The rows a dialog form draws. The export form and the import form are both built from
@@ -25,6 +27,15 @@ func describeFieldValue(field DialogField) string {
 		return strconv.Quote(field.Value)
 	}
 	return field.Value
+}
+
+// truncateFieldValue returns the value a row shows while the cursor is elsewhere, cut to the
+// width. A file path is cut from the start.
+func truncateFieldValue(field DialogField, width int) string {
+	if field.Key == "path" {
+		return present.TruncatePath(describeFieldValue(field), width)
+	}
+	return present.TruncateText(describeFieldValue(field), width)
 }
 
 func isLetterOrDigit(character rune) bool {

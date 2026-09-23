@@ -87,7 +87,7 @@ func (model *Model) renderImportForm(overlay app.Overlay, width int) string {
 
 		value := field.Value
 		written := model.styles.Muted().Render(
-			present.TruncateText(describeFieldValue(field), valueWidth))
+			truncateFieldValue(field, valueWidth))
 		switch {
 		case len(field.Choices) > 0:
 			written = model.renderChoiceField(value, valueWidth, at,
@@ -158,7 +158,7 @@ func buildImportTitle(held app.ImportRequest) string {
 	if held.Plan.Path == "" {
 		return " import "
 	}
-	title := " import " + present.TruncateText(filepath.Base(held.Plan.Path), 40)
+	title := " import " + present.TruncatePath(filepath.Base(held.Plan.Path), 40)
 	if held.Plan.CreatesTable {
 		title += " · new table"
 	}

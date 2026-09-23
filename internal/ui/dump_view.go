@@ -57,7 +57,7 @@ func (model *Model) renderDumpForm(overlay app.Overlay, width int) string {
 
 		value := field.Value
 		written := model.styles.Muted().Render(
-			present.TruncateText(describeFieldValue(field), valueWidth))
+			truncateFieldValue(field, valueWidth))
 		switch {
 		case len(field.Choices) > 0:
 			written = model.renderChoiceField(value, valueWidth, at,
@@ -127,7 +127,7 @@ func buildDumpTitle(held app.DumpRequest) string {
 		if held.Path == "" {
 			return " restore "
 		}
-		return " restore " + present.TruncateText(filepath.Base(held.Path), 40) + " "
+		return " restore " + present.TruncatePath(filepath.Base(held.Path), 40) + " "
 	}
 	if held.Target == "" {
 		return " dump "

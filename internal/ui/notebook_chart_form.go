@@ -274,7 +274,7 @@ func (model *Model) renderChartForm(tab *app.Tab, overlay app.Overlay, width int
 			labelStyle = model.styles.Accent()
 		}
 		written := model.styles.Muted().Render(
-			present.TruncateText(describeFieldValue(field), valueWidth))
+			truncateFieldValue(field, valueWidth))
 		if len(field.Choices) > 0 {
 			written = model.renderChoiceField(field.Value, valueWidth, at,
 				cardBodyRow+at, cardBodyColumn+chartFormLabelWidth, focused)

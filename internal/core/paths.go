@@ -27,10 +27,11 @@ func HomeDirectory() string {
 // ShortenHomePath replaces the home directory prefix with `~`.
 func ShortenHomePath(path string) string {
 	home := HomeDirectory()
-	if home == "" || !strings.HasPrefix(path, home) {
+	rest, under := strings.CutPrefix(path, home)
+	if home == "" || !under || (rest != "" && !os.IsPathSeparator(rest[0])) {
 		return path
 	}
-	return "~" + path[len(home):]
+	return "~" + rest
 }
 
 // ExpandHomePath expands a leading `~`. A config file and a path the user types both

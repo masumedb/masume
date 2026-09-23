@@ -11,7 +11,6 @@ import (
 
 	"github.com/masumedb/masume/internal/app"
 	"github.com/masumedb/masume/internal/cfg"
-	"github.com/masumedb/masume/internal/core"
 	"github.com/masumedb/masume/internal/present"
 )
 
@@ -279,7 +278,9 @@ func (model *Model) renderPicker() string {
 	// The filter field and a blank row stand above the list.
 	lines := []string{model.renderPickerFilter(cardWidth, len(profiles)), ""}
 	if len(profiles) == 0 {
-		empty := "no connection in " + core.ShortenHomePath(cfg.ResolveConfigPath())
+		const prefix = "no connection in "
+		empty := prefix + present.TruncatePath(
+			cfg.ResolveConfigPath(), cardWidth-4-present.MeasureText(prefix))
 		if model.picker.readFilterTerm() != "" {
 			empty = "no match"
 		}
@@ -376,7 +377,7 @@ func (model *Model) renderPicker() string {
 		lines, keys, text, cardTop+cardBodyRow, left+cardBodyColumn)
 	if model.project.Path != "" {
 		lines = append(lines, model.styles.Muted().Render(
-			present.TruncateText("project file "+model.project.Path, cardWidth-4)))
+			"project file "+present.TruncatePath(model.project.Path, cardWidth-17)))
 	}
 	if model.connections.count() > 0 {
 		text := model.icons.Icon(cfg.IconDot) + " already open"
@@ -584,9 +585,10 @@ func (model *Model) renderField(
 		caret = len([]rune(buffer.Text[:min(buffer.Caret, len(buffer.Text))]))
 	}
 	head, under, tail := splitAtCaret(written, caret)
+	head = present.TruncateTextStart(head, width-present.MeasureText(under))
+	tail = present.TruncateText(tail, width-present.MeasureText(head+under))
 	caretStyle := lipgloss.NewStyle().Background(theme.Accent).Foreground(theme.OnAccent)
-	return style.Width(width).Render(
-		present.TruncateText(head, width) + caretStyle.Render(under) + tail)
+	return style.Width(width).Render(head + caretStyle.Render(under) + tail)
 }
 
 // readPasswordKey returns what one press does in the password prompt.
