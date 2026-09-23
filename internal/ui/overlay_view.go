@@ -60,7 +60,9 @@ func (model *Model) renderOverlayOver(
 	// a mark on one of them belongs to a pane the reader is not in.
 	model.layout.buttons = append([]buttonHit{}, model.layout.buttons[placedKeys:]...)
 	model.layout.scrollbars = append([]scrollHit{}, model.layout.scrollbars[placedBars:]...)
-	return placeOver(frame, card, left, top, model.styles.Theme.Background)
+	theme := model.styles.Theme
+	return placeOver(dimRows(frame, theme.Faint, theme.Background), card, left, top,
+		theme.Background)
 }
 
 // placeCardHits carries every hit box a card recorded from the cells of the card onto the

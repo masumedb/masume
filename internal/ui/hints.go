@@ -171,6 +171,17 @@ func (model *Model) BuildConnectingHints(hasSelection bool) []Hint {
 	return addCopyOrQuit(keys.build(), hasSelection)
 }
 
+// BuildConfirmHints returns the keys of the bar under an open question.
+func (model *Model) BuildConfirmHints(hasSelection bool) []Hint {
+	keys := hintList{}
+	keys.add(model.buildScreenHint(cfg.ScopeDialog, ActionClose, "cancel"))
+	hints := keys.build()
+	if hasSelection {
+		return append([]Hint{copySelection}, hints...)
+	}
+	return hints
+}
+
 // BuildCardScreenHints returns the keys of a screen whose card names its own keys. The bar
 // shows only the copy or quit key.
 func (model *Model) BuildCardScreenHints(hasSelection bool) []Hint {

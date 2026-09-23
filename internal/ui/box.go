@@ -369,6 +369,14 @@ func placeOver(rows []string, card string, left, top int, ground color.Color) []
 	return rows
 }
 
+// dimRows redraws each row as its plain text in this ink on this ground.
+func dimRows(rows []string, ink, ground color.Color) []string {
+	for at, row := range rows {
+		rows[at] = paintText(ink, ground, ansi.Strip(row))
+	}
+	return rows
+}
+
 // overlayRow writes the card row into the frame row at that cell, and keeps what the
 // card does not cover on either side.
 func overlayRow(row, drawn string, left int, ground color.Color) string {

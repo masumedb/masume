@@ -53,7 +53,12 @@ func (model *Model) render() string {
 		cardWidth := present.ResolveCardWidth(64, 36, model.width)
 		card := model.renderCard(model.confirm.Title, cardWidth,
 			model.buildConfirmLines(model.confirm, cardWidth), model.confirm.Destructive)
-		middle = model.styles.CenterRowsOn(card, model.width, body)
+		model.layout.buttons = nil
+		model.layout.scrollbars = nil
+		theme := model.styles.Theme
+		middle = placeOver(dimRows(middle, theme.Faint, theme.Background), card,
+			halfRoundedUp(model.width-measureStyledWidth(card)),
+			halfRoundedUp(body-len(strings.Split(card, "\n"))), theme.Background)
 	}
 
 	rows := make([]string, 0, len(middle)+2)
@@ -77,9 +82,10 @@ func (model *Model) renderSettingsOver(body int) []string {
 		return model.styles.CenterRowsOn(card, model.width, body)
 	}
 	rows := strings.Split(card, "\n")
-	return placeOver(frame, card,
+	theme := model.styles.Theme
+	return placeOver(dimRows(frame, theme.Faint, theme.Background), card,
 		halfRoundedUp(model.width-measureStyledWidth(card)),
-		halfRoundedUp(body-len(rows)), model.styles.Theme.Background)
+		halfRoundedUp(body-len(rows)), theme.Background)
 }
 
 // renderConnecting draws the line that says which server the client is waiting for.
@@ -260,8 +266,9 @@ func (model *Model) renderTitleBar() string {
 	// keys of its own, so a key of the bar behind it would look live and do nothing. They
 	// are drawn a step back while one is open, in the quiet ink and not the faint one,
 	// which a reader cannot make out at all.
+	cardOpen := connection.Overlay.IsOpen() || model.confirm != nil
 	keyInk, keyFollow := lead, follow
-	if connection.Overlay.IsOpen() {
+	if cardOpen {
 		keyInk, keyFollow = theme.Muted, theme.Muted
 	}
 
@@ -292,7 +299,7 @@ func (model *Model) renderTitleBar() string {
 		// colour of what it stands for, unless the bar is drawn a step back already.
 		if glyph := model.icons.Icon(shortcut.icon); shortcut.icon != "" && glyph != "" {
 			glyphInk := model.styles.IconColor(shortcut.icon)
-			if onProduction || connection.Overlay.IsOpen() {
+			if onProduction || cardOpen {
 				glyphInk = keyInk
 			}
 			writeKey(glyphInk, " "+glyph)
@@ -308,7 +315,7 @@ func (model *Model) renderTitleBar() string {
 	// A bar too narrow for both halves cuts the left one, and the right one stands where it
 	// was counted from, so the boxes hold only where the whole row was drawn.
 	left := model.width - 1 - covered
-	if covered > 0 && left > present.MeasureText("masume") && !connection.Overlay.IsOpen() {
+	if covered > 0 && left > present.MeasureText("masume") && !cardOpen {
 		for _, box := range boxes {
 			box.from += left
 			box.to += left
@@ -322,6 +329,10 @@ func (model *Model) renderTitleBar() string {
 
 // renderScreenStatusBar draws the bar under a screen that has no connection.
 func (model *Model) renderScreenStatusBar() string {
+	if model.confirm != nil {
+		return model.renderStatusBar(model.BuildConfirmHints(model.holdsSelection()), "",
+			app.NoticeInfo)
+	}
 	if model.screen == ScreenWorking {
 		return model.renderWorkspaceStatusBar()
 	}
@@ -406,7 +417,8 @@ func (model *Model) renderStatusBar(hints []Hint, message string, tone app.Notic
 		// A key that quits is never a button: a press meant for the row under it would
 		// close the client. Only the workspace returns a press on a key of the bar, so a
 		// screen that has no connection records none.
-		if hint.Standing || hint.Action == "" || model.screen != ScreenWorking {
+		if hint.Standing || hint.Action == "" || model.screen != ScreenWorking ||
+			model.confirm != nil {
 			continue
 		}
 		model.layout.buttons = append(model.layout.buttons, buttonHit{
