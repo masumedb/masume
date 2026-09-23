@@ -289,7 +289,7 @@ var HelpSections = []HelpSection{
 			{Scope: cfg.ScopeDialog, Actions: []ActionID{ActionStepBack}},
 			{Scope: cfg.ScopeDialog, Actions: []ActionID{ActionOpenDirectory, ActionLeaveDirectory}, Text: "open a directory or go up, in a file picker"},
 			{Scope: cfg.ScopeDialog, Actions: []ActionID{ActionPreviousRow, ActionNextRow}, Text: "the row before or after, in the card of one row"},
-			{Scope: cfg.ScopeDialog, Actions: []ActionID{ActionScrollLeft, ActionScrollRight}, Text: "scroll a diagram sideways"},
+			{Scope: cfg.ScopeDialog, Actions: []ActionID{ActionScrollLeft, ActionScrollRight}, Text: "pan a diagram sideways"},
 		},
 	},
 	{

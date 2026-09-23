@@ -1102,19 +1102,75 @@ func (model *Model) renderMessage(overlay app.Overlay, width int) string {
 // wrapped, because a box drawn over two rows would come apart.
 func (model *Model) renderDiagram(overlay app.Overlay, width int) string {
 	room := max(width-present.CardChrome, 1)
-	lines := make([]string, 0, len(overlay.Lines))
-	for at := overlay.List.Cursor; at < len(overlay.Lines); at++ {
-		line := overlay.Lines[at]
-		if overlay.List.Offset < len([]rune(line)) {
-			line = string([]rune(line)[overlay.List.Offset:])
-		} else {
-			line = ""
-		}
-		lines = append(lines, model.styles.Ink().Render(present.TruncateText(line, room)))
+	drawn := overlay.Diagram
+	keys := model.buildCardKeys(app.OverlayDiagram, keyScene{overlay: overlay})
+	text := keys.buildText()
+	height := model.resolveOverlayHeight(
+		overlay.Kind, len(drawn.Lines), countHintRows(text, width))
+	model.layout.cardBody = countCardBodyRows(height, countHintLines(text, room))
+	model.layout.cardRoom = room
+
+	lines := make([]string, 0, len(drawn.Lines))
+	for at := max(overlay.List.Cursor, 0); at < len(drawn.Lines); at++ {
+		lines = append(lines, model.paintDiagramRow(overlay, at, room))
 	}
-	return model.renderTextCard(overlay.Kind, overlay.Title, width, lines,
-		model.buildCardKeys(app.OverlayDiagram, keyScene{overlay: overlay}),
-		len(overlay.Lines), plainCard)
+	return model.renderTextCard(overlay.Kind, overlay.Title, width, lines, keys,
+		len(drawn.Lines), plainCard)
+}
+
+// paintDiagramRow draws one row of a diagram from the column the card is panned to: the
+// border of the focused box in the accent, each key mark in the colour of its icon in the
+// tree, and each type muted.
+func (model *Model) paintDiagramRow(overlay app.Overlay, row, room int) string {
+	theme := model.styles.Theme
+	drawn := overlay.Diagram
+	runes := []rune(drawn.Lines[row])
+	from := min(max(overlay.List.Offset, 0), len(runes))
+	to := min(from+room, len(runes))
+
+	inks := make([]color.Color, len(runes))
+	for at := range inks {
+		inks[at] = theme.Text
+	}
+	paint := func(x, width int, ink color.Color) {
+		for at := max(x, 0); at < min(x+width, len(inks)); at++ {
+			inks[at] = ink
+		}
+	}
+	for _, span := range drawn.Spans {
+		if span.Y != row {
+			continue
+		}
+		switch span.Kind {
+		case present.DiagramSpanPrimary:
+			paint(span.X, span.Width, model.styles.IconColor(cfg.IconPrimaryKey))
+		case present.DiagramSpanForeign:
+			paint(span.X, span.Width, model.styles.IconColor(cfg.IconForeignKey))
+		case present.DiagramSpanType:
+			paint(span.X, span.Width, theme.Muted)
+		}
+	}
+	if overlay.Field >= 0 && overlay.Field < len(drawn.Boxes) {
+		box := drawn.Boxes[overlay.Field]
+		switch {
+		case row == box.Y || row == box.Y+box.Height-1:
+			paint(box.X, box.Width, theme.Accent)
+		case row > box.Y && row < box.Y+box.Height-1:
+			paint(box.X, 1, theme.Accent)
+			paint(box.X+box.Width-1, 1, theme.Accent)
+		}
+	}
+
+	written := strings.Builder{}
+	for start := from; start < to; {
+		end := start + 1
+		for end < to && inks[end] == inks[start] {
+			end++
+		}
+		writeTextOn(&written, inks[start], theme.Panel, string(runes[start:end]))
+		start = end
+	}
+	return written.String()
 }
 
 // renderCellViewer draws one cell full size. A value taller than the card scrolls inside it,

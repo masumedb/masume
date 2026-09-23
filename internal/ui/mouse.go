@@ -162,6 +162,8 @@ type frameLayout struct {
 	// The lines a card that scrolls without a cursor holds, and the rows it shows of
 	// them, so a key that scrolls it stops where the lines run out.
 	cardLines, cardBody int
+	// The columns a diagram card shows.
+	cardRoom int
 	// The chips a card draws as returns, such as the two of a question.
 	overlayChips []chipHit
 
@@ -740,7 +742,7 @@ func (model *Model) rollOverlay(connection *app.Connection, step int) (tea.Model
 		overlay.List.Offset = overlay.List.Cursor
 		return model, nil
 	case app.OverlayDiagram:
-		overlay.List.Cursor += step
+		overlay.List.Cursor = clamp(overlay.List.Cursor+step, len(overlay.Diagram.Lines))
 		return model, nil
 	}
 	overlay.List.Offset, overlay.List.Rolled = overlay.List.Offset+step, true

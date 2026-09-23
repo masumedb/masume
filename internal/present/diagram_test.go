@@ -11,9 +11,9 @@ func TestRenderErDiagram(t *testing.T) {
 	root := DiagramTable{
 		Schema: "main", Name: "Album",
 		Columns: []DiagramColumn{
-			{Name: "AlbumId", Primary: true},
-			{Name: "Title"},
-			{Name: "ArtistId", Foreign: true},
+			{Name: "AlbumId", Type: "int", Primary: true},
+			{Name: "Title", Type: "text"},
+			{Name: "ArtistId", Type: "int", Foreign: true},
 		},
 		ForeignKeys: []query.ForeignKey{{
 			Name: "fk", Columns: []string{"ArtistId"},
@@ -26,11 +26,12 @@ func TestRenderErDiagram(t *testing.T) {
 		Columns: []DiagramColumn{{Name: "ArtistId", Primary: true}, {Name: "Name"}},
 	}}
 
-	lines := RenderErDiagram(root, related)
-	drawn := strings.Join(lines, "\n")
-	for _, wanted := range []string{"main.Album", "main.Artist", "PK", "FK", "▶"} {
-		if !strings.Contains(drawn, wanted) {
-			t.Errorf("the diagram has no %q:\n%s", wanted, drawn)
+	drawn := RenderErDiagram(root, related, DiagramMarks{Primary: "◆", Foreign: "→"})
+	lines := drawn.Lines
+	text := strings.Join(lines, "\n")
+	for _, wanted := range []string{"main.Album", "main.Artist", "◆ AlbumId", "→ ArtistId", "▶"} {
+		if !strings.Contains(text, wanted) {
+			t.Errorf("the diagram has no %q:\n%s", wanted, text)
 		}
 	}
 	width := MeasureText(lines[0])
@@ -38,6 +39,68 @@ func TestRenderErDiagram(t *testing.T) {
 		if MeasureText(line) != width {
 			t.Errorf("row %d is %d wide, wanted %d", at, MeasureText(line), width)
 		}
+	}
+	if drawn.Width != width {
+		t.Errorf("the diagram is %d wide, wanted %d", drawn.Width, width)
+	}
+}
+
+// Every box and every span covers the cells of its own text.
+func TestRenderErDiagramReportsTheBoxesAndTheSpans(t *testing.T) {
+	root := DiagramTable{
+		Schema: "main", Name: "Album",
+		Columns: []DiagramColumn{
+			{Name: "AlbumId", Type: "int", Primary: true},
+			{Name: "ArtistId", Type: "bigint", Foreign: true},
+		},
+		ForeignKeys: []query.ForeignKey{{
+			Columns: []string{"ArtistId"}, TargetSchema: "main", TargetTable: "Artist",
+			TargetColumns: []string{"ArtistId"},
+		}},
+	}
+	related := []DiagramTable{{
+		Schema: "main", Name: "Artist",
+		Columns: []DiagramColumn{{Name: "ArtistId", Type: "int", Primary: true}},
+	}}
+
+	drawn := RenderErDiagram(root, related, DiagramMarks{Primary: "*", Foreign: ">"})
+	if len(drawn.Boxes) != 2 || drawn.Boxes[drawn.Root].Name != "Album" {
+		t.Fatalf("the diagram reports the boxes %+v and the root %d", drawn.Boxes, drawn.Root)
+	}
+	for _, box := range drawn.Boxes {
+		top := []rune(drawn.Lines[box.Y])
+		if top[box.X] != '╭' || top[box.X+box.Width-1] != '╮' {
+			t.Errorf("the box %+v does not start at its corner:\n%s", box, string(top))
+		}
+		if bottom := []rune(drawn.Lines[box.Y+box.Height-1]); bottom[box.X] != '╰' {
+			t.Errorf("the box %+v does not end at its corner", box)
+		}
+	}
+	wanted := map[DiagramSpanKind][]string{
+		DiagramSpanPrimary: {"*", "*"}, DiagramSpanForeign: {">"},
+		DiagramSpanType: {"int", "bigint", "int"},
+	}
+	found := map[DiagramSpanKind][]string{}
+	for _, span := range drawn.Spans {
+		line := []rune(drawn.Lines[span.Y])
+		found[span.Kind] = append(found[span.Kind], string(line[span.X:span.X+span.Width]))
+	}
+	for kind, texts := range wanted {
+		if strings.Join(found[kind], ",") != strings.Join(texts, ",") {
+			t.Errorf("the %s spans cover %q, wanted %q", kind, found[kind], texts)
+		}
+	}
+}
+
+// A glyph wider than one cell, or no glyph at all, leaves the mark blank.
+func TestRenderErDiagramBlanksAMarkOfAnotherWidth(t *testing.T) {
+	root := DiagramTable{
+		Schema: "main", Name: "Album",
+		Columns: []DiagramColumn{{Name: "AlbumId", Primary: true}},
+	}
+	drawn := RenderErDiagram(root, nil, DiagramMarks{Primary: "PK"})
+	if !strings.Contains(strings.Join(drawn.Lines, "\n"), "│   AlbumId") {
+		t.Errorf("the mark is not blank:\n%s", strings.Join(drawn.Lines, "\n"))
 	}
 }
 

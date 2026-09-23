@@ -13,6 +13,7 @@ import (
 // DiagramColumn is one column of a box of the diagram.
 type DiagramColumn struct {
 	Name    string
+	Type    string
 	Primary bool
 	Foreign bool
 }
@@ -27,11 +28,57 @@ type DiagramTable struct {
 
 // The size of one box, and the number of columns it shows.
 const (
-	diagramBoxWidth    = 26
+	diagramBoxWidth    = 30
 	diagramGap         = 8
 	diagramHeaderLines = 3
 	diagramMaxColumns  = 10
+	diagramTypeWidth   = 8
+	diagramNameWidth   = diagramBoxWidth - 2 - 3 - diagramTypeWidth - 2
 )
+
+// DiagramMarks are the glyphs of a primary key column and of a foreign key column.
+type DiagramMarks struct {
+	Primary string
+	Foreign string
+}
+
+// DiagramSpanKind is the part of a box one span covers.
+type DiagramSpanKind string
+
+// The parts of a box drawn in a colour of their own.
+const (
+	DiagramSpanPrimary DiagramSpanKind = "primary"
+	DiagramSpanForeign DiagramSpanKind = "foreign"
+	DiagramSpanType    DiagramSpanKind = "type"
+)
+
+// DiagramSpan is the cells one part of a box covers, on one row of the diagram.
+type DiagramSpan struct {
+	Kind  DiagramSpanKind
+	X     int
+	Y     int
+	Width int
+}
+
+// DiagramBox is the table one box draws, and the cells the box covers.
+type DiagramBox struct {
+	Schema string
+	Name   string
+	X      int
+	Y      int
+	Width  int
+	Height int
+}
+
+// ErDiagram is the drawn diagram: its lines, its boxes left to right and top to bottom, and
+// the parts drawn in a colour of their own. Root is the index of the root box.
+type ErDiagram struct {
+	Lines []string
+	Width int
+	Boxes []DiagramBox
+	Spans []DiagramSpan
+	Root  int
+}
 
 // QualifyDiagramTable joins the schema and the name of a table into one name.
 func QualifyDiagramTable(schema, name string) string {
@@ -95,14 +142,11 @@ func padDiagramCell(text string, width int) string {
 	return PadText(text, width)
 }
 
-// buildDiagramBox returns the box of one table: the name, and then the columns with the role
-// of each one.
-func buildDiagramBox(table DiagramTable) []string {
+// buildDiagramBox returns the box of one table: the name, and then the columns with the mark
+// and the type of each one.
+func buildDiagramBox(table DiagramTable, marks DiagramMarks) []string {
 	inner := diagramBoxWidth - 2
-	shown := table.Columns
-	if len(shown) > diagramMaxColumns {
-		shown = shown[:diagramMaxColumns]
-	}
+	shown := listShownDiagramColumns(table)
 	lines := []string{
 		"╭" + strings.Repeat("─", inner) + "╮",
 		"│" + padDiagramCell(" "+
@@ -110,14 +154,15 @@ func buildDiagramBox(table DiagramTable) []string {
 		"├" + strings.Repeat("─", inner) + "┤",
 	}
 	for _, column := range shown {
-		role := "  "
+		mark := " "
 		switch {
 		case column.Primary:
-			role = "PK"
+			mark = fitDiagramMark(marks.Primary)
 		case column.Foreign:
-			role = "FK"
+			mark = fitDiagramMark(marks.Foreign)
 		}
-		lines = append(lines, "│"+padDiagramCell(" "+column.Name, inner-3)+role+" │")
+		lines = append(lines, "│ "+mark+" "+padDiagramCell(column.Name, diagramNameWidth)+" "+
+			padDiagramCell(column.Type, diagramTypeWidth)+" │")
 	}
 	if len(table.Columns) > len(shown) {
 		lines = append(lines, "│"+padDiagramCell(
@@ -126,13 +171,46 @@ func buildDiagramBox(table DiagramTable) []string {
 	return append(lines, "╰"+strings.Repeat("─", inner)+"╯")
 }
 
+// listShownDiagramColumns returns the columns a box draws.
+func listShownDiagramColumns(table DiagramTable) []DiagramColumn {
+	if len(table.Columns) > diagramMaxColumns {
+		return table.Columns[:diagramMaxColumns]
+	}
+	return table.Columns
+}
+
+// fitDiagramMark returns a glyph one cell wide, or a blank for a glyph of another width.
+func fitDiagramMark(glyph string) string {
+	if len([]rune(glyph)) != 1 || MeasureText(glyph) != 1 {
+		return " "
+	}
+	return glyph
+}
+
+// listDiagramSpans returns the marks and the types of a box drawn at that corner.
+func listDiagramSpans(table DiagramTable, x, y int) []DiagramSpan {
+	spans := []DiagramSpan{}
+	for index, column := range listShownDiagramColumns(table) {
+		row := y + diagramHeaderLines + index
+		switch {
+		case column.Primary:
+			spans = append(spans, DiagramSpan{Kind: DiagramSpanPrimary, X: x + 2, Y: row, Width: 1})
+		case column.Foreign:
+			spans = append(spans, DiagramSpan{Kind: DiagramSpanForeign, X: x + 2, Y: row, Width: 1})
+		}
+		if column.Type != "" {
+			spans = append(spans, DiagramSpan{
+				Kind: DiagramSpanType, X: x + 5 + diagramNameWidth, Y: row,
+				Width: min(len([]rune(column.Type)), diagramTypeWidth),
+			})
+		}
+	}
+	return spans
+}
+
 // findDiagramColumnRow returns the row of a box that holds that column.
 func findDiagramColumnRow(table DiagramTable, columnName string) (int, bool) {
-	shown := table.Columns
-	if len(shown) > diagramMaxColumns {
-		shown = shown[:diagramMaxColumns]
-	}
-	for index, column := range shown {
+	for index, column := range listShownDiagramColumns(table) {
 		if strings.EqualFold(column.Name, columnName) {
 			return diagramHeaderLines + index, true
 		}
@@ -148,11 +226,18 @@ type diagramPlacement struct {
 	height int
 }
 
-func placeDiagramBox(canvas *diagramCanvas, table DiagramTable, x, y int) diagramPlacement {
-	lines := buildDiagramBox(table)
+func placeDiagramBox(
+	canvas *diagramCanvas, drawn *ErDiagram, table DiagramTable, marks DiagramMarks, x, y int,
+) diagramPlacement {
+	lines := buildDiagramBox(table, marks)
 	for index, line := range lines {
 		canvas.set(x, y+index, line)
 	}
+	drawn.Boxes = append(drawn.Boxes, DiagramBox{
+		Schema: table.Schema, Name: table.Name,
+		X: x, Y: y, Width: diagramBoxWidth, Height: len(lines),
+	})
+	drawn.Spans = append(drawn.Spans, listDiagramSpans(table, x, y)...)
 	return diagramPlacement{table: table, x: x, y: y, height: len(lines)}
 }
 
@@ -192,8 +277,9 @@ func connectDiagram(canvas *diagramCanvas, fromX, fromY, toX, toY int) {
 
 // RenderErDiagram draws the table and its neighbours and connects every foreign key column
 // to the column it refers to.
-func RenderErDiagram(root DiagramTable, related []DiagramTable) []string {
+func RenderErDiagram(root DiagramTable, related []DiagramTable, marks DiagramMarks) ErDiagram {
 	canvas := &diagramCanvas{}
+	drawn := ErDiagram{}
 	rootName := QualifyDiagramTable(root.Schema, root.Name)
 
 	findRelated := func(schema, name string) (DiagramTable, bool) {
@@ -236,12 +322,13 @@ func RenderErDiagram(root DiagramTable, related []DiagramTable) []string {
 	leftY := 0
 	leftPlacements := make([]diagramPlacement, 0, len(incoming))
 	for _, held := range incoming {
-		placed := placeDiagramBox(canvas, held.table, leftX, leftY)
+		placed := placeDiagramBox(canvas, &drawn, held.table, marks, leftX, leftY)
 		leftY += placed.height + 1
 		leftPlacements = append(leftPlacements, placed)
 	}
 
-	rootPlacement := placeDiagramBox(canvas, root, middleX, 0)
+	drawn.Root = len(drawn.Boxes)
+	rootPlacement := placeDiagramBox(canvas, &drawn, root, marks, middleX, 0)
 
 	rightY := 0
 	for _, key := range outgoing {
@@ -249,7 +336,7 @@ func RenderErDiagram(root DiagramTable, related []DiagramTable) []string {
 		if !found {
 			continue
 		}
-		placed := placeDiagramBox(canvas, target, rightX, rightY)
+		placed := placeDiagramBox(canvas, &drawn, target, marks, rightX, rightY)
 		rightY += placed.height + 1
 
 		fromRow, hasFrom := findDiagramColumnRow(root, firstOf(key.Columns))
@@ -275,7 +362,9 @@ func RenderErDiagram(root DiagramTable, related []DiagramTable) []string {
 			leftX+diagramBoxWidth, placed.y+fromRow, middleX, rootPlacement.y+toRow)
 	}
 
-	return canvas.toLines()
+	drawn.Lines = canvas.toLines()
+	drawn.Width = measureDiagramWidth(drawn.Lines)
+	return drawn
 }
 
 func firstOf(names []string) string {

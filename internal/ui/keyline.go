@@ -146,6 +146,21 @@ func (line *KeyLine) bindPair(
 	return line
 }
 
+// bindJoinedPairs adds one key for two pairs of actions, drawn as one chord. A press on the
+// first half runs the first action of the first pair.
+func (line *KeyLine) bindJoinedPairs(first, second keySpec, label string) *KeyLine {
+	chord := line.registry.FormatChordPair(first.scope, first.action, first.second, "") +
+		line.registry.FormatChordPair(second.scope, second.action, second.second, "")
+	if chord == "" {
+		return line
+	}
+	line.parts = append(line.parts, keyPart{
+		chord: chord, label: label, scope: first.scope, action: first.action,
+		second: first.second, main: IsMainHint(first.scope, first.action),
+	})
+	return line
+}
+
 // addAnswerKey adds the primary key of a field or a list: the key it is answered or left
 // with. The registry has no such key, and no press runs it. It is drawn as every key is: the
 // chord in the ink of a key, and what it does in the quiet ink.

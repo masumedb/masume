@@ -790,16 +790,17 @@ func closeSession(session io.Closer, preConnect *cfg.PreConnectHandle) tea.Cmd {
 	}
 }
 
-// diagramMsg returns the lines of an ER diagram, or why it could not be drawn.
+// diagramMsg returns the tables of an ER diagram, or why it could not be drawn.
 type diagramMsg struct {
 	ConnectionID int
 	Title        string
-	Lines        []string
+	Root         present.DiagramTable
+	Related      []present.DiagramTable
 	Problem      string
 }
 
-// readDiagram asks the server for the relation and the relations a foreign key joins to it,
-// and draws them. Every read is done here, off the frame, because a diagram reads one
+// readDiagram asks the server for the relation and the relations a foreign key joins to it.
+// Every read is done here, off the frame, because a diagram reads one
 // relation per neighbour.
 func readDiagram(
 	connectionID int, session db.CatalogReader, table db.TableRef, tables []db.TableRef,
@@ -826,7 +827,8 @@ func readDiagram(
 			columns := make([]present.DiagramColumn, 0, len(detail.Columns))
 			for _, column := range detail.Columns {
 				columns = append(columns, present.DiagramColumn{
-					Name: column.Name, Primary: column.IsPrimaryKey,
+					Name: column.Name, Type: present.AbbreviateDataType(column.DataType),
+					Primary: column.IsPrimaryKey,
 					Foreign: foreign[strings.ToLower(column.Name)],
 				})
 			}
@@ -859,7 +861,7 @@ func readDiagram(
 			}
 			related = append(related, described)
 		}
-		answered.Lines = present.RenderErDiagram(root, related)
+		answered.Root, answered.Related = root, related
 		return answered
 	}
 }

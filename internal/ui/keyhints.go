@@ -33,7 +33,10 @@ type keySpec struct {
 	scope  cfg.KeyScope
 	action ActionID
 	// second is the other half of a pair, such as the step on beside the step back.
-	second    ActionID
+	second ActionID
+	// joined is a second pair drawn in the same chord, such as the side arrows beside the
+	// up and down arrows.
+	joined    *keySpec
 	separator string
 	icon      cfg.IconKind
 	// chord holds the key of a widget the registry does not hold.
@@ -77,6 +80,22 @@ func pairOf(
 	return keySpec{
 		scope: scope, action: previous, second: next, label: label, separator: separator,
 	}
+}
+
+// joinPairs is one key for two pairs of actions, such as the four arrows that pan a view.
+func joinPairs(first, second keySpec, label string) keySpec {
+	first.label = label
+	first.joined = &second
+	return first
+}
+
+// listActions returns every action the spec reads.
+func (spec keySpec) listActions() []ActionID {
+	actions := []ActionID{spec.action, spec.second}
+	if spec.joined != nil {
+		actions = append(actions, spec.joined.action, spec.joined.second)
+	}
+	return actions
 }
 
 // takesKey is a key the card reads and does not show, such as a second chord for the same
@@ -123,6 +142,8 @@ func (spec keySpec) addTo(line *KeyLine, scene keyScene) {
 		line.addAsideKey(spec.chord, label)
 	case spec.chord != "":
 		line.addAnswerKey(spec.chord, label)
+	case spec.joined != nil:
+		line.bindJoinedPairs(spec, *spec.joined, label)
 	case spec.second != "":
 		line.bindPair(spec.scope, spec.action, spec.second, label, spec.separator)
 	case spec.icon != "":
@@ -251,8 +272,10 @@ var cardKeySpecs = map[app.OverlayKind][]keySpec{
 		keyOf(cfg.ScopeDialog, ActionClose, "").withLabel(describeSettingsClose),
 	},
 	app.OverlayDiagram: {
-		pairOf(cfg.ScopeList, ActionCursorUp, ActionCursorDown, "scroll", ""),
-		pairOf(cfg.ScopeDialog, ActionScrollLeft, ActionScrollRight, "scroll", ""),
+		joinPairs(pairOf(cfg.ScopeList, ActionCursorUp, ActionCursorDown, "", ""),
+			pairOf(cfg.ScopeDialog, ActionScrollLeft, ActionScrollRight, "", ""), "pan"),
+		keyOf(cfg.ScopeDialog, ActionNextTable, "next table"),
+		keyOf(cfg.ScopeList, ActionChooseRow, "open"),
 		keyOf(cfg.ScopeDialog, ActionClose, "").withLabel(describeSettingsClose),
 	},
 	app.OverlayCell: {
@@ -865,7 +888,7 @@ var dialogActionsByName = func() map[string][]ActionID {
 	for name, specs := range keyGroups {
 		held := slices.Clone(listActions)
 		for _, spec := range specs {
-			for _, action := range []ActionID{spec.action, spec.second} {
+			for _, action := range spec.listActions() {
 				if action == "" || slices.Contains(held, action) {
 					continue
 				}

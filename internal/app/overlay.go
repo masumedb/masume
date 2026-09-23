@@ -284,6 +284,7 @@ type Overlay struct {
 	Sessions  []db.Activity
 	Changes   []db.Change
 	Lines     []string
+	Diagram   present.ErDiagram
 
 	// The last reading of the server, and the state of the card the reader set.
 	Server ServerReading
@@ -315,7 +316,7 @@ type Overlay struct {
 	// The `:name` marks of the statement, and the values the user filled in.
 	Names []string
 
-	// The active form field index.
+	// The active form field index, or the focused box of a diagram.
 	Field int
 
 	// The action menu key scope, with global fallback for unbound actions.

@@ -340,25 +340,21 @@ func (model *Model) countHelpRows(overlay app.Overlay) int {
 // scrollDiagram moves a diagram by rows and by columns. It reports whether the action
 // belonged to the diagram.
 func scrollDiagram(overlay *app.Overlay, match Match) bool {
-	widest := 0
-	for _, line := range overlay.Lines {
-		if measured := len([]rune(line)); measured > widest {
-			widest = measured
-		}
-	}
+	lines := overlay.Diagram.Lines
+	widest := overlay.Diagram.Width
 	switch match.Action {
 	case ActionCursorUp:
-		overlay.List.Cursor = clamp(overlay.List.Cursor-1, len(overlay.Lines))
+		overlay.List.Cursor = clamp(overlay.List.Cursor-1, len(lines))
 	case ActionCursorDown:
-		overlay.List.Cursor = clamp(overlay.List.Cursor+1, len(overlay.Lines))
+		overlay.List.Cursor = clamp(overlay.List.Cursor+1, len(lines))
 	case ActionCursorPageUp, ActionScrollBack:
-		overlay.List.Cursor = clamp(overlay.List.Cursor-helpPageRows, len(overlay.Lines))
+		overlay.List.Cursor = clamp(overlay.List.Cursor-helpPageRows, len(lines))
 	case ActionCursorPageDown, ActionScrollForward:
-		overlay.List.Cursor = clamp(overlay.List.Cursor+helpPageRows, len(overlay.Lines))
+		overlay.List.Cursor = clamp(overlay.List.Cursor+helpPageRows, len(lines))
 	case ActionCursorFirstRow:
 		overlay.List.Cursor, overlay.List.Offset = 0, 0
 	case ActionCursorLastRow:
-		overlay.List.Cursor = clamp(len(overlay.Lines)-1, len(overlay.Lines))
+		overlay.List.Cursor = clamp(len(lines)-1, len(lines))
 	case ActionCursorLeft:
 		overlay.List.Offset = clamp(overlay.List.Offset-diagramScrollStep, widest)
 	case ActionCursorRight:
@@ -441,6 +437,10 @@ func (model *Model) runOverlayAction(
 	}
 	// A diagram scrolls both ways, because a box is as wide as it is.
 	if overlay.Kind == app.OverlayDiagram && scrollDiagram(overlay, match) {
+		return true, model, nil
+	}
+	if overlay.Kind == app.OverlayDiagram && match.Action == ActionNextTable {
+		model.focusNextDiagramBox(overlay)
 		return true, model, nil
 	}
 
@@ -781,6 +781,9 @@ func (model *Model) chooseOverlayRow(
 
 	case app.OverlayNotebooks:
 		return model.openNotebookRow(connection, overlay, inNewTab)
+
+	case app.OverlayDiagram:
+		return model.openDiagramBox(connection, overlay)
 
 	case app.OverlayWritePlan:
 		blocker, found := findOpenableBlocker(overlay.Plan)
@@ -1352,14 +1355,52 @@ func (model *Model) readDiagramAnswer(answered diagramMsg) (tea.Model, tea.Cmd) 
 		})
 		return model, nil
 	}
-	lines := answered.Lines
-	if len(lines) == 0 {
-		lines = []string{"no foreign-key relationships to show"}
-	}
+	drawn := present.RenderErDiagram(answered.Root, answered.Related, present.DiagramMarks{
+		Primary: model.icons.Icon(cfg.IconPrimaryKey),
+		Foreign: model.icons.Icon(cfg.IconForeignKey),
+	})
 	connection.Open(app.Overlay{
-		Kind: app.OverlayDiagram, Title: " diagram · " + answered.Title + " ", Lines: lines,
+		Kind: app.OverlayDiagram, Title: " diagram · " + answered.Title + " ",
+		Diagram: drawn, Field: drawn.Root,
 	})
 	return model, nil
+}
+
+// focusNextDiagramBox moves the focus to the next table of the diagram and pans the diagram
+// until the whole box is on screen.
+func (model *Model) focusNextDiagramBox(overlay *app.Overlay) {
+	boxes := overlay.Diagram.Boxes
+	if len(boxes) == 0 {
+		return
+	}
+	overlay.Field = wrap(overlay.Field+1, len(boxes))
+	box := boxes[overlay.Field]
+	rows, columns := model.layout.cardBody, model.layout.cardRoom
+	height := len(overlay.Diagram.Lines)
+	width := overlay.Diagram.Width
+	overlay.List.Cursor = scrollTo(box.Y+box.Height-1, overlay.List.Cursor, rows, height)
+	overlay.List.Cursor = scrollTo(box.Y, overlay.List.Cursor, rows, height)
+	overlay.List.Offset = scrollTo(box.X+box.Width-1, overlay.List.Offset, columns, width)
+	overlay.List.Offset = scrollTo(box.X, overlay.List.Offset, columns, width)
+}
+
+// openDiagramBox opens the focused table of the diagram in a tab of its own.
+func (model *Model) openDiagramBox(
+	connection *app.Connection, overlay *app.Overlay,
+) (tea.Model, tea.Cmd) {
+	if overlay.Field < 0 || overlay.Field >= len(overlay.Diagram.Boxes) {
+		return model, nil
+	}
+	box := overlay.Diagram.Boxes[overlay.Field]
+	table, known := connection.Catalog.FindTable(box.Schema, box.Name)
+	if !known {
+		connection.Show("table not found in the catalog: " + box.Name)
+		return model, nil
+	}
+	connection.CloseEveryOverlay()
+	preview := connection.Session.Composer().ComposeRelationRead(
+		table, core.ReadRewrite{}).Display
+	return model.runTabRead(connection, connection.OpenTable(table, preview))
 }
 
 // readOverlayField returns a press the registry did not bind, which the field of the overlay

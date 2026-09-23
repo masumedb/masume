@@ -587,6 +587,7 @@ var dialogActions = []ActionDefinition{
 	{ID: ActionWriteNewline, Label: "a newline in the question"},
 	{ID: ActionPreviousRow, MainHint: true}, {ID: ActionNextRow, MainHint: true},
 	{ID: ActionScrollLeft}, {ID: ActionScrollRight},
+	{ID: ActionNextTable, Label: "focus the next table of the diagram"},
 	{ID: ActionOpenDirectory}, {ID: ActionLeaveDirectory},
 	// The find field marks whole words only, or every match of the term.
 	{ID: ActionToggleWholeWord, Label: "toggle whole-word matching"},

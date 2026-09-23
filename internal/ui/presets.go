@@ -324,6 +324,7 @@ var defaultChords = map[string][]string{
 	"dialog:next-row":        {"right"},
 	"dialog:scroll-left":     {"left"},
 	"dialog:scroll-right":    {"right"},
+	"dialog:next-table":      {"tab"},
 	"dialog:open-directory":  {"right"},
 	"dialog:leave-directory": {"left"},
 	// The list of completions owns the keyboard while it is open. Its key is bound here,

@@ -86,6 +86,7 @@ Each card uses only its own actions, so two rows in this table can share a key w
 | `new-connection` | `n` |
 | `next-field` | `down` or `tab` |
 | `next-row` | `right` |
+| `next-table` | `tab` |
 | `next-turn` | `ctrl+n` |
 | `next-value` | `right` |
 | `open-directory` | `right` |

@@ -270,8 +270,10 @@ func namesDialogAction(name, id string) bool {
 		if spec.scope != cfg.ScopeDialog {
 			continue
 		}
-		if string(spec.action) == id || string(spec.second) == id {
-			return true
+		for _, action := range spec.listActions() {
+			if string(action) == id {
+				return true
+			}
 		}
 	}
 	return false
