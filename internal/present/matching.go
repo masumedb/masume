@@ -2,6 +2,7 @@ package present
 
 import (
 	"strings"
+	"unicode/utf8"
 )
 
 // MatchesSubsequence is true if every typed character is in the candidate in the same order,
@@ -31,6 +32,30 @@ func MatchesText(candidate, needle string) bool {
 		return true
 	}
 	return strings.Contains(strings.ToLower(candidate), strings.ToLower(needle))
+}
+
+// FindTextSpan returns the byte range of the first place the candidate contains the typed
+// text, without case comparison.
+func FindTextSpan(candidate, needle string) (int, int, bool) {
+	count := utf8.RuneCountInString(needle)
+	if count == 0 {
+		return 0, 0, false
+	}
+	for from := range candidate {
+		to, taken := from, 0
+		for to < len(candidate) && taken < count {
+			_, size := utf8.DecodeRuneInString(candidate[to:])
+			to += size
+			taken++
+		}
+		if taken < count {
+			break
+		}
+		if strings.EqualFold(candidate[from:to], needle) {
+			return from, to, true
+		}
+	}
+	return 0, 0, false
 }
 
 // MaskedDisplay is drawn in place of a hidden value.

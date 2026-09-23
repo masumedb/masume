@@ -185,3 +185,48 @@ func TestThePaletteFollowsTheStateOfTheTab(t *testing.T) {
 		"write-notebook-report", "notebook-run-policy")
 	hides("a notebook tab", "format-sql", "ai-explain-query", "ai-optimize-query")
 }
+
+func TestThePaletteRowLeadsWithTheNameAndEndsWithTheKey(t *testing.T) {
+	model := buildLoadedModel(t, 1, 3, 8, 3)
+	connection := model.Active()
+	connection.Overlay = app.Overlay{
+		Kind: app.OverlayPalette, Draft: app.NewEditorBuffer("", 0),
+		Palette: model.buildPaletteActions(connection),
+	}
+	frame := strings.Split(model.render(), "\n")
+	if filter := stripEscapes(frame[model.layout.overlayRows.top-1]); !strings.Contains(
+		filter, "Search commands…") {
+		t.Errorf("the filter line reads %q", strings.TrimSpace(filter))
+	}
+
+	first := connection.Overlay.Palette[0]
+	block := model.layout.overlayRows
+	text := strings.TrimSpace(strings.TrimPrefix(
+		strings.TrimSpace(cutRowText(frame[block.top], block.from, block.to)), "❯"))
+	text = strings.TrimSpace(strings.TrimSuffix(text, "█"))
+	if !strings.HasPrefix(text, first.Label) || !strings.HasSuffix(text, first.Chord) {
+		t.Errorf("the first row reads %q, wanted %q first and %q last",
+			text, first.Label, first.Chord)
+	}
+}
+
+func TestThePaletteDrawsTheMatchedTextInBold(t *testing.T) {
+	model := buildLoadedModel(t, 1, 3, 8, 3)
+	connection := model.Active()
+	connection.Overlay = app.Overlay{
+		Kind: app.OverlayPalette, Draft: app.NewEditorBuffer("every", 5),
+		Palette: model.buildPaletteActions(connection),
+	}
+	frame := strings.Split(model.render(), "\n")
+
+	bold := strings.Builder{}
+	for _, cell := range mapCells(frame[model.layout.overlayRows.top]) {
+		if strings.Contains(cell.sgr, "\x1b[1;") || strings.Contains(cell.sgr, ";1;") ||
+			strings.Contains(cell.sgr, "\x1b[1m") {
+			bold.WriteString(cell.text)
+		}
+	}
+	if bold.String() != "every" {
+		t.Errorf("the row draws %q in bold, wanted %q", bold.String(), "every")
+	}
+}

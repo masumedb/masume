@@ -542,10 +542,14 @@ type ListRowSpec struct {
 	// Trail stands after the detail, at the right of the row. HasTrail is what tells a
 	// row with an empty trail from a row without one, which measure the detail
 	// differently.
-	Trail       string
-	HasTrail    bool
+	Trail    string
+	HasTrail bool
+	// Key is drawn at the right end of the row. Trail and Key are not used together.
+	Key         string
 	Selected    bool
 	Destructive bool
+	// Match is the filter term, drawn in bold where the label or the detail contains it.
+	Match string
 	// Width is the width of the card the row is drawn in.
 	Width int
 }
@@ -567,8 +571,20 @@ func (model *Model) renderListRow(row ListRowSpec) string {
 		ground = theme.Accent
 		quiet, labelInk = theme.OnAccent, theme.OnAccent
 	}
+	matchInk := theme.Accent
+	if row.Selected {
+		matchInk = theme.OnAccent
+	}
 	paint := func(ink color.Color, text string) string {
 		return paintText(ink, ground, text)
+	}
+	paintMatch := func(ink color.Color, text string) string {
+		from, to, found := present.FindTextSpan(text, row.Match)
+		if !found {
+			return paint(ink, text)
+		}
+		return paint(ink, text[:from]) + paintBoldText(matchInk, ground, text[from:to]) +
+			paint(ink, text[to:])
 	}
 
 	written := paint(labelInk, model.buildRowGutter(row.Selected))
@@ -583,17 +599,23 @@ func (model *Model) renderListRow(row ListRowSpec) string {
 		written += paint(iconInk, present.FitText(
 			model.icons.Icon(row.Icon), listRowIconWidth))
 	}
-	written += paint(labelInk, present.FitText(
+	written += paintMatch(labelInk, present.FitText(
 		present.TruncateText(row.Label, row.LabelWidth-1), row.LabelWidth))
 
-	if row.HasTrail {
+	room := max(row.Width-present.CardChrome-rowPaddingLeft-
+		row.LeadWidth-row.LabelWidth-rowScrollbarWidth, 0)
+	switch {
+	case row.HasTrail:
 		written += paint(quiet, present.FitText(
 			present.TruncateText(row.Detail, detailBesideTrail), detailBesideTrail))
 		written += paint(quiet, row.Trail)
-	} else {
-		room := max(row.Width-present.CardChrome-rowPaddingLeft-
-			row.LeadWidth-row.LabelWidth-rowScrollbarWidth, 0)
-		written += paint(quiet, present.TruncateText(row.Detail, room))
+	case row.Key != "":
+		detailRoom := max(room-present.MeasureText(row.Key)-1, 0)
+		written += paintMatch(quiet, present.FitText(
+			present.TruncateText(row.Detail, detailRoom), detailRoom))
+		written += paint(quiet, " "+row.Key)
+	default:
+		written += paintMatch(quiet, present.TruncateText(row.Detail, room))
 	}
 
 	// The card keeps a blank column of its own ground on each side, and the scroll bar
@@ -643,7 +665,6 @@ const (
 
 // The columns of one row of the palette, the history and the saved statements.
 const (
-	paletteChordWidth = 13
 	paletteLabelWidth = 38
 	historyTimeWidth  = 12
 	historySQLWidth   = 74
@@ -838,17 +859,18 @@ func (model *Model) renderFoundHelpRow(row helpRow, width int) string {
 // renderPalette draws every action the palette can run, with the key of each.
 func (model *Model) renderPalette(overlay app.Overlay, width int) string {
 	actions := model.filterPalette(overlay)
+	term := model.readOverlayTerm(overlay)
 	rows := make([]string, 0, len(actions))
 	for at, action := range actions {
 		rows = append(rows, model.renderListRow(ListRowSpec{
-			Lead: action.Chord, LeadWidth: paletteChordWidth,
 			Label: action.Label, LabelWidth: paletteLabelWidth,
-			Detail: action.Detail, Selected: at == overlay.List.Cursor, Width: width,
+			Detail: action.Detail, Key: action.Chord, Match: term,
+			Selected: at == overlay.List.Cursor, Width: width,
 		}))
 	}
 	return model.renderListCard(ListCard{
 		Kind: app.OverlayPalette, Title: " command palette ",
-		Filter: model.renderFilterFieldOf(overlay, width, "action", -1), Rows: rows,
+		Filter: model.renderFilterFieldOf(overlay, width, "Search commands…", -1), Rows: rows,
 		Cursor: overlay.List.Cursor, Offset: overlay.List.Offset, Rolled: overlay.List.Rolled, Width: width,
 		ReportsNoMatch: true, ContentRows: len(overlay.Palette) + 1,
 		Keys: model.buildCardKeys(app.OverlayPalette, keyScene{overlay: overlay}),
