@@ -32,8 +32,8 @@ const (
 	// `project`, and the blank after it. The column stands empty where no connection
 	// comes from a project file.
 	pickerSourceWidth = 8
-	// The border, the padding of the card, and the padding of a row.
-	pickerChrome = 6
+	// The border, the padding of the card, and the gutter of a row.
+	pickerChrome = 7
 	pickerGap    = 1
 	// The narrowest target column. A card that cannot hold this beside the engine name
 	// drops the engine column.
@@ -354,7 +354,8 @@ func (model *Model) renderPicker() string {
 				present.FitText(string(profile.Engine), engineWidth) + " ")
 		}
 		written += targetStyle.Render(target)
-		lines = append(lines, row.Width(cardWidth-2).Render(" "+written))
+		lines = append(lines, row.Width(cardWidth-2).Render(
+			nameStyle.Render(model.buildRowGutter(selected))+written))
 	}
 
 	if model.picker.problem != "" {

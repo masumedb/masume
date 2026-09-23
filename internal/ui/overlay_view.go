@@ -518,11 +518,11 @@ func (model *Model) recordCardBody() {
 	model.layout.cardBodyLeft = cardBodyColumn
 }
 
-// The parts of a row every list of a card draws: the padding before the first one, the
+// The parts of a row every list of a card draws: the gutter the pointer is drawn in, the
 // column the scroll bar takes with a blank column before it, and the width of the detail
 // where the row has a trail.
 const (
-	rowPaddingLeft    = 1
+	rowPaddingLeft    = 2
 	rowScrollbarWidth = 2
 	detailBesideTrail = 8
 )
@@ -571,13 +571,7 @@ func (model *Model) renderListRow(row ListRowSpec) string {
 		return paintText(ink, ground, text)
 	}
 
-	// The selected row carries a mark of its own, so the list reads on a terminal that
-	// draws no colour.
-	mark := strings.Repeat(" ", rowPaddingLeft)
-	if row.Selected {
-		mark = present.FitText(model.icons.Icon(cfg.IconPrompt), rowPaddingLeft)
-	}
-	written := paint(labelInk, mark)
+	written := paint(labelInk, model.buildRowGutter(row.Selected))
 	if row.LeadWidth > 0 {
 		written += paint(quiet, present.FitText(row.Lead, row.LeadWidth))
 	}
@@ -606,6 +600,15 @@ func (model *Model) renderListRow(row ListRowSpec) string {
 	// stands in the column before the last one, so the row ends there.
 	pad := paintOn(theme.Panel, " ")
 	return pad + padStyledOn(written, row.Width-4, ground) + pad + pad
+}
+
+// buildRowGutter returns the gutter before a row of a list, with the pointer on the
+// selected row.
+func (model *Model) buildRowGutter(selected bool) string {
+	if !selected {
+		return strings.Repeat(" ", rowPaddingLeft)
+	}
+	return present.FitText(model.icons.Icon(cfg.IconPrompt), rowPaddingLeft)
 }
 
 // The columns of one row of the help. A narrower key column would wrap a chord onto a

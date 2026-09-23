@@ -184,7 +184,7 @@ func measureCompletionRow(candidate editor.Completion) int {
 		detail = " · " + candidate.Detail
 	}
 	return present.MeasureText(candidate.Text) + present.MeasureText(string(candidate.Kind)) +
-		present.MeasureText(detail) + 4
+		present.MeasureText(detail) + rowPaddingLeft + 3
 }
 
 // renderCompletionRow draws one suggestion: the name at the left, and what it is at the
@@ -211,9 +211,7 @@ func (model *Model) renderCompletionRow(
 	right := lipgloss.NewStyle().Foreground(kindInk).Background(ground).
 		Render(string(candidate.Kind)) +
 		lipgloss.NewStyle().Foreground(detailInk).Background(ground).Render(detail)
-	// The blank column on each side of the row is not the name, so the room is measured
-	// after it.
-	inner := width - 2
+	inner := width - rowPaddingLeft - 1
 	room := inner - present.MeasureText(string(candidate.Kind)) -
 		present.MeasureText(detail) - 1
 	name := lipgloss.NewStyle().Foreground(nameInk).Background(ground).
@@ -222,6 +220,8 @@ func (model *Model) renderCompletionRow(
 	gap := max(inner-present.MeasureText(present.TruncateText(candidate.Text, room))-
 		present.MeasureText(string(candidate.Kind))-present.MeasureText(detail), 1)
 	pad := lipgloss.NewStyle().Background(ground).Render(" ")
-	return pad + name +
+	gutter := lipgloss.NewStyle().Foreground(nameInk).Background(ground).
+		Render(model.buildRowGutter(marked))
+	return gutter + name +
 		lipgloss.NewStyle().Background(ground).Render(strings.Repeat(" ", gap)) + right + pad
 }
