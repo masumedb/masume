@@ -301,3 +301,71 @@ func TestAReplyWithNoCallSaysItIsThinking(t *testing.T) {
 		t.Errorf("the panel says nothing while the model thinks:\n%s", rows)
 	}
 }
+
+// A Markdown table in a reply is drawn as columns: a rule under the header, and the numbers
+// against the right edge of their column.
+func TestTheChatDrawsAMarkdownTableAsColumns(t *testing.T) {
+	model, chat := buildChatModel(t)
+	chat.Messages = append(chat.Messages, app.ChatMessage{
+		Role: hist.ChatRoleAssistant,
+		Content: "Revenue by country:\n| Country | Revenue |\n|---------|---------|\n" +
+			"| NL | 304,274.92 |\n| DE | 9,985.59 |",
+	})
+
+	rows := stripEscapes(strings.Join(readChatRows(model, model.Active()), "\n"))
+	for _, wanted := range []string{
+		"Country     Revenue", "───────  ──────────", "NL       304,274.92", "DE         9,985.59",
+	} {
+		if !strings.Contains(rows, wanted) {
+			t.Errorf("the rows do not have %q:\n%s", wanted, rows)
+		}
+	}
+	if strings.Contains(rows, "|") {
+		t.Errorf("the table is drawn with its pipes:\n%s", rows)
+	}
+}
+
+// The most recent query is the one the insert key reads, so only that block has the key.
+func TestOnlyTheMostRecentQueryHasTheInsertKey(t *testing.T) {
+	model, chat := buildChatModel(t)
+	chat.Messages = append(chat.Messages,
+		app.ChatMessage{Role: hist.ChatRoleAssistant, Content: "```sql\nselect 1\n```"},
+		app.ChatMessage{Role: hist.ChatRoleAssistant, Content: "```sql\nselect 2\n```"},
+		app.ChatMessage{Role: hist.ChatRoleAssistant, Content: "no query here"},
+	)
+
+	rows := stripEscapes(strings.Join(readChatRows(model, model.Active()), "\n"))
+	if strings.Count(rows, "^J insert") != 1 {
+		t.Fatalf("the insert key is drawn %d times:\n%s",
+			strings.Count(rows, "^J insert"), rows)
+	}
+	if strings.Index(rows, "^J insert") < strings.Index(rows, "select 2") {
+		t.Errorf("the insert key is not under the most recent query:\n%s", rows)
+	}
+}
+
+// The bottom border has the total the chat spent, and the status bar has the breakdown. The
+// row under the field is for reports.
+func TestTheChatShowsTokensOnItsBorder(t *testing.T) {
+	model, chat := buildChatModel(t)
+	chat.Usage.InputTokens, chat.Usage.OutputTokens = 390, 132
+	chat.Usage.CachedInputTokens = 200
+	model.Active().Autocommit = true
+
+	frame := readFrameRows(model.View().Content)
+	bottom := -1
+	for at, row := range frame {
+		if strings.Contains(row, "╰") && strings.Contains(row, "522 tokens") {
+			bottom = at
+		}
+	}
+	if bottom < 0 {
+		t.Errorf("no border row has the total:\n%s", strings.Join(frame, "\n"))
+	}
+	if !strings.Contains(frame[len(frame)-1], "390 in (200 cached) / 132 out this session") {
+		t.Errorf("the status bar reads %q", frame[len(frame)-1])
+	}
+	if strings.Count(strings.Join(frame, "\n"), "132 out") != 1 {
+		t.Errorf("the breakdown is drawn more than once:\n%s", strings.Join(frame, "\n"))
+	}
+}

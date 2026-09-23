@@ -465,6 +465,9 @@ func (model *Model) renderWorkspaceStatusBar() string {
 	// neither a press nor a key reaches it.
 	if connection.Overlay.IsOpen() {
 		message, tone := model.describeStatus(connection, tab)
+		if message == "" && connection.Overlay.Kind == app.OverlayAiChat {
+			message = connection.Chat.DescribeUsage()
+		}
 		return model.renderStatusBar(
 			addCopyOrQuit(model.cardKeys.buildHints(), model.holdsSelection()), message, tone)
 	}

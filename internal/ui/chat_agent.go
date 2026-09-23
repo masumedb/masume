@@ -34,7 +34,7 @@ func (model *Model) findChatAgent() (cfg.AiAgentSettings, bool) {
 // describeChatSource returns the agent or the provider and model the chat sends to.
 func (model *Model) describeChatSource() string {
 	if settings, held := model.findChatAgent(); held {
-		return "agent/" + settings.Name
+		return settings.Name + " agent"
 	}
 	return ai.DescribeActiveModel(model.ai, model.aiProvider)
 }

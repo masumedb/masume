@@ -337,3 +337,17 @@ func TestWrapWordsAlwaysEndsOnACharacterWiderThanTheRow(t *testing.T) {
 		})
 	}
 }
+
+func TestIsNumberText(t *testing.T) {
+	for _, held := range []struct {
+		text string
+		want bool
+	}{
+		{"304,274.92", true}, {"-12", true}, {"12%", true}, {"1e3", true},
+		{"NL", false}, {"", false}, {"12 kg", false}, {"2026-09-11", false},
+	} {
+		if got := present.IsNumberText(held.text); got != held.want {
+			t.Errorf("%q is a number: %v, wanted %v", held.text, got, held.want)
+		}
+	}
+}

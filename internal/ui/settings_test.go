@@ -118,7 +118,7 @@ func TestTheClientStartsOnTheSourceTheFileNames(t *testing.T) {
 	if model.aiAgent != "opencode" {
 		t.Errorf("the chat sends to agent %q", model.aiAgent)
 	}
-	if held := model.describeChatSource(); held != "agent/opencode" {
+	if held := model.describeChatSource(); held != "opencode agent" {
 		t.Errorf("the panel names %q", held)
 	}
 }

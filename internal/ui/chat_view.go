@@ -88,10 +88,20 @@ func (model *Model) renderAiChat(
 					present.MeasureText(chatRefuseChip) - 1},
 		}
 	}
-	return model.renderTextCard(app.OverlayAiChat,
-		" "+model.icons.Prefix(cfg.IconAi)+"ai chat · "+
+	return model.renderNotedTextCard(app.OverlayAiChat,
+		" "+model.icons.Prefix(cfg.IconAi)+"AI chat · "+
 			model.describeChatSource()+" ",
-		width, lines, keys, 0, plainCard)
+		"", model.renderChatTokens(chat), width, lines, keys, 0, plainCard)
+}
+
+// renderChatTokens draws the tokens the chat has spent this session, for the bottom border.
+func (model *Model) renderChatTokens(chat *app.Chat) string {
+	total := chat.Usage.InputTokens + chat.Usage.OutputTokens
+	if total == 0 {
+		return ""
+	}
+	return model.styles.Faint().Background(model.styles.Theme.Panel).
+		Render(" " + present.FormatCountOf(int64(total), "token", "tokens") + " ")
 }
 
 // resolveChatBodyRows returns the rows the panel gives the conversation and the field under
@@ -177,6 +187,8 @@ type chatRowsKey struct {
 	activity  string
 	startedAt int64
 	spinnerAt int
+	// The chord on the label of the most recent query.
+	insertChord string
 }
 
 // resolveChatRows returns the conversation as rows, and the row each turn begins on, drawing
@@ -204,6 +216,7 @@ func (model *Model) buildChatRowsKey(
 		content:    content, revision: model.styles.Revision(),
 		messages: hashChatMessages(chat.Messages),
 		hasTurn:  chat.HasTurn, turnAt: chat.TurnAt,
+		insertChord: model.registry.FormatFirstActionChord(cfg.ScopeDialog, ActionInsertAiSQL),
 	}
 	if chat.IsStreaming() && chat.Pending == nil {
 		key.streaming = true
@@ -348,10 +361,11 @@ func (model *Model) renderChatOpening(
 func (model *Model) renderChatTurns(chat *app.Chat, content int) ([]string, []int) {
 	rows := []string{}
 	starts := make([]int, 0, len(chat.Messages))
+	queryTurn := findLastQueryTurn(chat)
 	for at, message := range chat.Messages {
 		starts = append(starts, len(rows))
 		marked := chat.HasTurn && chat.TurnAt == at
-		written := model.renderChatTurn(chat, message, at, content-2)
+		written := model.renderChatTurn(chat, message, at, content-2, at == queryTurn)
 		for _, line := range written {
 			rows = append(rows, model.markChatRow(marked)+line)
 		}
@@ -359,6 +373,20 @@ func (model *Model) renderChatTurns(chat *app.Chat, content int) ([]string, []in
 		rows = append(rows, model.markChatRow(marked))
 	}
 	return rows, starts
+}
+
+// findLastQueryTurn returns the turn with the query that the insert key reads, or -1.
+func findLastQueryTurn(chat *app.Chat) int {
+	for at := len(chat.Messages) - 1; at >= 0; at-- {
+		message := chat.Messages[at]
+		if message.Role != hist.ChatRoleAssistant {
+			continue
+		}
+		if _, wrote := query.FindSQLBlock(message.Content); wrote {
+			return at
+		}
+	}
+	return -1
 }
 
 // markChatRow draws the column that marks the turn a jump landed on. The column is there
@@ -376,7 +404,7 @@ func (model *Model) markChatRow(marked bool) string {
 // renderChatTurn draws one turn: the speaker, and the message in the order it arrived. A
 // call of the model stands where it happened, between the blocks of text around it.
 func (model *Model) renderChatTurn(
-	chat *app.Chat, message app.ChatMessage, at, content int,
+	chat *app.Chat, message app.ChatMessage, at, content int, labelsQuery bool,
 ) []string {
 	writing := model.writesChatReply(chat, at)
 	parts := model.readChatParts(message)
@@ -385,7 +413,9 @@ func (model *Model) renderChatTurn(
 	lines := []string{model.renderChatRole(message.Role)}
 	for _, part := range parts {
 		if !part.IsStep() {
-			lines = append(lines, model.renderChatBlocks(part.Text, content)...)
+			blocks, labeled := model.renderChatBlocks(part.Text, content, labelsQuery)
+			lines = append(lines, blocks...)
+			labelsQuery = labelsQuery && !labeled
 			continue
 		}
 		// The call that runs carries the wheel, so it is drawn once and not twice.
@@ -417,17 +447,24 @@ func (model *Model) readChatParts(message app.ChatMessage) []app.ChatPart {
 	return []app.ChatPart{{Text: message.Content}}
 }
 
-// renderChatBlocks draws one block of a turn, with a statement drawn as code.
-func (model *Model) renderChatBlocks(written string, content int) []string {
+// renderChatBlocks draws one block of a turn, with a statement drawn as code. With
+// labelsQuery, the first statement has the key that inserts it, and the second return value
+// is true.
+func (model *Model) renderChatBlocks(
+	written string, content int, labelsQuery bool,
+) ([]string, bool) {
 	lines := []string{}
+	labeled := false
 	for _, segment := range query.SplitMessageSegments(written) {
 		if segment.Kind == query.SegmentSQL {
-			lines = append(lines, model.renderChatCode(segment.Content, content)...)
+			label := labelsQuery && !labeled && segment.Content != ""
+			lines = append(lines, model.renderChatCode(segment.Content, content, label)...)
+			labeled = labeled || label
 			continue
 		}
 		lines = append(lines, model.renderChatText(segment.Content, content)...)
 	}
-	return lines
+	return lines, labeled
 }
 
 // writesChatReply is true where this turn is the reply being written.
@@ -446,20 +483,83 @@ func (model *Model) renderChatRole(role string) string {
 	return paintText(theme.Info, nil, "assistant")
 }
 
-// renderChatText draws the prose of a turn, wrapped at the width of the panel.
+// renderChatText draws the prose of a turn, wrapped at the width of the panel, with each
+// Markdown table drawn as aligned columns.
 func (model *Model) renderChatText(written string, content int) []string {
 	lines := []string{}
 	// Trimmed, because the block of code below already has the blank line.
-	for paragraph := range strings.SplitSeq(strings.TrimSpace(written), "\n") {
-		for _, line := range present.WrapWords(paragraph, content) {
+	paragraphs := strings.Split(strings.TrimSpace(written), "\n")
+	for at := 0; at < len(paragraphs); {
+		if table, next, found := query.ReadMarkdownTable(paragraphs, at); found {
+			lines = append(lines, model.renderChatTable(table, content)...)
+			at = next
+			continue
+		}
+		for _, line := range present.WrapWords(paragraphs[at], content) {
 			lines = append(lines, model.styles.Ink().Render(line))
 		}
+		at++
 	}
 	return lines
 }
 
+// renderChatTable draws a Markdown table: the header in bold, a rule under it, and every
+// column of numbers against its right edge.
+func (model *Model) renderChatTable(table query.MarkdownTable, content int) []string {
+	theme := model.styles.Theme
+	widths := present.PlanDetailColumns(table.Headers, table.Rows, content, detailGap)
+	numeric := findNumericTableColumns(table)
+	gap := strings.Repeat(" ", detailGap)
+
+	fitRow := func(cells []string) string {
+		fitted := make([]string, len(cells))
+		for at, cell := range cells {
+			if numeric[at] {
+				fitted[at] = present.FitTextRight(cell, widths[at])
+				continue
+			}
+			fitted[at] = present.FitText(cell, widths[at])
+		}
+		return present.TruncateText(strings.Join(fitted, gap), content)
+	}
+	rules := make([]string, len(widths))
+	for at, width := range widths {
+		rules[at] = strings.Repeat("─", width)
+	}
+
+	lines := []string{
+		model.styles.Bold(theme.Text, theme.Panel).Render(fitRow(table.Headers)),
+		model.styles.Faint().Render(present.TruncateText(strings.Join(rules, gap), content)),
+	}
+	for _, row := range table.Rows {
+		lines = append(lines, model.styles.Ink().Render(fitRow(row)))
+	}
+	return lines
+}
+
+// findNumericTableColumns returns the columns where every cell with text is a number.
+func findNumericTableColumns(table query.MarkdownTable) map[int]bool {
+	numeric := map[int]bool{}
+	for column := range table.Headers {
+		held := false
+		for _, row := range table.Rows {
+			if row[column] == "" {
+				continue
+			}
+			if !present.IsNumberText(row[column]) {
+				held = false
+				break
+			}
+			held = true
+		}
+		numeric[column] = held
+	}
+	return numeric
+}
+
 // renderChatCode draws a statement the model proposed, coloured as the editor colours one.
-func (model *Model) renderChatCode(sql string, content int) []string {
+// With label, the row under it has the key that inserts it.
+func (model *Model) renderChatCode(sql string, content int, label bool) []string {
 	ground := model.styles.Theme.Header
 	held := strings.Split(sql, "\n")
 	highlights := buildSQLLineHighlights(sql)
@@ -471,6 +571,11 @@ func (model *Model) renderChatCode(sql string, content int) []string {
 			paintOn(ground, " ")+
 				model.renderCodeLineOn(ground, codeLine{
 					text: line, spans: highlights[at], width: content - 1}))
+	}
+	chord := model.registry.FormatFirstActionChord(cfg.ScopeDialog, ActionInsertAiSQL)
+	if label && chord != "" {
+		lines = append(lines, model.styles.Faint().Render(
+			present.TruncateText(" "+chord+" insert", content)))
 	}
 	return append(lines, "")
 }
@@ -487,7 +592,7 @@ func (model *Model) renderChatStep(part app.ChatPart, content int) string {
 }
 
 // renderChatBelow draws everything under the conversation: what failed, the statement that
-// waits for a yes, the field, and what the chat has spent.
+// waits for a yes, the field, and the most recent report.
 func (model *Model) renderChatBelow(
 	overlay app.Overlay, chat *app.Chat, content int,
 ) ([]string, int) {
@@ -524,16 +629,7 @@ func (model *Model) renderChatBelow(
 	}
 
 	return append(lines, model.styles.Faint().Render(
-		present.TruncateText(model.describeChatNotice(chat), content))), answersRow
-}
-
-// describeChatNotice returns the faint line under the field: the most recent report, or what
-// the chat has spent. The row of the spinner says how long a reply has been writing.
-func (model *Model) describeChatNotice(chat *app.Chat) string {
-	if chat.Notice != "" {
-		return chat.Notice
-	}
-	return chat.DescribeUsage()
+		present.TruncateText(chat.Notice, content))), answersRow
 }
 
 // chatPlaceholder is what the field says while nothing is typed into it.
@@ -611,7 +707,7 @@ func (model *Model) renderAiChats(
 
 	keys := model.buildCardKeys(app.OverlayAiChats, keyScene{overlay: overlay})
 	return model.renderListCard(ListCard{
-		Kind: app.OverlayAiChats, Title: " " + model.icons.Prefix(cfg.IconAi) + "ai chats ",
+		Kind: app.OverlayAiChats, Title: " " + model.icons.Prefix(cfg.IconAi) + "AI chats ",
 		Filter: model.renderFilterFieldOf(
 			overlay, width, "search the conversations", len(held)),
 		Rows: rows, Cursor: overlay.List.Cursor, Offset: overlay.List.Offset, Width: width,

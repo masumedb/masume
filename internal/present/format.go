@@ -212,6 +212,13 @@ func FitTextRight(text string, width int) string {
 	return strings.Repeat(" ", max(width-MeasureText(text), 0)) + text
 }
 
+// IsNumberText is true for a number written as text, such as `-1,204.5` or `12%`.
+func IsNumberText(text string) bool {
+	text = strings.TrimSuffix(strings.ReplaceAll(text, ",", ""), "%")
+	_, err := strconv.ParseFloat(text, 64)
+	return err == nil
+}
+
 // RowFormat is the column information the grid writes a row with.
 type RowFormat struct {
 	DataTypes []string

@@ -29,7 +29,7 @@ func TestTheChatNamesTheAgentItSendsTo(t *testing.T) {
 	}
 
 	useChatAgent(model)
-	if held := model.describeChatSource(); held != "agent/claude" {
+	if held := model.describeChatSource(); held != "claude agent" {
 		t.Errorf("the chat names %q", held)
 	}
 }

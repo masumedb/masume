@@ -451,13 +451,13 @@ func (model *Model) renderTextCard(
 	kind app.OverlayKind, title string, width int, lines []string,
 	keys *KeyLine, contentRows int, destructive bool,
 ) string {
-	return model.renderNotedTextCard(kind, title, "", width, lines, keys, contentRows,
+	return model.renderNotedTextCard(kind, title, "", "", width, lines, keys, contentRows,
 		destructive)
 }
 
-// renderNotedTextCard draws the same card with a note on its top border.
+// renderNotedTextCard draws the same card with a note on its top and bottom borders.
 func (model *Model) renderNotedTextCard(
-	kind app.OverlayKind, title, note string, width int, lines []string,
+	kind app.OverlayKind, title, note, bottomNote string, width int, lines []string,
 	keys *KeyLine, contentRows int, destructive bool,
 ) string {
 	content := max(width-present.CardChrome, 1)
@@ -491,7 +491,7 @@ func (model *Model) renderNotedTextCard(
 	model.rememberCardKeys(keys)
 
 	return model.styles.RenderBox(BoxOptions{
-		Width: width, Height: height, Title: title, Note: note,
+		Width: width, Height: height, Title: title, Note: note, BottomNote: bottomNote,
 		Focused: true, Destructive: destructive, Lines: written,
 	})
 }
@@ -1052,7 +1052,7 @@ func (model *Model) renderConfirm(overlay app.Overlay, width int) string {
 		[]cardButton{yes, no}, cardBodyRow+len(lines), cardBodyColumn))
 
 	card := model.renderNotedTextCard(overlay.Kind, overlay.Title,
-		model.renderActiveEnvironmentBadge(), width, lines, nil, 0, destructiveCard)
+		model.renderActiveEnvironmentBadge(), "", width, lines, nil, 0, destructiveCard)
 	model.rememberCardKeys(model.buildCardKeys(app.OverlayConfirm, keyScene{overlay: overlay}))
 	return card
 }
