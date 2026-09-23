@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/cfg"
 	"github.com/masumedb/masume/internal/db"
 	"github.com/masumedb/masume/internal/notebook"
 )
@@ -229,4 +230,61 @@ func TestThePaletteDrawsTheMatchedTextInBold(t *testing.T) {
 	if bold.String() != "every" {
 		t.Errorf("the row draws %q in bold, wanted %q", bold.String(), "every")
 	}
+}
+
+// A palette row with an action and the first help row of one action draw the label of that
+// action, and the label is never empty.
+func TestThePaletteAndTheHelpDrawTheLabelOfTheAction(t *testing.T) {
+	for _, entry := range paletteEntries {
+		if entry.action == "" {
+			continue
+		}
+		action, known := FindAction(entry.scope, entry.action)
+		if !known || action.Label == "" {
+			t.Errorf("the palette row %q runs an action with no label", entry.id)
+		}
+		if entry.label != "" {
+			t.Errorf("the palette row %q has the label %q, and its action has %q",
+				entry.id, entry.label, action.Label)
+		}
+	}
+
+	seen := map[string]bool{}
+	for _, section := range HelpSections {
+		for _, entry := range section.Entries {
+			if len(entry.Actions) != 1 {
+				continue
+			}
+			actionKey := cfg.BuildActionKey(entry.Scope, string(entry.Actions[0]))
+			first := !seen[actionKey]
+			seen[actionKey] = true
+			if !first {
+				continue
+			}
+			action, known := FindAction(entry.Scope, entry.Actions[0])
+			if !known || action.Label == "" {
+				t.Errorf("the help row of %s has an action with no label", actionKey)
+			}
+			if entry.Text != "" {
+				t.Errorf("the help row of %s has the text %q, and its action has %q",
+					actionKey, entry.Text, action.Label)
+			}
+		}
+	}
+}
+
+func TestThePaletteDrawsTheLabelInSentenceCase(t *testing.T) {
+	model := buildOfflineModel(t, 120, 34)
+	connection := model.Active()
+	connection.Active().Editor.Text = "select 1"
+
+	for _, row := range model.buildPaletteActions(connection) {
+		if row.ID == "run-at-cursor" {
+			if row.Label != "Run the selection or the statement" {
+				t.Errorf("the palette row reads %q", row.Label)
+			}
+			return
+		}
+	}
+	t.Error("the palette has no run-at-cursor row")
 }

@@ -279,6 +279,9 @@ func namesDialogAction(name, id string) bool {
 
 // describeActionHelp returns what one action does, as the help screen says it.
 func describeActionHelp(scope cfg.KeyScope, id ActionID) string {
+	if action, known := FindAction(scope, id); known && action.Label != "" {
+		return action.Label
+	}
 	for _, section := range HelpSections {
 		for _, entry := range section.Entries {
 			if entry.Scope != scope {
@@ -286,7 +289,7 @@ func describeActionHelp(scope cfg.KeyScope, id ActionID) string {
 			}
 			for _, held := range entry.Actions {
 				if held == id {
-					return entry.Text
+					return readHelpText(entry)
 				}
 			}
 		}

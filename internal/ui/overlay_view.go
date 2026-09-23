@@ -756,7 +756,7 @@ func (model *Model) buildHelpRows() []helpRow {
 				continue
 			}
 			rows = append(rows, helpRow{
-				Section: section.Title, Chord: chord, Label: entry.Text,
+				Section: section.Title, Chord: chord, Label: readHelpText(entry),
 			})
 		}
 	}
@@ -831,7 +831,7 @@ func (model *Model) renderHelp(overlay app.Overlay, width int) string {
 			if chord == "" {
 				continue
 			}
-			written = append(written, model.renderHelpRow(chord, entry.Text, width))
+			written = append(written, model.renderHelpRow(chord, readHelpText(entry), width))
 		}
 		// Every group keeps a blank row under it, the last one too.
 		written = append(written, "")
