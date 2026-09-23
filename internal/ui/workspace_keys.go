@@ -555,34 +555,26 @@ func (model *Model) closeTabAnswer(
 	return nil
 }
 
-// requestCloseConnection closes the connection with every tab on it, and asks first when
-// there is more than one.
+// requestCloseConnection closes the connection with every tab on it. It asks first when the
+// connection has more than one tab, staged changes or an open transaction.
 func (model *Model) requestCloseConnection(connection *app.Connection) (tea.Model, tea.Cmd) {
-	staged := 0
-	for _, tab := range connection.Tabs {
-		staged += core.CountChanges(tab.Pending)
-	}
-	if len(connection.Tabs) <= 1 && staged == 0 {
+	staged, transactions := countConnectionWork(connection)
+	if len(connection.Tabs) <= 1 && staged == 0 && transactions == 0 {
 		return model.closeConnection()
 	}
 
 	body := strconv.Itoa(len(connection.Tabs)) + " tabs are open on " +
 		connection.Profile().Name + "."
-	holds := " They hold "
 	if len(connection.Tabs) == 1 {
 		body = "One tab is open on " + connection.Profile().Name + "."
-		holds = " It holds "
 	}
-	// Closing drops the staged work of every tab, so the question names it.
-	question := " Close the connection and every tab?"
-	if staged > 0 {
-		body += holds + present.DescribeStagedChanges(staged) + "."
-		question = " Close the connection? All tabs will close and all staged changes will be discarded."
+	if staged > 0 || transactions > 0 {
+		body += " " + describeUnwrittenWork("Closing", staged, transactions)
 	}
 	connection.Open(app.Overlay{
 		Kind:  app.OverlayConfirm,
 		Title: " close connection ",
-		Body:  body + question,
+		Body:  body + " Close the connection and every tab?",
 		Answers: app.OverlayAnswers{Answer: func(confirmed bool) app.AnswerCommand {
 			if !confirmed {
 				return nil
@@ -594,6 +586,20 @@ func (model *Model) requestCloseConnection(connection *app.Connection) (tea.Mode
 		}},
 	})
 	return model, nil
+}
+
+// countConnectionWork returns the staged changes of every tab of the connection, and one for
+// a transaction open on its session.
+func countConnectionWork(connection *app.Connection) (staged int, transactions int) {
+	holds := connection.Session.ReadTransactionState() != db.TransactionNone
+	for _, tab := range connection.Tabs {
+		staged += core.CountChanges(tab.Pending)
+		holds = holds || (tab.Notebook != nil && tab.Notebook.HoldsTransaction)
+	}
+	if holds {
+		transactions = 1
+	}
+	return staged, transactions
 }
 
 // closeConnection ends the connection on screen and moves to the one beside it.

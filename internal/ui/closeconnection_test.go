@@ -4,8 +4,11 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/masumedb/masume/internal/app"
 	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // closingSession records that the connection was closed.
@@ -17,6 +20,15 @@ type closingSession struct {
 func (session *closingSession) Close() error {
 	session.closed = true
 	return nil
+}
+
+// closingTransactionSession is a closing session with a transaction open.
+type closingTransactionSession struct {
+	*closingSession
+}
+
+func (session *closingTransactionSession) ReadTransactionState() db.TransactionState {
+	return db.TransactionOpen
 }
 
 // A connection the user was asked about must be closed the same way as one that needed no
@@ -90,5 +102,57 @@ func TestApplyStagedChangesRefusesAReadOnlyConnection(t *testing.T) {
 	if !strings.Contains(connection.Notice.Text, "read-only") {
 		t.Errorf("the report reads %q, wanted it to say the connection is read-only",
 			connection.Notice.Text)
+	}
+}
+
+// A press on the close mark of a connection with one tab and a transaction open asks first,
+// and a yes closes the session.
+func TestClosingByMouseAsksWhileATransactionIsOpen(t *testing.T) {
+	model := buildOfflineModel(t, 160, 48)
+	connection := model.Active()
+	closing := &closingSession{offlineSession: connection.Session.(*offlineSession)}
+	connection.Session = &closingTransactionSession{closingSession: closing}
+	model.View()
+
+	model.readMouse(tea.MouseClickMsg{
+		X: model.layout.closeConnectionTo, Y: model.layout.connections.top,
+		Button: tea.MouseLeft,
+	})
+	if connection.Overlay.Kind != app.OverlayConfirm {
+		t.Fatalf("the press asked nothing; the card is %q", connection.Overlay.Kind)
+	}
+	if !strings.Contains(connection.Overlay.Body, "1 open transaction") {
+		t.Errorf("the question reads %q, wanted it to count the open transaction",
+			connection.Overlay.Body)
+	}
+	if model.connections.count() != 1 || closing.closed {
+		t.Fatal("the connection was closed before the answer")
+	}
+
+	started := connection.Overlay.Answers.Answer(true)
+	if started == nil {
+		t.Fatal("the answer started nothing, so the session was never closed")
+	}
+	started()
+	if !closing.closed {
+		t.Error("the session was left open")
+	}
+}
+
+// The close mark of a connection row is drawn only under the pointer.
+func TestTheCloseMarkOfAConnectionShowsOnlyOnHover(t *testing.T) {
+	model := buildOfflineModel(t, 160, 48)
+	model.View()
+	row := model.layout.connections.top
+	glyph := model.icons.Icon(cfg.IconClose)
+
+	before := stripStyles(strings.Split(model.frame.shown, "\n")[row])
+	if strings.Contains(before, glyph) {
+		t.Errorf("the row draws the close mark with no pointer on it: %q", before)
+	}
+	model = movePointer(model, model.layout.closeConnectionFrom-4, row)
+	after := stripStyles(strings.Split(model.frame.shown, "\n")[row])
+	if !strings.Contains(after, glyph) {
+		t.Errorf("the row under the pointer draws no close mark: %q", after)
 	}
 }

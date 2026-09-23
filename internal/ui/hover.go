@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/present"
 )
 
 // hoverKind says what the pointer stands on, and how the frame marks it.
@@ -28,6 +30,9 @@ type hoverTarget struct {
 	kind     hoverKind
 	row      int
 	from, to int
+	// glyph is drawn in the cell at glyphAt, such as the close mark of a connection row.
+	glyph   string
+	glyphAt int
 }
 
 // insetBy pulls the mark in from each end, so a row that spans a whole pane does not mark the
@@ -77,6 +82,9 @@ func (model *Model) paintHover(frame string) string {
 	mark := buildSgr(ink, ground)
 	for at := max(target.from, 0); at <= target.to && at < len(cells); at++ {
 		cells[at].sgr = mark
+	}
+	if target.glyph != "" && target.glyphAt >= 0 && target.glyphAt < len(cells) {
+		cells[target.glyphAt].text = target.glyph
 	}
 	rows[target.row] = writeCells(cells)
 	return strings.Join(rows, "\n")
@@ -198,7 +206,11 @@ func (model *Model) resolveWorkspaceHover(x, y int) hoverTarget {
 	// each end and the border keeps its shape.
 	if target := resolveRowHover(layout.connections, model.connections.count(),
 		noFilledRow, x, y); target.isSomething() {
-		return target.insetBy(1)
+		target = target.insetBy(1)
+		if glyph := model.icons.Icon(cfg.IconClose); present.MeasureText(glyph) == 1 {
+			target.glyph, target.glyphAt = glyph, layout.closeConnectionTo
+		}
+		return target
 	}
 	if target := resolveRowHover(layout.treeRows, layout.treeRows.count,
 		filledRowOf(connection.Tree.Cursor-layout.treeRows.offset,

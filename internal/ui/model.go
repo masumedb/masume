@@ -846,7 +846,7 @@ func (model *Model) askDiscardOnExit() bool {
 	}
 	model.confirm = &confirmState{
 		Title: " quit ",
-		Body:  describeUnwrittenWork(staged, transactions),
+		Body:  describeUnwrittenWork("Quitting", staged, transactions),
 		Yes:   "quit and discard", No: "keep working",
 		Destructive: true,
 		Answer: func(confirmed bool) tea.Cmd {
@@ -877,8 +877,9 @@ func (model *Model) countUnwrittenWork() (staged int, transactions int) {
 	return staged, transactions
 }
 
-// describeUnwrittenWork returns the body of the question the client asks before it ends.
-func describeUnwrittenWork(staged, transactions int) string {
+// describeUnwrittenWork returns the sentence of a question about the work that quitting or
+// closing a connection discards.
+func describeUnwrittenWork(verb string, staged, transactions int) string {
 	parts := make([]string, 0, 2)
 	if staged > 0 {
 		parts = append(parts, present.DescribeStagedChanges(staged))
@@ -887,7 +888,7 @@ func describeUnwrittenWork(staged, transactions int) string {
 		parts = append(parts, present.FormatCountOf(
 			int64(transactions), "open transaction", "open transactions"))
 	}
-	return "Quitting discards " + strings.Join(parts, " and ") + "."
+	return verb + " discards " + strings.Join(parts, " and ") + "."
 }
 
 // askSaveOnExit asks whether the connections that are in no config file are written to it

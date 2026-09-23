@@ -564,7 +564,7 @@ func (model *Model) resolveDotColor(connection *app.Connection) color.Color {
 const connectionRowChrome = 8
 
 // renderConnectionRow draws one open connection: the marker, the dot in the colour of its
-// environment, its name, and the mark that closes it.
+// environment, and its name. The hover draws the close mark.
 func (model *Model) renderConnectionRow(
 	connection *app.Connection, index, width int,
 ) string {
@@ -591,14 +591,13 @@ func (model *Model) renderConnectionRow(
 	writeTextOn(&written, model.resolveDotColor(connection), ground,
 		present.FitText(model.icons.Icon(cfg.IconDot), connectionDotWidth))
 	writeTextOn(&written, nameInk, ground, name)
-	writeBlanksOn(&written, ground, gap)
-	writeTextOn(&written, markInk, ground, " ×")
+	writeBlanksOn(&written, ground, gap+2)
 	return written.String()
 }
 
 // connectionRowParts is how many parts of their own colours one row of the list is written
 // from.
-const connectionRowParts = 5
+const connectionRowParts = 4
 
 // treeBorderTitleColumn is where the title of a border starts: the corner takes the first
 // cell, and one cell of border follows it.
