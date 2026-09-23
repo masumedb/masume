@@ -848,7 +848,7 @@ func (model *Model) renderHelp(overlay app.Overlay, width int) string {
 func (model *Model) renderHelpRow(chord, text string, width int) string {
 	theme := model.styles.Theme
 	room := max(width-4-helpKeyWidth, 0)
-	written := paintText(theme.Accent, theme.Panel, present.FitText("  "+chord, helpKeyWidth)) +
+	written := paintText(theme.Muted, theme.Panel, present.FitText("  "+chord, helpKeyWidth)) +
 		paintText(theme.Text, theme.Panel, present.TruncateText(text, room))
 	return padStyledOn(" "+written, width-1, theme.Panel) +
 		paintOn(theme.Panel, " ")
@@ -857,7 +857,7 @@ func (model *Model) renderHelpRow(chord, text string, width int) string {
 // renderFoundHelpRow draws one row the search kept, which names its group on the right.
 func (model *Model) renderFoundHelpRow(row helpRow, width int) string {
 	theme := model.styles.Theme
-	written := paintText(theme.Accent, theme.Panel, present.FitText("  "+row.Chord, helpKeyWidth)) +
+	written := paintText(theme.Muted, theme.Panel, present.FitText("  "+row.Chord, helpKeyWidth)) +
 		paintText(theme.Text, theme.Panel, present.FitText(
 			present.TruncateText(row.Label, helpFoundWidth-1), helpFoundWidth)) +
 		paintText(theme.Faint, theme.Panel, present.TruncateText(row.Section, helpSectionWidth))
