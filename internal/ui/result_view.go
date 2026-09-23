@@ -423,16 +423,8 @@ func (model *Model) renderGrid(
 
 	switch state.Kind {
 	case app.QueryIdle:
-		return model.renderEmptyState(width, height, "no result yet", []Hint{
-			{
-				Key:   model.registry.FormatActionChords(cfg.ScopeTree, ActionOpenNode),
-				Label: "open the selected object in the tree",
-			},
-			{
-				Key:   model.registry.FormatActionChords(cfg.ScopeGlobal, ActionRunAtCursor),
-				Label: "run the statement in the editor",
-			},
-		})
+		return model.renderEmptyState(width, height, "Run a query to see rows here",
+			model.buildIdleHints())
 	case app.QueryRunning:
 		return model.renderWaitingBlock(waitBlock{
 			label: "running", since: model.findRunStart(tab), stop: stop, note: note,
@@ -856,9 +848,15 @@ func (model *Model) renderEmptyState(width, height int, title string, keys []Hin
 	if len(keys) > 0 {
 		// Two blank rows stand between the title and the keys.
 		block = append(block, "", "")
+		keyWidth := 0
+		for _, hint := range keys {
+			if hint.Key != "" {
+				keyWidth = max(keyWidth, present.MeasureText(hint.Key)+emptyStateKeyGap)
+			}
+		}
 		for _, hint := range keys {
 			block = append(block,
-				model.styles.Accent().Render(present.PadText(hint.Key, emptyStateKeyWidth))+
+				model.styles.Accent().Render(present.PadText(hint.Key, keyWidth))+
 					model.styles.Faint().Render(hint.Label))
 		}
 	}
@@ -887,9 +885,29 @@ func (model *Model) renderEmptyState(width, height int, title string, keys []Hin
 	return centerRows(drawn, height)
 }
 
-// emptyStateKeyWidth is the key column of an empty pane, wide enough for the longest
-// chord these panes name.
-const emptyStateKeyWidth = 10
+// emptyStateKeyGap is the gap between the key column and the label column of an empty pane.
+const emptyStateKeyGap = 2
+
+// buildIdleHints returns the keys of a result pane with nothing run yet. An action with no
+// chord is left out.
+func (model *Model) buildIdleHints() []Hint {
+	hints := []Hint{}
+	for _, hint := range []struct {
+		scope  cfg.KeyScope
+		action ActionID
+		label  string
+	}{
+		{cfg.ScopeGlobal, ActionRunAtCursor, "run the statement"},
+		{cfg.ScopeTree, ActionOpenNode, "open the object selected in the tree"},
+		{cfg.ScopeGlobal, ActionShowHistory, "open query history"},
+		{cfg.ScopeGlobal, ActionShowAiChat, "ask AI to write a query"},
+	} {
+		if key := model.registry.FormatFirstActionChord(hint.scope, hint.action); key != "" {
+			hints = append(hints, Hint{Key: key, Label: hint.label})
+		}
+	}
+	return hints
+}
 
 // wrapMessage draws a message over several rows, so a long error is read whole. It opens
 // with the mark a fault carries in the editor, and the rows under the first line up with it,

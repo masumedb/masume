@@ -21,9 +21,13 @@ func (connection *Connection) RestoreTabs(saved hist.SavedWorkspace, buildPrevie
 
 	tabs := make([]*Tab, 0, len(saved.Tabs))
 	unread := map[int]bool{}
+	connection.queryTabCount = 0
 	for _, held := range saved.Tabs {
 		connection.nextTabID++
 		tab := buildRestoredTab(connection.nextTabID, held, buildPreview)
+		if tab.Kind == TabQuery {
+			connection.numberQueryTab(tab)
+		}
 		if tab.Kind != TabQuery && tab.Kind != TabNotebook {
 			unread[tab.ID] = true
 		}

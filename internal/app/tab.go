@@ -3,6 +3,7 @@ package app
 import (
 	"maps"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/masumedb/masume/internal/core"
@@ -70,6 +71,8 @@ type FindState struct {
 type Tab struct {
 	ID   int
 	Kind TabKind
+	// The query tab number in its connection, from 1. An empty query tab is labelled with it.
+	Number int
 	// The table a table tab is bound to.
 	Table db.TableRef
 	// The object an object tab shows.
@@ -297,8 +300,11 @@ func (tab *Tab) Label() string {
 		return present.TruncateText(named, tabLabelWidth+2)
 	}
 	written := strings.TrimSpace(core.CollapseWhitespace(tab.Editor.Text))
+	if written == "" && tab.Number > 0 {
+		return "query " + strconv.Itoa(tab.Number)
+	}
 	if written == "" {
-		return "empty"
+		return "query"
 	}
 	return present.TruncateText(written, tabLabelWidth)
 }

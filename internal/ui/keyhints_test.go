@@ -8,6 +8,7 @@ import (
 	"github.com/masumedb/masume/internal/app"
 	"github.com/masumedb/masume/internal/cfg"
 	"github.com/masumedb/masume/internal/hist"
+	"github.com/masumedb/masume/internal/present"
 )
 
 // buildHintModeModel answers a model that ran two statements and draws its hints in that mode.
@@ -107,6 +108,25 @@ func TestTheOffModeHidesTheKeysOfAnEmptyPane(t *testing.T) {
 	}
 	if !strings.Contains(stripEscapes(drawn), "2 rows") {
 		t.Error("the empty pane dropped what it reports")
+	}
+}
+
+func TestTheIdleResultPaneDrawsEachKeyBesideItsLabel(t *testing.T) {
+	model := buildOfflineModel(t, 160, 48)
+	drawn := stripEscapes(model.render())
+	if !strings.Contains(drawn, "Run a query to see rows here") {
+		t.Error("the idle result pane has no title")
+	}
+	run := model.registry.FormatFirstActionChord(cfg.ScopeGlobal, ActionRunAtCursor)
+	history := model.registry.FormatFirstActionChord(cfg.ScopeGlobal, ActionShowHistory)
+	width := max(present.MeasureText(run), present.MeasureText(history)) + emptyStateKeyGap
+	for _, line := range []string{
+		present.PadText(run, width) + "run the statement",
+		present.PadText(history, width) + "open query history",
+	} {
+		if !strings.Contains(drawn, line) {
+			t.Errorf("the idle result pane has no line %q", line)
+		}
 	}
 }
 

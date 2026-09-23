@@ -141,6 +141,8 @@ type Connection struct {
 	// Restored tabs awaiting their first data request.
 	Unread    map[int]bool
 	nextTabID int
+	// The last query tab number handed out.
+	queryTabCount int
 	// The increasing snapshot sequence for rejecting stale saves.
 	workspaceChange uint64
 	// Recently closed tabs available for reopening.
@@ -231,7 +233,7 @@ func NewConnection(
 		Chat: NewChat(),
 	}
 	connection.nextTabID = 1
-	connection.Tabs = []*Tab{NewQueryTab(1, "")}
+	connection.Tabs = []*Tab{connection.numberQueryTab(NewQueryTab(1, ""))}
 	connection.Unread = map[int]bool{}
 	return connection
 }
@@ -329,10 +331,17 @@ func (connection *Connection) showTab(tab *Tab) *Tab {
 	return tab
 }
 
+// numberQueryTab gives the query tab the next query tab number.
+func (connection *Connection) numberQueryTab(tab *Tab) *Tab {
+	connection.queryTabCount++
+	tab.Number = connection.queryTabCount
+	return tab
+}
+
 // OpenQueryTab opens a query tab. Nonempty statements can replace a blank active tab.
 func (connection *Connection) OpenQueryTab(sql string) *Tab {
 	connection.nextTabID++
-	tab := NewQueryTab(connection.nextTabID, sql)
+	tab := connection.numberQueryTab(NewQueryTab(connection.nextTabID, sql))
 	if sql == "" {
 		return connection.appendTab(tab)
 	}

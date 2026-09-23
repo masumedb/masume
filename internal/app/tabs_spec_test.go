@@ -89,6 +89,21 @@ func TestOpenQueryTabTakesThePlaceOfABlankTab(t *testing.T) {
 	}
 }
 
+func TestAnEmptyQueryTabIsLabelledWithItsNumber(t *testing.T) {
+	connection := openConnection(t)
+	second := connection.OpenQueryTab("")
+	if label := connection.Tabs[0].Label(); label != "query 1" {
+		t.Errorf("the first tab is labelled %q, wanted %q", label, "query 1")
+	}
+	if label := second.Label(); label != "query 2" {
+		t.Errorf("the second tab is labelled %q, wanted %q", label, "query 2")
+	}
+	second.Editor.SetText("select 1")
+	if label := second.Label(); label != "select 1" {
+		t.Errorf("the tab with a statement is labelled %q, wanted %q", label, "select 1")
+	}
+}
+
 // The last tab cannot be closed, because a connection on screen always has one.
 func TestCloseTabKeepsTheLastOne(t *testing.T) {
 	connection := openConnection(t)
