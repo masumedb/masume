@@ -1250,7 +1250,7 @@ func (model *Model) readTableDetailAnswer(answered tableDetailMsg) (tea.Model, t
 		connection.Catalog.Details[answered.TableID] = present.TableDetailState{
 			Kind: present.DetailFailed, Message: answered.Problem,
 		}
-		return model, nil
+		return model, model.readWaitingTables(connection, answered.TableID)
 	}
 	connection.Catalog.Details[answered.TableID] = present.TableDetailState{
 		Kind: present.DetailReady, Detail: answered.Detail,
@@ -1261,7 +1261,7 @@ func (model *Model) readTableDetailAnswer(answered tableDetailMsg) (tea.Model, t
 	if tab := connection.Active(); tab != nil && tab.Focus == app.PaneEditor {
 		model.refreshCompletion(connection, tab)
 	}
-	return model, nil
+	return model, model.readWaitingTables(connection, answered.TableID)
 }
 
 // resolveWaitingTargets updates edit targets for tabs that use this table.

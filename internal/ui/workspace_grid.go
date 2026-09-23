@@ -316,6 +316,9 @@ func (model *Model) resolveGridSort(
 	if !connection.Session.Capabilities().SortsRead {
 		return nil
 	}
+	if tab.Kind == app.TabTable {
+		return tab.ResolveReadSort()
+	}
 	if len(tab.Sort) > 0 {
 		return tab.Sort
 	}

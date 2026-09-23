@@ -296,6 +296,8 @@ func TestRunQueryReadPathsBeginManualTransactions(t *testing.T) {
 					tab.Kind = app.TabTable
 					tab.Table = db.TableRef{Schema: "main", Name: "entries", Kind: db.RelationTable}
 					_, command = model.runTabRead(connection, tab)
+					// The answer with the columns starts the read of the rows.
+					_, command = model.Update(command())
 				case "page":
 					command = readNextPage(1, 1, 0, 1, connection.Session, read, db.ReadWindow{Limit: 100}, autocommit)
 				case "count":

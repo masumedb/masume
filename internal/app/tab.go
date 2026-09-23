@@ -92,6 +92,10 @@ type Tab struct {
 	// The sort and the filter the grid applies to the read, stored outside the text.
 	Sort   []core.SortState
 	Filter []core.FilterStep
+	// The primary key order of a table tab. The read uses it where Sort is empty.
+	KeySort []core.SortState
+	// True while a table tab waits for the columns of its table before it reads its rows.
+	WaitsForKey bool
 	// True while the tab waits for its staged changes to be applied before it closes.
 	ClosingAfterApply bool
 	// The values of the `:name` placeholders of the statement.
@@ -125,6 +129,8 @@ type Tab struct {
 	GridColumnRolled bool
 	// The column key for retaining the cursor across compatible results.
 	GridColumnKey string
+	// The primary key values of the row the grid cursor moves to after the next read.
+	CursorRowKey map[string]any
 	// The columns that always draw at the left, whatever the window shows.
 	Frozen map[int]bool
 	// User-defined column widths. Missing entries use automatic widths.
@@ -483,7 +489,18 @@ func (tab *Tab) RewriteSummary(session db.SessionInfo) string {
 
 // ComposeRelationRead returns the read of the table a table tab is bound to.
 func (tab *Tab) ComposeRelationRead(session db.SessionInfo) db.ComposedRead {
-	return session.Composer().ComposeRelationRead(tab.Table, tab.Rewrite())
+	return session.Composer().ComposeRelationRead(tab.Table, core.ReadRewrite{
+		Sort: tab.ResolveReadSort(), Filter: tab.Filter,
+	})
+}
+
+// ResolveReadSort returns the order of the rows of a read: the grid sort, or the primary key
+// order where the grid has none.
+func (tab *Tab) ResolveReadSort() []core.SortState {
+	if len(tab.Sort) > 0 {
+		return tab.Sort
+	}
+	return tab.KeySort
 }
 
 // ComposeStatementRead composes a query with the tab rewrite.

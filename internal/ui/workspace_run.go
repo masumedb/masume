@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -144,9 +146,13 @@ func (model *Model) runTabRead(
 	}
 
 	tab.View = resolveRowView(tab.View)
+	waits, readColumns := model.waitForKeyColumns(connection, tab)
 	read := tab.ComposeRelationRead(connection.Session)
 	model.replaceResults(connection, tab,
 		[]string{read.Display}, connection.Profile().PageSize)
+	if waits {
+		return model, readColumns
+	}
 
 	reads := []db.ComposedRead{read}
 	runID := model.startBatch(connection, tab, reads,
@@ -154,6 +160,50 @@ func (model *Model) runTabRead(
 	return model, runStatements(model.ActiveID(), tab.ID, runID, 0, connection.Session,
 		reads, connection.Profile().PageSize, writeplan.UndoPlan{},
 		model.log, connection.Profile().Name, connection.Autocommit)
+}
+
+// waitForKeyColumns sets the primary key order of a table tab. It returns true while the
+// columns of the table are still being read, and the command that reads them.
+func (model *Model) waitForKeyColumns(
+	connection *app.Connection, tab *app.Tab,
+) (bool, tea.Cmd) {
+	tab.KeySort, tab.WaitsForKey = nil, false
+	if tab.Table.Kind != db.RelationTable || !connection.Session.Capabilities().SortsRead {
+		return false, nil
+	}
+	tableID := present.BuildTableID(tab.Table)
+	state, asked := connection.Catalog.Details[tableID]
+	switch {
+	case !asked:
+		tab.WaitsForKey = true
+		connection.Catalog.Details[tableID] = present.TableDetailState{Kind: present.DetailLoading}
+		return true, readTableDetail(model.ActiveID(), connection.Session, tab.Table)
+	case state.Kind == present.DetailLoading:
+		tab.WaitsForKey = true
+		return true, nil
+	case state.Kind == present.DetailReady:
+		for _, column := range state.Detail.Columns {
+			if column.IsPrimaryKey {
+				tab.KeySort = append(tab.KeySort,
+					core.SortState{Column: column.Name, Direction: core.SortAscending})
+			}
+		}
+	}
+	return false, nil
+}
+
+// readWaitingTables reads the rows of every table tab that waited for the columns of that
+// table.
+func (model *Model) readWaitingTables(connection *app.Connection, tableID string) tea.Cmd {
+	commands := []tea.Cmd{}
+	for _, tab := range connection.Tabs {
+		if !tab.WaitsForKey || present.BuildTableID(tab.Table) != tableID {
+			continue
+		}
+		_, command := model.runTabRead(connection, tab)
+		commands = append(commands, command)
+	}
+	return tea.Batch(commands...)
 }
 
 // execute runs the statements of the user. It asks for the values of every `:name` mark
@@ -507,8 +557,14 @@ func (model *Model) placeResultCursor(
 		names = append(names, column.Name)
 	}
 	key := strings.Join(names, "|")
+	kept := tab.CursorRowKey
+	tab.CursorRowKey = nil
 	if key == tab.GridColumnKey {
-		tab.GridRow = clamp(tab.GridRow, len(model.buildGridShape(connection, tab).Text))
+		shape := model.buildGridShape(connection, tab)
+		tab.GridRow = clamp(tab.GridRow, len(shape.Text))
+		if at, found := findRowByKey(shape, kept); found {
+			tab.GridRow, tab.GridRolled = at, false
+		}
 		tab.TreeRow = clamp(tab.TreeRow, model.buildDocumentTree(connection, tab).CountRows())
 		return
 	}
@@ -518,6 +574,59 @@ func (model *Model) placeResultCursor(
 	tab.GridColumnRolled = false
 	tab.TreeRow, tab.TreeRowOffset, tab.TreeRolled = 0, 0, false
 	tab.Opened = map[string]bool{}
+}
+
+// readCursorRowKey returns the primary key values of the row under the grid cursor, or nil
+// where the row has none.
+func (model *Model) readCursorRowKey(
+	connection *app.Connection, tab *app.Tab,
+) map[string]any {
+	shape := model.buildGridShape(connection, tab)
+	if len(shape.Text) == 0 || len(tab.Target.KeyColumns) == 0 {
+		return nil
+	}
+	rowIndex := shape.RowIndexes[clamp(tab.GridRow, len(shape.Text))]
+	if rowIndex >= len(shape.Rows) {
+		return nil
+	}
+	values := map[string]any{}
+	for _, name := range tab.Target.KeyColumns {
+		at := slices.IndexFunc(shape.Columns, func(column db.ResultColumn) bool {
+			return strings.EqualFold(column.Name, name)
+		})
+		if at < 0 || at >= len(shape.Rows[rowIndex]) {
+			return nil
+		}
+		values[shape.Columns[at].Name] = shape.Rows[rowIndex][at]
+	}
+	return values
+}
+
+// findRowByKey returns the grid row whose values match every key value.
+func findRowByKey(shape GridShape, key map[string]any) (int, bool) {
+	if len(key) == 0 {
+		return 0, false
+	}
+	for at, rowIndex := range shape.RowIndexes {
+		if rowIndex >= len(shape.Rows) {
+			continue
+		}
+		matches := true
+		for column, value := range key {
+			index := slices.IndexFunc(shape.Columns, func(held db.ResultColumn) bool {
+				return held.Name == column
+			})
+			if index < 0 || index >= len(shape.Rows[rowIndex]) ||
+				!reflect.DeepEqual(shape.Rows[rowIndex][index], value) {
+				matches = false
+				break
+			}
+		}
+		if matches {
+			return at, true
+		}
+	}
+	return 0, false
 }
 
 // resolveEditTarget returns the relation a result can be edited as. It follows every run,
@@ -951,6 +1060,7 @@ func (model *Model) readChangesAnswer(answered changesAppliedMsg) (tea.Model, te
 		return model, nil
 	}
 
+	tab.CursorRowKey = model.readCursorRowKey(connection, tab)
 	tab.DiscardChanges()
 	connection.CloseEveryOverlay()
 	connection.Show(present.FormatCountOf(
