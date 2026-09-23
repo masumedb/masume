@@ -118,6 +118,20 @@ func TestFitTextIsAlwaysTheWidthAsked(t *testing.T) {
 	}
 }
 
+func TestFitTextRightPadsOnTheLeft(t *testing.T) {
+	for _, held := range []struct {
+		text  string
+		width int
+		want  string
+	}{
+		{"80.04", 7, "  80.04"}, {"261.60", 6, "261.60"}, {"", 2, "  "}, {"123456", 4, "123…"},
+	} {
+		if written := present.FitTextRight(held.text, held.width); written != held.want {
+			t.Errorf("%q fitted to %d is %q, wanted %q", held.text, held.width, written, held.want)
+		}
+	}
+}
+
 // A line break inside a value would move the rest of the frame down one row, so a value in a
 // grid cell contains no line break.
 func TestSafeTextKeepsAValueOnOneRow(t *testing.T) {

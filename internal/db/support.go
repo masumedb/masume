@@ -554,6 +554,28 @@ func IsBinaryColumnType(dataType string) bool {
 	return binaryColumnTypes[strings.ToLower(strings.TrimSpace(dataType))]
 }
 
+// numericColumnTypes is the set of integer, decimal and money column types.
+var numericColumnTypes = map[string]bool{
+	"smallint": true, "integer": true, "int": true, "bigint": true, "tinyint": true,
+	"mediumint": true, "int2": true, "int4": true, "int8": true, "serial": true,
+	"bigserial": true, "smallserial": true, "numeric": true, "decimal": true, "real": true,
+	"double": true, "double precision": true, "float": true, "float4": true, "float8": true,
+	"money": true, "smallmoney": true, "long": true, "varint": true, "counter": true,
+	"int16": true, "int32": true, "int64": true, "int128": true, "int256": true,
+	"uint8": true, "uint16": true, "uint32": true, "uint64": true, "uint128": true,
+	"uint256": true, "float32": true, "float64": true,
+}
+
+// IsNumericColumnType is true for a column of integers, decimals or money.
+func IsNumericColumnType(dataType string) bool {
+	base := strings.ToLower(strings.TrimSpace(dataType))
+	base = strings.TrimPrefix(base, "unsigned ")
+	if before, _, found := strings.Cut(base, "("); found {
+		base = strings.TrimSpace(before)
+	}
+	return numericColumnTypes[base]
+}
+
 // readTextBytes converts valid UTF-8 text bytes to strings. Binary columns and invalid UTF-8 remain bytes.
 func readTextBytes(value any, binary bool) any {
 	written, isBytes := value.([]byte)

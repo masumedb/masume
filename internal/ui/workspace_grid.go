@@ -30,6 +30,8 @@ type GridShape struct {
 	// The place of each kept row in the whole result, so an edit names the right row.
 	RowIndexes []int
 	Masked     map[int]bool
+	// The columns of numbers, drawn against the right edge.
+	Numeric map[int]bool
 	// The name of each column with its sort mark, as the header draws it.
 	Labels []string
 	Widths []int
@@ -54,7 +56,7 @@ func (model *Model) buildGridShape(connection *app.Connection, tab *app.Tab) Gri
 
 	return GridShape{
 		Columns: answered.Columns, Rows: answered.Rows, Text: text, RowIndexes: indexes,
-		Masked: head.masked, Labels: head.labels,
+		Masked: head.masked, Numeric: head.numeric, Labels: head.labels,
 		Widths: applyColumnWidths(widths, tab.ColumnWidths),
 	}
 }
@@ -119,6 +121,7 @@ type gridHead struct {
 	labels    []string
 	masked    map[int]bool
 	zoned     map[int]bool
+	numeric   map[int]bool
 }
 
 // resolveGridHead returns the head of the result on screen, reading it only where the one it
@@ -143,10 +146,14 @@ func (model *Model) resolveGridHead(
 		dataTypes: make([]string, 0, len(result.Columns)),
 		labels:    make([]string, 0, len(result.Columns)),
 		zoned:     map[int]bool{},
+		numeric:   map[int]bool{},
 	}
 	for at, column := range result.Columns {
 		if column.Zoned {
 			built.zoned[at] = true
+		}
+		if db.IsNumericColumnType(column.DataType) {
+			built.numeric[at] = true
 		}
 		built.names = append(built.names, column.Name)
 		built.dataTypes = append(built.dataTypes, column.DataType)

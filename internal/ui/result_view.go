@@ -27,7 +27,7 @@ const noCancelNote = "this engine cannot stop a running statement"
 // The widths of the result pane.
 const (
 	// The gutter numbers each row of the result, so the footer can name where the cursor is.
-	gutterGap = 1
+	gutterGap = 2
 	// The gap between two columns of the grid.
 	columnGap = 2
 	// The key label at the left of the statement row, and the count at its right.
@@ -608,7 +608,12 @@ func (model *Model) renderGridHeader(
 	written := strings.Builder{}
 	written.Grow(width + (len(visible)+1)*cellEscapeBytes)
 	used := 1 + gutterWidth
-	writeBlanksOn(&written, ground, used)
+	if gutterWidth > 0 {
+		writeBlanksOn(&written, ground, used-gutterGap)
+		writeTextOn(&written, theme.Muted, ground, gridGutterRule)
+	} else {
+		writeBlanksOn(&written, ground, used)
+	}
 
 	for _, index := range visible {
 		label := shape.Columns[index].Name
@@ -629,7 +634,7 @@ func (model *Model) renderGridHeader(
 		// over a name is as wide as the highlight over its values.
 		opening := resolveBoldOpening(ink, cell)
 		written.WriteString(opening)
-		written.WriteString(present.FitText(label, shape.Widths[index]))
+		written.WriteString(fitGridCell(label, shape.Widths[index], shape.Numeric[index]))
 		writeBlanks(&written, columnGap)
 		written.WriteString(resetSequence)
 		used += shape.Widths[index] + columnGap
@@ -652,9 +657,9 @@ func (model *Model) paintHiddenColumnMarks(
 ) string {
 	if hidden.left > 0 {
 		// The mark stands over the gutter, which the header leaves blank. A count wider than
-		// the gutter is dropped, so it does not cover the first name.
+		// the gutter is dropped, so it does not cover the rule.
 		counted := model.icons.Icon(cfg.IconStepBack) + strconv.Itoa(hidden.left)
-		if present.MeasureText(counted) > gutterWidth {
+		if present.MeasureText(counted) > gutterWidth+1-gutterGap {
 			counted = model.icons.Icon(cfg.IconStepBack)
 		}
 		line = model.styles.paintOverStart(line, counted, ground)
@@ -747,7 +752,8 @@ func (model *Model) renderGridRow(
 	written.Grow(width + (len(visible)+1)*cellEscapeBytes)
 	used := 1 + gutterWidth
 	writeTextOn(&written, gutterInk, ground,
-		" "+buildGutterText(strconv.Itoa(rowIndex+1), gutterWidth))
+		" "+present.FitTextRight(strconv.Itoa(rowIndex+1), gutterWidth-gutterGap))
+	writeTextOn(&written, theme.Muted, ground, gridGutterRule)
 
 	for _, index := range visible {
 		cell := ""
@@ -795,7 +801,8 @@ func (model *Model) renderGridRow(
 			ink = theme.Muted
 		}
 
-		writeTextOn(&written, ink, cellGround, present.FitText(cell, shape.Widths[index]))
+		writeTextOn(&written, ink, cellGround,
+			fitGridCell(cell, shape.Widths[index], shape.Numeric[index]))
 		writeBlanksOn(&written, cellGround, columnGap)
 		used += shape.Widths[index] + columnGap
 	}
@@ -806,6 +813,17 @@ func (model *Model) renderGridRow(
 	}
 	writeBlanksOn(&written, ground, width-used)
 	return written.String()
+}
+
+// gridGutterRule is drawn between the row numbers and the first column.
+const gridGutterRule = "│ "
+
+// fitGridCell fits a cell to its column, against the right edge in a column of numbers.
+func fitGridCell(text string, width int, numeric bool) string {
+	if numeric {
+		return present.FitTextRight(text, width)
+	}
+	return present.FitText(text, width)
 }
 
 // buildGutterText writes a row number into the gutter, which holds it against its right

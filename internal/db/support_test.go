@@ -310,6 +310,19 @@ func TestIsBinaryColumnTypeReadsTheDriverType(t *testing.T) {
 	}
 }
 
+func TestIsNumericColumnTypeReadsTheDriverType(t *testing.T) {
+	for _, dataType := range []string{"int4", "NUMERIC", "decimal(10,2)", "UNSIGNED INT", "money", "Float64"} {
+		if !IsNumericColumnType(dataType) {
+			t.Errorf("%q was not read as a number", dataType)
+		}
+	}
+	for _, dataType := range []string{"text", "varchar(20)", "int4[]", "timestamptz", ""} {
+		if IsNumericColumnType(dataType) {
+			t.Errorf("%q was read as a number", dataType)
+		}
+	}
+}
+
 func TestReadAnyTextWritesEveryShape(t *testing.T) {
 	if ReadAnyText("public") != "public" {
 		t.Error("a string was not kept")

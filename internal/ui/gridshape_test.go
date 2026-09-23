@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/masumedb/masume/internal/app"
@@ -210,5 +211,30 @@ func TestBuildGridShapeFollowsTheResultOnScreen(t *testing.T) {
 
 	if first.Text[0][0] == second.Text[0][0] {
 		t.Errorf("both results drew %q", first.Text[0][0])
+	}
+}
+
+func TestGridDrawsNumbersAgainstTheRightEdge(t *testing.T) {
+	model := buildOfflineModel(t, 160, 48)
+	connection := model.Active()
+	tab := connection.Active()
+	tab.Results.Start([]string{"select * from orders"}, 200)
+	tab.Results.Succeed(0, db.ComposedRead{Text: "select * from orders"}, db.QueryResult{
+		Columns: []db.ResultColumn{
+			{Name: "id", DataType: "int4"}, {Name: "status", DataType: "text"},
+			{Name: "total", DataType: "numeric"},
+		},
+		Rows: [][]any{{int64(1), "paid", "261.60"}, {int64(10), "refunded", "80.04"}},
+	})
+
+	lines := model.renderGrid(connection, tab, model.buildGridShape(connection, tab), 60, 6)
+	for at, want := range []string{
+		"  │   id  status     total",
+		" 1│    1  paid      261.60",
+		" 2│   10  refunded   80.04",
+	} {
+		if drawn := strings.TrimRight(stripStyles(lines[at]), " "); drawn != want {
+			t.Errorf("row %d is %q, wanted %q", at, drawn, want)
+		}
 	}
 }

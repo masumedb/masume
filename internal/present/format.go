@@ -205,6 +205,13 @@ func FitText(text string, width int) string {
 	return PadText(TruncateText(text, width), width)
 }
 
+// FitTextRight returns the text in exactly this number of cells: cut with an ellipsis, or
+// padded with spaces on the left.
+func FitTextRight(text string, width int) string {
+	text = TruncateText(text, width)
+	return strings.Repeat(" ", max(width-MeasureText(text), 0)) + text
+}
+
 // RowFormat is the column information the grid writes a row with.
 type RowFormat struct {
 	DataTypes []string
