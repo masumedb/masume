@@ -776,6 +776,16 @@ func (model *Model) chooseOverlayRow(
 	case app.OverlayNotebooks:
 		return model.openNotebookRow(connection, overlay, inNewTab)
 
+	case app.OverlayWritePlan:
+		blocker, found := findOpenableBlocker(overlay.Plan)
+		if !found {
+			return model, nil
+		}
+		model.answerNothing(overlay)
+		connection.CloseEveryOverlay()
+		return model.openFilteredTable(connection, blocker.Relation.Schema,
+			blocker.Relation.Name, core.FilterStep{Kind: core.FilterRaw, Text: blocker.Referencing})
+
 	case app.OverlaySaved:
 		queries := model.filterSaved(*overlay)
 		if overlay.List.Cursor >= len(queries) {

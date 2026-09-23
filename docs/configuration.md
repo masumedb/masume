@@ -231,7 +231,7 @@ The connection picker marks project profiles with `project` and shows the projec
 
 With `write_plan`, masume checks a single write before it runs, if the statement is supported. PostgreSQL-family, MySQL-family, and SQLite engines support write plans; MongoDB does not. The plan uses the target table and the predicate from the statement. Unsupported statements, such as joins, target aliases and batches, go through the normal confirmation.
 
-The server counts the matching rows with the write predicate. The count can change before the write runs. An update plan also lists assigned columns. `cascades` lists trigger names and foreign key effects. The plan does not inspect trigger bodies or predict their effects. `blocked` lists foreign keys that can reject the delete.
+The server counts the matching rows with the write predicate. The count can change before the write runs. An update plan also lists assigned columns. `cascades` lists trigger names and foreign key effects. The plan does not inspect trigger bodies or predict their effects. `blocked` lists foreign keys that can reject the delete. In the client, these keys put a headline at the top of the plan, and Enter opens the referencing rows.
 
 `write_plan = "undo"` prepares an undo for updates, deletes, and truncates. An update undo restores assigned columns by primary key. A delete or truncate undo inserts captured target rows. `Alt+U` (`global.undo-write`) asks for confirmation, then runs the undo statements together. The connection keeps only the latest write result, in memory.
 

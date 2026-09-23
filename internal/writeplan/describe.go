@@ -69,6 +69,20 @@ func DescribeBlocker(blocker Cascade) string {
 		" reference matching rows"
 }
 
+// DescribeBlockingRows returns the sentence under the headline of a write that a foreign key
+// blocks.
+func DescribeBlockingRows(blocker Cascade) string {
+	if !blocker.HasRows {
+		return "Rows in " + blocker.Table + " may reference these rows (" + blocker.Reason + ")."
+	}
+	verb := " still reference "
+	if blocker.Rows == 1 {
+		verb = " still references "
+	}
+	return present.FormatCountOf(blocker.Rows, "row", "rows") + " in " + blocker.Table + verb +
+		"these rows (" + blocker.Reason + ")."
+}
+
 // DescribeUndo describes the original rows available for undo.
 func DescribeUndo(undo UndoPlan) string {
 	if !undo.Kept {

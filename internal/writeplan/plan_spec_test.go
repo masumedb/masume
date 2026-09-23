@@ -367,7 +367,12 @@ func TestBuildReportsABlockerOnlyWhereRowsReferenceTheseRows(t *testing.T) {
 	session.matched, session.followed = 2, 4
 	plan := buildPlan(t, session, "delete from orders where id = 1", cfg.PlanCount)
 	if len(plan.Blockers) != 1 || plan.Blockers[0].Rows != 4 {
-		t.Errorf("the blockers are %+v", plan.Blockers)
+		t.Fatalf("the blockers are %+v", plan.Blockers)
+	}
+	if blocker := plan.Blockers[0]; blocker.Relation.Name != "order_notes" ||
+		!strings.Contains(blocker.Referencing, "order_id") ||
+		!strings.Contains(blocker.Referencing, "id = 1") {
+		t.Errorf("the blocker matches its rows with %+v", blocker)
 	}
 
 	session.followed = 0

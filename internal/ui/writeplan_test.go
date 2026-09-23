@@ -2,9 +2,12 @@ package ui
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/masumedb/masume/internal/app"
 	"github.com/masumedb/masume/internal/cfg"
@@ -194,5 +197,104 @@ func TestAFailedWriteKeepsNoUndo(t *testing.T) {
 
 	if model.Active().Undo != nil {
 		t.Error("a write that failed left an undo")
+	}
+}
+
+// buildBlockedPlan returns a delete that rows of public.order_items block.
+func buildBlockedPlan() writeplan.Plan {
+	plan := buildTestPlan()
+	plan.Kind = "delete"
+	plan.SQL = "delete from orders where status = 'open'"
+	plan.Blockers = []writeplan.Cascade{{
+		Reason: "on delete no action", Table: "public.order_items", Rows: 3000, HasRows: true,
+		Relation:    db.TableRef{Schema: "public", Name: "order_items"},
+		Referencing: `"order_id" in (select "id" from "public"."orders")`,
+	}}
+	return plan
+}
+
+// readCardButtons returns the actions of the buttons on this frame row, left to right.
+func readCardButtons(model *Model, row int) []ActionID {
+	actions := []ActionID{}
+	for _, held := range model.layout.buttons {
+		if held.row == row {
+			actions = append(actions, held.action)
+		}
+	}
+	return actions
+}
+
+func TestABlockedWriteLeadsWithTheBlockingRows(t *testing.T) {
+	model, connection, _ := buildPlannedModel(t)
+	connection.Overlay = app.Overlay{
+		Kind: app.OverlayWritePlan, Title: " write plan ", Plan: buildBlockedPlan(),
+	}
+	frame := strings.Split(model.render(), "\n")
+	drawn := stripStyles(strings.Join(frame[:model.layout.hintRow], "\n"))
+
+	for _, said := range []string{
+		"This delete will fail",
+		"3,000 rows in public.order_items still reference these rows (on delete no action).",
+		"show the blocking rows", "run anyway",
+	} {
+		if !strings.Contains(drawn, said) {
+			t.Errorf("the card says nothing of %q:\n%s", said, drawn)
+		}
+	}
+	if strings.Count(drawn, "cancel") != 1 {
+		t.Errorf("the card shows cancel %d times:\n%s", strings.Count(drawn, "cancel"), drawn)
+	}
+
+	show, found := findCardButton(model, ActionChooseRow)
+	if !found {
+		t.Fatal("the card has no button that shows the blocking rows")
+	}
+	got := readCardButtons(model, show.row)
+	wanted := []ActionID{ActionChooseRow, ActionAnswerYes, ActionClose}
+	if !slices.Equal(got, wanted) {
+		t.Errorf("the buttons are %v, wanted %v", got, wanted)
+	}
+}
+
+func TestAPlanWithoutABlockerLeadsWithRun(t *testing.T) {
+	model, connection, _ := buildPlannedModel(t)
+	connection.Overlay = app.Overlay{
+		Kind: app.OverlayWritePlan, Title: " write plan ", Plan: buildTestPlan(),
+	}
+	model.render()
+
+	run, found := findCardButton(model, ActionAnswerYes)
+	if !found {
+		t.Fatal("the card has no run button")
+	}
+	got := readCardButtons(model, run.row)
+	if !slices.Equal(got, []ActionID{ActionAnswerYes, ActionClose}) {
+		t.Errorf("the buttons are %v", got)
+	}
+}
+
+func TestEnterOpensTheRowsThatBlockTheWrite(t *testing.T) {
+	model, connection, _ := buildPlannedModel(t)
+	connection.Catalog.Tables = []db.TableRef{
+		{Schema: "public", Name: "orders", Kind: db.RelationTable},
+		{Schema: "public", Name: "order_items", Kind: db.RelationTable},
+	}
+	plan := buildBlockedPlan()
+	connection.Overlay = app.Overlay{
+		Kind: app.OverlayWritePlan, Title: " write plan ", Plan: plan,
+	}
+	model.render()
+
+	model.readKey(tea.Key{Code: tea.KeyEnter})
+
+	if connection.Overlay.IsOpen() {
+		t.Fatalf("the card %q is still open", connection.Overlay.Kind)
+	}
+	tab := connection.Active()
+	if tab.Kind != app.TabTable || tab.Table.Name != "order_items" {
+		t.Fatalf("the active tab is %q %q", tab.Kind, tab.Table.Name)
+	}
+	if len(tab.Filter) != 1 || tab.Filter[0].Text != plan.Blockers[0].Referencing {
+		t.Errorf("the tab filters with %+v", tab.Filter)
 	}
 }

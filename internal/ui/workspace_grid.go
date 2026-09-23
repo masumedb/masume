@@ -904,16 +904,24 @@ func (model *Model) followForeignKey(
 		connection.Show(column.Name + " has no foreign key")
 		return model, nil
 	}
-	table, known := connection.Catalog.FindTable(target.Schema, target.Table)
+	return model.openFilteredTable(connection, target.Schema, target.Table,
+		core.BuildCellFilter(target.Column, value, false))
+}
+
+// openFilteredTable opens the tab of a table of the catalog with this filter, and reads it.
+func (model *Model) openFilteredTable(
+	connection *app.Connection, schema, name string, step core.FilterStep,
+) (tea.Model, tea.Cmd) {
+	table, known := connection.Catalog.FindTable(schema, name)
 	if !known {
-		connection.Show("table not found in the catalog: " + target.Table)
+		connection.Show("table not found in the catalog: " + name)
 		return model, nil
 	}
 
 	preview := connection.Session.Composer().ComposeRelationRead(
 		table, core.ReadRewrite{}).Display
 	opened := connection.OpenTable(table, preview)
-	opened.Filter = []core.FilterStep{core.BuildCellFilter(target.Column, value, false)}
+	opened.Filter = []core.FilterStep{step}
 	return model.runTabRead(connection, opened)
 }
 

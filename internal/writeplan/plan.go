@@ -39,6 +39,11 @@ type Cascade struct {
 	Table   string
 	Rows    int64
 	HasRows bool
+	// The referencing table of a foreign key, and the predicate that matches its rows that
+	// reference the written rows. Both are empty for a trigger and for a key of more than
+	// one column.
+	Relation    db.TableRef
+	Referencing string
 }
 
 // Plan is what one write would do, measured before it runs.

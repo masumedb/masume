@@ -132,6 +132,10 @@ func (measure measurer) readKeysPointingHere(ctx context.Context, plan *Plan) {
 			Reason: "on delete " + string(relationship.DeleteRule),
 			Table:  relationship.Schema + "." + relationship.Table,
 		}
+		if referencing, built := measure.buildReferencingPredicate(relationship); built {
+			cascade.Relation = db.TableRef{Schema: relationship.Schema, Name: relationship.Table}
+			cascade.Referencing = referencing
+		}
 		if plan.HasRows && plan.Rows > 0 {
 			if rows, counted := measure.countFollowedRows(ctx, relationship); counted {
 				cascade.Rows, cascade.HasRows = rows, true
@@ -158,21 +162,31 @@ func (measure measurer) pointsAtTable(relationship db.Relationship) bool {
 func (measure measurer) countFollowedRows(
 	ctx context.Context, relationship db.Relationship,
 ) (int64, bool) {
-	if len(relationship.Columns) != 1 || len(relationship.TargetColumns) != 1 {
+	referencing, built := measure.buildReferencingPredicate(relationship)
+	if !built {
 		return 0, false
 	}
 	dialect := measure.dialect()
 	child := dialect.BuildQualifiedName(
 		query.QualifiedName{Schema: relationship.Schema, Name: relationship.Table})
 
-	counted := "select " + dialect.CountExpression + " from " + child +
-		" where " + dialect.QuoteIdentifier(relationship.Columns[0]) + " in (select " +
-		dialect.QuoteIdentifier(relationship.TargetColumns[0]) + " from " +
-		measure.quotedTable() + measure.buildPredicate() + ")"
+	counted := "select " + dialect.CountExpression + " from " + child + " where " + referencing
 
 	rows, err := measure.readOneCount(ctx, counted)
 	if err != nil {
 		return 0, false
 	}
 	return rows, true
+}
+
+// buildReferencingPredicate returns the predicate that matches the rows of the referencing
+// table that reference the written rows, for a single-column foreign key.
+func (measure measurer) buildReferencingPredicate(relationship db.Relationship) (string, bool) {
+	if len(relationship.Columns) != 1 || len(relationship.TargetColumns) != 1 {
+		return "", false
+	}
+	dialect := measure.dialect()
+	return dialect.QuoteIdentifier(relationship.Columns[0]) + " in (select " +
+		dialect.QuoteIdentifier(relationship.TargetColumns[0]) + " from " +
+		measure.quotedTable() + measure.buildPredicate() + ")", true
 }

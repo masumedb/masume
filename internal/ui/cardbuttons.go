@@ -1,0 +1,64 @@
+package ui
+
+import (
+	"strings"
+
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/present"
+)
+
+// cardButton is one button of the row at the foot of a card.
+type cardButton struct {
+	chord  string
+	label  string
+	scope  cfg.KeyScope
+	action ActionID
+	// True for the primary action, which is drawn filled.
+	primary bool
+	// True for a primary action that writes or removes, drawn in the error colour.
+	destructive bool
+}
+
+// buildCardButton returns a button with the first chord of the action.
+func (model *Model) buildCardButton(scope cfg.KeyScope, action ActionID, label string) cardButton {
+	return cardButton{
+		chord: model.registry.FormatFirstActionChord(scope, action), label: label,
+		scope: scope, action: action,
+	}
+}
+
+// cardButtonGap is the blank cells between two buttons.
+const cardButtonGap = 2
+
+// renderButtonRow draws the buttons of a card and records each one as a button of the frame.
+// The row and the left column are counted from the card.
+func (model *Model) renderButtonRow(buttons []cardButton, row, left int) string {
+	theme := model.styles.Theme
+	var written strings.Builder
+	at := left
+	for index, button := range buttons {
+		if index > 0 {
+			writeBlanksOn(&written, theme.Panel, cardButtonGap)
+			at += cardButtonGap
+		}
+		ground, ink := theme.Header, theme.Text
+		if button.primary {
+			ground = theme.Accent
+			if button.destructive {
+				ground = theme.Error
+			}
+			ink = model.styles.InkOn(ground)
+		}
+		text := "  " + strings.TrimSpace(button.chord+" "+button.label) + "  "
+		writeTextOn(&written, ink, ground, text)
+		width := present.MeasureText(text)
+		if button.action != "" {
+			model.layout.buttons = append(model.layout.buttons, buttonHit{
+				row: row, from: at, to: at + width - 1, keyTo: at + width - 1,
+				scope: button.scope, action: button.action,
+			})
+		}
+		at += width
+	}
+	return written.String()
+}

@@ -238,7 +238,9 @@ var cardKeySpecs = map[app.OverlayKind][]keySpec{
 		keyOf(cfg.ScopeDialog, ActionClose, "cancel"),
 	},
 	app.OverlayWritePlan: {
-		keyOf(cfg.ScopeDialog, ActionAnswerYes, "run"),
+		keyOf(cfg.ScopeList, ActionChooseRow, "show the blocking rows").
+			onlyWhen(opensBlockingRows),
+		keyOf(cfg.ScopeDialog, ActionAnswerYes, "run").withLabel(describeWritePlanRun),
 		takesKey(cfg.ScopeDialog, ActionAnswerNo),
 		keyOf(cfg.ScopeDialog, ActionClose, "cancel"),
 	},

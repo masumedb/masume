@@ -2,6 +2,7 @@ package ui
 
 import (
 	"image/color"
+	"slices"
 	"strings"
 
 	"github.com/masumedb/masume/internal/app"
@@ -24,35 +25,94 @@ const (
 	writePlanStatementRows = 8
 )
 
-// renderWritePlan draws the plan and the two answers.
+// renderWritePlan draws the plan and its buttons. A write that a foreign key blocks opens
+// with a headline.
 func (model *Model) renderWritePlan(overlay app.Overlay, width int) string {
 	inner := max(width-present.CardChrome, 1)
 	plan := overlay.Plan
 
-	lines := model.renderWritePlanStatement(plan.SQL, inner)
+	lines := []string{}
+	if len(plan.Blockers) > 0 {
+		lines = append(lines, model.renderWritePlanHeadline(plan, inner)...)
+		lines = append(lines, "")
+	}
+	lines = append(lines, model.renderWritePlanStatement(plan.SQL, inner)...)
 	lines = append(lines, "")
 	lines = append(lines, model.renderWritePlanLines(plan, inner)...)
+	lines = append(lines, "")
 
-	yes, no := model.renderWritePlanAnswers()
-	lines = append(lines, "", yes+"  "+no)
-
-	// The two answers are drawn as chips over this line, so the line names the key that
-	// closes the card and leaves the answers to the chips.
-	keys := model.buildCardKeys(app.OverlayWritePlan, keyScene{overlay: overlay})
 	model.recordCardBody()
-	model.recordAnswerChips(
-		len(lines)-1, measureStyledWidth(yes), measureStyledWidth(no))
-	return model.renderTextCard(overlay.Kind, overlay.Title, width, lines, keys,
+	lines = append(lines, model.renderButtonRow(
+		model.buildWritePlanButtons(plan), cardBodyRow+len(lines), cardBodyColumn))
+	card := model.renderTextCard(overlay.Kind, overlay.Title, width, lines, nil,
 		len(lines), destructiveCard)
+	model.rememberCardKeys(model.buildCardKeys(app.OverlayWritePlan, keyScene{overlay: overlay}))
+	return card
 }
 
-func (model *Model) renderWritePlanAnswers() (string, string) {
+// buildWritePlanButtons returns the buttons of the plan. A blocked write leads with the
+// button that opens the blocking rows, and run is a secondary button.
+func (model *Model) buildWritePlanButtons(plan writeplan.Plan) []cardButton {
+	scene := keyScene{overlay: app.Overlay{Plan: plan}}
+	run := model.buildCardButton(cfg.ScopeDialog, ActionAnswerYes, describeWritePlanRun(scene))
+	cancel := model.buildCardButton(cfg.ScopeDialog, ActionClose, "cancel")
+	if len(plan.Blockers) == 0 {
+		run.primary, run.destructive = true, true
+		return []cardButton{run, cancel}
+	}
+	if !opensBlockingRows(scene) {
+		cancel.primary = true
+		return []cardButton{run, cancel}
+	}
+	show := model.buildCardButton(cfg.ScopeList, ActionChooseRow, "show the blocking rows")
+	show.primary = true
+	return []cardButton{show, run, cancel}
+}
+
+// findOpenableBlocker returns the first blocker whose referencing rows a filter can match.
+func findOpenableBlocker(plan writeplan.Plan) (writeplan.Cascade, bool) {
+	for _, blocker := range plan.Blockers {
+		if blocker.Referencing != "" {
+			return blocker, true
+		}
+	}
+	return writeplan.Cascade{}, false
+}
+
+// opensBlockingRows is true for a plan with a blocker whose rows a filter can match.
+func opensBlockingRows(scene keyScene) bool {
+	_, found := findOpenableBlocker(scene.overlay.Plan)
+	return found
+}
+
+// describeWritePlanRun returns the label of the key that runs the write.
+func describeWritePlanRun(scene keyScene) string {
+	if len(scene.overlay.Plan.Blockers) > 0 {
+		return "run anyway"
+	}
+	return "run"
+}
+
+// renderWritePlanHeadline draws the sentence that the write fails, and one line per table
+// that blocks it.
+func (model *Model) renderWritePlanHeadline(plan writeplan.Plan, inner int) []string {
 	theme := model.styles.Theme
-	yes := paintText(model.styles.InkOn(theme.Error), theme.Error, "  "+
-		model.registry.FormatActionChords(cfg.ScopeDialog, ActionAnswerYes)+" run  ")
-	no := paintText(theme.Text, theme.Header, "  "+
-		model.registry.FormatActionChords(cfg.ScopeDialog, ActionAnswerNo)+" cancel  ")
-	return yes, no
+	outcome := " may fail"
+	if slices.ContainsFunc(plan.Blockers, func(blocker writeplan.Cascade) bool {
+		return blocker.HasRows
+	}) {
+		outcome = " will fail"
+	}
+	headline := model.writeProblemSign() + "This " + string(plan.Kind) + outcome
+	lines := []string{padStyledOn(paintBoldText(theme.Error, theme.Panel,
+		present.TruncateText(headline, inner)), inner, theme.Panel)}
+	for _, blocker := range plan.Blockers {
+		for _, line := range present.WrapWords(writeplan.DescribeBlockingRows(blocker), inner-2) {
+			lines = append(lines, padStyledOn(
+				paintText(theme.Text, theme.Panel, "  "+line), inner, theme.Panel))
+		}
+	}
+	return lines
 }
 
 // renderWritePlanStatement draws the write, wrapped so the predicate is read in full.
@@ -98,7 +158,6 @@ func (model *Model) renderWritePlanLines(plan writeplan.Plan, inner int) []strin
 		})
 	}
 	rows = append(rows, model.buildWritePlanCascadeLines(plan)...)
-	rows = append(rows, model.buildWritePlanBlockerLines(plan)...)
 	rows = append(rows, model.buildWritePlanUndoLine(plan), writePlanLine{
 		label: writeplan.LabelCommit, value: writeplan.DescribeCommit(plan),
 		ink: model.styles.Theme.Muted,
@@ -143,23 +202,6 @@ func (model *Model) buildWritePlanCascadeLines(plan writeplan.Plan) []writePlanL
 		rows = append(rows, writePlanLine{
 			label: label, value: writeplan.DescribeCascade(cascade),
 			ink: model.styles.Theme.Warning,
-		})
-	}
-	return rows
-}
-
-// buildWritePlanBlockerLines returns one line per relation that blocks the write, drawn as
-// a fault because the server rejects the write while one of them references it.
-func (model *Model) buildWritePlanBlockerLines(plan writeplan.Plan) []writePlanLine {
-	rows := make([]writePlanLine, 0, len(plan.Blockers))
-	for at, blocker := range plan.Blockers {
-		label := writeplan.LabelBlocked
-		if at > 0 {
-			label = ""
-		}
-		rows = append(rows, writePlanLine{
-			label: label, value: writeplan.DescribeBlocker(blocker),
-			ink: model.styles.Theme.Error,
 		})
 	}
 	return rows
