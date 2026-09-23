@@ -320,7 +320,6 @@ const (
 	ActionScrollRight    ActionID = "scroll-right"
 	ActionOpenDirectory  ActionID = "open-directory"
 	ActionLeaveDirectory ActionID = "leave-directory"
-	ActionUseKeyring     ActionID = "use-keyring"
 )
 
 // globalActions are the ones the workspace handles wherever the focus is.
@@ -531,7 +530,6 @@ var dialogActions = []ActionDefinition{
 	{ID: ActionPreviousRow, MainHint: true}, {ID: ActionNextRow, MainHint: true},
 	{ID: ActionScrollLeft}, {ID: ActionScrollRight},
 	{ID: ActionOpenDirectory}, {ID: ActionLeaveDirectory},
-	{ID: ActionUseKeyring},
 	// The find field marks whole words only, or every match of the term.
 	{ID: ActionToggleWholeWord},
 	// The list of completions owns the keyboard while it is open, as a card does.

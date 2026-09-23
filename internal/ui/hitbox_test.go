@@ -227,7 +227,7 @@ func TestTheRowsOfTheConnectionFormStandWhereTheyAreDrawn(t *testing.T) {
 	checkRowsHold(t, "the connection form", frame, model.layout.formRows, labels)
 }
 
-// A card that asks a question draws its answers as chips, and a press on one answers it.
+// A card that asks a question draws its answers as buttons, and a press on one answers it.
 func TestTheAnswersOfAQuestionStandWhereTheyAreDrawn(t *testing.T) {
 	model, connection, _ := buildEditingModel(t, "delete from orders", 0)
 	connection.Overlay = app.Overlay{
@@ -235,14 +235,17 @@ func TestTheAnswersOfAQuestionStandWhereTheyAreDrawn(t *testing.T) {
 	}
 	frame := strings.Split(model.render(), "\n")
 
-	if len(model.layout.overlayChips) != 2 {
-		t.Fatalf("a question drew %d answers", len(model.layout.overlayChips))
-	}
-	wanted := []string{"run", "cancel"}
-	for at, chip := range model.layout.overlayChips {
-		text := cutRowText(frame[chip.row], chip.from, chip.to)
-		if !strings.Contains(text, wanted[at]) {
-			t.Errorf("the %q answer covers %q", wanted[at], text)
+	for action, wanted := range map[ActionID]string{
+		ActionAnswerYes: "run", ActionAnswerNo: "cancel",
+	} {
+		button, found := findCardButton(model, action)
+		if !found || button.row == model.layout.hintRow {
+			t.Errorf("the question has no %q button", wanted)
+			continue
+		}
+		if text := cutRowText(frame[button.row], button.from, button.to); !strings.Contains(
+			text, wanted) {
+			t.Errorf("the %q answer covers %q", wanted, text)
 		}
 	}
 }

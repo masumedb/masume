@@ -45,24 +45,24 @@ func TestTheKeyForYesReturnsToTheCardUnderTheQuestion(t *testing.T) {
 // do.
 func TestAPressOnAnAnswerReturnsToTheCardUnderIt(t *testing.T) {
 	for _, held := range []struct {
-		name string
-		chip int
-		want bool
+		name   string
+		action ActionID
+		want   bool
 	}{
-		{"run", 0, true},
-		{"cancel", 1, false},
+		{"run", ActionAnswerYes, true},
+		{"cancel", ActionAnswerNo, false},
 	} {
 		t.Run(held.name, func(t *testing.T) {
 			model := buildOfflineModel(t, 120, 40)
 			connection := model.Active()
 			answered := openQuestionOverAList(model, connection)
-			if len(model.layout.overlayChips) != 2 {
-				t.Fatalf("the question drew %d answers", len(model.layout.overlayChips))
+			button, found := findCardButton(model, held.action)
+			if !found || button.row == model.layout.hintRow {
+				t.Fatalf("the question has no %s button", held.name)
 			}
 
-			chip := model.layout.overlayChips[held.chip]
 			model.readMouse(tea.MouseClickMsg{
-				X: chip.from, Y: chip.row, Button: tea.MouseLeft,
+				X: button.from, Y: button.row, Button: tea.MouseLeft,
 			})
 			if *answered != held.want {
 				t.Errorf("the press on %s answered %v", held.name, *answered)

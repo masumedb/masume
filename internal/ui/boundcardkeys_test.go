@@ -75,16 +75,16 @@ func TestTheImportReviewStepsBackOnTheBoundKey(t *testing.T) {
 	}
 }
 
-// The password field keeps the password in the keyring on an action.
-func TestThePasswordFieldUsesTheKeyringOnTheBoundKey(t *testing.T) {
+// The password card moves the focus to the keyring box on an action.
+func TestThePasswordCardFocusesTheKeyringOnTheBoundKey(t *testing.T) {
+	useMockKeyring(t)
 	model := buildOfflineModelFor(t, 120, 40)
-	bindActionTo(t, model, "dialog:use-keyring", "ctrl+k")
+	bindActionTo(t, model, "dialog:next-field", "ctrl+k")
 	model.screen = ScreenPromptingPassword
-	model.picker.pending = cfg.Profile{Name: "shop", Engine: "postgres", Auth: cfg.AuthPrompt}
-	before := model.picker.keepInKeyring
+	model.picker.askPassword(cfg.Profile{Name: "shop", Engine: "postgres", Auth: cfg.AuthPrompt})
 
 	model.readPasswordKey(tea.Key{Code: 'k', Mod: uv.ModCtrl})
-	if model.picker.offersKeyring() && model.picker.keepInKeyring == before {
-		t.Error("the bound chord did not reach the keyring")
+	if !model.picker.keyringFocused {
+		t.Error("the bound chord did not move the focus to the keyring box")
 	}
 }

@@ -296,19 +296,19 @@ On Linux, masume uses the Secret Service API over D-Bus, which GNOME Keyring and
 On a machine with a keyring, the password dialog has a checkbox:
 
 ```
-╭─ password ────────────────────────────────────╮
-│ connecting to shop-prod · prod                │
-│ reader@db.internal:5432/shop                  │
-│                                               │
-│ ••••••••••••                                  │
-│                                               │
-│ [x] remember in the keyring                   │
-│                                               │
-│ Enter connect · Esc cancel · Tab keyring      │
-╰───────────────────────────────────────────────╯
+╭─ password ──────────────────────── PRODUCTION ─╮
+│ connecting to shop-prod · prod                 │
+│ reader@db.internal:5432/shop                   │
+│                                                │
+│ ••••••••••••                                   │
+│                                                │
+│ [x] remember in the keyring                    │
+│                                                │
+│   ↵ connect      Esc cancel                    │
+╰────────────────────────────────────────────────╯
 ```
 
-`Tab` toggles the checkbox. If the box is checked, a successful connection stores the password in the keyring. The saved profile then uses `auth = "keyring"`. A project profile needs a user override; masume does not edit the project file.
+`Tab` moves the focus between the password field and the checkbox. `Space` toggles the checkbox. If the box is checked, a successful connection stores the password in the keyring. The saved profile then uses `auth = "keyring"`. A project profile needs a user override; masume does not edit the project file.
 
 If an `auth = "keyring"` profile has no stored password, the dialog opens with the checkbox checked. A successful connection can then store the missing entry.
 

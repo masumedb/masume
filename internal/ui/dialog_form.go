@@ -1,5 +1,11 @@
 package ui
 
+import (
+	"strconv"
+	"strings"
+	"unicode"
+)
+
 // The rows a dialog form draws. The export form and the import form are both built from
 // these, so a row is stepped through and typed into the same way in each.
 
@@ -12,13 +18,17 @@ type DialogField struct {
 	Choices []string
 }
 
-// describeFieldValue returns the value a row shows while the cursor is elsewhere. A field
-// that is empty says so, because an empty row and a row of blanks read the same.
+// describeFieldValue returns the value a row shows while the cursor is elsewhere. A value
+// with no letter or digit, an empty one too, is quoted.
 func describeFieldValue(field DialogField) string {
-	if field.Value == "" && len(field.Choices) == 0 {
-		return "(empty)"
+	if len(field.Choices) == 0 && !strings.ContainsFunc(field.Value, isLetterOrDigit) {
+		return strconv.Quote(field.Value)
 	}
 	return field.Value
+}
+
+func isLetterOrDigit(character rune) bool {
+	return unicode.IsLetter(character) || unicode.IsDigit(character)
 }
 
 // The two answers a yes-or-no field steps through.

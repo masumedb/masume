@@ -39,12 +39,23 @@ func (model *Model) renderImportPicker(overlay app.Overlay, width int) string {
 			present.TruncateText(overlay.Notice, inner)))
 	}
 
-	keys := model.buildCardKeys(app.OverlayImport, keyScene{overlay: overlay})
-	text := present.TruncateText(keys.buildText(), width-4)
+	choose := model.buildCardButton(cfg.ScopeList, ActionChooseRow, "choose")
+	choose.primary = true
+	return model.renderImportCard(overlay, width, lines, []cardButton{
+		choose, model.buildCardButton(cfg.ScopeDialog, ActionClose, "cancel"),
+	})
+}
+
+// renderImportCard draws a stage of the import with its buttons under the lines.
+func (model *Model) renderImportCard(
+	overlay app.Overlay, width int, lines []string, buttons []cardButton,
+) string {
 	model.recordCardBody()
-	lines = model.appendCardKeyRow(lines, keys, text, cardBodyRow, cardBodyColumn)
-	model.rememberCardKeys(keys)
-	return model.renderCard(buildImportTitle(overlay.Import), width, lines, plainCard)
+	lines = append(lines, "")
+	lines = append(lines, model.renderButtonRow(buttons, cardBodyRow+len(lines), cardBodyColumn))
+	model.rememberCardKeys(model.buildCardKeys(app.OverlayImport, keyScene{overlay: overlay}))
+	return model.renderNotedCard(buildImportTitle(overlay.Import),
+		model.renderActiveEnvironmentBadge(), width, lines, plainCard)
 }
 
 // renderImportForm draws one row per setting and one row per column of the file.
@@ -53,8 +64,19 @@ func (model *Model) renderImportForm(overlay app.Overlay, width int) string {
 	valueWidth := max(width-present.CardChrome-importLabelWidth, 8)
 
 	model.layout.formChoices = nil
-	lines := make([]string, 0, len(fields)+3)
+	sourceFields := len(fields)
 	for at, field := range fields {
+		if strings.HasPrefix(field.Key, mappingKeyPrefix) {
+			sourceFields = at
+			break
+		}
+	}
+	lines := make([]string, 0, len(fields)+5)
+	lines = append(lines, model.renderFieldHeading("source"))
+	for at, field := range fields {
+		if at == sourceFields {
+			lines = append(lines, model.renderFieldHeading("columns"))
+		}
 		focused := at == overlay.Field
 		marker := "  "
 		labelStyle := model.styles.Muted()
@@ -69,7 +91,7 @@ func (model *Model) renderImportForm(overlay app.Overlay, width int) string {
 		switch {
 		case len(field.Choices) > 0:
 			written = model.renderChoiceField(value, valueWidth, at,
-				cardBodyRow+at, cardBodyColumn+importLabelWidth, focused)
+				cardBodyRow+len(lines), cardBodyColumn+importLabelWidth, focused)
 		case focused:
 			written = model.renderField(
 				app.NewEditorBuffer(value, len(value)), valueWidth, FieldLook{
@@ -93,27 +115,36 @@ func (model *Model) renderImportForm(overlay app.Overlay, width int) string {
 	}
 	lines = append(lines, line)
 
-	keys := model.buildCardKeys(app.OverlayImport, keyScene{overlay: overlay})
-	keyRow := present.TruncateText(keys.buildText(), width-4)
-	model.recordCardBody()
-	lines = model.appendCardKeyRow(lines, keys, keyRow, cardBodyRow, cardBodyColumn)
-	model.rememberCardKeys(keys)
-	model.layout.formRows = rowsHit{
-		top: model.layout.cardBodyTop, count: len(fields),
-		from: model.layout.cardBodyLeft - 1, to: model.layout.cardBodyLeft + width - 4,
+	count, gap := len(fields), 0
+	if sourceFields < len(fields) {
+		count, gap = len(fields)+1, sourceFields
 	}
-	return model.renderCard(buildImportTitle(overlay.Import), width, lines, plainCard)
+	model.layout.formRows = rowsHit{
+		top: cardBodyRow + 1, count: count, gap: gap,
+		from: cardBodyColumn - 1, to: cardBodyColumn + width - 4,
+	}
+	advance := model.buildCardButton(cfg.ScopeDialog, ActionSaveForm,
+		describeImportAdvance(overlay))
+	advance.primary = true
+	return model.renderImportCard(overlay, width, lines, []cardButton{
+		advance, model.buildCardButton(cfg.ScopeDialog, ActionClose, "cancel"),
+	})
 }
 
 // describeImportStep describes what Enter does on the row under the cursor. The row that
 // holds the path opens the file picker again, whatever stage the form stands at.
 func describeImportStep(overlay app.Overlay) string {
+	if !overlay.Import.Running && readFieldKey(overlay) == "path" {
+		return "choose another file"
+	}
+	return describeImportAdvance(overlay)
+}
+
+// describeImportAdvance describes the next stage of the form.
+func describeImportAdvance(overlay app.Overlay) string {
 	held := overlay.Import
 	if held.Running {
 		return "reading…"
-	}
-	if readFieldKey(overlay) == "path" {
-		return "choose another file"
 	}
 	if held.Stage == app.ImportFile {
 		return "read the file"
@@ -184,12 +215,11 @@ func (model *Model) renderImportReview(overlay app.Overlay, width int) string {
 			present.TruncateText(overlay.Notice, inner)), "")
 	}
 
-	keys := model.buildCardKeys(app.OverlayImport, keyScene{overlay: overlay})
-	text := present.TruncateText(keys.buildText(), width-4)
-	model.recordCardBody()
-	lines = model.appendCardKeyRow(lines, keys, text, cardBodyRow, cardBodyColumn)
-	model.rememberCardKeys(keys)
-	return model.renderCard(buildImportTitle(held), width, lines, plainCard)
+	write := model.buildCardButton(cfg.ScopeDialog, ActionSaveForm, describeImportRun(held))
+	write.primary = true
+	return model.renderImportCard(overlay, width, lines[:len(lines)-1], []cardButton{
+		write, model.buildCardButton(cfg.ScopeDialog, ActionStepBack, "back to the form"),
+	})
 }
 
 // describeRowProblem returns one refused row as the review lists it.

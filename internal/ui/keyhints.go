@@ -235,7 +235,7 @@ var cardKeySpecs = map[app.OverlayKind][]keySpec{
 		takesKey(cfg.ScopeList, ActionChooseRow),
 		keyOf(cfg.ScopeDialog, ActionAnswerYes, "run"),
 		keyOf(cfg.ScopeDialog, ActionAnswerNo, "cancel"),
-		keyOf(cfg.ScopeDialog, ActionClose, "cancel"),
+		takesKey(cfg.ScopeDialog, ActionClose),
 	},
 	app.OverlayWritePlan: {
 		keyOf(cfg.ScopeList, ActionChooseRow, "show the blocking rows").
@@ -383,10 +383,12 @@ var (
 		pairOf(cfg.ScopeDialog, ActionPreviousField, ActionNextField, "field", ""),
 		pairOf(cfg.ScopeDialog, ActionPreviousValue, ActionNextValue, "change", ""),
 		keyOf(cfg.ScopeDialog, ActionApplyStep, "").withLabel(describeImportStepOf),
+		keyOf(cfg.ScopeDialog, ActionSaveForm, "").withLabel(describeImportAdvanceOf),
 		keyOf(cfg.ScopeDialog, ActionClose, "cancel"),
 	}
 	importReviewKeySpecs = []keySpec{
 		keyOf(cfg.ScopeDialog, ActionApplyStep, "").withLabel(describeImportRunOf),
+		keyOf(cfg.ScopeDialog, ActionSaveForm, "").withLabel(describeImportRunOf),
 		keyOf(cfg.ScopeDialog, ActionStepBack, "back to the form"),
 	}
 )
@@ -435,7 +437,9 @@ var (
 	passwordKeySpecs = []keySpec{
 		keyOf(cfg.ScopeList, ActionChooseRow, "").withLabel(describePasswordUse),
 		keyOf(cfg.ScopeDialog, ActionClose, "cancel"),
-		keyOf(cfg.ScopeDialog, ActionUseKeyring, "keyring").onlyWhen(offersKeyring),
+		takesKey(cfg.ScopeDialog, ActionPreviousField),
+		takesKey(cfg.ScopeDialog, ActionNextField),
+		takesKey(cfg.ScopeDialog, ActionToggleValue),
 	}
 	settingsKeySpecs = []keySpec{
 		pairOf(cfg.ScopeList, ActionCursorUp, ActionCursorDown, "move", ""),
@@ -561,6 +565,10 @@ func showsLocks(scene keyScene) bool {
 
 func describeImportStepOf(scene keyScene) string {
 	return describeImportStep(scene.overlay)
+}
+
+func describeImportAdvanceOf(scene keyScene) string {
+	return describeImportAdvance(scene.overlay)
 }
 
 func describeImportRunOf(scene keyScene) string {
@@ -720,10 +728,6 @@ func describeSettingsClose(scene keyScene) string {
 func leavesSettingPage(scene keyScene) bool {
 	held := scene.model.settingsForm
 	return held != nil && len(held.Path) > 0 && !stepsSettingValue(scene)
-}
-
-func offersKeyring(scene keyScene) bool {
-	return scene.model.picker.offersKeyring()
 }
 
 func showsManyTabs(scene keyScene) bool {

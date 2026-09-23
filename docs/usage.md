@@ -259,7 +259,7 @@ In the object tree, select a table, press `m`, and choose Import a file. The sch
 
 ![The import form](../vhs/shots/18-import-form.png)
 
-Select a file. Adjust its format and column mapping, then press Enter for review. Enter in the review starts the import. Esc returns from the review to the form. During the import, the review shows a progress bar of rows written against rows in the file.
+Select a file. Adjust its format and column mapping, then press `Ctrl+S` for review. `Ctrl+S` or Enter in the review starts the import. Enter on the file row opens the file picker again. Esc returns from the review to the form. During the import, the review shows a progress bar of rows written against rows in the file.
 
 Supported extensions are `.csv`, `.tsv`, `.txt`, `.json`, `.jsonl`, and `.ndjson`.
 

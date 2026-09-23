@@ -391,6 +391,13 @@ func (model *Model) renderPicker() string {
 
 // renderCard draws a card with its title on the top border.
 func (model *Model) renderCard(title string, width int, lines []string, destructive bool) string {
+	return model.renderNotedCard(title, "", width, lines, destructive)
+}
+
+// renderNotedCard draws a card with its title and a note on the top border.
+func (model *Model) renderNotedCard(
+	title, note string, width int, lines []string, destructive bool,
+) string {
 	inner := max(width-4, 1)
 	padded := make([]string, 0, len(lines)+2)
 	padded = append(padded, "")
@@ -400,7 +407,7 @@ func (model *Model) renderCard(title string, width int, lines []string, destruct
 	padded = append(padded, "")
 
 	return model.styles.RenderBox(BoxOptions{
-		Width: width, Height: len(padded) + 2, Title: title,
+		Width: width, Height: len(padded) + 2, Title: title, Note: note,
 		Focused: true, Destructive: destructive, Lines: padded,
 	})
 }
@@ -411,7 +418,6 @@ func (model *Model) renderPassword() string {
 	cardWidth := present.ResolveCardWidth(
 		widestPasswordCard, narrowestPasswordCard, model.width)
 	profile := model.picker.pending
-	keys := model.buildKeyLineOf(passwordKeySpecs, keyScene{})
 
 	opening := "connecting to "
 	if model.picker.testsForm {
@@ -427,15 +433,25 @@ func (model *Model) renderPassword() string {
 		"",
 		model.renderField(model.picker.password, cardWidth-4, FieldLook{
 			Ground: theme.Background, Ink: theme.Text,
-			Masked: true, Focused: true, Placeholder: "password",
+			Masked: true, Focused: !model.picker.keyringFocused, Placeholder: "password",
 		}),
 	}
 	if model.picker.offersKeyring() {
 		lines = append(lines, "", model.renderKeyringBox(cardWidth))
 	}
-	lines = append(lines, "", model.styles.Muted().Render(
-		present.TruncateText(keys.buildText(), cardWidth-4)))
-	return model.renderCard(" password ", cardWidth, lines, plainCard)
+	lines = append(lines, "")
+
+	connect := model.buildCardButton(cfg.ScopeList, ActionChooseRow,
+		describePasswordUse(keyScene{model: model}))
+	connect.primary = true
+	cardRows := len(lines) + 1 + present.CardChrome
+	left := halfRoundedUp(model.width - cardWidth)
+	cardTop := titleBarRows + halfRoundedUp(model.height-2-cardRows)
+	lines = append(lines, model.renderButtonRow([]cardButton{
+		connect, model.buildCardButton(cfg.ScopeDialog, ActionClose, "cancel"),
+	}, cardTop+cardBodyRow+len(lines), left+cardBodyColumn))
+	return model.renderNotedCard(" password ",
+		model.renderEnvironmentBadge(profile.Environment), cardWidth, lines, plainCard)
 }
 
 // renderKeyringBox draws the box that keeps the typed password in the keyring of the
@@ -446,6 +462,9 @@ func (model *Model) renderKeyringBox(cardWidth int) string {
 	if model.picker.keepInKeyring {
 		mark = "[x]"
 		style = model.styles.Ink()
+	}
+	if model.picker.keyringFocused {
+		style = model.styles.Accent()
 	}
 	return style.Render(present.TruncateText(
 		mark+" remember in the keyring", cardWidth-4))
@@ -574,29 +593,19 @@ func (model *Model) renderField(
 func (model *Model) readPasswordKey(key tea.Key) (tea.Model, tea.Cmd) {
 	if match, matched := model.keymap.MatchOnly(key, FindDialogActions("password"),
 		cfg.ScopeDialog, cfg.ScopeList); matched {
-		switch match.Action {
-		case ActionClose:
-			model.leavePasswordPrompt()
-			return model, nil
-		case ActionUseKeyring:
-			if model.picker.offersKeyring() {
-				model.picker.keepInKeyring = !model.picker.keepInKeyring
-			}
-			return model, nil
-		case ActionChooseRow:
-			if model.picker.testsForm {
-				return model.testFormWithTypedPassword()
-			}
-			profile := model.picker.pending
-			model.screen = ScreenConnecting
-			return model, connect(model.adapters, profile, model.picker.password.Text)
+		if held, command, ran := model.runPasswordAction(match.Action); ran {
+			return held, command
 		}
 	}
 
-	switch key.Code {
-	case tea.KeyEscape:
+	if key.Code == tea.KeyEscape {
 		model.leavePasswordPrompt()
 		return model, nil
+	}
+	if model.picker.keyringFocused {
+		return model, nil
+	}
+	switch key.Code {
 	case tea.KeyBackspace:
 		model.picker.password.DeleteBackward()
 		return model, nil
@@ -614,6 +623,45 @@ func (model *Model) readPasswordKey(key tea.Key) (tea.Model, tea.Cmd) {
 		model.picker.password.Insert(key.Text)
 	}
 	return model, nil
+}
+
+// runPasswordAction runs one action of the password card, and reports whether the action
+// belonged to the card.
+func (model *Model) runPasswordAction(action ActionID) (tea.Model, tea.Cmd, bool) {
+	picker := &model.picker
+	switch action {
+	case ActionClose:
+		model.leavePasswordPrompt()
+		return model, nil, true
+	case ActionPreviousField, ActionNextField:
+		picker.keyringFocused = picker.offersKeyring() && !picker.keyringFocused
+		return model, nil, true
+	case ActionToggleValue:
+		if !picker.keyringFocused {
+			return model, nil, false
+		}
+		picker.keepInKeyring = !picker.keepInKeyring
+		return model, nil, true
+	case ActionChooseRow:
+		if picker.testsForm {
+			held, command := model.testFormWithTypedPassword()
+			return held, command, true
+		}
+		model.screen = ScreenConnecting
+		return model, connect(model.adapters, picker.pending, picker.password.Text), true
+	}
+	return model, nil, false
+}
+
+// pressPassword runs the button of the password card a press landed on.
+func (model *Model) pressPassword(mouse tea.Mouse) (tea.Model, tea.Cmd) {
+	_, action, key, pressed := findButton(model.layout.buttons, mouse.X, mouse.Y)
+	if !pressed {
+		return model, nil
+	}
+	model.frame.flashKey(key)
+	held, command, _ := model.runPasswordAction(action)
+	return held, command
 }
 
 // leavePasswordPrompt returns to the screen that asked for the password.

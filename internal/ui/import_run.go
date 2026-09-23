@@ -127,6 +127,21 @@ func (model *Model) stepImport(
 		overlay.Notice = ""
 		return model, model.openFilePicker(model.ActiveID(), load.ListFileExtensions())
 	}
+	return model.advanceImport(connection, overlay)
+}
+
+// advanceImport takes the import to its next stage, whatever row has the cursor.
+func (model *Model) advanceImport(
+	connection *app.Connection, overlay *app.Overlay,
+) (tea.Model, tea.Cmd) {
+	held := &overlay.Import
+	if held.Running || held.Stage == app.ImportPick {
+		return model, nil
+	}
+	if connection.Session.ReadTransactionState() != db.TransactionNone {
+		overlay.Notice = importTransactionProblem
+		return model, nil
+	}
 	if overlay.Draft != nil && held.Stage != app.ImportReview {
 		ReadImportField(overlay, overlay.Draft.Text)
 	}

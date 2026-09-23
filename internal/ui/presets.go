@@ -326,7 +326,6 @@ var defaultChords = map[string][]string{
 	"dialog:scroll-right":    {"right"},
 	"dialog:open-directory":  {"right"},
 	"dialog:leave-directory": {"left"},
-	"dialog:use-keyring":     {"tab"},
 	// The list of completions owns the keyboard while it is open. Its key is bound here,
 	// and it may share the chord the workspace uses to step through the panes.
 	"dialog:accept-completion": {"tab"},

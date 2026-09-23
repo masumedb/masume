@@ -51,13 +51,15 @@ func TestThePasswordCardOffersTheKeyring(t *testing.T) {
 	if !strings.Contains(drawn, "[ ] remember in the keyring") {
 		t.Fatalf("the card does not offer the keyring:\n%s", drawn)
 	}
-	if !strings.Contains(drawn, "⇥ keyring") {
-		t.Error("the card draws no key for the box")
-	}
 
+	model.readPasswordKey(tea.Key{Code: tea.KeySpace, Text: " "})
+	if model.picker.keepInKeyring || model.picker.password.Text != " " {
+		t.Fatalf("Space in the field ticked the box or typed %q", model.picker.password.Text)
+	}
 	model.readPasswordKey(tea.Key{Code: tea.KeyTab})
+	model.readPasswordKey(tea.Key{Code: tea.KeySpace, Text: " "})
 	if !model.picker.keepInKeyring {
-		t.Fatal("Tab did not tick the box")
+		t.Fatal("Space on the box did not tick it")
 	}
 	if !strings.Contains(stripEscapes(model.renderPassword()), "[x] remember in the keyring") {
 		t.Error("the ticked box is not drawn as ticked")
@@ -74,8 +76,9 @@ func TestThePasswordCardOffersNoKeyringWithoutOne(t *testing.T) {
 		t.Error("the card offers a keyring the machine does not have")
 	}
 	model.readPasswordKey(tea.Key{Code: tea.KeyTab})
+	model.readPasswordKey(tea.Key{Code: tea.KeySpace, Text: " "})
 	if model.picker.keepInKeyring {
-		t.Error("Tab ticked a box the card does not draw")
+		t.Error("Space ticked a box the card does not draw")
 	}
 }
 

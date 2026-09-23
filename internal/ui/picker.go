@@ -19,6 +19,8 @@ type pickerState struct {
 	// True where the user asked to keep the typed password in the keyring of the
 	// operating system.
 	keepInKeyring bool
+	// True while the keyring box has the focus.
+	keyringFocused bool
 	// True where the typed password tests the connection form instead of opening a
 	// connection.
 	testsForm bool
@@ -93,6 +95,7 @@ func (picker *pickerState) pick(profiles []cfg.Profile) (cfg.Profile, bool) {
 func (picker *pickerState) askPassword(profile cfg.Profile) {
 	picker.pending, picker.password = profile, app.NewEditorBuffer("", 0)
 	picker.keepInKeyring = profile.Auth == cfg.AuthKeyring && secret.IsAvailable()
+	picker.keyringFocused = false
 	picker.testsForm = false
 }
 

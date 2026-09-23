@@ -451,6 +451,15 @@ func (model *Model) renderTextCard(
 	kind app.OverlayKind, title string, width int, lines []string,
 	keys *KeyLine, contentRows int, destructive bool,
 ) string {
+	return model.renderNotedTextCard(kind, title, "", width, lines, keys, contentRows,
+		destructive)
+}
+
+// renderNotedTextCard draws the same card with a note on its top border.
+func (model *Model) renderNotedTextCard(
+	kind app.OverlayKind, title, note string, width int, lines []string,
+	keys *KeyLine, contentRows int, destructive bool,
+) string {
 	content := max(width-present.CardChrome, 1)
 	text := keys.buildText()
 	hint := []string{}
@@ -482,7 +491,7 @@ func (model *Model) renderTextCard(
 	model.rememberCardKeys(keys)
 
 	return model.styles.RenderBox(BoxOptions{
-		Width: width, Height: height, Title: title,
+		Width: width, Height: height, Title: title, Note: note,
 		Focused: true, Destructive: destructive, Lines: written,
 	})
 }
@@ -1030,33 +1039,22 @@ const (
 	choiceLabelWidth = 22
 )
 
-// renderConfirm draws a question with two answers. Each answer is a chip a press hits.
+// renderConfirm draws a question with two answers. Each answer is a button.
 func (model *Model) renderConfirm(overlay app.Overlay, width int) string {
-	theme := model.styles.Theme
 	lines := model.wrapErrorText(overlay.Body, width-present.CardChrome)
+	lines = append(lines, "")
 
-	yes := paintText(model.styles.InkOn(theme.Error), theme.Error, "  "+
-		model.registry.FormatActionChords(cfg.ScopeDialog, ActionAnswerYes)+" run  ")
-	no := paintText(theme.Text, theme.Header, "  "+
-		model.registry.FormatActionChords(cfg.ScopeDialog, ActionAnswerNo)+" cancel  ")
-	lines = append(lines, "", yes+"  "+no)
-
-	keys := model.buildCardKeys(app.OverlayConfirm, keyScene{overlay: overlay})
+	yes := model.buildCardButton(cfg.ScopeDialog, ActionAnswerYes, "run")
+	yes.primary, yes.destructive = true, true
+	no := model.buildCardButton(cfg.ScopeDialog, ActionAnswerNo, "cancel")
 	model.recordCardBody()
-	model.recordAnswerChips(len(lines)-1, measureStyledWidth(yes), measureStyledWidth(no))
-	return model.renderTextCard(overlay.Kind, overlay.Title, width, lines, keys, 0, destructiveCard)
-}
+	lines = append(lines, model.renderButtonRow(
+		[]cardButton{yes, no}, cardBodyRow+len(lines), cardBodyColumn))
 
-// recordAnswerChips keeps where the two answers of a question were drawn, so a press on one
-// of them returns it. The yes chip stands first, two blanks apart from the no chip.
-func (model *Model) recordAnswerChips(line, yesWidth, noWidth int) {
-	row := model.layout.cardBodyTop + line
-	left := model.layout.cardBodyLeft
-	model.layout.overlayChips = []chipHit{
-		{index: 0, row: row, from: left, to: left + yesWidth - 1},
-		{index: 1, row: row, from: left + yesWidth + 2,
-			to: left + yesWidth + 2 + noWidth - 1},
-	}
+	card := model.renderNotedTextCard(overlay.Kind, overlay.Title,
+		model.renderActiveEnvironmentBadge(), width, lines, nil, 0, destructiveCard)
+	model.rememberCardKeys(model.buildCardKeys(app.OverlayConfirm, keyScene{overlay: overlay}))
+	return card
 }
 
 // renderChoice draws a question with more than two answers, each on its own letter.

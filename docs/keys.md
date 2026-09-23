@@ -115,7 +115,6 @@ Each card uses only its own actions, so two rows in this table can share a key w
 | `toggle-value` | `space` |
 | `toggle-whole-word` | `alt+w` |
 | `unfold-row` | `right` |
-| `use-keyring` | `tab` |
 | `write-export` | `ctrl+s` |
 | `write-newline` | `shift+return` or `alt+return` |
 

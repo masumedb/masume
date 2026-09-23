@@ -62,3 +62,28 @@ func (model *Model) renderButtonRow(buttons []cardButton, row, left int) string 
 	}
 	return written.String()
 }
+
+// renderFieldHeading draws the heading over a group of fields of a card.
+func (model *Model) renderFieldHeading(text string) string {
+	theme := model.styles.Theme
+	return paintBoldText(theme.Muted, theme.Panel, strings.ToUpper(text))
+}
+
+// renderEnvironmentBadge draws the badge a card of a production connection has on its top
+// border, and nothing for any other environment.
+func (model *Model) renderEnvironmentBadge(environment cfg.Environment) string {
+	if environment != cfg.EnvironmentProd {
+		return ""
+	}
+	ground := model.styles.Theme.EnvProd
+	return paintBoldText(model.styles.InkOn(ground), ground, " PRODUCTION ")
+}
+
+// renderActiveEnvironmentBadge draws the badge of the active connection.
+func (model *Model) renderActiveEnvironmentBadge() string {
+	connection := model.Active()
+	if connection == nil {
+		return ""
+	}
+	return model.renderEnvironmentBadge(connection.Profile().Environment)
+}

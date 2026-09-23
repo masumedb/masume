@@ -50,15 +50,22 @@ func (model *Model) render() string {
 
 	// A question a screen without a connection asks is drawn over it.
 	if model.confirm != nil {
+		model.layout.buttons = nil
+		model.layout.scrollbars = nil
 		cardWidth := present.ResolveCardWidth(64, 36, model.width)
 		card := model.renderCard(model.confirm.Title, cardWidth,
 			model.buildConfirmLines(model.confirm, cardWidth), model.confirm.Destructive)
-		model.layout.buttons = nil
-		model.layout.scrollbars = nil
+		left := halfRoundedUp(model.width - measureStyledWidth(card))
+		top := halfRoundedUp(body - len(strings.Split(card, "\n")))
+		for at := range model.layout.buttons {
+			model.layout.buttons[at].row += titleBarRows + top
+			model.layout.buttons[at].from += left
+			model.layout.buttons[at].to += left
+			model.layout.buttons[at].keyTo += left
+		}
 		theme := model.styles.Theme
-		middle = placeOver(dimRows(middle, theme.Faint, theme.Background), card,
-			halfRoundedUp(model.width-measureStyledWidth(card)),
-			halfRoundedUp(body-len(strings.Split(card, "\n"))), theme.Background)
+		middle = placeOver(dimRows(middle, theme.Faint, theme.Background), card, left, top,
+			theme.Background)
 	}
 
 	rows := make([]string, 0, len(middle)+2)
@@ -128,17 +135,32 @@ func (model *Model) renderThinkingLine(label string, since time.Time, ground col
 }
 
 // buildConfirmLines returns the rows of a question. A card holds one string per row, so a
-// body of several lines is split into them and each one is cut to the width of the card.
+// body of several lines is split into them and each one is cut to the width of the card. The
+// last row has the buttons, counted from the card.
 func (model *Model) buildConfirmLines(held *confirmState, cardWidth int) []string {
 	inner := max(cardWidth-4, 1)
 	lines := []string{}
 	for line := range strings.SplitSeq(held.Body, "\n") {
 		lines = append(lines, present.TruncateText(line, inner))
 	}
-	lines = append(lines, "",
-		model.styles.Muted().Render(
-			present.TruncateText(model.describeConfirmKeys(held), inner)))
-	return model.fitCardLines(lines, inner)
+	lines = model.fitCardLines(append(lines, "", ""), inner)
+	lines[len(lines)-1] = model.renderButtonRow(model.buildConfirmButtons(held),
+		cardBodyRow+len(lines)-1, cardBodyColumn)
+	return lines
+}
+
+// buildConfirmButtons returns the two answers of a question.
+func (model *Model) buildConfirmButtons(held *confirmState) []cardButton {
+	yes, no := held.Yes, held.No
+	if yes == "" {
+		yes = "yes"
+	}
+	if no == "" {
+		no = "no"
+	}
+	yesButton := model.buildCardButton(cfg.ScopeDialog, ActionAnswerYes, yes)
+	yesButton.primary, yesButton.destructive = true, held.Destructive
+	return []cardButton{yesButton, model.buildCardButton(cfg.ScopeDialog, ActionAnswerNo, no)}
 }
 
 // confirmCardChrome is the rows a question takes beside its body: the title bar, the status
@@ -157,19 +179,6 @@ func (model *Model) fitCardLines(lines []string, inner int) []string {
 	held = append(held, model.styles.Muted().Render(present.TruncateText(
 		present.FormatCountOf(int64(len(lines)-2-kept), "more row", "more rows"), inner)))
 	return append(held, lines[len(lines)-2:]...)
-}
-
-// describeConfirmKeys names the keys a question returns to, in the words of the question.
-func (model *Model) describeConfirmKeys(held *confirmState) string {
-	yes, no := held.Yes, held.No
-	if yes == "" {
-		yes = "yes"
-	}
-	if no == "" {
-		no = "no"
-	}
-	return model.registry.FormatActionChords(cfg.ScopeDialog, ActionAnswerYes) + " " + yes +
-		" · " + model.registry.FormatActionChords(cfg.ScopeDialog, ActionAnswerNo) + " " + no
 }
 
 // The title bar shortcuts.

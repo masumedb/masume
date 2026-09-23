@@ -781,7 +781,12 @@ func describeSaveOnExit(unsaved []cfg.Profile) string {
 	}
 	if slices.ContainsFunc(unsaved, holdsWrittenPassword) {
 		if secret.IsAvailable() {
-			lines = append(lines, "", "The keyring stores passwords outside the config file.")
+			stored := "the password"
+			if len(unsaved) > 1 {
+				stored = "the passwords"
+			}
+			lines = append(lines, "",
+				"The keyring stores "+stored+", and the config file does not.")
 		} else {
 			lines = append(lines, "",
 				"No keyring is available. Passwords will not be saved. "+

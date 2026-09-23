@@ -57,6 +57,9 @@ type rowsHit struct {
 	offset int
 	// from and to are the cells the block covers.
 	from, to int
+	// gap is the item that has a heading row drawn above it, or zero for none. The heading
+	// row is counted in count.
+	gap int
 }
 
 // holds returns which item a press landed on.
@@ -65,7 +68,14 @@ func (block rowsHit) holds(x, y int) (int, bool) {
 		x < block.from || x > block.to {
 		return 0, false
 	}
-	return block.offset + (y - block.top), true
+	item := y - block.top
+	if block.gap > 0 && item >= block.gap {
+		if item == block.gap {
+			return 0, false
+		}
+		item--
+	}
+	return block.offset + item, true
 }
 
 // blockRect is the cells of one block of the frame that holds text of its own, such as the
@@ -338,6 +348,14 @@ func (model *Model) readPress(press tea.MouseClickMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	if model.confirm != nil {
+		if _, action, _, pressed := findButton(
+			model.layout.buttons, mouse.X, mouse.Y); pressed && mouse.Button == tea.MouseLeft {
+			return model.runConfirmAction(action)
+		}
+		return model, nil
+	}
+
 	// Every key a renderer drew as a word is a button, on the workspace, where each one
 	// names an action the workspace or the card on show returns.
 	if model.screen == ScreenWorking && mouse.Button == tea.MouseLeft {
@@ -346,17 +364,13 @@ func (model *Model) readPress(press tea.MouseClickMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// A question drawn over a screen covers its rows, so a press belongs to the card and
-	// never to what it hides.
-	if model.confirm != nil {
-		return model, nil
-	}
-
 	switch model.screen {
 	case ScreenPickingProfile:
 		return model.pressPicker(mouse)
 	case ScreenEditingConnection:
 		return model.pressForm(mouse)
+	case ScreenPromptingPassword:
+		return model.pressPassword(mouse)
 	case ScreenSettings:
 		return model.pressSettings(mouse)
 	case ScreenWorking:
@@ -970,18 +984,6 @@ func (model *Model) answerOverlayChip(
 		_, held, command := model.runChatAction(connection, tab,
 			Match{Action: action, Scope: cfg.ScopeDialog})
 		return held, command
-	}
-	// A question closes on its own, and the card it was asked over returns, as the keys
-	// that answer it do.
-	if overlay.Kind == app.OverlayConfirm || overlay.Kind == app.OverlayWritePlan {
-		if action == ActionAnswerNo {
-			model.answerNothing(overlay)
-			connection.CloseOverlay()
-			return model, nil
-		}
-		answer := overlay.Answers.Answer
-		connection.CloseOverlay()
-		return model, model.runAnswer(answer, true)
 	}
 	if action == ActionAnswerYes {
 		return model.chooseOverlayRow(connection, tab, overlay, chooseInSameTab)

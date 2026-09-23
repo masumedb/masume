@@ -662,6 +662,12 @@ func (model *Model) runOverlayAction(
 			return true, model, nil
 		}
 
+	case app.OverlayImport:
+		if match.Action == ActionSaveForm {
+			held, command := model.advanceImport(connection, overlay)
+			return true, held, command
+		}
+
 	case app.OverlayChart:
 		if match.Action == ActionSaveForm {
 			held, command := model.applyChartForm(connection, tab, *overlay)

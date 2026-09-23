@@ -535,14 +535,15 @@ func (model *Model) renderForm() string {
 		lines = append(lines, model.styles.Muted().Render("not tested"))
 	}
 
-	keys := model.buildKeyLineOf(connectionFormKeySpecs, keyScene{model: model})
-	// The keys are cut rather than wrapped, because the card keeps one row for them.
-	if text := present.TruncateText(keys.buildText(), cardWidth-4); text != "" {
-		lines = append(lines, model.renderKeyLine(keys, []string{text},
-			cardTop+cardBodyRow+len(lines), left+cardBodyColumn, model.styles.Theme.Panel)[0])
-	}
 	lines = append(lines, model.styles.Faint().Render(
 		present.TruncateText(model.describeFormHint(), cardWidth-4)))
+	save := model.buildCardButton(cfg.ScopeDialog, ActionSaveForm, "save")
+	save.primary = true
+	lines = append(lines, model.renderButtonRow([]cardButton{
+		save,
+		model.buildCardButton(cfg.ScopeDialog, ActionTestConnection, "test"),
+		model.buildCardButton(cfg.ScopeDialog, ActionClose, "cancel"),
+	}, cardTop+cardBodyRow+len(lines), left+cardBodyColumn))
 
 	// Where the rows of the fields land on the screen, so a press marks the row it looks
 	// like.
@@ -559,8 +560,8 @@ func (model *Model) renderForm() string {
 const fieldMarkerWidth = 2
 
 // formCardChrome is the rows the card keeps besides its fields: the blank row, the row that
-// reports the test, the row of keys, the row of the hint, the two borders and the blank row
-// inside each one.
+// reports the test, the row of the hint, the row of buttons, the two borders and the blank
+// row inside each one.
 const formCardChrome = 8
 
 // describeFormHint returns the faint line under the fields: the password source of the auth
@@ -616,7 +617,6 @@ func (model *Model) renderChoiceField(
 
 // readConfirmKey returns a question a screen without a connection asked.
 func (model *Model) readConfirmKey(key tea.Key) (tea.Model, tea.Cmd) {
-	held := model.confirm
 	if key.Code == tea.KeyEscape {
 		model.confirm = nil
 		return model, nil
@@ -627,7 +627,13 @@ func (model *Model) readConfirmKey(key tea.Key) (tea.Model, tea.Cmd) {
 	if !matched {
 		return model, nil
 	}
-	switch match.Action {
+	return model.runConfirmAction(match.Action)
+}
+
+// runConfirmAction answers the question a screen without a connection asked.
+func (model *Model) runConfirmAction(action ActionID) (tea.Model, tea.Cmd) {
+	held := model.confirm
+	switch action {
 	case ActionAnswerYes, ActionChooseRow:
 		model.confirm = nil
 		return model, held.Answer(true)
