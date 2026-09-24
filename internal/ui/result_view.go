@@ -1288,12 +1288,7 @@ func (model *Model) renderPlanRow(
 		labelInk = theme.AccentAlt
 	}
 
-	indent := strings.Repeat("  ", row.Depth)
-	branch := "└ "
-	if row.Depth == 0 {
-		branch = ""
-	}
-	label := paintText(labelInk, ground, present.TruncateText(indent+branch+row.Node.Label, planLabelWidth))
+	label := paintText(labelInk, ground, present.TruncateText(buildPlanBranch(row.Rails)+row.Node.Label, planLabelWidth))
 
 	countInk := theme.Muted
 	if row.Misestimated {
@@ -1323,9 +1318,34 @@ func (model *Model) renderPlanDetail(row result.PlanRow, at, width int) string {
 	if at%2 == 1 {
 		ground = model.styles.Theme.Zebra
 	}
-	written := strings.Repeat("  ", row.Depth) + "  " + row.Node.Detail
+	written := "  " + buildPlanRails(row.Rails) + row.Node.Detail
 	return padStyledOn(paintText(model.styles.Theme.Muted, ground, " "+present.TruncateText(written, planDetailWidth)),
 		width, ground)
+}
+
+// buildPlanBranch returns the tree glyphs before the label of a node.
+func buildPlanBranch(rails []bool) string {
+	if len(rails) == 0 {
+		return ""
+	}
+	branch := "└ "
+	if rails[len(rails)-1] {
+		branch = "├ "
+	}
+	return "  " + buildPlanRails(rails[:len(rails)-1]) + branch
+}
+
+// buildPlanRails returns one column per level, with a rail where a later sibling follows.
+func buildPlanRails(rails []bool) string {
+	var written strings.Builder
+	for _, rail := range rails {
+		if rail {
+			written.WriteString("│ ")
+		} else {
+			written.WriteString("  ")
+		}
+	}
+	return written.String()
 }
 
 // describePlanRowCounts writes the rows a node answered against the rows it expected. A

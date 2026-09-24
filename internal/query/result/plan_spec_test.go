@@ -1,6 +1,7 @@
 package result_test
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -147,6 +148,22 @@ func TestFlattenPlanAnswersOneRowPerNode(t *testing.T) {
 	}
 	if rows := result.FlattenPlan(query.QueryPlan{}); len(rows) != 1 {
 		t.Errorf("the top of a plan flattened into %d rows, wanted the one node", len(rows))
+	}
+}
+
+func TestFlattenPlanMarksTheLevelsWithALaterSibling(t *testing.T) {
+	plan := query.QueryPlan{Root: query.PlanNode{
+		Label: "a", Children: []query.PlanNode{
+			{Label: "b", Children: []query.PlanNode{{Label: "c"}}},
+			{Label: "d"},
+		},
+	}}
+	wanted := map[string][]bool{"a": nil, "b": {true}, "c": {true, false}, "d": {false}}
+	for _, row := range result.FlattenPlan(plan) {
+		if !slices.Equal(row.Rails, wanted[row.Node.Label]) {
+			t.Errorf("%q has the rails %v, wanted %v",
+				row.Node.Label, row.Rails, wanted[row.Node.Label])
+		}
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -275,6 +276,9 @@ func ParseTextPlan(text string, analyzed, measurable bool) (query.QueryPlan, boo
 // PlanRow is one plan node, flattened for the pane.
 type PlanRow struct {
 	Depth int
+	// One entry per level from 1 to Depth: true where the node on that level has a later
+	// sibling.
+	Rails []bool
 	Node  query.PlanNode
 	// The share of the whole run this node took alone, from 0 to 1.
 	Share float64
@@ -286,13 +290,13 @@ type PlanRow struct {
 
 type collectedNode struct {
 	node  query.PlanNode
-	depth int
+	rails []bool
 }
 
-func collectNodes(node query.PlanNode, depth int, into *[]collectedNode) {
-	*into = append(*into, collectedNode{node: node, depth: depth})
-	for _, child := range node.Children {
-		collectNodes(child, depth+1, into)
+func collectNodes(node query.PlanNode, rails []bool, into *[]collectedNode) {
+	*into = append(*into, collectedNode{node: node, rails: rails})
+	for at, child := range node.Children {
+		collectNodes(child, append(slices.Clone(rails), at < len(node.Children)-1), into)
 	}
 }
 
@@ -307,7 +311,7 @@ func isMisestimated(node query.PlanNode) bool {
 // FlattenPlan builds display rows with time shares and estimate warnings.
 func FlattenPlan(plan query.QueryPlan) []PlanRow {
 	collected := []collectedNode{}
-	collectNodes(plan.Root, 0, &collected)
+	collectNodes(plan.Root, nil, &collected)
 
 	total := 0.0
 	switch {
@@ -334,7 +338,7 @@ func FlattenPlan(plan query.QueryPlan) []PlanRow {
 			share = entry.node.SelfMs / total
 		}
 		rows = append(rows, PlanRow{
-			Depth: entry.depth, Node: entry.node, Share: share,
+			Depth: len(entry.rails), Rails: entry.rails, Node: entry.node, Share: share,
 			Slowest:      at == slowestAt && entry.node.SelfMs > 0,
 			Misestimated: isMisestimated(entry.node),
 		})

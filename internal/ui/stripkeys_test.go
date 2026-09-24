@@ -3,6 +3,7 @@ package ui
 import (
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -115,6 +116,44 @@ func TestTheKeysOfThePlanStripAreButtons(t *testing.T) {
 		if text := cutRowText(frame[held.row], held.from, held.to); strings.TrimSpace(
 			text) == "" {
 			t.Errorf("the key of %q covers %q", action, text)
+		}
+	}
+}
+
+func TestThePlanTreeDrawsABranchForEveryChildButTheLast(t *testing.T) {
+	model, connection, tab := buildBatchModel(t)
+	connection.Session.(*offlineSession).capabilities = core.Capabilities{
+		SortsRead: true, PlansStatement: true, PlansEveryStatement: true,
+	}
+	tab.View = app.ViewPlan
+	tab.ViewData = app.PaneContent{
+		Kind: app.DataPlan,
+		Plan: query.QueryPlan{Measurable: true, Root: query.PlanNode{
+			Label: "Hash Join", Children: []query.PlanNode{
+				{Label: "Hash", Detail: "buckets: 1024",
+					Children: []query.PlanNode{{Label: "Seq Scan on customers c"}}},
+				{Label: "Seq Scan on orders o"},
+			},
+		}},
+	}
+	lines := strings.Split(stripEscapes(model.render()), "\n")
+	findColumn := func(text string) int {
+		for _, line := range lines {
+			if at := strings.Index(line, text); at >= 0 {
+				return utf8.RuneCountInString(line[:at])
+			}
+		}
+		t.Fatalf("the plan does not draw %q", text)
+		return -1
+	}
+
+	branch := findColumn("├ Hash ")
+	for _, text := range []string{
+		"│ buckets: 1024", "│ └ Seq Scan on customers c", "└ Seq Scan on orders o",
+	} {
+		if column := findColumn(text); column != branch {
+			t.Errorf("%q is drawn at column %d, the branch above it at %d",
+				text, column, branch)
 		}
 	}
 }
