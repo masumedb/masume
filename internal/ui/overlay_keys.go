@@ -338,6 +338,23 @@ func (model *Model) countHelpRows(overlay app.Overlay) int {
 	return rows
 }
 
+// findHelpSectionRow returns the row of the heading of one help section, or 0 for an unknown title.
+func (model *Model) findHelpSectionRow(title string) int {
+	row := 0
+	for _, section := range model.listHelpSections() {
+		if section.Title == title {
+			return row
+		}
+		row += 2
+		for _, entry := range section.Entries {
+			if model.describeHelpKeys(entry) != "" {
+				row++
+			}
+		}
+	}
+	return 0
+}
+
 // scrollDiagram moves a diagram by rows and by columns. It reports whether the action
 // belonged to the diagram.
 func scrollDiagram(overlay *app.Overlay, match Match) bool {

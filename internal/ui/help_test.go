@@ -47,3 +47,61 @@ func TestTheHelpDrawsTheKeysInTheMutedInk(t *testing.T) {
 		}
 	}
 }
+
+func TestTheHelpOpensAtTheSectionOfTheFocusedPane(t *testing.T) {
+	for _, test := range []struct {
+		focus app.Pane
+		title string
+	}{
+		{app.PaneSidebar, "tree"},
+		{app.PaneEditor, "writing a statement"},
+		{app.PaneResult, "grid"},
+	} {
+		model := buildOfflineModel(t, 120, 34)
+		connection := model.Active()
+		tab := connection.Active()
+		tab.Focus = test.focus
+		model.runGlobalAction(connection, tab, Match{Scope: cfg.ScopeGlobal, Action: ActionShowHelp})
+
+		lines := strings.Split(stripEscapes(model.render()), "\n")
+		first := ""
+		for at, line := range lines {
+			if strings.Contains(line, helpPlaceholder) && at+1 < len(lines) {
+				first = lines[at+1]
+			}
+		}
+		if !strings.Contains(first, "│ "+test.title+" ") {
+			t.Errorf("focus %s: the first help row reads %q, wanted the section %q",
+				test.focus, first, test.title)
+		}
+	}
+}
+
+func TestTheHelpSizesTheKeyColumnToTheWidestKey(t *testing.T) {
+	model := buildOfflineModel(t, 120, 34)
+	connection := model.Active()
+	connection.Overlay = app.Overlay{Kind: app.OverlayHelp, Draft: app.NewEditorBuffer("", 0)}
+	found := false
+	for _, line := range strings.Split(stripEscapes(model.render()), "\n") {
+		if !strings.Contains(line, "new query tab") {
+			continue
+		}
+		found = true
+		gap := strings.Index(line, "new query tab") - strings.Index(line, "Alt+N")
+		if gap != len("Alt+Shift+W")+helpColumnGap {
+			t.Errorf("the label stands %d cells after the key in %q, wanted %d",
+				gap, line, len("Alt+Shift+W")+helpColumnGap)
+		}
+	}
+	if !found {
+		t.Fatal("the help has no row for a new query tab")
+	}
+
+	connection.Overlay = app.Overlay{Kind: app.OverlayHelp, Draft: app.NewEditorBuffer("run", 3)}
+	written := stripEscapes(model.render())
+	for _, text := range []string{"run the selection or the statement", "dialogs and forms"} {
+		if !strings.Contains(written, text) {
+			t.Errorf("the search results cut %q:\n%s", text, written)
+		}
+	}
+}

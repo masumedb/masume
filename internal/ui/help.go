@@ -1,6 +1,9 @@
 package ui
 
-import "github.com/masumedb/masume/internal/cfg"
+import (
+	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/cfg"
+)
 
 // Help groups actions by task and reads key bindings from the registry.
 
@@ -58,6 +61,11 @@ var HelpSections = []HelpSection{
 		Entries: []HelpEntry{
 			{Scope: cfg.ScopeGlobal, Actions: []ActionID{ActionFocusNextPane}},
 			{Scope: cfg.ScopeGlobal, Actions: []ActionID{ActionFocusPreviousPane}},
+		},
+	},
+	{
+		Title: "tree",
+		Entries: []HelpEntry{
 			{Scope: cfg.ScopeTree, Actions: []ActionID{ActionCursorUp, ActionCursorDown, ActionCursorPageUp, ActionCursorPageDown}, Text: "move in the tree"},
 			{Scope: cfg.ScopeTree, Actions: []ActionID{ActionCursorFirstRow, ActionCursorLastRow}, Text: "go to the first or the last row"},
 			{Scope: cfg.ScopeTree, Actions: []ActionID{ActionFoldRow, ActionUnfoldRow}, Text: "fold and unfold a row"},
@@ -313,4 +321,24 @@ var HelpSections = []HelpSection{
 			{Keys: "", Text: "more AI prompts in the command palette"},
 		},
 	},
+}
+
+// resolveHelpSection returns the title of the help section for the focused pane.
+func resolveHelpSection(tab *app.Tab, view app.ResultView) string {
+	switch tab.Focus {
+	case app.PaneSidebar:
+		return "tree"
+	case app.PaneResult:
+		if view == app.ViewPlan || view == app.ViewTree {
+			return "query"
+		}
+		return "grid"
+	}
+	switch tab.Kind {
+	case app.TabNotebook:
+		return "notebooks"
+	case app.TabBuilder:
+		return "query builder"
+	}
+	return "writing a statement"
 }

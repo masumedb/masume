@@ -224,8 +224,11 @@ func (model *Model) runGlobalAction(
 
 	switch match.Action {
 	case ActionShowHelp:
+		row := model.findHelpSectionRow(
+			resolveHelpSection(tab, tab.ActiveView(connection.Session)))
 		connection.Open(app.Overlay{
 			Kind: app.OverlayHelp, Draft: app.NewEditorBuffer("", 0),
+			List: app.ListState{Cursor: row, Offset: row},
 		})
 	case ActionShowPalette:
 		connection.Open(app.Overlay{

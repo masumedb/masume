@@ -2,7 +2,7 @@
 
 Default bindings and their configuration names. The [user guide](usage.md) describes the workflows.
 
-`?` outside text entry opens help. `Ctrl+K` opens the command palette. Help shows the current bindings of every configurable action, including overrides. Keys that a pane or field handles itself, such as `Tab`, `Esc`, and the Shift selection keys, are fixed. Help lists them by name. The palette searches commands by name.
+`?` outside text entry opens help at the section for the focused pane. `Ctrl+K` opens the command palette. Help shows the current bindings of every configurable action, including overrides. Keys that a pane or field handles itself, such as `Tab`, `Esc`, and the Shift selection keys, are fixed. Help lists them by name. The palette searches commands by name.
 
 ## Scopes
 

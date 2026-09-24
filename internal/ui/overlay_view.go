@@ -642,14 +642,10 @@ func (model *Model) buildRowGutter(selected bool) string {
 	return present.FitText(model.icons.Icon(cfg.IconPrompt), rowPaddingLeft)
 }
 
-// The columns of one row of the help. A narrower key column would wrap a chord onto a
-// second line. A row the search kept names its group, so its text column is narrower.
+// The indent before a key of the help, and the gap after the widest key.
 const (
-	helpKeyWidth     = 26
-	helpCardWidth    = 78
-	helpTextWidth    = helpCardWidth - helpKeyWidth - 6
-	helpSectionWidth = 16
-	helpFoundWidth   = helpTextWidth - helpSectionWidth
+	helpKeyIndent = 2
+	helpColumnGap = 2
 )
 
 // The name column of the lists that carry no key of their own.
@@ -807,9 +803,11 @@ func (model *Model) renderHelp(overlay app.Overlay, width int) string {
 
 	if term != "" {
 		found := model.findHelpRows(term)
+		keyWidth := measureHelpKeyWidth(found, width)
+		sectionWidth := measureHelpSectionWidth(found, width-6-keyWidth)
 		written := make([]string, 0, len(found))
 		for _, row := range found {
-			written = append(written, model.renderFoundHelpRow(row, width))
+			written = append(written, model.renderFoundHelpRow(row, keyWidth, sectionWidth, width))
 		}
 		return model.renderListCard(ListCard{
 			Kind: app.OverlayHelp, Title: " help ", Filter: filter, Rows: written,
@@ -822,6 +820,7 @@ func (model *Model) renderHelp(overlay app.Overlay, width int) string {
 	written := []string{}
 	for _, section := range model.listHelpSections() {
 		written = append(written, paintText(model.styles.Theme.AccentAlt, model.styles.Theme.Panel, " "+section.Title))
+		rows := []helpRow{}
 		for _, entry := range section.Entries {
 			// An action nothing is bound to has no row of its own: it is reached from the
 			// palette until a chord is given to it.
@@ -829,7 +828,11 @@ func (model *Model) renderHelp(overlay app.Overlay, width int) string {
 			if chord == "" {
 				continue
 			}
-			written = append(written, model.renderHelpRow(chord, readHelpText(entry), width))
+			rows = append(rows, helpRow{Chord: chord, Label: readHelpText(entry)})
+		}
+		keyWidth := measureHelpKeyWidth(rows, width)
+		for _, row := range rows {
+			written = append(written, model.renderHelpRow(row.Chord, row.Label, keyWidth, width))
 		}
 		// Every group keeps a blank row under it, the last one too.
 		written = append(written, "")
@@ -842,23 +845,44 @@ func (model *Model) renderHelp(overlay app.Overlay, width int) string {
 	})
 }
 
+// measureHelpKeyWidth returns the width of the key column: the widest key of the rows, with
+// the indent and the gap, and at most half the card.
+func measureHelpKeyWidth(rows []helpRow, width int) int {
+	widest := 0
+	for _, row := range rows {
+		widest = max(widest, present.MeasureText(row.Chord))
+	}
+	return min(helpKeyIndent+widest+helpColumnGap, max(width-4, 0)/2)
+}
+
+// measureHelpSectionWidth returns the width of the section column: the widest section of the
+// rows, and at most half the room.
+func measureHelpSectionWidth(rows []helpRow, room int) int {
+	widest := 0
+	for _, row := range rows {
+		widest = max(widest, present.MeasureText(row.Section))
+	}
+	return min(widest, max(room, 0)/2)
+}
+
 // renderHelpRow draws one row of the help: the keys, then what they do.
-func (model *Model) renderHelpRow(chord, text string, width int) string {
+func (model *Model) renderHelpRow(chord, text string, keyWidth, width int) string {
 	theme := model.styles.Theme
-	room := max(width-4-helpKeyWidth, 0)
-	written := paintText(theme.Muted, theme.Panel, present.FitText("  "+chord, helpKeyWidth)) +
+	room := max(width-4-keyWidth, 0)
+	written := paintText(theme.Muted, theme.Panel, present.FitText("  "+chord, keyWidth)) +
 		paintText(theme.Text, theme.Panel, present.TruncateText(text, room))
 	return padStyledOn(" "+written, width-1, theme.Panel) +
 		paintOn(theme.Panel, " ")
 }
 
-// renderFoundHelpRow draws one row the search kept, which names its group on the right.
-func (model *Model) renderFoundHelpRow(row helpRow, width int) string {
+// renderFoundHelpRow draws one row the search kept, with its section on the right.
+func (model *Model) renderFoundHelpRow(row helpRow, keyWidth, sectionWidth, width int) string {
 	theme := model.styles.Theme
-	written := paintText(theme.Muted, theme.Panel, present.FitText("  "+row.Chord, helpKeyWidth)) +
+	labelWidth := max(width-6-keyWidth-sectionWidth, 0)
+	written := paintText(theme.Muted, theme.Panel, present.FitText("  "+row.Chord, keyWidth)) +
 		paintText(theme.Text, theme.Panel, present.FitText(
-			present.TruncateText(row.Label, helpFoundWidth-1), helpFoundWidth)) +
-		paintText(theme.Faint, theme.Panel, present.TruncateText(row.Section, helpSectionWidth))
+			present.TruncateText(row.Label, max(labelWidth-helpColumnGap, 0)), labelWidth)) +
+		paintText(theme.Faint, theme.Panel, present.TruncateText(row.Section, sectionWidth))
 	return padStyledOn(" "+written, width-1, theme.Panel) +
 		paintOn(theme.Panel, " ")
 }
