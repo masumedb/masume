@@ -323,6 +323,11 @@ func followsDot(text string, start int) bool {
 // FormatStatement writes each statement on its own line, with the blanks outside its
 // text collapsed. The document of a call is left as the user wrote it, because the
 // helpers of the shell have no shorter form.
+// FormatDefinition returns the text unchanged. A collection definition is not SQL.
+func (held mongoLanguage) FormatDefinition(text string) string {
+	return text
+}
+
 func (held mongoLanguage) FormatStatement(text string) string {
 	lines := []string{}
 	for _, one := range held.SplitStatementRanges(text) {

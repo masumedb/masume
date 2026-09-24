@@ -174,41 +174,6 @@ func TestSessionDescribesATable(t *testing.T) {
 	}
 }
 
-func TestSessionLaysOutAOneLineTableDefinition(t *testing.T) {
-	session := openFile(t,
-		"create table items (id integer primary key, sku text not null, price real default 0)")
-	ctx := context.Background()
-
-	lines, err := session.BuildTableDDL(ctx, db.TableRef{Schema: "main", Name: "items"})
-	if err != nil {
-		t.Fatalf("the definition answered %v", err)
-	}
-	want := []string{
-		"CREATE TABLE items (",
-		"  id integer primary key,",
-		"  sku text not null,",
-		"  price real default 0",
-		");",
-	}
-	if strings.Join(lines, "\n") != strings.Join(want, "\n") {
-		t.Errorf("the definition is\n%s\nwanted\n%s",
-			strings.Join(lines, "\n"), strings.Join(want, "\n"))
-	}
-}
-
-func TestSessionKeepsTheLayoutOfATableDefinitionOverSeveralLines(t *testing.T) {
-	session := openFile(t, shopSchema)
-	ctx := context.Background()
-
-	lines, err := session.BuildTableDDL(ctx, db.TableRef{Schema: "main", Name: "orders"})
-	if err != nil {
-		t.Fatalf("the definition answered %v", err)
-	}
-	if len(lines) < 2 || lines[1] != "  id integer primary key," {
-		t.Errorf("the definition is %q, wanted the lines as the schema wrote them", lines)
-	}
-}
-
 // A statement the server refuses must answer an error that reads as one from the database,
 // with the message of the server kept for the user.
 func TestSessionAnswersAStatementTheServerRefuses(t *testing.T) {

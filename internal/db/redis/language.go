@@ -245,6 +245,11 @@ func (language redisLanguage) ReadStatementAtOffset(text string, offset int) str
 }
 
 // FormatStatement writes each command in capitals, with one space between its words.
+// FormatDefinition returns the text unchanged. A key prefix has no definition to lay out.
+func (language redisLanguage) FormatDefinition(text string) string {
+	return text
+}
+
 func (language redisLanguage) FormatStatement(text string) string {
 	lines := []string{}
 	for _, one := range language.SplitStatementRanges(text) {

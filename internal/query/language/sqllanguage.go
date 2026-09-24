@@ -29,6 +29,10 @@ func (language sqlLanguage) FormatStatement(text string) string {
 	return statement.FormatStatement(text, language.flavour)
 }
 
+func (language sqlLanguage) FormatDefinition(text string) string {
+	return statement.FormatDefinition(text, language.flavour)
+}
+
 // LineComment returns the two dashes SQL comments a line out with.
 func (language sqlLanguage) LineComment() string {
 	return "--"

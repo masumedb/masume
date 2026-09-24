@@ -19,6 +19,8 @@ type Language interface {
 	ReadStatementAtOffset(text string, offset int) string
 	// FormatStatement writes the buffer again, one clause per line.
 	FormatStatement(text string) string
+	// FormatDefinition writes a definition again, one column or one clause per line.
+	FormatDefinition(text string) string
 	// LineComment returns the line comment prefix, or an empty string when unsupported.
 	LineComment() string
 	// FindLocalDiagnostics returns the faults that can be found without the server.

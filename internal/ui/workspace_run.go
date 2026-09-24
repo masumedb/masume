@@ -926,7 +926,7 @@ func (model *Model) showKeptPlan(tab *app.Tab) bool {
 
 // readRelationViewAnswer draws what a view that describes a relation answered.
 func (model *Model) readRelationViewAnswer(answered relationViewMsg) (tea.Model, tea.Cmd) {
-	_, tab, found := model.findConnectionTab(answered.ConnectionID, answered.TabID)
+	connection, tab, found := model.findConnectionTab(answered.ConnectionID, answered.TabID)
 	if !found {
 		return model, nil
 	}
@@ -935,8 +935,34 @@ func (model *Model) readRelationViewAnswer(answered relationViewMsg) (tea.Model,
 		return model, nil
 	}
 	tab.DetailOffset = 0
+	if answered.Content.Kind == app.DataDDL {
+		answered.Content.Lines = layoutDefinition(
+			connection.Session.Language(), answered.Content.Lines)
+	}
 	tab.ViewData = answered.Content
 	return model, nil
+}
+
+// definitionLineLimit is the longest one-line statement a definition keeps as it is.
+const definitionLineLimit = 80
+
+// layoutDefinition lays out every statement of a definition that the server returned on
+// one line longer than definitionLineLimit. A statement over several lines keeps its layout.
+func layoutDefinition(held language.Language, lines []string) []string {
+	text := strings.Join(lines, "\n")
+	var written strings.Builder
+	cursor := 0
+	for _, one := range held.SplitStatementRanges(text) {
+		written.WriteString(text[cursor:one.Start])
+		piece := text[one.Start:one.End]
+		if !strings.Contains(piece, "\n") && present.MeasureText(piece) > definitionLineLimit {
+			piece = held.FormatDefinition(piece)
+		}
+		written.WriteString(piece)
+		cursor = one.End
+	}
+	written.WriteString(text[cursor:])
+	return strings.Split(written.String(), "\n")
 }
 
 // showSelectedResult draws the result now chosen. The edit target is built again, because
