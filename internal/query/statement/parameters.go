@@ -124,6 +124,30 @@ func InlineQueryParameters(
 	})
 }
 
+// InlineBoundParameters writes each bind placeholder of a built statement as the literal of
+// its value. It returns false where the placeholders do not match the values in order.
+func InlineBoundParameters(sql string, params []any, dialect *query.Dialect) (string, bool) {
+	var written strings.Builder
+	cursor, next := 0, 0
+	for _, token := range syntax.Tokenize(sql, dialect.Syntax) {
+		switch token.Kind {
+		case syntax.TokenString, syntax.TokenQuoted, syntax.TokenComment:
+			continue
+		}
+		if next >= len(params) || sql[token.Start:token.End] != dialect.BuildPlaceholder(next+1) {
+			continue
+		}
+		written.WriteString(sql[cursor:token.Start])
+		written.WriteString(build.RenderLiteral(params[next], dialect, ""))
+		cursor, next = token.End, next+1
+	}
+	if next != len(params) {
+		return "", false
+	}
+	written.WriteString(sql[cursor:])
+	return written.String(), true
+}
+
 // ResolveParameterValues keeps current values for requested names, indexed by lowercase names.
 func ResolveParameterValues(names []string, current map[string]any) map[string]any {
 	next := map[string]any{}

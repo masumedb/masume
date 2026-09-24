@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -11,6 +12,7 @@ import (
 	"github.com/masumedb/masume/internal/core"
 	"github.com/masumedb/masume/internal/db"
 	"github.com/masumedb/masume/internal/present"
+	"github.com/masumedb/masume/internal/query/statement"
 	"github.com/masumedb/masume/internal/writeplan"
 )
 
@@ -100,6 +102,104 @@ func (model *Model) readWritePlanAnswer(answered writePlanBuiltMsg) (tea.Model, 
 			}
 			return carryAnswer(model.startRun(
 				connection, tab, statements, reads, plan.Undo))
+		}},
+	})
+	return model, nil
+}
+
+// stagedPlanBuiltMsg returns the plans of the staged changes of one tab. Measured is false
+// where one change could not be measured.
+type stagedPlanBuiltMsg struct {
+	ConnectionID int
+	TabID        int
+	Changes      []db.Change
+	Plans        []writeplan.Plan
+	Measured     bool
+}
+
+func buildStagedPlans(
+	connectionID, tabID int, changes []db.Change,
+	session writeplan.Source, request writeplan.Request,
+) tea.Cmd {
+	return func() tea.Msg {
+		ctx, stop := context.WithTimeout(context.Background(), planReadTimeout)
+		defer stop()
+
+		answered := stagedPlanBuiltMsg{
+			ConnectionID: connectionID, TabID: tabID, Changes: changes,
+		}
+		for _, change := range changes {
+			written, inlined := statement.InlineBoundParameters(
+				change.Display, change.Params, session.Dialect())
+			if !inlined {
+				return answered
+			}
+			request.SQL = written
+			plan, measured := writeplan.Build(ctx, session, request)
+			if !measured {
+				return answered
+			}
+			answered.Plans = append(answered.Plans, plan)
+		}
+		answered.Measured = true
+		return answered
+	}
+}
+
+// askWithStagedPlan opens the card that shows the measuring of the staged changes, and
+// starts the reads.
+func (model *Model) askWithStagedPlan(
+	connection *app.Connection, tab *app.Tab, changes []db.Change,
+) (tea.Model, tea.Cmd) {
+	profile := connection.Profile()
+	described := make([]string, 0, len(changes))
+	for _, change := range changes {
+		described = append(described, change.Description)
+	}
+	connection.Open(app.Overlay{
+		Kind: app.OverlayMessage, Title: measuringPlanTitle,
+		Body: "checking affected rows…\n\n" + strings.Join(described, "\n"),
+	})
+	return model, buildStagedPlans(model.ActiveID(), tab.ID, changes, connection.Session,
+		writeplan.Request{
+			Tables: connection.Catalog.Tables, Mode: profile.WritePlan,
+			UndoRows: profile.UndoRows,
+			InTransaction: connection.Session.ReadTransactionState() ==
+				db.TransactionOpen,
+		})
+}
+
+// readStagedPlanAnswer draws the plan of the staged changes. Changes that do not measure as
+// one plan are applied without one.
+func (model *Model) readStagedPlanAnswer(answered stagedPlanBuiltMsg) (tea.Model, tea.Cmd) {
+	connection, tab, found := model.findConnectionTab(answered.ConnectionID, answered.TabID)
+	if !found || connection.Overlay.Kind != app.OverlayMessage ||
+		connection.Overlay.Title != measuringPlanTitle {
+		return model, nil
+	}
+	id, changes := model.ActiveID(), answered.Changes
+	plan, merged := writeplan.MergePlans(answered.Plans)
+	if !answered.Measured || !merged {
+		connection.CloseEveryOverlay()
+		tab.Applying = true
+		return model, applyChanges(id, tab.ID, connection.Session, changes,
+			connection.Autocommit, nil, "")
+	}
+
+	undo := make([]writeplan.UndoPlan, 0, len(answered.Plans))
+	for _, measured := range answered.Plans {
+		undo = append(undo, measured.Undo)
+	}
+	connection.Open(app.Overlay{
+		Kind: app.OverlayWritePlan, Plan: plan,
+		Title: " write plan · " + connection.Profile().Name + " ",
+		Answers: app.OverlayAnswers{Answer: func(confirmed bool) app.AnswerCommand {
+			if !confirmed {
+				return nil
+			}
+			tab.Applying = true
+			return carryAnswer(applyChanges(id, tab.ID, connection.Session, changes,
+				connection.Autocommit, undo, plan.SQL))
 		}},
 	})
 	return model, nil

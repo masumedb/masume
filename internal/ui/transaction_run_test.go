@@ -307,7 +307,7 @@ func TestRunQueryReadPathsBeginManualTransactions(t *testing.T) {
 				case "grid":
 					command = applyChanges(1, 1, connection.Session, []db.Change{{
 						Payload: query.BoundStatement{SQL: "insert into entries values (1)"},
-					}}, autocommit)
+					}}, autocommit, nil, "")
 				case "undo":
 					command = applyUndo(1, connection.Session, writeplan.Undo{Changes: []db.Change{{
 						Payload: query.BoundStatement{SQL: "insert into entries values (1)"},
@@ -391,7 +391,7 @@ func TestRunQueryReadPathsRefuseFailedBegin(t *testing.T) {
 			case "plan":
 				problem = readPlan(1, 1, 1, session, read.Text, false, false)().(planReadMsg).Problem
 			case "grid":
-				problem = applyChanges(1, 1, session, []db.Change{{}}, false)().(changesAppliedMsg).Problem
+				problem = applyChanges(1, 1, session, []db.Change{{}}, false, nil, "")().(changesAppliedMsg).Problem
 			}
 			if problem == "" || !reflect.DeepEqual(session.calls, []string{"begin"}) {
 				t.Fatalf("calls %v, problem %q", session.calls, problem)

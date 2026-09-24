@@ -121,6 +121,9 @@ type changesAppliedMsg struct {
 	TabID        int
 	Applied      int
 	Problem      string
+	// The undo of a planned apply, and the statements it undoes with their values written in.
+	Undo writeplan.Undo
+	SQL  string
 }
 
 // historyReadMsg returns the statements that ran on this profile.
@@ -637,12 +640,17 @@ func readObjectDDL(
 // applyChanges sends the staged changes to the session.
 func applyChanges(
 	connectionID, tabID int, session db.Session, changes []db.Change, autocommit bool,
+	undo []writeplan.UndoPlan, shown string,
 ) tea.Cmd {
 	return func() tea.Msg {
 		ctx := context.Background()
+		var kept writeplan.Undo
 		err := beginManualTransaction(ctx, session, autocommit, "")
 		if err == nil {
-			err = session.ApplyChanges(ctx, changes)
+			kept, err = writeplan.ApplyWithUndo(ctx, session, undo,
+				func(running context.Context) error {
+					return session.ApplyChanges(running, changes)
+				})
 		}
 		if err != nil {
 			return changesAppliedMsg{
@@ -651,6 +659,7 @@ func applyChanges(
 		}
 		return changesAppliedMsg{
 			ConnectionID: connectionID, TabID: tabID, Applied: len(changes),
+			Undo: kept, SQL: shown,
 		}
 	}
 }

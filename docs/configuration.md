@@ -231,6 +231,8 @@ The connection picker marks project profiles with `project` and shows the projec
 
 With `write_plan`, masume checks a single write before it runs, if the statement is supported. PostgreSQL-family, MySQL-family, and SQLite engines support write plans; MongoDB does not. The plan uses the target table and the predicate from the statement. Unsupported statements, such as joins, target aliases and batches, go through the normal confirmation.
 
+Staged grid changes get a plan when `Ctrl+Y` applies them. Changes of one kind share one plan. A mix of inserts, updates and deletes, or a change the plan cannot read, is applied without a plan.
+
 The server counts the matching rows with the write predicate. The count can change before the write runs. An update plan also lists assigned columns. `cascades` lists trigger names and foreign key effects. The plan does not inspect trigger bodies or predict their effects. `blocked` lists foreign keys that can reject the delete. In the client, these keys put a headline at the top of the plan, and Enter opens the referencing rows.
 
 `write_plan = "undo"` prepares an undo for updates, deletes, and truncates. An update undo restores assigned columns by primary key. A delete or truncate undo inserts captured target rows. `Alt+U` (`global.undo-write`) asks for confirmation, then runs the undo statements together. The connection keeps only the latest write result, in memory.
@@ -239,7 +241,7 @@ Undo capture reads target rows inside the write transaction. Row locking follows
 
 Undo covers only the captured target rows. It does not cover cascaded rows or trigger effects. Undo statements can run triggers again. A later undo can overwrite newer values in the restored columns. Restoring deleted rows can fail on key or constraint conflicts.
 
-Inserts, tables without primary keys, updates that assign primary keys, plans with zero matching rows, failed counts, failed metadata reads, and counts above `undo_rows` get no undo. The plan shows the reason. The write can still run after confirmation. Grid changes and imports do not keep an undo.
+Inserts, tables without primary keys, updates that assign primary keys, plans with zero matching rows, failed counts, failed metadata reads, and counts above `undo_rows` get no undo. The plan shows the reason. The write can still run after confirmation. Imports do not keep an undo.
 
 The default `undo_rows` is `1000`; `0` removes the configured limit and uses a capture ceiling of 1048576 rows. If the plan includes an undo, the capture must succeed before the write runs. A capture error or a truncated capture stops the write. If planning fails and leaves no undo, the write can still run after confirmation.
 

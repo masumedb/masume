@@ -216,7 +216,7 @@ Grid writes need a writable profile, a single identifiable table, loaded column 
 
 The cell editor shows choices for known enum and boolean columns. `Ctrl+S` stages the value. `Ctrl+L` stages NULL. `Ctrl+E` stages an empty value. `Ctrl+D` stages DEFAULT. `Ctrl+F` formats JSON in a JSON cell editor. In the card, these keys do not run their global actions.
 
-Staging does not write to the database. The right side of the status bar shows the staged count and the review key: `● 3 staged · p to review`. In the review card, `Ctrl+Y` applies the changes, `x` discards them, and Esc returns without applying. A failed apply keeps the staged changes. On an engine without atomic staged writes, masume asks before it applies several changes one by one. A failure can leave earlier changes written.
+Staging does not write to the database. The right side of the status bar shows the staged count and the review key: `● 3 staged · p to review`. In the review card, `Ctrl+Y` applies the changes, `x` discards them, and Esc returns without applying. On a profile with `write_plan`, the write plan opens before the changes are written. A failed apply keeps the staged changes. On an engine without atomic staged writes, masume asks before it applies several changes one by one. A failure can leave earlier changes written.
 
 Staged changes belong to one statement result. Return to that result before applying, or discard the staged changes.
 
@@ -228,7 +228,7 @@ Staged changes belong to one statement result. Return to that result before appl
 | Grid `Ctrl+Z` | Reverses staged changes only; redo with `Ctrl+Shift+Z` or `Z` |
 | Global `Alt+U` | Runs the reverse SQL of a write plan, after a confirmation |
 
-Neither editor undo nor grid undo reverses a database write that ran. `Alt+U` needs a write-plan undo. Imports and staged grid writes do not create one. Transaction rollback is separate from all three. See [write plans](configuration.md#write-plans).
+Neither editor undo nor grid undo reverses a database write that ran. `Alt+U` needs a write-plan undo. Imports do not create one. Transaction rollback is separate from all three. See [write plans](configuration.md#write-plans).
 
 ## Copy and export
 

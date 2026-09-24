@@ -1063,8 +1063,12 @@ func (model *Model) readChangesAnswer(answered changesAppliedMsg) (tea.Model, te
 	tab.CursorRowKey = model.readCursorRowKey(connection, tab)
 	tab.DiscardChanges()
 	connection.CloseEveryOverlay()
-	connection.Show(present.FormatCountOf(
-		int64(answered.Applied), "change", "changes") + " applied")
+	applied := present.FormatCountOf(int64(answered.Applied), "change", "changes") + " applied"
+	if answered.Undo.Table.Name != "" {
+		connection.KeepUndo(answered.Undo, answered.SQL, time.Now())
+		applied += " · " + model.describeWriteOutcome(answered.Undo)
+	}
+	connection.Show(applied)
 	if tab.ClosingAfterApply {
 		tab.ClosingAfterApply = false
 		connection.CloseTab(connection.IndexOfTab(tab.ID))
@@ -1138,8 +1142,13 @@ func (model *Model) applyStagedChanges(
 	if len(changes) > 1 && !connection.Session.Capabilities().AppliesChangesTogether {
 		return model.askToApplyOneAtATime(connection, tab, changes)
 	}
+	if writeplan.Measures(connection.Profile(), connection.Session.Capabilities(),
+		statement.RiskWrite, 1) {
+		return model.askWithStagedPlan(connection, tab, changes)
+	}
 	tab.Applying = true
-	return model, applyChanges(model.ActiveID(), tab.ID, connection.Session, changes, connection.Autocommit)
+	return model, applyChanges(model.ActiveID(), tab.ID, connection.Session, changes,
+		connection.Autocommit, nil, "")
 }
 
 // askToApplyOneAtATime asks before applying changes without a shared transaction.
@@ -1158,7 +1167,7 @@ func (model *Model) askToApplyOneAtATime(
 				return nil
 			}
 			tab.Applying = true
-			return carryAnswer(applyChanges(id, tabID, session, changes, connection.Autocommit))
+			return carryAnswer(applyChanges(id, tabID, session, changes, connection.Autocommit, nil, ""))
 		}},
 	})
 	return model, nil

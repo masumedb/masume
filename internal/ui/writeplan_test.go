@@ -298,3 +298,83 @@ func TestEnterOpensTheRowsThatBlockTheWrite(t *testing.T) {
 		t.Errorf("the tab filters with %+v", tab.Filter)
 	}
 }
+
+// buildStagedTab returns the tab of a planned model with one cell of orders staged.
+func buildStagedTab(t *testing.T) (*Model, *app.Connection, *app.Tab, *undoingSession) {
+	t.Helper()
+	model, connection, session := buildPlannedModel(t)
+	tab := connection.Active()
+	tab.Results.Start([]string{"select * from orders"}, 200)
+	tab.Results.Succeed(0,
+		db.ComposedRead{Text: "select * from orders", Display: "select * from orders"},
+		db.QueryResult{
+			Columns: []db.ResultColumn{
+				{Name: "id", DataType: "integer"}, {Name: "status", DataType: "text"},
+			},
+			Rows: [][]any{{int64(1), "open"}},
+		})
+	tab.Target = app.EditTarget{
+		Table:    db.TableRef{Schema: "public", Name: "orders"},
+		Editable: true, KeyColumns: []string{"id"},
+	}
+	tab.StageChange(func(pending *core.PendingChanges) {
+		pending.Edits[core.BuildEditKey(0, 1)] = core.CellEdit{
+			RowIndex: 0, ColumnIndex: 1, Value: core.CellValue{Kind: core.CellText, Text: "sent"},
+		}
+	})
+	return model, connection, tab, session
+}
+
+func TestStagedChangesOnAPlannedProfileAreMeasuredFirst(t *testing.T) {
+	model, connection, tab, session := buildStagedTab(t)
+
+	_, command := model.applyStagedChanges(connection, tab)
+	if connection.Overlay.Kind != app.OverlayMessage ||
+		connection.Overlay.Title != measuringPlanTitle || command == nil {
+		t.Fatalf("the apply opened %q and measures %v", connection.Overlay.Kind, command != nil)
+	}
+	if tab.Applying || len(session.applied) != 0 {
+		t.Error("the staged changes were written before the plan")
+	}
+}
+
+func TestTheStagedPlanAppliesTheChangesOnYes(t *testing.T) {
+	model, connection, tab, session := buildStagedTab(t)
+	_, measure := model.applyStagedChanges(connection, tab)
+	built, is := measure().(stagedPlanBuiltMsg)
+	if !is {
+		t.Fatalf("the measure answered %T", built)
+	}
+	built.Plans, built.Measured = []writeplan.Plan{buildTestPlan()}, true
+
+	held, _ := model.Update(built)
+	model = held.(*Model)
+	if connection.Overlay.Kind != app.OverlayWritePlan {
+		t.Fatalf("the card is %q, wanted the write plan", connection.Overlay.Kind)
+	}
+	command := connection.Overlay.Answers.Answer(true)
+	if command == nil {
+		t.Fatal("yes on the plan sent nothing")
+	}
+	model.Update(command())
+	if len(session.applied) != 1 || core.CountChanges(tab.Pending) != 0 {
+		t.Errorf("the plan applied %d changes and left %d staged",
+			len(session.applied), core.CountChanges(tab.Pending))
+	}
+}
+
+func TestStagedChangesThatCannotBeMeasuredAreApplied(t *testing.T) {
+	model, connection, tab, session := buildStagedTab(t)
+	_, measure := model.applyStagedChanges(connection, tab)
+	built := measure().(stagedPlanBuiltMsg)
+	built.Measured = false
+
+	_, command := model.Update(built)
+	if command == nil || !tab.Applying {
+		t.Fatal("changes that cannot be measured were not applied")
+	}
+	model.Update(command())
+	if len(session.applied) != 1 {
+		t.Errorf("%d changes were applied", len(session.applied))
+	}
+}
