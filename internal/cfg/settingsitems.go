@@ -64,6 +64,8 @@ type SettingItem struct {
 	Detail string
 	Kind   SettingKind
 	Value  string
+	// Unit is the unit drawn after the value, such as "ms".
+	Unit string
 	// Choices are the values a choice row steps through.
 	Choices []string
 	// Page is the page a group row opens, under the page the row is on.
@@ -91,7 +93,7 @@ const (
 // ListSettingSections returns the sections, in the order the screen draws them.
 func ListSettingSections() []SettingSection {
 	return []SettingSection{
-		{Key: SectionAi, Label: "AI", Detail: "ai chat, providers and agents"},
+		{Key: SectionAi, Label: "AI", Detail: "AI chat, providers and agents"},
 		{Key: SectionAppearance, Label: "Appearance",
 			Detail: "theme, icons and key hints"},
 		{Key: SectionKeys, Label: "Keys", Detail: "key bindings"},
@@ -197,7 +199,7 @@ func buildAiItems(sources SettingsSources, path []string) []SettingItem {
 	}
 
 	items := []SettingItem{{
-		Key: ItemChatEnabled, Label: "ai chat", Kind: SettingToggle,
+		Key: ItemChatEnabled, Label: "AI chat", Kind: SettingToggle,
 		Value: describeToggle(config.Enabled),
 	}}
 	if !config.Enabled {
@@ -205,8 +207,9 @@ func buildAiItems(sources SettingsSources, path []string) []SettingItem {
 	}
 	return append(items,
 		SettingItem{
-			Key: ItemChatSource, Label: "source", Kind: SettingChoice,
-			Value: describeAiSource(config), Choices: listAiSources(config),
+			Key: ItemChatSource, Label: "assistant", Kind: SettingChoice,
+			Detail: "API provider or ACP agent",
+			Value:  describeAiSource(config), Choices: listAiSources(config),
 		},
 		SettingItem{
 			Key: PageProviders, Page: PageProviders, Label: "providers",
@@ -220,8 +223,8 @@ func buildAiItems(sources SettingsSources, path []string) []SettingItem {
 		},
 		SettingItem{
 			Key: ItemChatTimeout, Label: "statement timeout", Kind: SettingText,
-			Detail: "time limit in milliseconds",
-			Value:  strconv.Itoa(int(config.StatementTimeout / time.Millisecond)),
+			Detail: "time limit in milliseconds", Unit: "ms",
+			Value: strconv.Itoa(int(config.StatementTimeout / time.Millisecond)),
 		})
 }
 
@@ -484,11 +487,11 @@ func buildMcpItems(sources SettingsSources, path []string) []SettingItem {
 		{Key: ItemMcpAccess, Label: "access", Kind: SettingChoice,
 			Value: string(access), Choices: listModeNames(McpAccessLevels)},
 		{Key: ItemMcpRowLimit, Label: "row limit", Kind: SettingText,
-			Detail: "max rows per read",
-			Value:  strconv.Itoa(rows)},
+			Detail: "max rows per read", Unit: "rows",
+			Value: strconv.Itoa(rows)},
 		{Key: ItemMcpTimeout, Label: "statement timeout", Kind: SettingText,
-			Detail: "time limit in milliseconds",
-			Value:  strconv.Itoa(int(timeout / time.Millisecond))},
+			Detail: "time limit in milliseconds", Unit: "ms",
+			Value: strconv.Itoa(int(timeout / time.Millisecond))},
 		{Key: PageConnections, Page: PageConnections, Label: "connections",
 			Kind: SettingGroup, Detail: "connections served over MCP",
 			Value: describeServedCount(sources)},

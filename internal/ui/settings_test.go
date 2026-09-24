@@ -135,7 +135,7 @@ func TestTheSettingsScreenDrawsTheSectionsBesideTheRows(t *testing.T) {
 			t.Errorf("the sections do not hold %q:\n%s", wanted, drawn)
 		}
 	}
-	for _, wanted := range []string{"ai chat", "source", "providers", "agents"} {
+	for _, wanted := range []string{"AI chat", "assistant", "providers", "agents"} {
 		if !strings.Contains(drawn, wanted) {
 			t.Errorf("the AI rows do not hold %q:\n%s", wanted, drawn)
 		}
@@ -995,5 +995,20 @@ func TestEverySectionWritesAFileThatReadsBack(t *testing.T) {
 	if held := model.registry.FindActionChords(
 		cfg.ScopeTree, ActionFilterTree); cfg.DescribeChordChoice(held) != "ctrl+alt+f" {
 		t.Errorf("the client answers %q", cfg.DescribeChordChoice(held))
+	}
+}
+
+func TestTheSettingsScreenDrawsEachValueInTheFormOfItsKind(t *testing.T) {
+	model := buildOfflineModel(t, 140, 40)
+	openSettings(t, model)
+
+	drawn := stripEscapes(model.renderSettings())
+	for _, wanted := range []string{"● on", "‹ anthropic ›", "30000 ms"} {
+		if !strings.Contains(drawn, wanted) {
+			t.Errorf("the AI rows do not hold %q:\n%s", wanted, drawn)
+		}
+	}
+	if strings.Contains(drawn, "[x]") {
+		t.Errorf("the toggle is drawn as a box:\n%s", drawn)
 	}
 }

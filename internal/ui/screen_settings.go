@@ -976,15 +976,20 @@ func (model *Model) renderItemValue(
 	}
 	switch item.Kind {
 	case cfg.SettingToggle:
+		dot, word, dotInk := model.icons.Icon(cfg.IconDot), "off", theme.Faint
+		if cfg.IsSettingOn(item.Value) {
+			word, dotInk = "on", theme.Success
+		}
+		if dot != "" {
+			dot += " "
+		}
 		return alignSettingValue(width, ground,
-			paintText(ink, ground, describeToggleMark(item.Value)),
-			present.MeasureText(describeToggleMark(item.Value)))
+			paintText(dotInk, ground, dot)+paintText(ink, ground, word),
+			present.MeasureText(dot+word))
 	case cfg.SettingAction:
 		return paintBlanks(ground, width)
 	case cfg.SettingChoice:
-		if focused {
-			return model.renderSettingsChoice(item.Value, width, ground)
-		}
+		return model.renderSettingsChoice(item.Value, focused, width, ground)
 	case cfg.SettingGroup:
 		mark := " " + model.icons.Icon(cfg.IconStepOn)
 		written := present.TruncateText(item.Value,
@@ -998,8 +1003,11 @@ func (model *Model) renderItemValue(
 	}
 
 	written := item.Value
-	if written == "" {
+	switch {
+	case written == "":
 		written, ink = "not set", theme.Faint
+	case item.Unit != "":
+		written += " " + item.Unit
 	}
 	written = present.TruncateText(written, width-1)
 	return alignSettingValue(width, ground,
@@ -1013,26 +1021,24 @@ func alignSettingValue(width int, ground color.Color, written string, measured i
 }
 
 // renderSettingsChoice draws the value of a row that steps through values, with a mark on
-// each side that a press steps it by.
-func (model *Model) renderSettingsChoice(value string, width int, ground color.Color) string {
+// each side that a press steps it by. The marks take the accent on the focused row.
+func (model *Model) renderSettingsChoice(
+	value string, focused bool, width int, ground color.Color,
+) string {
 	theme := model.styles.Theme
+	markInk, valueInk := theme.Faint, theme.Muted
+	if focused {
+		markInk, valueInk = theme.Accent, theme.Text
+	}
 	written := present.TruncateText(value, max(width-choiceMarkChrome-1, 1))
 	if written == "" {
 		written = "not set"
 	}
 	return alignSettingValue(width, ground,
-		paintText(theme.Accent, ground, model.icons.Icon(cfg.IconStepBack)+" ")+
-			paintText(theme.Text, ground, written)+
-			paintText(theme.Accent, ground, " "+model.icons.Icon(cfg.IconStepOn)),
+		paintText(markInk, ground, model.icons.Icon(cfg.IconStepBack)+" ")+
+			paintText(valueInk, ground, written)+
+			paintText(markInk, ground, " "+model.icons.Icon(cfg.IconStepOn)),
 		present.MeasureText(written)+choiceMarkChrome)
-}
-
-// describeToggleMark returns a row that is on or off as a box and a word.
-func describeToggleMark(value string) string {
-	if cfg.IsSettingOn(value) {
-		return "[x] on"
-	}
-	return "[ ] off"
 }
 
 // describeSettingsDetail returns the line that says what the row under the caret is.
