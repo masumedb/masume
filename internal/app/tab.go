@@ -141,6 +141,8 @@ type Tab struct {
 	Screen present.ScreenFilter
 	// The scroll position of the plan tree and of the detail views.
 	DetailOffset int
+	// The first cell drawn of each line of the DDL view.
+	DetailColumnOffset int
 	// Expanded document nodes and the tree cursor position.
 	Opened        map[string]bool
 	TreeRow       int

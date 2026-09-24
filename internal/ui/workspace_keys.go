@@ -129,6 +129,9 @@ func (model *Model) readWorkspaceKey(key tea.Key) (next tea.Model, command tea.C
 			scrollDetailView(tab, match)
 			return model, nil
 		}
+		if scrollDetailColumns(tab, tab.ActiveView(connection.Session), match) {
+			return model, nil
+		}
 		next, command := model.runAction(connection, tab, match)
 		// A restored tab reads what it describes the first time it is shown.
 		if _, read := model.readWhenShown(connection); read != nil {
@@ -512,6 +515,26 @@ func scrollDetailView(tab *app.Tab, match Match) bool {
 	}
 	if tab.DetailOffset < 0 {
 		tab.DetailOffset = 0
+	}
+	return true
+}
+
+// detailColumnStep is the cells one key press moves the DDL view sideways.
+const detailColumnStep = 8
+
+// scrollDetailColumns moves the lines of the DDL view sideways. The draw holds the offset to
+// the widest line. It reports whether the action belonged to the view.
+func scrollDetailColumns(tab *app.Tab, drawn app.ResultView, match Match) bool {
+	if drawn != app.ViewDDL || match.Scope != cfg.ScopeGrid {
+		return false
+	}
+	switch match.Action {
+	case ActionCursorLeft:
+		tab.DetailColumnOffset = max(tab.DetailColumnOffset-detailColumnStep, 0)
+	case ActionCursorRight:
+		tab.DetailColumnOffset += detailColumnStep
+	default:
+		return false
 	}
 	return true
 }

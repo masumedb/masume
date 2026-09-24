@@ -55,3 +55,27 @@ func TestLayoutDefinitionLaysOutALongOneLineStatement(t *testing.T) {
 		})
 	}
 }
+
+func TestTheDDLViewMarksALineItCutsAndScrollsSideways(t *testing.T) {
+	model := buildOfflineModel(t, 120, 30)
+	tab := model.Active().Active()
+	held := []string{"CREATE TABLE t (", "  created_at text NOT NULL DEFAULT CURRENT_TIMESTAMP", ");"}
+
+	rows := model.renderWideLines(tab, held, 30, 5)
+	if got := stripEscapes(rows[1]); !strings.HasSuffix(strings.TrimRight(got, " "), "…") {
+		t.Errorf("the cut line reads %q, wanted an ellipsis at its right edge", got)
+	}
+	if got := stripEscapes(rows[0]); strings.Contains(got, "…") {
+		t.Errorf("the line that fits reads %q, wanted no ellipsis", got)
+	}
+
+	tab.DetailColumnOffset = 1 << 20
+	rows = model.renderWideLines(tab, held, 30, 5)
+	got := stripEscapes(rows[1])
+	if !strings.HasPrefix(got, "…") || !strings.Contains(got, "CURRENT_TIMESTAMP") {
+		t.Errorf("the line scrolled to its end reads %q, wanted an ellipsis on the left and its end", got)
+	}
+	if tab.DetailColumnOffset != 52-28 {
+		t.Errorf("the offset is %d, wanted it held to the widest line", tab.DetailColumnOffset)
+	}
+}

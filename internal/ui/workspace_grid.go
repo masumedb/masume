@@ -562,6 +562,7 @@ func (model *Model) runPlanAction(
 	case ActionToggleRawPlan:
 		tab.RawPlan = !tab.RawPlan
 		tab.DetailOffset = 0
+		tab.DetailColumnOffset = 0
 	case ActionCopyPlan:
 		if tab.ViewData.Kind != app.DataPlan {
 			return model, nil

@@ -398,9 +398,16 @@ func (model *Model) buildViewHints(
 		return keys.build()
 	}
 
+	hints := []Hint{scroll}
+	if view == app.ViewDDL {
+		if sideways, found := model.buildPairHint(
+			cfg.ScopeGrid, ActionCursorLeft, ActionCursorRight, "scroll sideways", ""); found {
+			hints = append(hints, sideways)
+		}
+	}
 	target, found := findViewToLeaveFor(view, views)
 	if !found {
-		return []Hint{scroll}
+		return hints
 	}
 	position := 0
 	for at, offered := range views {
@@ -413,7 +420,7 @@ func (model *Model) buildViewHints(
 	if target == app.ViewData {
 		label = "back to the rows"
 	}
-	return []Hint{buildAnswerHint(strconv.Itoa(position+1), label), scroll}
+	return append([]Hint{buildAnswerHint(strconv.Itoa(position+1), label)}, hints...)
 }
 
 // BuildHints returns the keys the bar names, which depend on the cursor position and what

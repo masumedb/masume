@@ -897,6 +897,7 @@ func (model *Model) readPlanAnswer(answered planReadMsg) (tea.Model, tea.Cmd) {
 		active.Plan = app.PlanState{Kind: app.PlanReady, Plan: answered.Plan}
 	}
 	tab.DetailOffset = 0
+	tab.DetailColumnOffset = 0
 	tab.ViewData = app.PaneContent{Kind: app.DataPlan, Plan: answered.Plan}
 	return model, nil
 }
@@ -935,6 +936,7 @@ func (model *Model) readRelationViewAnswer(answered relationViewMsg) (tea.Model,
 		return model, nil
 	}
 	tab.DetailOffset = 0
+	tab.DetailColumnOffset = 0
 	if answered.Content.Kind == app.DataDDL {
 		answered.Content.Lines = layoutDefinition(
 			connection.Session.Language(), answered.Content.Lines)
@@ -1013,6 +1015,7 @@ func (model *Model) loadShownView(
 ) (tea.Model, tea.Cmd) {
 	id := model.ActiveID()
 	tab.DetailOffset = 0
+	tab.DetailColumnOffset = 0
 
 	switch tab.ActiveView(connection.Session) {
 	case app.ViewData:

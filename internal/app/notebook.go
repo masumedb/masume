@@ -417,11 +417,12 @@ type CellViewState struct {
 	Unmasked         bool
 	Screen           present.ScreenFilter
 
-	DetailOffset  int
-	Opened        map[string]bool
-	TreeRow       int
-	TreeRowOffset int
-	TreeRolled    bool
+	DetailOffset       int
+	DetailColumnOffset int
+	Opened             map[string]bool
+	TreeRow            int
+	TreeRowOffset      int
+	TreeRolled         bool
 
 	EditorRowOffset    int
 	EditorColumnOffset int
@@ -463,7 +464,8 @@ func ReadCellView(tab *Tab) CellViewState {
 		GridColumnKey: tab.GridColumnKey,
 		Frozen:        tab.Frozen, ColumnWidths: tab.ColumnWidths,
 		Unmasked: tab.Unmasked, Screen: tab.Screen,
-		DetailOffset: tab.DetailOffset, Opened: tab.Opened,
+		DetailOffset: tab.DetailOffset, DetailColumnOffset: tab.DetailColumnOffset,
+		Opened:  tab.Opened,
 		TreeRow: tab.TreeRow, TreeRowOffset: tab.TreeRowOffset,
 		TreeRolled:         tab.TreeRolled,
 		EditorRowOffset:    tab.EditorRowOffset,
@@ -490,6 +492,7 @@ func ApplyCellView(tab *Tab, held CellViewState) {
 	tab.Frozen, tab.ColumnWidths = held.Frozen, held.ColumnWidths
 	tab.Unmasked, tab.Screen = held.Unmasked, held.Screen
 	tab.DetailOffset, tab.Opened = held.DetailOffset, held.Opened
+	tab.DetailColumnOffset = held.DetailColumnOffset
 	tab.TreeRow, tab.TreeRowOffset = held.TreeRow, held.TreeRowOffset
 	tab.TreeRolled = held.TreeRolled
 	tab.EditorRowOffset, tab.EditorColumnOffset = held.EditorRowOffset, held.EditorColumnOffset

@@ -1031,7 +1031,7 @@ func (model *Model) renderDetailView(
 	case app.DataFailed:
 		return model.wrapMessage(content.Message, width, height, theme.Error)
 	case app.DataDDL:
-		return model.renderLines(tab, content.Lines, width, height, true)
+		return model.renderWideLines(tab, content.Lines, width, height)
 	case app.DataStatistics:
 		return model.renderStatistics(tab, content.Statistics, width, height)
 	case app.DataPlan:
@@ -1243,6 +1243,47 @@ func (model *Model) renderLines(
 	}
 	// The bar stands over the last cell of each row, so a definition taller than the pane
 	// says how much of it is on screen.
+	return model.drawScrollTrack(lines, scrollView{
+		offset: tab.DetailOffset, rows: height, total: len(held),
+		moveTo: func(offset int) tea.Cmd { tab.DetailOffset = offset; return nil },
+	}, model.layout.detailTop, model.editorLeft+1, width, theme.Panel)
+}
+
+// renderWideLines draws the DDL, coloured as SQL. A line wider than the pane is cut with an
+// ellipsis at each cut edge, and the view scrolls sideways.
+func (model *Model) renderWideLines(
+	tab *app.Tab, held []string, width, height int,
+) []string {
+	theme := model.styles.Theme
+	if len(held) == 0 {
+		return model.renderEmptyState(width, height, "no text to show", nil)
+	}
+	tab.DetailOffset = clampOffset(tab.DetailOffset, height, len(held))
+	textWidth := max(width-2, 1)
+	tab.DetailColumnOffset = clampOffset(
+		tab.DetailColumnOffset, textWidth, measureWidestLine(held, 0, len(held)))
+
+	highlights := buildSQLLineHighlights(strings.Join(held, "\n"))
+	cut := paintText(theme.Muted, theme.Panel, "…")
+	lines := make([]string, 0, height)
+	for at := tab.DetailOffset; at < len(held) && len(lines) < height; at++ {
+		cells := present.MeasureText(held[at])
+		left := paintOn(theme.Panel, " ")
+		if tab.DetailColumnOffset > 0 && cells > 0 {
+			left = cut
+		}
+		drawn := codeLine{text: held[at], spans: highlights[at], width: textWidth,
+			columnOffset: tab.DetailColumnOffset}
+		right := paintOn(theme.Panel, " ")
+		if cells-tab.DetailColumnOffset > textWidth {
+			drawn.width = textWidth - 1
+			right = cut + right
+		}
+		lines = append(lines, left+model.renderCodeLine(drawn)+right)
+	}
+	for len(lines) < height {
+		lines = append(lines, "")
+	}
 	return model.drawScrollTrack(lines, scrollView{
 		offset: tab.DetailOffset, rows: height, total: len(held),
 		moveTo: func(offset int) tea.Cmd { tab.DetailOffset = offset; return nil },
