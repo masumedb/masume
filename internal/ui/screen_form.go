@@ -452,6 +452,8 @@ type confirmState struct {
 	Destructive bool
 	// Answer runs for both answers. Escape closes the question without either.
 	Answer func(bool) tea.Cmd
+	// Commit is a third answer, drawn first with the commit key. Nil draws two answers.
+	Commit func() tea.Cmd
 }
 
 // The widths of the connection form.
@@ -625,6 +627,12 @@ func (model *Model) readConfirmKey(key tea.Key) (tea.Model, tea.Cmd) {
 		return model, nil
 	}
 
+	if model.confirm.Commit != nil {
+		if match, matched := model.keymap.MatchOnly(key,
+			[]ActionID{ActionCommitTransaction}, cfg.ScopeGlobal); matched {
+			return model.runConfirmAction(match.Action)
+		}
+	}
 	match, matched := model.keymap.MatchFirst(key,
 		FindDialogActions("form"), cfg.ScopeDialog)
 	if !matched {
@@ -643,6 +651,12 @@ func (model *Model) runConfirmAction(action ActionID) (tea.Model, tea.Cmd) {
 	case ActionAnswerNo:
 		model.confirm = nil
 		return model, held.Answer(false)
+	case ActionCommitTransaction:
+		if held.Commit == nil {
+			return model, nil
+		}
+		model.confirm = nil
+		return model, held.Commit()
 	case ActionClose:
 		model.confirm = nil
 		return model, nil

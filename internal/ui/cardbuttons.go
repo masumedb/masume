@@ -63,6 +63,18 @@ func (model *Model) renderButtonRow(buttons []cardButton, row, left int) string 
 	return written.String()
 }
 
+// measureButtonRow returns the cells the buttons of a card take on one row.
+func measureButtonRow(buttons []cardButton) int {
+	width := 0
+	for index, button := range buttons {
+		if index > 0 {
+			width += cardButtonGap
+		}
+		width += present.MeasureText("  " + strings.TrimSpace(button.chord+" "+button.label) + "  ")
+	}
+	return width
+}
+
 // renderFieldHeading draws the heading over a group of fields of a card.
 func (model *Model) renderFieldHeading(text string) string {
 	theme := model.styles.Theme

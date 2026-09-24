@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"context"
 	"fmt"
 	"slices"
 	"strings"
@@ -489,6 +490,9 @@ func (model *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	case writePlanBuiltMsg:
 		return model.readWritePlanAnswer(held)
 
+	case quitCommittedMsg:
+		return model.readQuitCommitted(held)
+
 	case stagedPlanBuiltMsg:
 		return model.readStagedPlanAnswer(held)
 
@@ -846,6 +850,13 @@ func (model *Model) askDiscardOnExit() bool {
 	if (staged == 0 && transactions == 0) || model.confirm != nil {
 		return false
 	}
+	quit := func() tea.Cmd {
+		if model.askSaveOnExit() {
+			return nil
+		}
+		model.quitting = true
+		return model.shutDown()
+	}
 	model.confirm = &confirmState{
 		Title: " quit ",
 		Body:  describeUnwrittenWork("Quitting", staged, transactions),
@@ -855,26 +866,68 @@ func (model *Model) askDiscardOnExit() bool {
 			if !confirmed {
 				return nil
 			}
-			if model.askSaveOnExit() {
-				return nil
-			}
-			model.quitting = true
-			return model.shutDown()
+			return quit()
 		},
+	}
+	if transactions > 0 {
+		model.confirm.Yes = "roll back and quit"
+	}
+	if sessions := model.findOpenTransactions(); len(sessions) > 0 {
+		model.confirm.Commit = func() tea.Cmd { return commitBeforeQuit(sessions) }
 	}
 	return true
 }
 
-// countUnwrittenWork returns the staged changes of every tab, and the number of notebooks
+// findOpenTransactions returns the sessions that hold a transaction a commit can end.
+func (model *Model) findOpenTransactions() []db.Session {
+	sessions := []db.Session{}
+	for _, connection := range model.connections.all() {
+		if connection.Session.ReadTransactionState() == db.TransactionOpen {
+			sessions = append(sessions, connection.Session)
+		}
+	}
+	return sessions
+}
+
+// quitCommittedMsg reports the commits that run before the client ends.
+type quitCommittedMsg struct {
+	Problem string
+}
+
+// commitBeforeQuit commits the transaction of every session, and stops at the first that
+// fails.
+func commitBeforeQuit(sessions []db.Session) tea.Cmd {
+	return func() tea.Msg {
+		for _, session := range sessions {
+			if err := session.CommitTransaction(context.Background()); err != nil {
+				return quitCommittedMsg{Problem: "commit failed: " + db.DescribeError(err)}
+			}
+		}
+		return quitCommittedMsg{}
+	}
+}
+
+// readQuitCommitted ends the client once every commit is done, and reports a failed one.
+func (model *Model) readQuitCommitted(answered quitCommittedMsg) (tea.Model, tea.Cmd) {
+	if answered.Problem != "" {
+		if connection := model.Active(); connection != nil {
+			connection.ShowError(answered.Problem)
+		}
+		return model, nil
+	}
+	if model.askSaveOnExit() {
+		return model, nil
+	}
+	model.quitting = true
+	return model, model.shutDown()
+}
+
+// countUnwrittenWork returns the staged changes of every tab, and the number of connections
 // that hold an open transaction.
 func (model *Model) countUnwrittenWork() (staged int, transactions int) {
 	for _, connection := range model.connections.all() {
-		for _, tab := range connection.Tabs {
-			staged += core.CountChanges(tab.Pending)
-			if tab.Notebook != nil && tab.Notebook.HoldsTransaction {
-				transactions++
-			}
-		}
+		held, open := countConnectionWork(connection)
+		staged, transactions = staged+held, transactions+open
 	}
 	return staged, transactions
 }

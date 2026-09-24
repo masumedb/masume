@@ -53,6 +53,8 @@ func (model *Model) render() string {
 		model.layout.buttons = nil
 		model.layout.scrollbars = nil
 		cardWidth := present.ResolveCardWidth(64, 36, model.width)
+		buttons := measureButtonRow(model.buildConfirmButtons(model.confirm)) + 4
+		cardWidth = max(cardWidth, min(buttons, model.width))
 		card := model.drawCard(func() string {
 			return model.renderCard(model.confirm.Title, cardWidth,
 				model.buildConfirmLines(model.confirm, cardWidth), model.confirm.Destructive)
@@ -151,7 +153,7 @@ func (model *Model) buildConfirmLines(held *confirmState, cardWidth int) []strin
 	return lines
 }
 
-// buildConfirmButtons returns the two answers of a question.
+// buildConfirmButtons returns the answers of a question.
 func (model *Model) buildConfirmButtons(held *confirmState) []cardButton {
 	yes, no := held.Yes, held.No
 	if yes == "" {
@@ -161,8 +163,14 @@ func (model *Model) buildConfirmButtons(held *confirmState) []cardButton {
 		no = "no"
 	}
 	yesButton := model.buildCardButton(cfg.ScopeDialog, ActionAnswerYes, yes)
+	noButton := model.buildCardButton(cfg.ScopeDialog, ActionAnswerNo, no)
+	if held.Commit != nil {
+		commit := model.buildCardButton(cfg.ScopeGlobal, ActionCommitTransaction, "commit and quit")
+		commit.primary, yesButton.destructive = true, held.Destructive
+		return []cardButton{commit, yesButton, noButton}
+	}
 	yesButton.primary, yesButton.destructive = true, held.Destructive
-	return []cardButton{yesButton, model.buildCardButton(cfg.ScopeDialog, ActionAnswerNo, no)}
+	return []cardButton{yesButton, noButton}
 }
 
 // confirmCardChrome is the rows a question takes beside its body: the title bar, the status

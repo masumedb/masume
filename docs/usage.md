@@ -114,7 +114,7 @@ Completion opens while typing, and `Ctrl+Space` opens it for the word under the 
 
 Completion lists the columns of the statement at the caret, the columns of the result on screen, and the catalog relations, routines and schemas. A term matches a candidate at its start or anywhere inside it. A term of three or more letters with the same first letter also matches by its letters in order: `plat` matches `placed_at`.
 
-Shift with a movement key extends the selection. `Ctrl+A` selects all editor text. `Ctrl+C` copies and keeps the selection. A second `Ctrl+C` quits, after a confirmation for staged changes and open transactions. `Ctrl+D` formats SQL and keeps the caret on the same token. `Alt+C` toggles line comments. `Alt+[` or `Alt+]` changes indentation.
+Shift with a movement key extends the selection. `Ctrl+A` selects all editor text. `Ctrl+C` copies and keeps the selection. A second `Ctrl+C` quits, after a confirmation for staged changes and open transactions. With a transaction open, the confirmation offers `Ctrl+L` to commit and quit, or a rollback and quit. `Ctrl+D` formats SQL and keeps the caret on the same token. `Alt+C` toggles line comments. `Alt+[` or `Alt+]` changes indentation.
 
 `Alt+F` opens Find. Enter applies the search. The row under the field shows the match count as the term is typed. `Alt+W` matches whole words only. `F3` and `Shift+F3` select the next or previous match. The search matches plain substrings, including matches inside longer names.
 

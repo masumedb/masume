@@ -1,10 +1,16 @@
 package ui
 
 import (
+	"context"
+	"slices"
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
+	uv "github.com/charmbracelet/ultraviolet"
+
 	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // Staged changes are lost with the client, so the press that quits must ask first.
@@ -83,5 +89,54 @@ func TestQuittingAsksNothingWithoutUnwrittenWork(t *testing.T) {
 	}
 	if !model.quitting {
 		t.Error("the client did not end")
+	}
+}
+
+// committingSession holds an open transaction and records its commit.
+type committingSession struct {
+	*offlineSession
+	committed bool
+}
+
+func (session *committingSession) ReadTransactionState() db.TransactionState {
+	if session.committed {
+		return db.TransactionNone
+	}
+	return db.TransactionOpen
+}
+
+func (session *committingSession) CommitTransaction(context.Context) error {
+	session.committed = true
+	return nil
+}
+
+func TestQuittingOffersToCommitAnOpenTransaction(t *testing.T) {
+	model := buildOfflineModel(t, 160, 48)
+	connection := model.Active()
+	session := &committingSession{offlineSession: connection.Session.(*offlineSession)}
+	connection.Session = session
+
+	model.readKey(pressCtrlC())
+	if model.confirm == nil || model.quitting {
+		t.Fatal("the client ended without asking about the open transaction")
+	}
+	if !strings.Contains(model.confirm.Body, "1 open transaction") {
+		t.Errorf("the question does not name the transaction: %q", model.confirm.Body)
+	}
+	labels := []string{}
+	for _, button := range model.buildConfirmButtons(model.confirm) {
+		labels = append(labels, button.label)
+	}
+	if !slices.Equal(labels, []string{"commit and quit", "roll back and quit", "keep working"}) {
+		t.Errorf("the question offers %v", labels)
+	}
+
+	_, command := model.readKey(tea.Key{Code: 'l', Mod: uv.ModCtrl})
+	if command == nil {
+		t.Fatal("the commit key sent nothing")
+	}
+	model.Update(command())
+	if !session.committed || !model.quitting {
+		t.Errorf("the commit ran %v and the client quits %v", session.committed, model.quitting)
 	}
 }
