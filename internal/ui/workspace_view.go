@@ -796,7 +796,7 @@ func (model *Model) renderEditor(
 
 	// The fault on screen takes a row of its own under the statement, so the message and
 	// the key that fixes it are read where the fault is.
-	faults := model.findDiagnostics(connection, tab)
+	faults := findSettledDiagnostics(model.findDiagnostics(connection, tab), tab)
 	shown, hasFault := findShownFault(faults, tab.Editor.Text, caretLine)
 	if hasFault {
 		body--
@@ -1178,6 +1178,28 @@ func (model *Model) findDiagnostics(
 		return tab.Served.Found
 	}
 	return nil
+}
+
+// findSettledDiagnostics returns the faults without the ones on the word under the caret while
+// the typing goes on.
+func findSettledDiagnostics(faults []editor.Diagnostic, tab *app.Tab) []editor.Diagnostic {
+	if !tab.Typing {
+		return faults
+	}
+	text, caret := tab.Editor.Text, tab.Editor.Caret
+	prefix, suffix := editor.ReadPrefix(text, caret), editor.ReadSuffix(text, caret)
+	if prefix == "" && suffix == "" {
+		return faults
+	}
+	wordStart, wordEnd := caret-len(prefix), caret+len(suffix)
+	settled := make([]editor.Diagnostic, 0, len(faults))
+	for _, fault := range faults {
+		if fault.Start <= wordEnd && fault.End >= wordStart {
+			continue
+		}
+		settled = append(settled, fault)
+	}
+	return settled
 }
 
 // editorTokens holds the tokens of one buffer, and the text they were read from.

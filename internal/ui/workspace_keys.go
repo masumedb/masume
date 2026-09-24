@@ -1124,20 +1124,23 @@ func (model *Model) reportEdit(connection *app.Connection, tab *app.Tab) tea.Cmd
 		return nil
 	}
 	commands := []tea.Cmd{model.readNamedTableDetails(connection, tab)}
-	if strings.TrimSpace(tab.Editor.Text) != "" &&
-		len(model.findLocalDiagnostics(connection, tab)) == 0 {
+	if strings.TrimSpace(tab.Editor.Text) != "" {
+		tab.Typing = true
 		commands = append(commands, scheduleStatementCheck(
 			model.ActiveID(), tab.ID, tab.Editor.Text))
 	}
 	return tea.Batch(commands...)
 }
 
-// readCheckDue sends the buffer to the server once the typing has stopped, and only where
-// the scan found nothing.
+// readCheckDue ends the typing, and sends the buffer to the server where the scan found
+// nothing.
 func (model *Model) readCheckDue(due checkDueMsg) (tea.Model, tea.Cmd) {
 	connection, tab, found := model.findConnectionTab(due.ConnectionID, due.TabID)
-	if !found || tab.Editor.Text != due.SQL ||
-		len(model.findLocalDiagnostics(connection, tab)) > 0 {
+	if !found || tab.Editor.Text != due.SQL {
+		return model, nil
+	}
+	tab.Typing = false
+	if len(model.findLocalDiagnostics(connection, tab)) > 0 {
 		return model, nil
 	}
 	return model, checkStatements(due.ConnectionID, due.TabID, connection.Session, due.SQL)

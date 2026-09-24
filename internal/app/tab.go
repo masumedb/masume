@@ -156,6 +156,8 @@ type Tab struct {
 	Find FindState
 	// Server diagnostics and the checked buffer text.
 	Served ServedDiagnostics
+	// True from an edit of the buffer until the typing stops.
+	Typing bool
 }
 
 // ServedDiagnostics is the answer of the server about one buffer.

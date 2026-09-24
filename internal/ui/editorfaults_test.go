@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/masumedb/masume/internal/app"
 	"github.com/masumedb/masume/internal/db"
 	"github.com/masumedb/masume/internal/present"
@@ -263,5 +265,58 @@ func TestTheNextProblemKeyStepsThroughTheFaultsInOrder(t *testing.T) {
 	model.stepProblem(connection, tab)
 	if tab.Editor.Caret != 20 {
 		t.Errorf("the caret stands at %d, wanted the second fault at 20", tab.Editor.Caret)
+	}
+}
+
+// typeInEditor writes the text into the editor one key at a time.
+func typeInEditor(model *Model, text string) {
+	for _, character := range text {
+		model.readWorkspaceKey(tea.Key{Code: character, Text: string(character)})
+	}
+}
+
+// The word under the caret is still being written, so a fault on it waits until the caret
+// leaves the word or the typing stops.
+func TestAFaultOnTheWordBeingTypedWaitsForTheTypingToStop(t *testing.T) {
+	model, _, tab := buildScannedModel(t)
+	tab.Focus = app.PaneEditor
+	written := "select o.id from public.orders as o join cus"
+	tab.Editor = app.NewEditorBuffer(written, len(written))
+
+	typeInEditor(model, "t")
+	if strings.Contains(model.View().Content, "unknown table") {
+		t.Error("the fault on the word being typed was shown")
+	}
+
+	model.readCheckDue(checkDueMsg{
+		ConnectionID: model.ActiveID(), TabID: tab.ID, SQL: tab.Editor.Text,
+	})
+	if !strings.Contains(model.View().Content, "unknown table: cust") {
+		t.Error("the fault was not shown after the typing stopped")
+	}
+
+	typeInEditor(model, "x")
+	model.readWorkspaceKey(tea.Key{Code: tea.KeyLeft})
+	if strings.Contains(model.View().Content, "unknown table") {
+		t.Error("the fault was shown with the caret still in the word")
+	}
+	for range len("custx") {
+		model.readWorkspaceKey(tea.Key{Code: tea.KeyLeft})
+	}
+	if !strings.Contains(model.View().Content, "unknown table: custx") {
+		t.Error("the fault was not shown after the caret left the word")
+	}
+}
+
+// A fault away from the caret is shown while the typing goes on.
+func TestAFaultAwayFromTheCaretIsShownWhileTyping(t *testing.T) {
+	model, _, tab := buildScannedModel(t)
+	tab.Focus = app.PaneEditor
+	written := "select o.nothing_here from public.orders as o where o.i"
+	tab.Editor = app.NewEditorBuffer(written, len(written))
+
+	typeInEditor(model, "d")
+	if !strings.Contains(model.View().Content, "nothing_here") {
+		t.Error("the fault away from the caret was held back")
 	}
 }
