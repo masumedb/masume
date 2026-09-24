@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -183,5 +184,34 @@ func TestTheTreeBorderMarksNoTreeRow(t *testing.T) {
 	}
 	if target := model.resolveHover(model.layout.treeTo, row); target.isSomething() {
 		t.Errorf("the tree border marks %+v", target)
+	}
+}
+
+func TestTheTreeTakesAShareOfTheTerminalUntilItsBorderIsDragged(t *testing.T) {
+	for _, held := range []struct {
+		width, wanted int
+	}{
+		{80, sidebarWidthFloor}, {100, 28}, {140, sidebarWidthCeiling}, {200, sidebarWidthCeiling},
+	} {
+		model := buildOfflineModel(t, held.width, 30)
+		_ = model.View()
+		if drawn := model.layout.treeTo + 1; drawn != held.wanted {
+			t.Errorf("a %d-column terminal draws a tree of %d columns, wanted %d",
+				held.width, drawn, held.wanted)
+		}
+	}
+}
+
+func TestANarrowTreeDrawsNoColumnTypes(t *testing.T) {
+	model := buildOfflineModel(t, 140, 40)
+	row := present.TreeRow{
+		Label: "created_at", Detail: "timestamptz", Selectable: true,
+		Node: present.TreeNode{Kind: present.NodeColumn},
+	}
+	for width, wanted := range map[int]bool{treeTypesWidth - 1: false, treeTypesWidth: true} {
+		drawn := stripEscapes(model.renderTreeRow(row, "", false, false, width))
+		if shows := strings.Contains(drawn, "timestamptz"); shows != wanted {
+			t.Errorf("a tree of %d columns draws %q, wanted the type drawn: %v", width, drawn, wanted)
+		}
 	}
 }

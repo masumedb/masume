@@ -22,8 +22,16 @@ import (
 	"github.com/masumedb/masume/internal/query/syntax"
 )
 
-// The width the object tree asks for, which a narrow terminal cuts down.
-const sidebarWidth = 36
+// The width of the object tree until the user drags its border: a share of the terminal,
+// held between a floor and a ceiling.
+const (
+	sidebarShare        = 28
+	sidebarWidthFloor   = 24
+	sidebarWidthCeiling = 36
+)
+
+// treeTypesWidth is the narrowest tree that draws the types of the columns.
+const treeTypesWidth = 30
 
 // narrowestPaneWidth is the floor the editor and the result keep on a narrow terminal, below
 // which a row of the grid holds nothing that can be read.
@@ -58,7 +66,7 @@ func (model *Model) renderWorkspace(height int) []string {
 		tab.Focus = app.PaneEditor
 	}
 	if connection.SidebarVisible && !tab.BuildsQuery() {
-		wanted := sidebarWidth
+		wanted := min(max(model.width*sidebarShare/100, sidebarWidthFloor), sidebarWidthCeiling)
 		if connection.SidebarWidth > 0 {
 			wanted = connection.SidebarWidth
 		}
@@ -654,6 +662,9 @@ func (model *Model) renderTreeRow(
 		star = model.icons.Icon(cfg.IconFavourites) + " "
 	}
 	detail := present.TruncateText(star+row.Detail, treeDetailWidth)
+	if row.Node.Kind == present.NodeColumn && width < treeTypesWidth {
+		detail = star
+	}
 
 	// The name takes the width the rest of the row leaves.
 	room := width - treeRowChrome - present.MeasureText(detail) -
