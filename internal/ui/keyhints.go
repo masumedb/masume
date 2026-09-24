@@ -254,8 +254,8 @@ var cardKeySpecs = map[app.OverlayKind][]keySpec{
 	},
 	app.OverlayConfirm: {
 		takesKey(cfg.ScopeList, ActionChooseRow),
-		keyOf(cfg.ScopeDialog, ActionAnswerYes, "run"),
-		keyOf(cfg.ScopeDialog, ActionAnswerNo, "cancel"),
+		keyOf(cfg.ScopeDialog, ActionAnswerYes, "run").withLabel(describeConfirmYes),
+		keyOf(cfg.ScopeDialog, ActionAnswerNo, "cancel").withLabel(describeConfirmNo),
 		takesKey(cfg.ScopeDialog, ActionClose),
 	},
 	app.OverlayWritePlan: {

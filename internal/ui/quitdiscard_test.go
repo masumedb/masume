@@ -26,7 +26,7 @@ func TestQuittingAsksAboutStagedChanges(t *testing.T) {
 	if model.quitting {
 		t.Error("the client ended before the question was answered")
 	}
-	if !strings.Contains(model.confirm.Body, "2 changes staged") {
+	if !strings.Contains(model.confirm.Body, "2 staged changes") {
 		t.Errorf("the question does not count the changes: %q", model.confirm.Body)
 	}
 	if !model.confirm.Destructive {

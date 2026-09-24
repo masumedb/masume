@@ -119,8 +119,13 @@ func TestSortingARelationDropsTheStagedChangesAfterAYes(t *testing.T) {
 	if connection.Overlay.Kind != app.OverlayConfirm {
 		t.Fatalf("the sort did not ask; the card is %q", connection.Overlay.Kind)
 	}
-	if !strings.Contains(connection.Overlay.Body, "1 change staged") {
-		t.Errorf("the question does not count the changes: %q", connection.Overlay.Body)
+	if overlay := connection.Overlay; overlay.Body != "Sorting discards 1 staged change." ||
+		overlay.Yes != "discard and sort" || overlay.No != "keep editing" {
+		t.Errorf("the question reads %q with %q and %q", overlay.Body, overlay.Yes, overlay.No)
+	}
+	if frame := stripEscapes(model.render()); !strings.Contains(frame, "discard and sort") ||
+		!strings.Contains(frame, "keep editing") {
+		t.Error("the card does not draw the answers of the sort")
 	}
 	answerQuestion(model, true)
 

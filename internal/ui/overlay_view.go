@@ -1072,9 +1072,9 @@ func (model *Model) renderConfirm(overlay app.Overlay, width int) string {
 	lines := model.wrapErrorText(overlay.Body, width-present.CardChrome)
 	lines = append(lines, "")
 
-	yes := model.buildCardButton(cfg.ScopeDialog, ActionAnswerYes, "run")
+	yes := model.buildCardButton(cfg.ScopeDialog, ActionAnswerYes, describeConfirmYes(keyScene{overlay: overlay}))
 	yes.primary, yes.destructive = true, true
-	no := model.buildCardButton(cfg.ScopeDialog, ActionAnswerNo, "cancel")
+	no := model.buildCardButton(cfg.ScopeDialog, ActionAnswerNo, describeConfirmNo(keyScene{overlay: overlay}))
 	model.recordCardBody()
 	lines = append(lines, model.renderButtonRow(
 		[]cardButton{yes, no}, cardBodyRow+len(lines), cardBodyColumn))
@@ -1083,6 +1083,22 @@ func (model *Model) renderConfirm(overlay app.Overlay, width int) string {
 		model.renderActiveEnvironmentBadge(), "", width, lines, nil, 0, destructiveCard)
 	model.rememberCardKeys(model.buildCardKeys(app.OverlayConfirm, keyScene{overlay: overlay}))
 	return card
+}
+
+// describeConfirmYes returns the label of the answer that runs.
+func describeConfirmYes(scene keyScene) string {
+	if scene.overlay.Yes != "" {
+		return scene.overlay.Yes
+	}
+	return "run"
+}
+
+// describeConfirmNo returns the label of the answer that cancels.
+func describeConfirmNo(scene keyScene) string {
+	if scene.overlay.No != "" {
+		return scene.overlay.No
+	}
+	return "cancel"
 }
 
 // renderChoice draws a question with more than two answers, each on its own letter.

@@ -583,7 +583,7 @@ func (model *Model) clearRewrites(
 	if !tab.HasRewrite() && tab.Screen.IsEmpty() {
 		return model, nil
 	}
-	return model.askBeforeDiscardingChanges(connection, tab, func() (tea.Model, tea.Cmd) {
+	return model.askBeforeDiscardingChanges(connection, tab, discardByClearing, func() (tea.Model, tea.Cmd) {
 		tab.Sort, tab.Filter = nil, nil
 		tab.Screen = present.NoScreenFilter()
 		return model.runTabRead(connection, tab)
@@ -597,7 +597,7 @@ func (model *Model) popFilter(
 	if len(tab.Filter) == 0 {
 		return model, nil
 	}
-	return model.askBeforeDiscardingChanges(connection, tab, func() (tea.Model, tea.Cmd) {
+	return model.askBeforeDiscardingChanges(connection, tab, discardByUnfilter, func() (tea.Model, tea.Cmd) {
 		tab.Filter = tab.Filter[:len(tab.Filter)-1]
 		return model.runTabRead(connection, tab)
 	})
@@ -615,7 +615,7 @@ func (model *Model) sortByColumn(
 	// The sort the user acts on is the one the header marks, which is the order the rows
 	// are in: the one the grid laid on, or the one the statement writes itself. Starting
 	// from the grid alone would throw the order of the statement away on the first press.
-	return model.askBeforeDiscardingChanges(connection, tab, func() (tea.Model, tea.Cmd) {
+	return model.askBeforeDiscardingChanges(connection, tab, discardBySorting, func() (tea.Model, tea.Cmd) {
 		tab.Sort = core.ApplySortColumn(model.resolveGridSort(connection, tab), name, add)
 		return model.runTabRead(connection, tab)
 	})
@@ -629,7 +629,7 @@ func (model *Model) filterByCell(
 	if !found {
 		return model, nil
 	}
-	return model.askBeforeDiscardingChanges(connection, tab, func() (tea.Model, tea.Cmd) {
+	return model.askBeforeDiscardingChanges(connection, tab, discardByFilter, func() (tea.Model, tea.Cmd) {
 		tab.Filter = append(tab.Filter, core.BuildCellFilter(column.Name, value, exclude))
 		return model.runTabRead(connection, tab)
 	})

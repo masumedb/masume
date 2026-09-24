@@ -937,7 +937,7 @@ func (model *Model) countUnwrittenWork() (staged int, transactions int) {
 func describeUnwrittenWork(verb string, staged, transactions int) string {
 	parts := make([]string, 0, 2)
 	if staged > 0 {
-		parts = append(parts, present.DescribeStagedChanges(staged))
+		parts = append(parts, present.FormatCountOf(int64(staged), "staged change", "staged changes"))
 	}
 	if transactions > 0 {
 		parts = append(parts, present.FormatCountOf(

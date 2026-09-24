@@ -1090,7 +1090,7 @@ func (model *Model) answerPrompt(
 		if step, holds := core.BuildRawFilter(written); holds {
 			kept = append(kept, step)
 		}
-		return model.askBeforeDiscardingChanges(connection, tab, func() (tea.Model, tea.Cmd) {
+		return model.askBeforeDiscardingChanges(connection, tab, discardByFilter, func() (tea.Model, tea.Cmd) {
 			tab.Filter = kept
 			return model.runTabRead(connection, tab)
 		})

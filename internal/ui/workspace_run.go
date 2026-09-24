@@ -34,7 +34,7 @@ func (model *Model) runStatementAtCursor(
 	if model.refuseSecondRun(connection, tab) {
 		return model, nil
 	}
-	return model.askBeforeDiscardingChanges(connection, tab, func() (tea.Model, tea.Cmd) {
+	return model.askBeforeDiscardingChanges(connection, tab, discardByRunning, func() (tea.Model, tea.Cmd) {
 		return model.runStatementAtCursorNow(connection, tab)
 	})
 }
@@ -81,7 +81,7 @@ func (model *Model) runWholeBuffer(
 	if model.refuseSecondRun(connection, tab) {
 		return model, nil
 	}
-	return model.askBeforeDiscardingChanges(connection, tab, func() (tea.Model, tea.Cmd) {
+	return model.askBeforeDiscardingChanges(connection, tab, discardByRunAll, func() (tea.Model, tea.Cmd) {
 		return model.runWholeBufferNow(connection, tab)
 	})
 }
@@ -321,10 +321,28 @@ func (model *Model) askPlainWriteQuestion(
 	return model, nil
 }
 
+// discardAction is an action that reads the rows again: the gerund of the question, and the
+// label of the answer that runs the action.
+type discardAction struct {
+	gerund string
+	yes    string
+}
+
+// The actions that read the rows again and drop the staged changes.
+var (
+	discardByRunning  = discardAction{"Running the statement", "discard and run"}
+	discardByRunAll   = discardAction{"Running every statement", "discard and run"}
+	discardBySorting  = discardAction{"Sorting", "discard and sort"}
+	discardByFilter   = discardAction{"Filtering", "discard and filter"}
+	discardByUnfilter = discardAction{"Removing the last filter", "discard and remove"}
+	discardByClearing = discardAction{"Clearing the sort and filters", "discard and clear"}
+)
+
 // askBeforeDiscardingChanges runs next at once on a tab with nothing staged, and asks first
 // on a tab with staged changes.
 func (model *Model) askBeforeDiscardingChanges(
-	connection *app.Connection, tab *app.Tab, next func() (tea.Model, tea.Cmd),
+	connection *app.Connection, tab *app.Tab, action discardAction,
+	next func() (tea.Model, tea.Cmd),
 ) (tea.Model, tea.Cmd) {
 	staged := core.CountChanges(tab.Pending)
 	if staged == 0 {
@@ -333,7 +351,9 @@ func (model *Model) askBeforeDiscardingChanges(
 	connection.Open(app.Overlay{
 		Kind:  app.OverlayConfirm,
 		Title: " discard changes ",
-		Body:  "Discard " + present.DescribeStagedChanges(staged) + " and run again?",
+		Body: action.gerund + " discards " +
+			present.FormatCountOf(int64(staged), "staged change", "staged changes") + ".",
+		Yes: action.yes, No: "keep editing",
 		Answers: app.OverlayAnswers{Answer: func(confirmed bool) app.AnswerCommand {
 			if !confirmed {
 				return nil

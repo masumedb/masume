@@ -273,6 +273,9 @@ type Overlay struct {
 	Kind  OverlayKind
 	Title string
 	Body  string
+	// The labels of the two answers of a question. Empty gives "run" and "cancel".
+	Yes string
+	No  string
 
 	List ListState
 
