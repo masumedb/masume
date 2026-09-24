@@ -4,9 +4,7 @@ import (
 	"os"
 	"strings"
 
-	"charm.land/bubbles/v2/filepicker"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 
 	"github.com/masumedb/masume/internal/app"
 	"github.com/masumedb/masume/internal/cfg"
@@ -23,50 +21,19 @@ const pickerRows = 12
 
 // buildFilePicker returns a picker opened in the directory the client was started in,
 // offering the files of those extensions.
-func (model *Model) buildFilePicker(extensions []string) filepicker.Model {
-	picker := filepicker.New()
-	picker.AllowedTypes = extensions
-	picker.DirAllowed = false
-	picker.FileAllowed = true
-	picker.AutoHeight = false
-	picker.SetHeight(pickerRows)
-	picker.ShowPermissions = false
-	picker.ShowSize = true
-	picker.Cursor = model.icons.Icon(cfg.IconField)
-	if directory, err := os.Getwd(); err == nil {
-		picker.CurrentDirectory = directory
+func (model *Model) buildFilePicker(extensions []string) filePicker {
+	directory, err := os.Getwd()
+	if err != nil {
+		directory = "."
 	}
-	picker.Styles = model.buildPickerStyles()
-	return picker
-}
-
-// buildPickerStyles paints the picker in the theme of the client.
-func (model *Model) buildPickerStyles() filepicker.Styles {
-	theme := model.styles.Theme
-	plain := lipgloss.NewStyle()
-	return filepicker.Styles{
-		Cursor:           plain.Foreground(theme.Accent),
-		DisabledCursor:   plain.Foreground(theme.Muted),
-		Symlink:          plain.Foreground(theme.Muted),
-		Directory:        plain.Foreground(theme.Accent),
-		File:             plain.Foreground(theme.Text),
-		DisabledFile:     plain.Foreground(theme.Muted),
-		Permission:       plain.Foreground(theme.Muted),
-		Selected:         plain.Foreground(theme.OnAccent).Background(theme.Accent),
-		DisabledSelected: plain.Foreground(theme.Muted),
-		// The component writes the row under the cursor with the size to the right of
-		// its room, so every other row is set to match it.
-		FileSize: plain.Foreground(theme.Muted).
-			Width(fileSizeWidth).Align(lipgloss.Right),
-		EmptyDirectory: plain.Foreground(theme.Muted).SetString("no file of that kind here"),
-	}
+	return newFilePicker(directory, extensions)
 }
 
 // openFilePicker gives this connection a picker of those files, and returns the command that
 // reads the directory it opens in.
 func (model *Model) openFilePicker(connectionID int, extensions []string) tea.Cmd {
 	if model.filePickers == nil {
-		model.filePickers = map[int]*filepicker.Model{}
+		model.filePickers = map[int]*filePicker{}
 	}
 	picker := model.buildFilePicker(extensions)
 	model.filePickers[connectionID] = &picker
@@ -75,7 +42,7 @@ func (model *Model) openFilePicker(connectionID int, extensions []string) tea.Cm
 
 // findFilePicker returns the picker open on this connection, and nothing where no card is
 // picking a file.
-func (model *Model) findFilePicker(connectionID int) *filepicker.Model {
+func (model *Model) findFilePicker(connectionID int) *filePicker {
 	return model.filePickers[connectionID]
 }
 
@@ -97,10 +64,9 @@ func (model *Model) readPickerMessage(message tea.Msg) (tea.Model, tea.Cmd, bool
 		return model, nil, false
 	}
 
-	held, command := picker.Update(message)
+	held, command, path := picker.Update(message)
 	*picker = held
-	chosen, path := held.DidSelectFile(message)
-	if !chosen {
+	if path == "" {
 		return model, command, true
 	}
 	if connection.Overlay.Kind == app.OverlayDump {
@@ -138,14 +104,40 @@ func (model *Model) renderFilePicker(connectionID int, width int) []string {
 	return model.buildPickerLines(picker, width)
 }
 
-// buildPickerLines draws the directory a picker stands in and the files of it.
-func (model *Model) buildPickerLines(picker *filepicker.Model, width int) []string {
+// buildPickerLines draws the directory a picker stands in and its rows.
+func (model *Model) buildPickerLines(picker *filePicker, width int) []string {
+	theme := model.styles.Theme
 	lines := []string{
-		model.styles.Muted().Render(present.TruncatePath(picker.CurrentDirectory, width)),
+		model.styles.Muted().Render(present.TruncatePath(picker.Directory, width)),
 		"",
 	}
-	for line := range strings.SplitSeq(picker.View(), "\n") {
-		lines = append(lines, truncateStyled(line, width))
+	cursor := model.icons.Icon(cfg.IconField)
+	blank := strings.Repeat(" ", present.MeasureText(cursor))
+	for at := picker.offset; at < len(picker.rows) && at < picker.offset+pickerRows; at++ {
+		row := picker.rows[at]
+		size, name, ink := "", row.name, theme.Text
+		if row.directory {
+			name, ink = name+"/", theme.Accent
+		} else {
+			size = present.FormatFileSize(row.size)
+		}
+		text := present.FitTextRight(size, fileSizeWidth) + " " + name
+		if at == picker.cursor {
+			lines = append(lines, truncateStyled(paintText(theme.Accent, nil, cursor)+
+				paintText(theme.OnAccent, theme.Accent, text), width))
+			continue
+		}
+		lines = append(lines, truncateStyled(blank+
+			paintText(theme.Muted, nil, present.FitTextRight(size, fileSizeWidth))+
+			paintText(ink, nil, " "+name), width))
+	}
+	if picker.problem != "" {
+		lines = append(lines, model.styles.Error().Render(present.TruncateText(picker.problem, width)))
+	} else if len(picker.rows) == 0 || (len(picker.rows) == 1 && picker.rows[0].parent) {
+		lines = append(lines, model.styles.Muted().Render("no file of that kind here"))
+	}
+	for len(lines) < pickerRows+2 {
+		lines = append(lines, "")
 	}
 	return lines
 }

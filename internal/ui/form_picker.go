@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"charm.land/bubbles/v2/filepicker"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/masumedb/masume/internal/cfg"
@@ -19,7 +18,7 @@ type formPickerState struct {
 	// field is the key of the field the chosen path is written into.
 	field  string
 	label  string
-	picker filepicker.Model
+	picker filePicker
 }
 
 // openFormFilePicker opens the picker on that field, and returns the command that reads the
@@ -27,7 +26,7 @@ type formPickerState struct {
 func (model *Model) openFormFilePicker(field cfg.FormField) tea.Cmd {
 	picker := model.buildFilePicker(nil)
 	if directory := findPathDirectory(model.form.Draft.Text); directory != "" {
-		picker.CurrentDirectory = directory
+		picker.Directory = directory
 	}
 	model.formPicker = &formPickerState{
 		field: field.Key, label: field.Label, picker: picker,
@@ -85,10 +84,9 @@ func (model *Model) readFormPickerMessage(message tea.Msg) (tea.Model, tea.Cmd, 
 		return model, nil, false
 	}
 
-	picker, command := held.picker.Update(message)
+	picker, command, path := held.picker.Update(message)
 	held.picker = picker
-	chosen, path := picker.DidSelectFile(message)
-	if !chosen {
+	if path == "" {
 		return model, command, true
 	}
 	model.writeFormFilePath(held.field, path)

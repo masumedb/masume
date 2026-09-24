@@ -302,6 +302,17 @@ func TestGroupDigitsGroupsOnlyAPlainDecimal(t *testing.T) {
 	}
 }
 
+func TestFormatFileSizeWritesDecimalUnits(t *testing.T) {
+	for _, held := range []struct {
+		size int64
+		want string
+	}{{60, "60B"}, {1100, "1.1kB"}, {12_000_000, "12MB"}} {
+		if written := present.FormatFileSize(held.size); written != held.want {
+			t.Errorf("%d reads as %q, wanted %q", held.size, written, held.want)
+		}
+	}
+}
+
 // The status bar shows the number of rows read and whether more rows exist, so a truncated
 // read is never reported as the whole table.
 func TestFormatResultSizeSaysWhenThereAreMoreRows(t *testing.T) {

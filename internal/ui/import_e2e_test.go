@@ -198,8 +198,8 @@ func TestThePickedFileReachesTheCardThatOpenedThePicker(t *testing.T) {
 	}
 	if picker := model.findFilePicker(model.ActiveID()); picker == nil {
 		t.Fatal("the import holds no picker")
-	} else if !strings.Contains(strings.Join(picker.AllowedTypes, " "), ".csv") {
-		t.Errorf("the picker of an import offers %v", picker.AllowedTypes)
+	} else if !strings.Contains(strings.Join(picker.Extensions, " "), ".csv") {
+		t.Errorf("the picker of an import offers %v", picker.Extensions)
 	}
 
 	model.readPickedFile(connection, model.ActiveID(), path)
@@ -210,8 +210,8 @@ func TestThePickedFileReachesTheCardThatOpenedThePicker(t *testing.T) {
 	model.openRestore(connection)
 	if picker := model.findFilePicker(model.ActiveID()); picker == nil {
 		t.Fatal("the restore holds no picker")
-	} else if strings.Join(picker.AllowedTypes, " ") != ".sql" {
-		t.Errorf("the picker of a restore offers %v", picker.AllowedTypes)
+	} else if strings.Join(picker.Extensions, " ") != ".sql" {
+		t.Errorf("the picker of a restore offers %v", picker.Extensions)
 	}
 	model.readRestoreFile(connection, "/tmp/shop.sql")
 	if connection.Overlay.Dump.Path != "/tmp/shop.sql" {

@@ -156,7 +156,10 @@ func describeImportAdvance(overlay app.Overlay) string {
 // have been counted.
 func buildImportTitle(held app.ImportRequest) string {
 	if held.Plan.Path == "" {
-		return " import "
+		if held.Plan.CreatesTable {
+			return " import into a new table in " + held.Plan.Table.Schema + " "
+		}
+		return " import into " + describeImportTable(held) + " "
 	}
 	title := " import " + present.TruncatePath(filepath.Base(held.Plan.Path), 40)
 	if held.Plan.CreatesTable {

@@ -4,8 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"charm.land/bubbles/v2/filepicker"
-
 	"github.com/masumedb/masume/internal/app"
 	"github.com/masumedb/masume/internal/present"
 	"github.com/masumedb/masume/internal/query/result"
@@ -43,8 +41,7 @@ func TestTheExportFileFieldKeepsTheFileName(t *testing.T) {
 // The directory over the files of a picker keeps its end.
 func TestThePickerDirectoryKeepsItsEnd(t *testing.T) {
 	model := buildOfflineModel(t, 100, 40)
-	picker := filepicker.New()
-	picker.CurrentDirectory = "/tmp/claude-1000/-home-turan-Projects-masume-masume-go/scratchpad/app"
+	picker := newFilePicker("/tmp/claude-1000/-home-turan-Projects-masume-masume-go/scratchpad/app", nil)
 
 	header := stripEscapes(model.buildPickerLines(&picker, 30)[0])
 	if header != "…/scratchpad/app" {

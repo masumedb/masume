@@ -7,8 +7,11 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/masumedb/masume/internal/app"
 	"github.com/masumedb/masume/internal/load"
+	"github.com/masumedb/masume/internal/query"
 )
 
 // The picker offers the files this client can read and no others, so a file it would refuse
@@ -18,38 +21,88 @@ func TestBuildFilePickerOffersTheFilesAnImportReads(t *testing.T) {
 	picker := model.buildFilePicker(load.ListFileExtensions())
 
 	for _, extension := range []string{".csv", ".tsv", ".json", ".jsonl", ".ndjson"} {
-		if !slices.Contains(picker.AllowedTypes, extension) {
+		if !slices.Contains(picker.Extensions, extension) {
 			t.Errorf("the picker refuses %s, which an import reads", extension)
 		}
 	}
-	if slices.Contains(picker.AllowedTypes, ".md") {
+	if slices.Contains(picker.Extensions, ".md") {
 		t.Error("the picker offers a file no import reads")
-	}
-	if picker.DirAllowed || !picker.FileAllowed {
-		t.Error("the picker chooses a directory instead of a file")
-	}
-	// The card keeps its height, so the picker draws a fixed number of rows.
-	if picker.AutoHeight || picker.Height() != pickerRows {
-		t.Errorf("the picker draws %d rows and follows the screen: %v",
-			picker.Height(), picker.AutoHeight)
-	}
-	if picker.ShowPermissions {
-		t.Error("the picker draws the permissions of a file, which say nothing about it")
 	}
 }
 
-// The size of a file is padded to the room the style holds, so the sizes of a directory
-// stand under one another.
-func TestBuildFilePickerAlignsTheSizeOfAFile(t *testing.T) {
-	model := NewModel(loadedConfigForTest("tokyonight"), nil, nil, nil)
-	styles := model.buildPickerStyles()
-
-	if styles.FileSize.GetWidth() != fileSizeWidth {
-		t.Errorf("the size takes %d cells, wanted %d",
-			styles.FileSize.GetWidth(), fileSizeWidth)
+// buildPickerDirectory writes a directory with a subdirectory, a hidden file, a file an import
+// reads and one it does not.
+func buildPickerDirectory(t *testing.T) string {
+	t.Helper()
+	directory := t.TempDir()
+	if err := os.Mkdir(filepath.Join(directory, "archive"), 0o700); err != nil {
+		t.Fatalf("the directory cannot be made: %v", err)
 	}
-	if written := styles.FileSize.Render("31B"); !strings.HasPrefix(written, " ") {
-		t.Errorf("the size reads %q, wanted it to the right of its room", written)
+	for name, text := range map[string]string{
+		"orders.csv": "id\n1\n", "notes.md": "# notes\n", ".hidden.csv": "id\n",
+	} {
+		if err := os.WriteFile(filepath.Join(directory, name), []byte(text), 0o600); err != nil {
+			t.Fatalf("the file cannot be written: %v", err)
+		}
+	}
+	return directory
+}
+
+// readPickerListing runs the command that lists the directory and applies the listing.
+func readPickerListing(t *testing.T, picker filePicker, command tea.Cmd) filePicker {
+	t.Helper()
+	if command == nil {
+		t.Fatal("no directory is read")
+	}
+	picker, _, _ = picker.Update(command())
+	return picker
+}
+
+func TestTheFilePickerListsTheParentThenDirectoriesThenImportableFiles(t *testing.T) {
+	model := NewModel(loadedConfigForTest("tokyonight"), nil, nil, nil)
+	picker := newFilePicker(buildPickerDirectory(t), load.ListFileExtensions())
+	picker = readPickerListing(t, picker, picker.Init())
+
+	lines := model.buildPickerLines(&picker, 60)
+	shown := []string{}
+	for _, line := range lines[2:] {
+		if text := strings.TrimSpace(stripEscapes(line)); text != "" {
+			shown = append(shown, text)
+		}
+	}
+	wanted := []string{"../", "archive/", "5B orders.csv"}
+	if !slices.EqualFunc(shown, wanted, func(line, want string) bool {
+		return strings.HasSuffix(line, want)
+	}) {
+		t.Errorf("the picker lists %q, wanted %q", shown, wanted)
+	}
+}
+
+func TestTheFilePickerEntersAndLeavesADirectory(t *testing.T) {
+	directory := buildPickerDirectory(t)
+	picker := newFilePicker(directory, load.ListFileExtensions())
+	picker = readPickerListing(t, picker, picker.Init())
+
+	picker, _, _ = picker.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	picker, command, chosen := picker.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if chosen != "" || picker.Directory != filepath.Join(directory, "archive") {
+		t.Fatalf("Enter on a directory chose %q and stands in %q", chosen, picker.Directory)
+	}
+	picker = readPickerListing(t, picker, command)
+	if row, _ := picker.findCursorRow(); !row.parent {
+		t.Errorf("an empty directory does not offer its parent: %+v", picker.rows)
+	}
+
+	picker, command, _ = picker.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+	picker = readPickerListing(t, picker, command)
+	if row, _ := picker.findCursorRow(); picker.Directory != directory || row.name != "archive" {
+		t.Errorf("leaving stands in %q on %q", picker.Directory, row.name)
+	}
+
+	picker, _, _ = picker.Update(tea.KeyPressMsg{Code: tea.KeyEnd})
+	_, _, chosen = picker.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if chosen != filepath.Join(directory, "orders.csv") {
+		t.Errorf("Enter on a file chose %q", chosen)
 	}
 }
 
@@ -123,5 +176,16 @@ func TestFilePickersBelongToTheirConnection(t *testing.T) {
 	}
 	if first == second {
 		t.Error("two imports share one picker")
+	}
+}
+
+func TestTheImportPickerTitleNamesTheTargetTable(t *testing.T) {
+	into := app.ImportRequest{Plan: load.Plan{Table: query.QualifiedName{Schema: "public", Name: "orders"}}}
+	if title := buildImportTitle(into); title != " import into public.orders " {
+		t.Errorf("the title reads %q", title)
+	}
+	into.Plan.CreatesTable = true
+	if title := buildImportTitle(into); title != " import into a new table in public " {
+		t.Errorf("the title of a new table reads %q", title)
 	}
 }

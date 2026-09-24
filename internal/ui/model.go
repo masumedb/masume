@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"charm.land/bubbles/v2/filepicker"
 	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
@@ -61,7 +60,7 @@ type Model struct {
 
 	// The file picker of the card that is open on each connection. It is kept here
 	// because it answers with commands of the draw loop.
-	filePickers map[int]*filepicker.Model
+	filePickers map[int]*filePicker
 
 	profiles []cfg.Profile
 	// The project file of the working directory, which provides profiles and statements

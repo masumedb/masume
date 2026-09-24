@@ -78,9 +78,9 @@ func TestTheFilePickerOpensInTheDirectoryOfTheField(t *testing.T) {
 	if model.formPicker == nil {
 		t.Fatal("the field did not open the picker")
 	}
-	if model.formPicker.picker.CurrentDirectory != directory {
+	if model.formPicker.picker.Directory != directory {
 		t.Errorf("the picker stands in %q, wanted %q",
-			model.formPicker.picker.CurrentDirectory, directory)
+			model.formPicker.picker.Directory, directory)
 	}
 }
 

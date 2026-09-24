@@ -374,6 +374,24 @@ func GroupDigits(text string) string {
 	return sign + grouped.String()
 }
 
+// FormatFileSize returns a size in bytes in decimal units, such as `60B`, `1.1kB` or `12MB`.
+func FormatFileSize(size int64) string {
+	if size < 1000 {
+		return strconv.FormatInt(size, 10) + "B"
+	}
+	value := float64(size)
+	for _, unit := range []string{"kB", "MB", "GB", "TB"} {
+		value /= 1000
+		if value < 1000 || unit == "TB" {
+			if value < 10 {
+				return strconv.FormatFloat(value, 'f', 1, 64) + unit
+			}
+			return strconv.FormatFloat(value, 'f', 0, 64) + unit
+		}
+	}
+	return ""
+}
+
 // FormatCountOf returns a count and the name of the counted object, in the correct
 // grammatical number.
 func FormatCountOf(count int64, one, many string) string {
