@@ -291,7 +291,7 @@ func typeInEditor(model *Model, text string) {
 }
 
 // The word under the caret is still being written, so a fault on it waits until the caret
-// leaves the word or the typing stops.
+// leaves the word, or the typing stops and the list closes.
 func TestAFaultOnTheWordBeingTypedWaitsForTheTypingToStop(t *testing.T) {
 	model, _, tab := buildScannedModel(t)
 	tab.Focus = app.PaneEditor
@@ -306,8 +306,12 @@ func TestAFaultOnTheWordBeingTypedWaitsForTheTypingToStop(t *testing.T) {
 	model.readCheckDue(checkDueMsg{
 		ConnectionID: model.ActiveID(), TabID: tab.ID, SQL: tab.Editor.Text,
 	})
+	if strings.Contains(model.View().Content, "unknown table") {
+		t.Error("the fault was shown with the list still open")
+	}
+	model.readWorkspaceKey(tea.Key{Code: tea.KeyEscape})
 	if !strings.Contains(model.View().Content, "unknown table: cust") {
-		t.Error("the fault was not shown after the typing stopped")
+		t.Error("the fault was not shown after the list closed")
 	}
 
 	typeInEditor(model, "x")

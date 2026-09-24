@@ -97,6 +97,10 @@ func (model *Model) refreshCompletion(connection *app.Connection, tab *app.Tab) 
 			NamePosition: editor.ResolveNamePosition(text, offset-len(prefix)),
 		})
 
+	if len(found) == 0 {
+		list.Close()
+		return
+	}
 	list.Candidates = found
 	list.Selected = 0
 }
@@ -142,20 +146,31 @@ func (model *Model) renderCompletionPopup(tab *app.Tab, height int) (string, int
 
 	// Below the caret where there is room, and above it where there is not. A popup
 	// past the bottom of the screen would show one row only. The fault row under the
-	// statement stays in view: the popup opens above the caret, or shows fewer rows.
-	top := model.caretRow + 1
+	// statement stays in view. Above the caret, the popup stays inside the editor pane.
 	limit := height
 	if model.faultRow > 0 {
 		limit = model.faultRow
 	}
-	if top+popupHeight > limit {
-		above := model.caretRow - popupHeight
-		if above < 0 && model.faultRow > 0 && limit-top > completionChrome {
-			shownRows = limit - top - completionChrome
-			popupHeight = limit - top
-		} else {
-			top = max(above, 0)
-		}
+	roomBelow := limit - model.caretRow - 1
+	roomAbove := model.caretRow - tabRowHeight - 1
+	if !list.Placed {
+		list.Placed = true
+		list.Above = popupHeight > roomBelow &&
+			(popupHeight <= roomAbove || roomAbove > roomBelow)
+	}
+	room := roomBelow
+	if list.Above && roomAbove > completionChrome {
+		room = roomAbove
+	} else {
+		list.Above = false
+	}
+	if popupHeight > room && room > completionChrome {
+		shownRows = room - completionChrome
+		popupHeight = room
+	}
+	top := model.caretRow + 1
+	if list.Above {
+		top = model.caretRow - popupHeight
 	}
 
 	// The window follows the marked row, because the list is longer than the popup.

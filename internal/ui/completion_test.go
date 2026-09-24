@@ -123,21 +123,67 @@ func TestThePopupCountsItsRowsOnItsOwnBorder(t *testing.T) {
 }
 
 func TestThePopupLeavesTheFaultRowInView(t *testing.T) {
-	model, connection, tab := buildListingModel(t, "select * from ord")
-	faults := model.findDiagnostics(connection, tab)
-	if len(faults) == 0 {
-		t.Fatal("the statement has no fault")
-	}
+	model, _, _ := buildListingModel(t, "select o.nothing_here from public.orders as o join ord")
 	frame := strings.Split(model.render(), "\n")
 	if model.faultRow == 0 {
 		t.Fatal("the editor drew no fault row")
 	}
-	drawn := stripStyles(frame[model.faultRow+titleBarRows])
-	if !strings.Contains(drawn, faults[0].Message) {
-		t.Errorf("the fault row reads %q, wanted %q", drawn, faults[0].Message)
+	if drawn := stripStyles(frame[model.faultRow+titleBarRows]); !strings.Contains(drawn, "nothing_here") {
+		t.Errorf("the fault row reads %q, wanted the fault on nothing_here", drawn)
 	}
 	if model.layout.completionRows.count == 0 {
 		t.Error("the popup shows no row")
+	}
+}
+
+func TestThePopupKeepsItsSideAfterTheTypingStops(t *testing.T) {
+	model, connection, tab := buildScannedModel(t)
+	connection.ResultVisible = true
+	tab.PaneHeight = 6
+	tab.Focus = app.PaneEditor
+	written := "select *\nfrom orders o\njoin cus"
+	tab.Editor = app.NewEditorBuffer(written, len(written))
+	typeInEditor(model, "t")
+	model.render()
+	caret := model.caretRow + titleBarRows
+	if model.layout.completionRows.top <= caret {
+		t.Fatal("the popup opened above the caret")
+	}
+
+	model.readCheckDue(checkDueMsg{
+		ConnectionID: model.ActiveID(), TabID: tab.ID, SQL: tab.Editor.Text,
+	})
+	view := model.render()
+	if model.layout.completionRows.top <= caret {
+		t.Error("the popup moved above the caret after the typing stopped")
+	}
+	if strings.Contains(view, "unknown table") {
+		t.Error("the fault on the word in the popup was shown")
+	}
+}
+
+func TestThePopupAboveTheCaretStaysInsideTheEditorPane(t *testing.T) {
+	model, connection, tab := buildScannedModel(t)
+	connection.ResultVisible = true
+	tab.PaneHeight = 7
+	tab.Focus = app.PaneEditor
+	written := "select o.nothing_here\nfrom public.orders as o\nwhere o.id = 1\nand o."
+	tab.Editor = app.NewEditorBuffer(written, len(written))
+	model.refreshCompletion(connection, tab)
+	frame := strings.Split(model.render(), "\n")
+	if model.faultRow == 0 {
+		t.Fatal("the editor drew no fault row")
+	}
+	popup := model.layout.completionRows
+	if popup.count == 0 || popup.top >= model.caretRow+titleBarRows {
+		t.Fatalf("the popup is not above the caret: %+v", popup)
+	}
+	if border := popup.top - 1; border <= firstPaneRow {
+		t.Errorf("the popup border is drawn on row %d, over the pane border on row %d",
+			border, firstPaneRow)
+	}
+	if title := stripStyles(frame[firstPaneRow]); !strings.Contains(title, "query") {
+		t.Errorf("the pane border reads %q", title)
 	}
 }
 

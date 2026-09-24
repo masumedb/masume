@@ -10,6 +10,10 @@ type CompletionList struct {
 	Selected   int
 	// True while the user closed the list for the word at the caret.
 	Dismissed bool
+	// Placed is true once the popup is drawn. Above is true while the popup is drawn above the
+	// caret.
+	Placed bool
+	Above  bool
 }
 
 // IsListing is true when completion candidates are available.
@@ -21,6 +25,8 @@ func (list *CompletionList) IsListing() bool {
 func (list *CompletionList) Close() {
 	list.Candidates = nil
 	list.Selected = 0
+	list.Placed = false
+	list.Above = false
 }
 
 // Dismiss closes the list and marks completion as dismissed.

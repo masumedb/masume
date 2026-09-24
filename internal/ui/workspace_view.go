@@ -1181,9 +1181,9 @@ func (model *Model) findDiagnostics(
 }
 
 // findSettledDiagnostics returns the faults without the ones on the word under the caret while
-// the typing goes on.
+// the typing goes on or the completion popup is open.
 func findSettledDiagnostics(faults []editor.Diagnostic, tab *app.Tab) []editor.Diagnostic {
-	if !tab.Typing {
+	if !tab.Typing && !tab.Completion.IsListing() {
 		return faults
 	}
 	text, caret := tab.Editor.Text, tab.Editor.Caret
