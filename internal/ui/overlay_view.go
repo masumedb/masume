@@ -786,7 +786,7 @@ func (model *Model) describeHelpKeys(entry HelpEntry) string {
 }
 
 // helpPlaceholder is what the search line of the help asks for.
-const helpPlaceholder = "search keys or actions"
+const helpPlaceholder = "Search keys…"
 
 // scrollHelpByCursor moves the help, which scrolls without a cursor of its own and so keeps
 // how far it has scrolled where a list keeps its cursor. Without this a drag of its bar writes

@@ -561,7 +561,7 @@ var dialogActions = []ActionDefinition{
 	{ID: ActionWriteExport, Label: "write the file, in the export form", MainHint: true},
 	{ID: ActionCopyValue, Label: "copy the value from the cell viewer", MainHint: true},
 	{ID: ActionOpenInNewTab, Label: "open a history query in a new tab"},
-	{ID: ActionListSecondary, Label: "run the secondary list action"},
+	{ID: ActionListSecondary, Label: "delete the entry, or end the session"},
 	{ID: ActionStopSession, Label: "stop the selected session's statement", MainHint: true},
 	// A card with panels of its own folds them, with the keys that fold a schema.
 	{ID: ActionFoldRow}, {ID: ActionUnfoldRow},
