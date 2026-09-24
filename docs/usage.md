@@ -422,7 +422,7 @@ A change rewrites only the table of its row. Every line outside that table stays
 - Click a column header to sort. Shift-click adds the column to the sort. Sorting discards staged edits.
 - Drag a column edge to resize the column. Double-click the edge to reset the width.
 - Drag the divider between the editor and the result to resize both panes. Either edge works: the bottom of the editor or the top of the result. Click the bottom of the editor without dragging to show or hide the result pane.
-- Drag the right border of the object tree to set its width. The tree is at least 16 columns wide, and the pane beside it at least 32.
+- Drag the divider between the object tree and the panes to set the tree width. Either edge works: the right border of the tree or the left border of the pane. The tree is at least 16 columns wide, and the pane beside it at least 32.
 - Drag a scrollbar or turn the wheel to scroll. The wheel does not move the cursor. The next cursor key scrolls back to the cursor.
 - A trackpad or a tilting wheel scrolls the grid sideways by columns, and the editor sideways by cells. `Shift` with a plain wheel does the same.
 - In the editor, click to place the caret. Double-click selects a word, and triple-click selects a line. Drag to select text.

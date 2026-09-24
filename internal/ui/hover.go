@@ -206,6 +206,12 @@ func (model *Model) resolveWorkspaceHover(x, y int) hoverTarget {
 	if y == layout.tabRow {
 		return resolveTabHover(layout.tabs, connection.ActiveIndex, x, y)
 	}
+	if _, _, onLine := model.findSplitLine(x, y); onLine {
+		return hoverTarget{}
+	}
+	if _, _, onEdge := model.findTreeEdge(x, y); onEdge {
+		return hoverTarget{}
+	}
 	// The rows of the tree pane reach both of its borders, so the mark is pulled in from
 	// each end and the border keeps its shape.
 	if target := resolveRowHover(layout.connections, model.connections.count(),

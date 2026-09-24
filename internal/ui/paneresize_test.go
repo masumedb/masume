@@ -62,7 +62,7 @@ func TestADragOfTheTreeBorderSetsTheWidthOfTheTree(t *testing.T) {
 }
 
 // The line between the editor and the result is drawn as two rows: the foot of the editor
-// and the head of the result. A drag on either one moves it.
+// and the head of the result. A drag on either one moves it by the pointer distance.
 func TestADragOfEitherSideOfTheSplitMovesTheLine(t *testing.T) {
 	for _, held := range []struct {
 		name string
@@ -77,12 +77,13 @@ func TestADragOfEitherSideOfTheSplitMovesTheLine(t *testing.T) {
 			model := buildOfflineModel(t, 140, 40)
 			_ = model.View()
 			from := held.row(model)
+			line := model.layout.editorTop + model.layout.editorRows - 1
 
 			model = dragPointer(t, model, 60, from, 60, from+6)
 			_ = model.View()
-			if model.layout.editorTop+model.layout.editorRows-1 != from+6 {
+			if model.layout.editorTop+model.layout.editorRows-1 != line+6 {
 				t.Errorf("the line draws at %d, wanted %d",
-					model.layout.editorTop+model.layout.editorRows-1, from+6)
+					model.layout.editorTop+model.layout.editorRows-1, line+6)
 			}
 		})
 	}
@@ -122,5 +123,65 @@ func TestAPressOnABorderThatNeverMovedReachesItsPane(t *testing.T) {
 	}
 	if focus := model.Active().Active().Focus; focus != app.PaneSidebar {
 		t.Errorf("the keyboard is on %q, wanted the tree", focus)
+	}
+}
+
+// The tree divider is two columns: the tree border and the pane border. A drag on either
+// column, on any row, moves the divider by the pointer distance.
+func TestADragOfEitherSideOfTheTreeBorderOnAnyRowMovesIt(t *testing.T) {
+	base := buildLoadedModel(t, 2, 40, 60, 6)
+	base.render()
+	border := base.layout.treeTo
+	bottom := firstPaneRow + base.layout.editorRows + base.layout.resultRows
+	if base.layout.connections.count == 0 || base.layout.treeRows.count == 0 {
+		t.Fatal("the tree draws no connection row or no tree row")
+	}
+	for _, column := range []int{border, border + 1} {
+		for row := firstPaneRow; row < bottom; row++ {
+			if _, _, onLine := base.findSplitLine(column, row); onLine {
+				continue
+			}
+			model := buildLoadedModel(t, 2, 40, 60, 6)
+			model.render()
+			model = dragPointer(t, model, column, row, column+5, row)
+			model.render()
+			if model.layout.treeTo != border+5 {
+				t.Errorf("a drag from column %d on row %d draws the border at %d, wanted %d",
+					column, row, model.layout.treeTo, border+5)
+			}
+		}
+	}
+}
+
+// A press without motion on the pane border beside the tree focuses that pane.
+func TestAPressOnThePaneSideOfTheTreeBorderReachesThePane(t *testing.T) {
+	model := buildLoadedModel(t, 2, 40, 60, 6)
+	model.render()
+	before := model.Active().SidebarWidth
+	column := model.layout.treeTo + 1
+
+	model = pressPointer(t, model, column, model.layout.editorTop+2)
+	if focus := model.Active().Active().Focus; focus != app.PaneEditor {
+		t.Errorf("the keyboard is on %q, wanted the editor", focus)
+	}
+	model = pressPointer(t, model, column, model.layout.resultTop+2)
+	if focus := model.Active().Active().Focus; focus != app.PaneResult {
+		t.Errorf("the keyboard is on %q, wanted the result", focus)
+	}
+	if held := model.Active().SidebarWidth; held != before {
+		t.Errorf("a press set the width to %d, wanted %d", held, before)
+	}
+}
+
+// The tree border draws no hover mark on a tree row.
+func TestTheTreeBorderMarksNoTreeRow(t *testing.T) {
+	model := buildLoadedModel(t, 2, 40, 60, 6)
+	model.render()
+	row := model.layout.treeRows.top + 1
+	if target := model.resolveHover(model.layout.treeTo-1, row); !target.isSomething() {
+		t.Fatal("the tree row takes no mark inside the tree")
+	}
+	if target := model.resolveHover(model.layout.treeTo, row); target.isSomething() {
+		t.Errorf("the tree border marks %+v", target)
 	}
 }

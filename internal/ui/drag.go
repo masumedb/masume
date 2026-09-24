@@ -1,5 +1,7 @@
 package ui
 
+import "github.com/masumedb/masume/internal/app"
+
 type dragKind int
 
 const (
@@ -20,9 +22,11 @@ type pointerDrag struct {
 	// True once a drag of a border has moved it at all, because a press that never moved
 	// does something else: it hides the result, or it moves the keyboard to a pane.
 	moved bool
-	// True where the drag of the line began on the top border of the result. A press there
-	// that never moved reaches the result, and one on the editor border hides it.
-	splitFromResult bool
+	// Cells between the pointer and the divider: 1 on the second line of a double border.
+	lineGrab int
+	// Focus target of a press without motion. Empty on the editor foot: that press toggles
+	// the result.
+	pane app.Pane
 	// The column whose border is being dragged, the width it had when the drag began, and
 	// the cell the pointer stood on then.
 	column      int
@@ -42,12 +46,12 @@ func (drag *pointerDrag) takeEditorText() {
 	*drag = pointerDrag{kind: dragEditorText}
 }
 
-func (drag *pointerDrag) takeSplitLine(fromResult bool) {
-	*drag = pointerDrag{kind: dragSplitLine, splitFromResult: fromResult}
+func (drag *pointerDrag) takeSplitLine(grab int, pane app.Pane) {
+	*drag = pointerDrag{kind: dragSplitLine, lineGrab: grab, pane: pane}
 }
 
-func (drag *pointerDrag) takeTreeEdge() {
-	*drag = pointerDrag{kind: dragTreeEdge}
+func (drag *pointerDrag) takeTreeEdge(grab int, pane app.Pane) {
+	*drag = pointerDrag{kind: dragTreeEdge, lineGrab: grab, pane: pane}
 }
 
 func (drag *pointerDrag) takeColumnEdge(column, width, from int) {
