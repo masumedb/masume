@@ -106,6 +106,39 @@ var columnMarks = map[string]bool{
 	"<>": true, "!=": true, "+": true, "-": true, "/": true, "||": true,
 }
 
+// endsFromList is the set of keywords that close the relation list of a FROM clause.
+var endsFromList = map[string]bool{
+	"select": true, "where": true, "group": true, "order": true, "having": true, "limit": true,
+	"offset": true, "window": true, "union": true, "intersect": true, "except": true,
+	"returning": true, "set": true, "values": true, "fetch": true, "for": true,
+}
+
+// isInFromList is true where the text ends inside the relation list of a FROM clause, at the
+// bracket depth of its end.
+func isInFromList(head string) bool {
+	inList := []bool{false}
+	tokens := syntax.ReadCodeTokens(head, syntax.FlavourStandard)
+	for index, token := range tokens {
+		top := len(inList) - 1
+		switch {
+		case syntax.IsOperator(tokens, index, "("):
+			inList = append(inList, false)
+		case syntax.IsOperator(tokens, index, ")"):
+			if top > 0 {
+				inList = inList[:top]
+			}
+		case syntax.IsOperator(tokens, index, ";"):
+			inList = []bool{false}
+		case !syntax.IsWordKind(token.Kind):
+		case token.Text == "from":
+			inList[top] = true
+		case endsFromList[token.Text]:
+			inList[top] = false
+		}
+	}
+	return inList[len(inList)-1]
+}
+
 // ResolveNamePosition determines the suggestion category from tokens before the caret.
 func ResolveNamePosition(sql string, offset int) NamePosition {
 	if offset > len(sql) {
@@ -132,6 +165,9 @@ func ResolveNamePosition(sql string, offset int) NamePosition {
 			return PositionColumn
 		}
 		return PositionNone
+	}
+	if text == "," && isInFromList(head[:last.Start]) {
+		return PositionRelation
 	}
 	if last.Kind == syntax.TokenOperator && columnMarks[text] {
 		return PositionColumn

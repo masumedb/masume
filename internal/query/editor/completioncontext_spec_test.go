@@ -22,12 +22,21 @@ func TestResolveNamePositionReadsWhatTheStatementExpects(t *testing.T) {
 		{"after update", "update |", editor.PositionRelation},
 		{"after insert into", "insert into |", editor.PositionRelation},
 		{"after delete from", "delete from |", editor.PositionRelation},
+		{"after left join", "select * from orders o left join |", editor.PositionRelation},
+		{"after a comma in the from list", "select * from orders o, |", editor.PositionRelation},
+		{"after a comma past a join", "select * from a join b on a.id = b.id, |", editor.PositionRelation},
+		{"after a comma in an update from list", "update a set x = 1 from b, |", editor.PositionRelation},
 
 		{"in the select list", "select |", editor.PositionColumn},
 		{"after where", "select * from orders where |", editor.PositionColumn},
 		{"after order by", "select * from orders order by |", editor.PositionColumn},
 		{"after group by", "select * from orders group by |", editor.PositionColumn},
 		{"after a comma in the select list", "select id, |", editor.PositionColumn},
+		{"after a comma past a from", "select * from orders where id in (1, |", editor.PositionColumn},
+		{"after a comma in a subquery select list", "select * from (select id, |", editor.PositionColumn},
+		{"after a comma in order by", "select * from orders order by id, |", editor.PositionColumn},
+		{"after a comma past extract", "select extract(year from d), |", editor.PositionColumn},
+		{"after on", "select * from a join b on |", editor.PositionColumn},
 
 		{"on nothing at all", "|", editor.PositionNone},
 	} {

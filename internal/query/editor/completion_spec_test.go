@@ -61,6 +61,21 @@ func TestBuildCompletionsOffersTheRelationsWhereARelationBelongs(t *testing.T) {
 		"users:table", "user_roles:table", "Orders:table", "public:schema", "other:schema")
 }
 
+func TestBuildCompletionsOffersOnlyRelationsForAPrefixWhereARelationBelongs(t *testing.T) {
+	sources := editor.CompletionSources{
+		Tables:             []string{"customers"},
+		Columns:            []editor.CompletionColumn{{Name: "customer_id", Detail: "integer"}},
+		ColumnsByQualifier: map[string][]editor.CompletionColumn{"o": {{Name: "customer_id"}}},
+	}
+	found := editor.BuildCompletions("cust", sources,
+		editor.CompletionContext{AllowQualified: true, NamePosition: editor.PositionRelation})
+	if len(found) != 1 || found[0].Text != "customers" || found[0].Kind != editor.CompleteTable {
+		t.Errorf("answered %v, wanted the table alone", found)
+	}
+	requireCompletions(t, listCompletions("se", editor.PositionRelation, true),
+		"users:table", "user_roles:table")
+}
+
 func TestBuildCompletionsNarrowsToTheQualifierTheUserTyped(t *testing.T) {
 	// `u.` names one relation, so the columns of every other one would be wrong here.
 	requireCompletions(t, listCompletions("u.", editor.PositionColumn, true),
@@ -85,7 +100,7 @@ func TestBuildCompletionsReadsThePrefixWhateverTheCase(t *testing.T) {
 	requireCompletions(t, listCompletions("nam", editor.PositionColumn, true),
 		"name:column")
 	requireCompletions(t, listCompletions("ORD", editor.PositionRelation, true),
-		"Orders:table", "order by:keyword")
+		"Orders:table")
 	requireCompletions(t, listCompletions("us", editor.PositionRelation, true),
 		"users:table", "user_roles:table")
 }

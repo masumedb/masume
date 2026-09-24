@@ -161,9 +161,7 @@ var kindOrder = map[NamePosition][]CompletionKind{
 	PositionColumn: {
 		CompleteColumn, CompleteFunction, CompleteTable, CompleteSchema, CompleteKeyword,
 	},
-	PositionRelation: {
-		CompleteTable, CompleteSchema, CompleteFunction, CompleteColumn, CompleteKeyword,
-	},
+	PositionRelation: {CompleteTable, CompleteSchema, CompleteFunction},
 	// Where the statement expects no kind, a bare word is most often the next clause.
 	PositionNone: {CompleteKeyword},
 }
@@ -313,10 +311,12 @@ func BuildCompletions(
 	}
 
 	kept := newCollector(strings.ToLower(prefix))
-	collectColumnCandidates(prefix, sources, context, kept)
-
-	for _, column := range sources.Columns {
-		kept.add(column.Name, CompleteColumn, column.Detail)
+	relationOnly := position == PositionRelation
+	if !relationOnly {
+		collectColumnCandidates(prefix, sources, context, kept)
+		for _, column := range sources.Columns {
+			kept.add(column.Name, CompleteColumn, column.Detail)
+		}
 	}
 	for _, text := range sources.Tables {
 		kept.add(text, CompleteTable, "")
@@ -327,8 +327,10 @@ func BuildCompletions(
 	for _, text := range sources.Schemas {
 		kept.add(text, CompleteSchema, "")
 	}
-	for _, text := range completionKeywords {
-		kept.add(text, CompleteKeyword, "")
+	if !relationOnly {
+		for _, text := range completionKeywords {
+			kept.add(text, CompleteKeyword, "")
+		}
 	}
 
 	ranked := kept.kept
