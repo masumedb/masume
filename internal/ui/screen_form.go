@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"strings"
 
@@ -38,6 +39,8 @@ type FormState struct {
 	// How the last test of the connection went.
 	Test    TestStateKind
 	Message string
+	// BadField is the key of the field the last failure is about, or empty.
+	BadField string
 }
 
 // NewFormState opens the form on a profile, or on a blank one for a new connection.
@@ -53,6 +56,28 @@ func NewFormState(profile cfg.Profile, editing bool, secretStoreNames []string) 
 	}
 	form.openField()
 	return form
+}
+
+// reportFailure writes a failed test or save, and moves the caret to the field it is about.
+func (form *FormState) reportFailure(err error) {
+	form.Test, form.Message, form.BadField = TestFailed, err.Error(), ""
+	var problem cfg.FormError
+	if errors.As(err, &problem) && problem.Field != "" {
+		form.focusField(problem.Field)
+	}
+}
+
+// focusField moves the caret to the shown field with that key, and marks the field as the one
+// the failure is about.
+func (form *FormState) focusField(key string) {
+	form.keepField()
+	for index, field := range form.Shown() {
+		if field.Key == key {
+			form.Cursor, form.BadField = index, key
+			form.openField()
+			return
+		}
+	}
 }
 
 // BuildProfile returns the profile the form now describes, and refuses a wrong value.
@@ -218,7 +243,7 @@ func (model *Model) runFormAction(match Match) (tea.Model, tea.Cmd, bool) {
 			profile, err = cfg.ApplySecretCommand(profile, model.secrets)
 		}
 		if err != nil {
-			form.Test, form.Message = TestFailed, err.Error()
+			form.reportFailure(err)
 			return model, nil, true
 		}
 		// The user is the only source of some passwords, so the test asks for one first,
@@ -231,10 +256,10 @@ func (model *Model) runFormAction(match Match) (tea.Model, tea.Cmd, bool) {
 		}
 		password, passwordErr := cfg.ResolveProfilePassword(profile)
 		if passwordErr != nil {
-			form.Test, form.Message = TestFailed, passwordErr.Error()
+			form.reportFailure(passwordErr)
 			return model, nil, true
 		}
-		form.Test, form.Message = TestRunning, ""
+		form.Test, form.Message, form.BadField = TestRunning, "", ""
 		return model, testFormConnection(model.adapters, profile, password), true
 	}
 	return model, nil, false
@@ -248,7 +273,7 @@ func (model *Model) saveForm() (tea.Model, tea.Cmd) {
 		profile, err = cfg.ApplySecretCommand(profile, model.secrets)
 	}
 	if err != nil {
-		form.Test, form.Message = TestFailed, err.Error()
+		form.reportFailure(err)
 		return model, nil
 	}
 
@@ -257,7 +282,7 @@ func (model *Model) saveForm() (tea.Model, tea.Cmd) {
 		replacing = form.Source.Name
 	}
 	if taken := model.findProfileNameTaken(profile.Name, replacing); taken != "" {
-		form.Test, form.Message = TestFailed, taken
+		form.reportFailure(cfg.FormError{Reason: taken, Field: "name"})
 		return model, nil
 	}
 	// Passwords use the keyring when available.
@@ -491,6 +516,12 @@ func (model *Model) renderForm() string {
 		if focused {
 			marker = present.FitText(model.icons.Icon(cfg.IconField), fieldMarkerWidth)
 			labelStyle = model.styles.Accent()
+		}
+		if field.Key == form.BadField && form.Test == TestFailed {
+			labelStyle = model.styles.Error()
+			if !focused {
+				marker = present.FitText(model.icons.Icon(cfg.IconProblem), fieldMarkerWidth)
+			}
 		}
 		label := marker + present.FitText(field.Label, formLabelWidth)
 

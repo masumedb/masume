@@ -280,7 +280,11 @@ func FindShownFields(fields []FormField) []FormField {
 }
 
 // FormError is a form value that cannot be used to open a connection.
-type FormError struct{ Reason string }
+type FormError struct {
+	Reason string
+	// Field is the key of the form field the reason is about, or empty.
+	Field string
+}
 
 func (err FormError) Error() string { return err.Reason }
 
@@ -328,7 +332,7 @@ func BuildProfileFromFields(fields []FormField, source Profile, editing bool) (P
 	if !opensFile {
 		port, err := strconv.Atoi(read("port"))
 		if err != nil || port <= 0 {
-			return Profile{}, FormError{Reason: "port must be a positive integer"}
+			return Profile{}, FormError{Reason: "the port must be a positive number", Field: "port"}
 		}
 		built.Port = port
 	}
@@ -339,7 +343,7 @@ func BuildProfileFromFields(fields []FormField, source Profile, editing bool) (P
 		mode, known := core.FindSSLMode(written)
 		if !known {
 			return Profile{}, FormError{
-				Reason: "sslmode must be one of " + core.SSLModeNames(),
+				Reason: "sslmode must be one of " + core.SSLModeNames(), Field: "sslMode",
 			}
 		}
 		built.SSLMode = mode
@@ -356,33 +360,34 @@ func BuildProfileFromFields(fields []FormField, source Profile, editing bool) (P
 	}
 
 	if built.Name == "" {
-		return Profile{}, FormError{Reason: "the profile name is missing"}
+		return Profile{}, FormError{Reason: "the name is missing", Field: "name"}
 	}
 	if built.Database == "" && core.NeedsDatabase(engine) {
 		if opensFile {
-			return Profile{}, FormError{Reason: "the database file path is missing"}
+			return Profile{}, FormError{Reason: "the database file path is missing", Field: "database"}
 		}
-		return Profile{}, FormError{Reason: "the database name is missing"}
+		return Profile{}, FormError{Reason: "the database name is missing", Field: "database"}
 	}
 	if !opensFile && built.Host == "" {
-		return Profile{}, FormError{Reason: "the host is missing"}
+		return Profile{}, FormError{Reason: "the host is missing", Field: "host"}
 	}
 	if built.UsesSocket() && !core.TakesSocket(engine) {
 		return Profile{}, FormError{
-			Reason: string(engine) + " does not connect over a unix socket",
+			Reason: string(engine) + " does not connect over a unix socket", Field: "host",
 		}
 	}
 	if core.NeedsUser(engine) && built.User == "" {
-		return Profile{}, FormError{Reason: "the user is missing"}
+		return Profile{}, FormError{Reason: "the user is missing", Field: "user"}
 	}
-	if built.Auth == AuthSecret && (built.Secret == "" || built.SecretRef == "") {
-		return Profile{}, FormError{
-			Reason: "auth = secret requires a secret store and reference",
-		}
+	if built.Auth == AuthSecret && built.Secret == "" {
+		return Profile{}, FormError{Reason: "the secret store is missing", Field: "secret"}
+	}
+	if built.Auth == AuthSecret && built.SecretRef == "" {
+		return Profile{}, FormError{Reason: "the secret reference is missing", Field: "secretRef"}
 	}
 	if built.Auth == AuthCommand && built.PasswordCommand == "" {
 		return Profile{}, FormError{
-			Reason: "auth = command requires a password command",
+			Reason: "the password command is missing", Field: "passwordCommand",
 		}
 	}
 	return built, nil
@@ -417,7 +422,7 @@ func applyFormTunnel(built Profile, read func(string) string) (Profile, error) {
 	if written := read("sshPort"); written != "" {
 		held, err := strconv.Atoi(written)
 		if err != nil || held <= 0 {
-			return Profile{}, FormError{Reason: "the ssh port must be a positive integer"}
+			return Profile{}, FormError{Reason: "the ssh port must be a positive number", Field: "sshPort"}
 		}
 		port = held
 	}
@@ -428,10 +433,10 @@ func applyFormTunnel(built Profile, read func(string) string) (Profile, error) {
 	built.SSHKnownHosts = read("sshKnownHosts")
 
 	if built.SSHHost == "" {
-		return Profile{}, FormError{Reason: "the ssh host is missing"}
+		return Profile{}, FormError{Reason: "the ssh host is missing", Field: "sshHost"}
 	}
 	if built.SSHUser == "" {
-		return Profile{}, FormError{Reason: "the ssh user is missing"}
+		return Profile{}, FormError{Reason: "the ssh user is missing", Field: "sshUser"}
 	}
 	return built, nil
 }

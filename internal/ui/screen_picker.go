@@ -433,7 +433,7 @@ func (model *Model) renderPassword() string {
 			cfg.DescribeProfileTarget(profile), cardWidth-4)),
 		"",
 		model.renderField(model.picker.password, cardWidth-4, FieldLook{
-			Ground: theme.Background, Ink: theme.Text,
+			Ground: theme.Header, Ink: theme.Text,
 			Masked: true, Focused: !model.picker.keyringFocused, Placeholder: "password",
 		}),
 	}
