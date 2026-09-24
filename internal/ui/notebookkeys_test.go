@@ -2,11 +2,13 @@ package ui
 
 import (
 	"strconv"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/cfg"
 	"github.com/masumedb/masume/internal/db"
 	"github.com/masumedb/masume/internal/notebook"
 )
@@ -261,5 +263,16 @@ func TestNotebookFoldsCells(t *testing.T) {
 	pressNotebookKey(t, model, tea.KeyPressMsg{Code: 'O', Text: "O"})
 	if !tab.Notebook.Cells[1].Folded {
 		t.Errorf("the second cell is not folded")
+	}
+}
+
+func TestTheNotebookTitleNamesTheConnectionAndProduction(t *testing.T) {
+	model, _ := buildNotebookModel(t, "```sql\nselect 1\n```\n")
+	session := model.Active().Session.(*offlineSession)
+	session.profile.Name, session.profile.Environment = "shop-prod", cfg.EnvironmentProd
+
+	top := stripEscapes(strings.Split(model.render(), "\n")[firstPaneRow])
+	if !strings.Contains(top, "· shop-prod") || !strings.Contains(top, "PRODUCTION") {
+		t.Errorf("the notebook title reads %q", top)
 	}
 }

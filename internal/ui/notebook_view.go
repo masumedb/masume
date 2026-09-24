@@ -91,8 +91,8 @@ func (model *Model) renderNotebook(
 
 	return model.styles.RenderBoxRows(BoxOptions{
 		Width: width, Height: height, Focused: focused,
-		Title:       model.describeNotebookTitle(tab),
-		Note:        model.describeNotebookNote(tab, inner),
+		Title:       model.describeNotebookTitle(connection, tab),
+		Note:        model.describeNotebookNote(connection, tab, inner),
 		BottomTitle: model.describeNotebookBorder(book),
 		BottomNote: model.styles.Muted().Background(theme.Panel).
 			Render(describeNotebookPlace(book)),
@@ -343,10 +343,11 @@ func (model *Model) buildCellLines(
 	return lines
 }
 
-// describeNotebookTitle returns the title on the top border of the cell list.
-func (model *Model) describeNotebookTitle(tab *app.Tab) string {
+// describeNotebookTitle returns the title on the top border of the cell list, with the
+// connection the cells run on.
+func (model *Model) describeNotebookTitle(connection *app.Connection, tab *app.Tab) string {
 	book := tab.Notebook
-	written := " notebook · " + tab.NotebookName()
+	written := " notebook · " + tab.NotebookName() + " · " + connection.Profile().Name
 	written = present.SafeText(written)
 	if book.Origin != "" && book.Path != "" {
 		written += " · " + string(book.Origin)
@@ -357,9 +358,11 @@ func (model *Model) describeNotebookTitle(tab *app.Tab) string {
 	return written + " "
 }
 
-// describeNotebookNote returns the note at the right of the top border: where the cursor
-// stands, and whether the file holds what is on screen.
-func (model *Model) describeNotebookNote(tab *app.Tab, inner int) string {
+// describeNotebookNote returns the note at the right of the top border: the production
+// badge, where the cursor stands, and whether the file holds what is on screen.
+func (model *Model) describeNotebookNote(
+	connection *app.Connection, tab *app.Tab, inner int,
+) string {
 	theme := model.styles.Theme
 	book := tab.Notebook
 	written := "cell " + strconv.Itoa(book.Focused+1) + "/" +
@@ -370,6 +373,9 @@ func (model *Model) describeNotebookNote(tab *app.Tab, inner int) string {
 	}
 	if present.MeasureText(written) > inner {
 		return ""
+	}
+	if badge := model.renderEnvironmentBadge(connection.Profile().Environment); badge != "" {
+		note = badge + paintOn(theme.Panel, " ") + note
 	}
 	return note
 }
