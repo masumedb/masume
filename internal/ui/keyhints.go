@@ -369,6 +369,11 @@ var cardKeySpecs = map[app.OverlayKind][]keySpec{
 		keyOf(cfg.ScopeDialog, ActionNewAiChat, "new").onlyWhen(notFilters(asksToRun)),
 		keyOf(cfg.ScopeDialog, ActionShowAiChats, "chats").onlyWhen(notFilters(asksToRun)),
 		keyOf(cfg.ScopeDialog, ActionClose, "close").onlyWhen(notFilters(asksToRun)),
+		takesKey(cfg.ScopeDialog, ActionScrollBack),
+		takesKey(cfg.ScopeDialog, ActionScrollForward),
+		takesKey(cfg.ScopeDialog, ActionPreviousTurn),
+		takesKey(cfg.ScopeDialog, ActionNextTurn),
+		takesKey(cfg.ScopeDialog, ActionChatToNotebook),
 	},
 	app.OverlayAiChats: {
 		keyOf(cfg.ScopeList, ActionChooseRow, "open"),

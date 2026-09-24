@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -212,6 +213,36 @@ func TestFindChatTurnRowNamesTheRowTheTurnIsDrawnOn(t *testing.T) {
 	if model.findChatTurnRow(connection, len(chat.Messages)+4) !=
 		starts[len(starts)-1] {
 		t.Error("a turn past the last one is not held to the last turn")
+	}
+}
+
+func TestPageUpScrollsTheChatBackToTheQuestion(t *testing.T) {
+	model, chat := buildChatModel(t)
+	chat.Messages = chat.Messages[:2]
+	chat.Messages[1].Content = strings.Repeat("public.orders holds one row per order.\n\n", 30)
+	chat.Follow = true
+	model.render()
+	if chat.Offset == 0 {
+		t.Fatal("the conversation fits the panel")
+	}
+
+	for range 4 {
+		model.readKey(tea.Key{Code: tea.KeyPgUp})
+	}
+	if !strings.Contains(stripEscapes(model.render()), "which table holds the orders?") {
+		t.Errorf("the question is not drawn at offset %d", chat.Offset)
+	}
+}
+
+func TestTheChatReadsItsKeysOutsideTheKeyRow(t *testing.T) {
+	held := FindDialogActions(string(app.OverlayAiChat))
+	for _, action := range []ActionID{
+		ActionScrollBack, ActionScrollForward, ActionPreviousTurn, ActionNextTurn,
+		ActionChatToNotebook,
+	} {
+		if !slices.Contains(held, action) {
+			t.Errorf("the chat does not read %q", action)
+		}
 	}
 }
 
