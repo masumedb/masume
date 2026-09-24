@@ -135,3 +135,44 @@ func TestFormatStatementKeepsTheCaseOfEveryWord(t *testing.T) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
+
+func TestFormatDefinitionPutsEachTableElementOnItsOwnLine(t *testing.T) {
+	for _, held := range []struct {
+		name string
+		sql  string
+		want string
+	}{
+		{
+			"columns and a table constraint",
+			"CREATE TABLE items (id integer PRIMARY KEY, price numeric(10,2) NOT NULL, UNIQUE (id, price))",
+			"CREATE TABLE items (\n  id integer PRIMARY KEY,\n  price numeric(10,2) NOT NULL,\n  UNIQUE (id, price)\n)",
+		},
+		{
+			"a table option after the list",
+			"create table t (a text, b text) without rowid",
+			"create table t (\n  a text,\n  b text\n) without rowid",
+		},
+		{
+			"a comma inside a literal",
+			"create table t (a text default 'x, y', b int)",
+			"create table t (\n  a text default 'x, y',\n  b int\n)",
+		},
+		{
+			"a table made from a query",
+			"create table t as select a, b from s",
+			"create table t as\nselect a, b\nfrom s",
+		},
+		{
+			"a view",
+			"create view v as select a from t where a > 1",
+			"create view v as\nselect a\nfrom t\nwhere a > 1",
+		},
+	} {
+		t.Run(held.name, func(t *testing.T) {
+			got := statement.FormatDefinition(held.sql, syntax.FlavourStandard)
+			if got != held.want {
+				t.Errorf("statement.FormatDefinition(%q)\n got %q\nwant %q", held.sql, got, held.want)
+			}
+		})
+	}
+}

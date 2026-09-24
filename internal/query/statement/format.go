@@ -65,3 +65,50 @@ func FormatStatement(sql string, flavour syntax.SyntaxFlavour) string {
 	}
 	return strings.Join(written, "\n")
 }
+
+// FormatDefinition puts each column and constraint of a CREATE TABLE on its own line. Any
+// other statement is formatted by FormatStatement.
+func FormatDefinition(sql string, flavour syntax.SyntaxFlavour) string {
+	tokens := syntax.ReadCodeTokens(sql, flavour)
+	if syntax.ReadOpeningWord(tokens) != "create" ||
+		len(syntax.FindKeywordsIn(tokens, []string{"table"})) == 0 ||
+		len(syntax.FindKeywordsIn(tokens, []string{"select"})) > 0 {
+		return FormatStatement(sql, flavour)
+	}
+
+	open, depth := -1, 0
+	commas := []int{}
+	for index := range tokens {
+		switch {
+		case syntax.IsOperator(tokens, index, "("):
+			depth++
+			if depth == 1 && open < 0 {
+				open = index
+			}
+		case syntax.IsOperator(tokens, index, ")"):
+			depth--
+			if depth == 0 && open >= 0 {
+				return layoutTableElements(sql, tokens, open, index, commas, flavour)
+			}
+		case depth == 1 && open >= 0 && syntax.IsOperator(tokens, index, ","):
+			commas = append(commas, index)
+		}
+	}
+	return FormatStatement(sql, flavour)
+}
+
+func layoutTableElements(
+	sql string, tokens []syntax.CodeToken, open, closing int, commas []int,
+	flavour syntax.SyntaxFlavour,
+) string {
+	elements := make([]string, 0, len(commas)+1)
+	from := tokens[open].End
+	for _, comma := range append(commas, closing) {
+		elements = append(elements,
+			collapseCodeWhitespace(strings.TrimSpace(sql[from:tokens[comma].Start]), flavour))
+		from = tokens[comma].End
+	}
+	head := collapseCodeWhitespace(strings.TrimSpace(sql[:tokens[open].End]), flavour)
+	tail := collapseCodeWhitespace(strings.TrimSpace(sql[tokens[closing].Start:]), flavour)
+	return head + "\n  " + strings.Join(elements, ",\n  ") + "\n" + tail
+}

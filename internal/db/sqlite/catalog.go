@@ -11,6 +11,7 @@ import (
 
 	"github.com/masumedb/masume/internal/db"
 	"github.com/masumedb/masume/internal/query"
+	"github.com/masumedb/masume/internal/query/statement"
 	"github.com/masumedb/masume/internal/query/syntax"
 )
 
@@ -532,6 +533,9 @@ func (session *sqliteSession) BuildTableDDL(
 		return db.BuildMissingDefinition(table.Name), nil
 	}
 
+	if !strings.Contains(created, "\n") {
+		created = statement.FormatDefinition(created, syntax.FlavourStandard)
+	}
 	lines := strings.Split(created+";", "\n")
 	written, statementErr := session.readIndexStatements(ctx, table)
 	if statementErr != nil {
