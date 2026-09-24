@@ -528,7 +528,7 @@ A terminal without a Nerd Font draws the `nerd` glyphs, and the example above, a
 | `sequence` | A sequence | `№` | `S` | `` |
 | `type` | A type | `⊞` | `Y` | `` |
 | `trigger` | A trigger | `⚑` | `!` | `` |
-| `column` | A column | `·` | `.` | `` |
+| `column` | A column | `⋮` | `c` | `` |
 | `index` | An index | `▤` | `#` | `▤` |
 | `primary-key` | A primary key | `◆` | `*` | `` |
 | `foreign-key` | A foreign key | `→` | `>` | `` |

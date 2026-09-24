@@ -617,9 +617,6 @@ func describeTreeBorder(summary present.TreeSummary, filter string, scoped bool)
 	if summary.HiddenSystemSchemas > 0 {
 		return " " + counted + " · " + strconv.Itoa(summary.HiddenSystemSchemas) + " system hidden "
 	}
-	if summary.TotalSchemas > 0 {
-		return " " + counted + " "
-	}
 	return ""
 }
 

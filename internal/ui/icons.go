@@ -16,7 +16,7 @@ type IconSet map[cfg.IconKind]string
 var plainIcons = IconSet{
 	cfg.IconSchema: "◇", cfg.IconTable: "▦", cfg.IconView: "◈",
 	cfg.IconMaterializedView: "◆", cfg.IconFunction: "ƒ", cfg.IconSequence: "№",
-	cfg.IconType: "⊞", cfg.IconTrigger: "⚑", cfg.IconColumn: "·",
+	cfg.IconType: "⊞", cfg.IconTrigger: "⚑", cfg.IconColumn: "⋮",
 	cfg.IconIndex: "▤", cfg.IconPlan: "⊳",
 	cfg.IconPrimaryKey: "◆", cfg.IconForeignKey: "→", cfg.IconRole: "●",
 	cfg.IconRoles: "●", cfg.IconFavourites: "★", cfg.IconRecent: "↻",
@@ -32,7 +32,7 @@ var plainIcons = IconSet{
 var asciiIcons = IconSet{
 	cfg.IconSchema: "~", cfg.IconTable: "T", cfg.IconView: "V",
 	cfg.IconMaterializedView: "M", cfg.IconFunction: "f", cfg.IconSequence: "S",
-	cfg.IconType: "Y", cfg.IconTrigger: "!", cfg.IconColumn: ".",
+	cfg.IconType: "Y", cfg.IconTrigger: "!", cfg.IconColumn: "c",
 	cfg.IconIndex: "#", cfg.IconPlan: ">",
 	cfg.IconPrimaryKey: "*", cfg.IconForeignKey: ">", cfg.IconRole: "o",
 	cfg.IconRoles: "o", cfg.IconFavourites: "*", cfg.IconRecent: "@",
