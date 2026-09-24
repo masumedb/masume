@@ -178,9 +178,11 @@ type chatRowsKey struct {
 	connection int
 	content    int
 	revision   int
-	messages   uint64
-	hasTurn    bool
-	turnAt     int
+	// The panel ground, which is lifted while a card is drawn.
+	ground   string
+	messages uint64
+	hasTurn  bool
+	turnAt   int
 	// The steps, the label and the wheel belong to the reply being written, and are read
 	// only while one is.
 	streaming bool
@@ -214,6 +216,7 @@ func (model *Model) buildChatRowsKey(
 	key := chatRowsKey{
 		connection: model.connections.idOf(connection),
 		content:    content, revision: model.styles.Revision(),
+		ground:   WriteHex(model.styles.Theme.Panel),
 		messages: hashChatMessages(chat.Messages),
 		hasTurn:  chat.HasTurn, turnAt: chat.TurnAt,
 		insertChord: model.registry.FormatFirstActionChord(cfg.ScopeDialog, ActionInsertAiSQL),

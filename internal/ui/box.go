@@ -633,7 +633,7 @@ func (styles *Styles) renderThumbCell(glyph string, ground color.Color) string {
 	if glyph == "" {
 		glyph = " "
 	}
-	return paintText(styles.Theme.Border, ground, glyph)
+	return paintText(styles.Theme.Muted, ground, glyph)
 }
 
 // paintThumbColumn writes one glyph of a scroll bar over the cell at that column of a line.
@@ -644,7 +644,7 @@ func (styles *Styles) paintThumbColumn(
 		return line
 	}
 	tail := max(measureStyledWidth(line)-column-1, 0)
-	mark := paintText(styles.Theme.Border, ground, glyph)
+	mark := paintText(styles.Theme.Muted, ground, glyph)
 	return truncateStyled(padStyledOn(line, column, ground), column) + mark +
 		padStyledOn("", tail, ground)
 }

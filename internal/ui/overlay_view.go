@@ -30,7 +30,7 @@ func (model *Model) renderOverlayOver(
 	// where the block lands on the screen.
 	placedBars := len(model.layout.scrollbars)
 	placedKeys := len(model.layout.buttons)
-	card := model.renderOverlay(connection, tab, height)
+	card := model.drawCard(func() string { return model.renderOverlay(connection, tab, height) })
 	if card == "" {
 		model.layout.scrollbars = model.layout.scrollbars[:placedBars]
 		model.layout.buttons = model.layout.buttons[:placedKeys]

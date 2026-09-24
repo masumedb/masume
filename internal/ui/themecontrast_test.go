@@ -52,3 +52,33 @@ func TestEveryThemeReadsOnItsOwnPane(t *testing.T) {
 		}
 	}
 }
+
+func TestEveryCardStandsAboveTheBackdropAndReads(t *testing.T) {
+	model := buildOfflineModel(t, 120, 34)
+	for _, choice := range model.styles.registry.ListThemeChoices() {
+		if _, applied := model.styles.ApplyThemeByName(choice.Name); !applied {
+			t.Errorf("theme %q is not applied", choice.Name)
+			continue
+		}
+		pane := model.styles.Theme
+		card := buildCardTheme(pane)
+		if CalculateContrastRatio(card.Panel, pane.Background) <
+			CalculateContrastRatio(pane.Panel, pane.Background) {
+			t.Errorf("the card of theme %q stands closer to the backdrop than a pane", choice.Name)
+		}
+		for _, ink := range []struct {
+			label string
+			ink   color.Color
+			floor float64
+		}{
+			{"text", card.Text, TextContrastFloor},
+			{"muted text", card.Muted, TextContrastFloor},
+			{"faint text", card.Faint, markContrastFloorOfTheme},
+		} {
+			if stood := CalculateContrastRatio(ink.ink, card.Panel); stood < ink.floor {
+				t.Errorf("the %s of theme %q stands at %.2f on a card, and %.2f is the least",
+					ink.label, choice.Name, stood, ink.floor)
+			}
+		}
+	}
+}

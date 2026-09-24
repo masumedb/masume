@@ -30,6 +30,30 @@ func (styles *Styles) Revision() int {
 	return styles.revision
 }
 
+// cardLift is the mix of every ground of a card toward white.
+const cardLift = 0.04
+
+// buildCardTheme returns the theme a card is drawn with: every ground lifted by cardLift,
+// and the muted and faint inks raised to their floors on the lifted panel.
+func buildCardTheme(theme Theme) Theme {
+	for _, ground := range []*color.Color{
+		&theme.Panel, &theme.Zebra, &theme.Header, &theme.Selection,
+	} {
+		*ground = MixColors(*ground, whiteInk, cardLift)
+	}
+	theme.Muted = RaiseContrast(theme.Muted, theme.Panel, theme.Text, TextContrastFloor)
+	theme.Faint = RaiseContrast(theme.Faint, theme.Panel, theme.Text, markContrastFloor)
+	return theme
+}
+
+// drawCard runs the draw of a card with the card theme applied.
+func (model *Model) drawCard(draw func() string) string {
+	shown := model.styles.Theme
+	model.styles.Theme = buildCardTheme(shown)
+	defer func() { model.styles.Theme = shown }()
+	return draw()
+}
+
 // NewStyles applies the fallback theme, so the first frame has colours before the config is
 // read.
 func NewStyles(registry *ThemeRegistry) *Styles {

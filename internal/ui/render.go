@@ -53,8 +53,10 @@ func (model *Model) render() string {
 		model.layout.buttons = nil
 		model.layout.scrollbars = nil
 		cardWidth := present.ResolveCardWidth(64, 36, model.width)
-		card := model.renderCard(model.confirm.Title, cardWidth,
-			model.buildConfirmLines(model.confirm, cardWidth), model.confirm.Destructive)
+		card := model.drawCard(func() string {
+			return model.renderCard(model.confirm.Title, cardWidth,
+				model.buildConfirmLines(model.confirm, cardWidth), model.confirm.Destructive)
+		})
 		left := halfRoundedUp(model.width - measureStyledWidth(card))
 		top := halfRoundedUp(body - len(strings.Split(card, "\n")))
 		for at := range model.layout.buttons {
@@ -84,7 +86,7 @@ func (model *Model) renderSettingsOver(body int) []string {
 	// panes behind them are dropped.
 	model.layout.buttons = nil
 	model.layout.scrollbars = nil
-	card := model.renderSettings()
+	card := model.drawCard(model.renderSettings)
 	if len(frame) == 0 {
 		return model.styles.CenterRowsOn(card, model.width, body)
 	}
