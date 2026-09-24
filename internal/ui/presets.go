@@ -42,6 +42,7 @@ var defaultChords = map[string][]string{
 	"global:show-palette":         {"ctrl+k"},
 	"global:show-ai-chat":         {"ctrl+i"},
 	"global:ai-fix-error":         {"ctrl+h"},
+	"global:apply-suggestion":     {"alt+return"},
 	"global:send-to-ai":           {"alt+i"},
 	"global:next-page":            {"ctrl+f"},
 	"global:export-csv":           {"ctrl+s"},

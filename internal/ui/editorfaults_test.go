@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/cfg"
 	"github.com/masumedb/masume/internal/db"
 	"github.com/masumedb/masume/internal/present"
 	"github.com/masumedb/masume/internal/query/editor"
@@ -337,5 +338,52 @@ func TestAFaultAwayFromTheCaretIsShownWhileTyping(t *testing.T) {
 	typeInEditor(model, "d")
 	if !strings.Contains(model.View().Content, "nothing_here") {
 		t.Error("the fault away from the caret was held back")
+	}
+}
+
+// buildFailedRun leaves the tab with a failed run of a statement that names a table the
+// catalog does not have.
+func buildFailedRun(t *testing.T) (*Model, *app.Connection, *app.Tab) {
+	t.Helper()
+	model, connection, tab := buildScannedModel(t)
+	written := "select * from custmers"
+	tab.Editor = app.NewEditorBuffer(written, len(written))
+	tab.Results.Start([]string{written}, 10)
+	tab.Results.Fail(0, "no such table: custmers")
+	connection.ResultVisible = true
+	return model, connection, tab
+}
+
+func TestAFailedRunShowsTheFaultOnceWithTheSuggestedName(t *testing.T) {
+	model, _, _ := buildFailedRun(t)
+
+	view := stripEscapes(model.View().Content)
+	if count := strings.Count(view, "unknown table: custmers"); count != 1 {
+		t.Errorf("the fault is shown %d times, wanted once", count)
+	}
+	for _, wanted := range []string{
+		"line 1, column 15", "did you mean customers?", "server: no such table: custmers",
+	} {
+		if !strings.Contains(view, wanted) {
+			t.Errorf("the result pane does not show %q", wanted)
+		}
+	}
+}
+
+func TestTheSuggestionKeyWritesTheSuggestedName(t *testing.T) {
+	model, connection, tab := buildFailedRun(t)
+
+	model.runGlobalAction(connection, tab, Match{Scope: cfg.ScopeGlobal, Action: ActionApplySuggestion})
+	if tab.Editor.Text != "select * from customers" {
+		t.Errorf("the editor holds %q, wanted the suggested name", tab.Editor.Text)
+	}
+}
+
+func TestAFailedRunWithTheResultHiddenKeepsTheFaultInTheEditor(t *testing.T) {
+	model, connection, _ := buildFailedRun(t)
+	connection.ResultVisible = false
+
+	if !strings.Contains(model.View().Content, "unknown table: custmers") {
+		t.Error("the editor does not show the fault while the result is hidden")
 	}
 }

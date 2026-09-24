@@ -168,6 +168,7 @@ See [editing SQL](usage.md#editing-sql) for search, replacement, completion, and
 | --- | --- |
 | `activate-tab` | `alt+digit` |
 | `ai-fix-error` | `ctrl+h` |
+| `apply-suggestion` | `alt+return` |
 | `begin-transaction` | `ctrl+b` |
 | `cancel-query` | `ctrl+x` |
 | `close-connection` | `ctrl+w` |

@@ -135,3 +135,38 @@ func TestFindLocalDiagnosticsAnswersInTheOrderOfTheBuffer(t *testing.T) {
 		}
 	}
 }
+
+func TestFindLocalDiagnosticsSuggestsTheClosestCatalogName(t *testing.T) {
+	knowledge := buildKnowledge()
+	knowledge.TableNames = []string{"orders", "order_items", "customers"}
+	for _, held := range []struct {
+		name string
+		sql  string
+		want string
+	}{
+		{"a table with one letter missing", "select * from ordrs", "orders"},
+		{"a table with two letters swapped", "select * from ordres", "orders"},
+		{"a column of a known table", "select o.totl from orders o", "total"},
+		{"a table no name is close to", "select * from invoices", ""},
+		{"a table with a schema", "select * from sales.ordrs", ""},
+	} {
+		t.Run(held.name, func(t *testing.T) {
+			found := editor.FindLocalDiagnostics(held.sql, knowledge, syntax.FlavourStandard)
+			if len(found) != 1 {
+				t.Fatalf("%q was marked with %d faults, wanted 1", held.sql, len(found))
+			}
+			if found[0].Suggestion != held.want {
+				t.Errorf("the suggestion is %q, wanted %q", found[0].Suggestion, held.want)
+			}
+		})
+	}
+}
+
+func TestFindLocalDiagnosticsSuggestsNothingWhenTwoNamesAreEquallyClose(t *testing.T) {
+	knowledge := buildKnowledge()
+	knowledge.TableNames = []string{"cart", "card"}
+	found := editor.FindLocalDiagnostics("select * from carx", knowledge, syntax.FlavourStandard)
+	if len(found) != 1 || found[0].Suggestion != "" {
+		t.Errorf("the faults are %+v, wanted one with no suggestion", found)
+	}
+}

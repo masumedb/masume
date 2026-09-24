@@ -798,7 +798,9 @@ func (model *Model) renderEditor(
 	// the key that fixes it are read where the fault is.
 	faults := findSettledDiagnostics(model.findDiagnostics(connection, tab), tab)
 	shown, hasFault := findShownFault(faults, tab.Editor.Text, caretLine)
-	if hasFault {
+	_, reportedInResult := model.findFailureFault(connection, tab)
+	drawsFaultRow := hasFault && !(reportedInResult && connection.ResultVisible)
+	if drawsFaultRow {
 		body--
 		if body < 1 {
 			body = 1
@@ -896,7 +898,7 @@ func (model *Model) renderEditor(
 		written = append(written, "")
 	}
 	model.faultRow = 0
-	if hasFault {
+	if drawsFaultRow {
 		model.faultRow = tabRowHeight + 1 + len(written)
 		written = append(written, model.renderFaultRow(shown, faults, tab, inner,
 			firstPaneRow+1+len(written)))
@@ -984,6 +986,28 @@ func findShownFault(
 		}
 	}
 	return faults[0], true
+}
+
+// findFailureFault returns the fault inside the statement whose run failed, while the
+// buffer still holds that statement.
+func (model *Model) findFailureFault(
+	connection *app.Connection, tab *app.Tab,
+) (editor.Diagnostic, bool) {
+	active := tab.Results.Active()
+	if active == nil || active.State.Kind != app.QueryFailed || active.Source == "" {
+		return editor.Diagnostic{}, false
+	}
+	start := strings.Index(tab.Editor.Text, active.Source)
+	if start < 0 {
+		return editor.Diagnostic{}, false
+	}
+	end := start + len(active.Source)
+	for _, fault := range findSettledDiagnostics(model.findDiagnostics(connection, tab), tab) {
+		if fault.Start >= start && fault.End <= end {
+			return fault, true
+		}
+	}
+	return editor.Diagnostic{}, false
 }
 
 // editorPaneName is what the pane calls itself. Not every server this client opens has SQL,
@@ -1241,8 +1265,14 @@ func (model *Model) buildSchemaKnowledge(
 		byQualifier[qualifier] = names
 	}
 
+	tableNames := make([]string, 0, len(connection.Catalog.Tables))
+	for _, table := range connection.Catalog.Tables {
+		tableNames = append(tableNames, table.Name)
+	}
+
 	return editor.SchemaKnowledge{
-		Loaded: len(connection.Catalog.Tables) > 0,
+		Loaded:     len(connection.Catalog.Tables) > 0,
+		TableNames: tableNames,
 		IsKnownTable: func(reference statement.TableReference) bool {
 			_, known := model.findTableByName(connection, reference.SelectSource)
 			return known

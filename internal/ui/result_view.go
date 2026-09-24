@@ -15,6 +15,7 @@ import (
 	"github.com/masumedb/masume/internal/db"
 	"github.com/masumedb/masume/internal/present"
 	"github.com/masumedb/masume/internal/query"
+	"github.com/masumedb/masume/internal/query/editor"
 	"github.com/masumedb/masume/internal/query/result"
 )
 
@@ -431,6 +432,9 @@ func (model *Model) renderGrid(
 			top: model.layout.gridHeaderRow, left: model.editorLeft + 1,
 		}, width, height)
 	case app.QueryFailed:
+		if fault, found := model.findFailureFault(connection, tab); found {
+			return model.renderFailure(tab, fault, state.Message, width, height)
+		}
 		return model.wrapMessage(state.Message, width, height, theme.Error)
 	}
 	if len(shape.Columns) == 0 {
@@ -938,6 +942,52 @@ func (model *Model) wrapMessage(
 		lines = append(lines, "")
 	}
 	return lines
+}
+
+// renderFailure draws a failed run whose fault the editor also found: the fault and its
+// place, the suggested name, and the server message under them.
+func (model *Model) renderFailure(
+	tab *app.Tab, fault editor.Diagnostic, message string, width, height int,
+) []string {
+	theme := model.styles.Theme
+	ground := theme.Panel
+	indent := paintBlanks(ground, 1+present.MeasureText(model.writeProblemSign()))
+
+	at := present.ResolvePosition(tab.Editor.Text, fault.Start)
+	place := "line " + strconv.Itoa(at.Line) + ", column " + strconv.Itoa(at.Column)
+	headline := model.writeProblemSign() + strings.ReplaceAll(fault.Message, "\n", " ")
+	room := max(width-2-present.MeasureText(place)-2, 1)
+	lines := []string{paintOn(ground, " ") +
+		padStyledOn(paintText(theme.Error, ground, present.TruncateText(headline, room)),
+			width-2-present.MeasureText(place), ground) +
+		paintText(theme.Muted, ground, place)}
+
+	if fault.Suggestion != "" {
+		line := indent + paintText(theme.Muted, ground, "did you mean ") +
+			paintText(theme.Accent, ground, fault.Suggestion) +
+			paintText(theme.Muted, ground, "?")
+		if chord := model.registry.FormatFirstActionChord(
+			cfg.ScopeGlobal, ActionApplySuggestion); chord != "" && model.showsKeyHints() {
+			key := chord + " replace"
+			model.recordButton(model.layout.gridHeaderRow+len(lines),
+				model.editorLeft+1+measureStyledWidth(line)+3, present.MeasureText(key),
+				cfg.ScopeGlobal, ActionApplySuggestion)
+			line += paintOn(ground, "   ") + paintText(theme.Accent, ground, chord) +
+				paintText(theme.Faint, ground, " replace")
+		}
+		lines = append(lines, line)
+	}
+
+	lines = append(lines, "")
+	detail := lipgloss.NewStyle().Width(max(width-2-measureStyledWidth(indent), 1)).
+		Render("server: " + message)
+	for written := range strings.SplitSeq(detail, "\n") {
+		lines = append(lines, indent+paintText(theme.Faint, ground, written))
+	}
+	for len(lines) < height {
+		lines = append(lines, "")
+	}
+	return lines[:height]
 }
 
 // resolveViewContent returns what the view drawn shows. The statistics of a statement and the

@@ -396,8 +396,25 @@ func (model *Model) runGlobalAction(
 
 	case ActionShowAiChat, ActionSendToAi, ActionAiFixError:
 		return model.runAiAction(connection, tab, match)
+	case ActionApplySuggestion:
+		return model.applySuggestion(connection, tab)
 	}
 	return model, nil
+}
+
+// applySuggestion writes the suggested name over the unknown name of the failed statement.
+func (model *Model) applySuggestion(
+	connection *app.Connection, tab *app.Tab,
+) (tea.Model, tea.Cmd) {
+	fault, found := model.findFailureFault(connection, tab)
+	if !found || fault.Suggestion == "" {
+		connection.Show("no suggested name")
+		return model, nil
+	}
+	text := tab.Editor.Text
+	tab.Editor.SetTextWithCaret(text[:fault.Start]+fault.Suggestion+text[fault.End:],
+		fault.Start+len(fault.Suggestion))
+	return model, model.reportEdit(connection, tab)
 }
 
 // stepPane moves the caret to the next pane that is drawn.

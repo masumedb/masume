@@ -14,6 +14,8 @@ type Diagnostic struct {
 	Message string
 	Start   int
 	End     int
+	// The catalog name closest to the unknown name, or empty.
+	Suggestion string
 }
 
 // SchemaKnowledge is the loaded catalog metadata for a tab.
@@ -21,6 +23,8 @@ type SchemaKnowledge struct {
 	// False until the catalog is loaded. Unknown table checks require a loaded catalog.
 	Loaded       bool
 	IsKnownTable func(reference statement.TableReference) bool
+	// Table and view names of the catalog, without the schema.
+	TableNames []string
 	// Columns indexed by lowercase table names and aliases. Unloaded tables are absent.
 	ColumnsByQualifier map[string][]string
 }
@@ -111,8 +115,13 @@ func findUnknownTables(
 		if reference.HasSchema {
 			written = reference.Schema + "." + reference.Name
 		}
+		suggestion := ""
+		if !reference.HasSchema {
+			suggestion = findClosestName(reference.Name, knowledge.TableNames)
+		}
 		found = append(found, Diagnostic{
 			Message: "unknown table: " + written, Start: reference.Start, End: reference.End,
+			Suggestion: suggestion,
 		})
 	}
 	return found
@@ -163,9 +172,10 @@ func findUnknownColumns(sql string, tokens []syntax.Token, knowledge SchemaKnowl
 		}
 
 		found = append(found, Diagnostic{
-			Message: fmt.Sprintf("unknown column: %s.%s", readName(sql, qualifier), column),
-			Start:   named.Start,
-			End:     named.End,
+			Message:    fmt.Sprintf("unknown column: %s.%s", readName(sql, qualifier), column),
+			Start:      named.Start,
+			End:        named.End,
+			Suggestion: findClosestName(column, columns),
 		})
 		index += 2
 	}
@@ -195,4 +205,49 @@ func FindLocalDiagnostics(
 		return found[left].Start < found[right].Start
 	})
 	return found
+}
+
+// findClosestName returns the one candidate within a few edits of the written name. It
+// returns an empty string when no candidate is close, or when two are equally close.
+func findClosestName(written string, candidates []string) string {
+	lowered := strings.ToLower(written)
+	limit := max(1, len([]rune(lowered))/3)
+	best, bestDistance, tied := "", limit+1, false
+	for _, candidate := range candidates {
+		distance := measureEditDistance(lowered, strings.ToLower(candidate))
+		switch {
+		case distance == 0:
+			return ""
+		case distance < bestDistance:
+			best, bestDistance, tied = candidate, distance, false
+		case distance == bestDistance && !strings.EqualFold(candidate, best):
+			tied = true
+		}
+	}
+	if tied {
+		return ""
+	}
+	return best
+}
+
+// measureEditDistance returns the Levenshtein distance of two names, counted in runes.
+func measureEditDistance(left, right string) int {
+	from, to := []rune(left), []rune(right)
+	previous := make([]int, len(to)+1)
+	current := make([]int, len(to)+1)
+	for column := range previous {
+		previous[column] = column
+	}
+	for row := 1; row <= len(from); row++ {
+		current[0] = row
+		for column := 1; column <= len(to); column++ {
+			cost := 1
+			if from[row-1] == to[column-1] {
+				cost = 0
+			}
+			current[column] = min(previous[column]+1, current[column-1]+1, previous[column-1]+cost)
+		}
+		previous, current = current, previous
+	}
+	return previous[len(to)]
 }

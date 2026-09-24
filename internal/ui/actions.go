@@ -109,6 +109,7 @@ const (
 	ActionShowPalette         ActionID = "show-palette"
 	ActionShowAiChat          ActionID = "show-ai-chat"
 	ActionAiFixError          ActionID = "ai-fix-error"
+	ActionApplySuggestion     ActionID = "apply-suggestion"
 	ActionSendToAi            ActionID = "send-to-ai"
 	ActionNextPage            ActionID = "next-page"
 	ActionExportCSV           ActionID = "export-csv"
@@ -361,6 +362,7 @@ var globalActions = []ActionDefinition{
 	{ID: ActionShowPalette, Label: "command palette", WhileRunning: true, MainHint: true},
 	{ID: ActionShowAiChat, Label: "ask AI", WhileRunning: true, MainHint: true},
 	{ID: ActionAiFixError, Label: "ask AI: fix the error", WhileRunning: true, MainHint: true},
+	{ID: ActionApplySuggestion, Label: "use the suggested name"},
 	{ID: ActionSendToAi, Label: "copy the editor query into the chat field", WhileRunning: true, EditorOnly: true, MainHint: true},
 	{ID: ActionNextPage, Label: "fetch more rows", WhileRunning: true, AnswersInResult: true, MainHint: true},
 	{ID: ActionExportCSV, Label: "export the result as CSV", WhileRunning: true},
