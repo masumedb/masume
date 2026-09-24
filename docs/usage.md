@@ -122,7 +122,7 @@ To replace, type the search term in Find and press `Ctrl+R`. Then type the repla
 
 Search and replacement cover the whole editor buffer, including other statements, comments, and strings. A lowercase term matches either case. A term with a capital letter matches that case only. If lowercasing changes the byte length of the text, matching uses the original case.
 
-`F8` moves to the next reported SQL problem. Editor undo is `Ctrl+Z`. Redo is `Ctrl+Shift+Z` or `Alt+Z`.
+`F8` moves to the next reported SQL error. Editor undo is `Ctrl+Z`. Redo is `Ctrl+Shift+Z` or `Alt+Z`.
 
 ## Running SQL
 

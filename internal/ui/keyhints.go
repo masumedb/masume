@@ -526,7 +526,7 @@ var (
 	editorAiKeySpecs = []keySpec{
 		iconKeyOf(cfg.ScopeGlobal, ActionAiFixError, cfg.IconAi, "explain the failure").
 			onlyWhen(failedLastRun),
-		iconKeyOf(cfg.ScopeGlobal, ActionAiFixError, cfg.IconAi, "diagnose the fault").
+		iconKeyOf(cfg.ScopeGlobal, ActionAiFixError, cfg.IconAi, "explain the error").
 			onlyWhen(showsFault),
 		iconKeyOf(cfg.ScopeGlobal, ActionShowAiChat, cfg.IconAi, "ask for a query").
 			onlyWhen(editsNothing),

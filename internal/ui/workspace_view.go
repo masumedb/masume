@@ -1006,7 +1006,7 @@ func (model *Model) describeEditorTitle(tab *app.Tab, faults int) string {
 		return " " + editorPaneName + " "
 	}
 	return " " + editorPaneName + " · " +
-		present.FormatCountOf(int64(faults), "problem", "problems") + " "
+		present.FormatCountOf(int64(faults), "error", "errors") + " "
 }
 
 // renderFaultRow writes the fault on screen: where it is, what it says, and the keys that

@@ -1029,7 +1029,7 @@ func (model *Model) stepProblem(
 ) (tea.Model, tea.Cmd) {
 	faults := model.findDiagnostics(connection, tab)
 	if len(faults) == 0 {
-		connection.Show("no query problems found")
+		connection.Show("no errors")
 		return model, nil
 	}
 	at := 0
@@ -1044,7 +1044,7 @@ func (model *Model) stepProblem(
 	tab.Editor.PlaceCaret(faults[at].Start, false)
 	tab.EditorRolled = false
 	connection.Show(strconv.Itoa(at+1) + " of " +
-		present.FormatCountOf(int64(len(faults)), "problem", "problems"))
+		present.FormatCountOf(int64(len(faults)), "error", "errors"))
 	return model, nil
 }
 

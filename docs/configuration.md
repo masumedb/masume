@@ -561,7 +561,7 @@ A terminal without a Nerd Font draws the `nerd` glyphs, and the example above, a
 | --- | --- |
 | `full` | Every key hint on the status bar, title bar, tab row, pane strips, pane borders and cards |
 | `main` | Primary key hints only. See the list below |
-| `off` | No key hints. Bars, strips, borders and cards still show their status: statement count, caret position, problem count, result rows, card purpose |
+| `off` | No key hints. Bars, strips, borders and cards still show their status: statement count, caret position, error count, result rows, card purpose |
 
 `main` shows the primary keys: the main key of each pane (open a tree row, run the statement, run all, run a notebook cell), the key that opens the menu for the row under the cursor, keys for the current state (cancel a running read, retry a failed one, fetch more rows, count the rows, edit a table as a query), and keys for actions with no other key (show a hidden tree, step through the connections). On a card, `main` shows the answer keys and the close key, with no extras. The chat card shows `ask`, `to editor`, and `close`, and the notebook card shows `open` and `close`. The title bar, pane borders, and plan strip keep their keys; the tab row and the step keys of the result strips show none.
 

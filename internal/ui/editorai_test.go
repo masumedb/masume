@@ -82,7 +82,7 @@ func TestAMarkedStatementIsDiagnosed(t *testing.T) {
 	if len(model.resolveLocalDiagnostics(model.Active(), tab)) == 0 {
 		t.Skip("the scanner found no fault in this statement")
 	}
-	checkEditorOffers(t, model, ActionAiFixError, "diagnose the fault")
+	checkEditorOffers(t, model, ActionAiFixError, "explain the error")
 }
 
 // A run the server refused is explained.

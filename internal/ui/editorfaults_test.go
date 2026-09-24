@@ -266,6 +266,21 @@ func TestTheNextProblemKeyStepsThroughTheFaultsInOrder(t *testing.T) {
 	if tab.Editor.Caret != 20 {
 		t.Errorf("the caret stands at %d, wanted the second fault at 20", tab.Editor.Caret)
 	}
+	if connection.Notice == nil || connection.Notice.Text != "2 of 2 errors" {
+		t.Errorf("the notice reads %v, wanted 2 of 2 errors", connection.Notice)
+	}
+}
+
+// The title counts the faults as errors.
+func TestTheEditorTitleCountsTheErrors(t *testing.T) {
+	model, _, tab := buildScannedModel(t)
+	for faults, wanted := range map[int]string{
+		0: " query ", 1: " query · 1 error ", 2: " query · 2 errors ",
+	} {
+		if title := model.describeEditorTitle(tab, faults); title != wanted {
+			t.Errorf("the title reads %q, wanted %q", title, wanted)
+		}
+	}
 }
 
 // typeInEditor writes the text into the editor one key at a time.
