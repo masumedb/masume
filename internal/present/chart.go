@@ -16,7 +16,7 @@ import (
 type ChartRow struct {
 	Label string
 	Value float64
-	// The value as the result held it.
+	// The value as the result held it, with its digits grouped.
 	Written string
 }
 
@@ -48,7 +48,7 @@ func BuildChartRows(
 			continue
 		}
 		held.Value = number
-		held.Written = SafeText(core.FormatCell(row[valueAt], ""))
+		held.Written = GroupDigits(SafeText(core.FormatCell(row[valueAt], "")))
 		built = append(built, held)
 	}
 	if len(built) == 0 {
@@ -188,5 +188,5 @@ func readChartNumber(written string) (float64, bool) {
 
 // FormatChartValue returns one number as a reader sees it.
 func FormatChartValue(value float64) string {
-	return strconv.FormatFloat(value, 'f', -1, 64)
+	return GroupDigits(strconv.FormatFloat(value, 'f', -1, 64))
 }

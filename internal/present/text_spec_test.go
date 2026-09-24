@@ -291,6 +291,17 @@ func TestFormatCountGroupsTheFigures(t *testing.T) {
 	}
 }
 
+func TestGroupDigitsGroupsOnlyAPlainDecimal(t *testing.T) {
+	for _, held := range []struct{ text, want string }{
+		{"144602.15", "144,602.15"}, {"-1234567", "-1,234,567"}, {"999.5", "999.5"},
+		{"1,234", "1,234"}, {"1e9", "1e9"}, {"NaN", "NaN"}, {"", ""},
+	} {
+		if grouped := present.GroupDigits(held.text); grouped != held.want {
+			t.Errorf("%q reads as %q, wanted %q", held.text, grouped, held.want)
+		}
+	}
+}
+
 // The status bar shows the number of rows read and whether more rows exist, so a truncated
 // read is never reported as the whole table.
 func TestFormatResultSizeSaysWhenThereAreMoreRows(t *testing.T) {

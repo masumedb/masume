@@ -167,6 +167,15 @@ func TestFlattenPlanMarksTheLevelsWithALaterSibling(t *testing.T) {
 	}
 }
 
+func TestDescribePlanCostGroupsTheDigits(t *testing.T) {
+	cost := result.DescribePlanCost(query.QueryPlan{
+		Analyzed: true, ExecutionMs: 12345.6, HasExecutionMs: true,
+	})
+	if cost != "execution 12,345.6 ms" {
+		t.Errorf("the cost reads %q", cost)
+	}
+}
+
 // The cost line under the plan says what the run took, and says nothing where the server
 // measured nothing.
 func TestDescribePlanCostSaysWhatTheRunTook(t *testing.T) {

@@ -356,6 +356,22 @@ func TestTheChatDrawsAMarkdownTableAsColumns(t *testing.T) {
 	}
 }
 
+func TestTheChatGroupsTheDigitsOfALongNumberColumn(t *testing.T) {
+	model, chat := buildChatModel(t)
+	chat.Messages = append(chat.Messages, app.ChatMessage{
+		Role: hist.ChatRoleAssistant,
+		Content: "| Year | Revenue |\n|------|---------|\n" +
+			"| 2024 | 304274.92 |\n| 2025 | 1234.5 |",
+	})
+
+	rows := stripEscapes(strings.Join(readChatRows(model, model.Active()), "\n"))
+	for _, wanted := range []string{"2024  304,274.92", "2025     1,234.5"} {
+		if !strings.Contains(rows, wanted) {
+			t.Errorf("the rows do not have %q:\n%s", wanted, rows)
+		}
+	}
+}
+
 // The most recent query is the one the insert key reads, so only that block has the key.
 func TestOnlyTheMostRecentQueryHasTheInsertKey(t *testing.T) {
 	model, chat := buildChatModel(t)

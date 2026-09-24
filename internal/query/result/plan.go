@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/masumedb/masume/internal/present"
 	"github.com/masumedb/masume/internal/query"
 )
 
@@ -356,10 +357,10 @@ func DescribePlanCost(plan query.QueryPlan) string {
 	}
 	parts := []string{}
 	if plan.HasPlanningMs {
-		parts = append(parts, fmt.Sprintf("planning %.1f ms", plan.PlanningMs))
+		parts = append(parts, "planning "+present.GroupDigits(fmt.Sprintf("%.1f", plan.PlanningMs))+" ms")
 	}
 	if plan.HasExecutionMs {
-		parts = append(parts, fmt.Sprintf("execution %.1f ms", plan.ExecutionMs))
+		parts = append(parts, "execution "+present.GroupDigits(fmt.Sprintf("%.1f", plan.ExecutionMs))+" ms")
 	}
 	return strings.Join(parts, " · ")
 }

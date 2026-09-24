@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"hash"
 	"hash/fnv"
+	"slices"
 	"strings"
 	"time"
 
@@ -510,8 +511,9 @@ func (model *Model) renderChatText(written string, content int) []string {
 // column of numbers against its right edge.
 func (model *Model) renderChatTable(table query.MarkdownTable, content int) []string {
 	theme := model.styles.Theme
-	widths := present.PlanDetailColumns(table.Headers, table.Rows, content, detailGap)
 	numeric := findNumericTableColumns(table)
+	table = groupTableDigits(table, numeric)
+	widths := present.PlanDetailColumns(table.Headers, table.Rows, content, detailGap)
 	gap := strings.Repeat(" ", detailGap)
 
 	fitRow := func(cells []string) string {
@@ -558,6 +560,36 @@ func findNumericTableColumns(table query.MarkdownTable) map[int]bool {
 		numeric[column] = held
 	}
 	return numeric
+}
+
+// groupTableDigits returns the table with the digits of each number column grouped. A
+// column with no integer part longer than four digits keeps its text.
+func groupTableDigits(table query.MarkdownTable, numeric map[int]bool) query.MarkdownTable {
+	grouped := map[int]bool{}
+	for column, isNumber := range numeric {
+		if !isNumber {
+			continue
+		}
+		for _, row := range table.Rows {
+			whole, _, _ := strings.Cut(strings.TrimPrefix(row[column], "-"), ".")
+			if len(whole) > 4 && present.GroupDigits(row[column]) != row[column] {
+				grouped[column] = true
+				break
+			}
+		}
+	}
+	if len(grouped) == 0 {
+		return table
+	}
+	rows := make([][]string, len(table.Rows))
+	for at, row := range table.Rows {
+		rows[at] = slices.Clone(row)
+		for column := range grouped {
+			rows[at][column] = present.GroupDigits(row[column])
+		}
+	}
+	table.Rows = rows
+	return table
 }
 
 // renderChatCode draws a statement the model proposed, coloured as the editor colours one.

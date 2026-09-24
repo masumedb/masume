@@ -1367,5 +1367,5 @@ func describeSelfMs(node query.PlanNode) string {
 	if !node.HasSelfMs {
 		return ""
 	}
-	return strconv.FormatFloat(node.SelfMs, 'f', 1, 64) + " ms"
+	return present.GroupDigits(strconv.FormatFloat(node.SelfMs, 'f', 1, 64)) + " ms"
 }

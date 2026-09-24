@@ -343,22 +343,35 @@ func FormatWhen(at, now time.Time) string {
 
 // FormatCount returns a number with a comma every three digits.
 func FormatCount(count int64) string {
-	written := strconv.FormatInt(count, 10)
-	negative := strings.HasPrefix(written, "-")
-	if negative {
-		written = written[1:]
+	return GroupDigits(strconv.FormatInt(count, 10))
+}
+
+// plainDecimal matches a decimal number with no sign other than a minus, no exponent and
+// no separators.
+var plainDecimal = regexp.MustCompile(`^-?[0-9]+(\.[0-9]+)?$`)
+
+// GroupDigits returns a plain decimal with a comma every three digits of its integer part.
+// Other text is returned unchanged.
+func GroupDigits(text string) string {
+	if !plainDecimal.MatchString(text) {
+		return text
 	}
+	sign, digits := "", text
+	if strings.HasPrefix(digits, "-") {
+		sign, digits = "-", digits[1:]
+	}
+	whole, fraction, _ := strings.Cut(digits, ".")
 	var grouped strings.Builder
-	for at, digit := range written {
-		if at > 0 && (len(written)-at)%3 == 0 {
+	for at, digit := range whole {
+		if at > 0 && (len(whole)-at)%3 == 0 {
 			grouped.WriteByte(',')
 		}
 		grouped.WriteRune(digit)
 	}
-	if negative {
-		return "-" + grouped.String()
+	if fraction != "" {
+		return sign + grouped.String() + "." + fraction
 	}
-	return grouped.String()
+	return sign + grouped.String()
 }
 
 // FormatCountOf returns a count and the name of the counted object, in the correct
