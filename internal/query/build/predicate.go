@@ -64,12 +64,13 @@ func RenderLiteral(value any, dialect *query.Dialect, dataType string) string {
 	return dialect.QuoteTextLiteral(core.FormatCell(value, dataType))
 }
 
-// writeStep builds one SQL predicate. bind is the parameter binder or literal formatter.
-func writeStep(step core.FilterStep, dialect *query.Dialect, bind func(any) string) string {
+// writeStep builds one SQL predicate. quote is the identifier quoter, and bind is the
+// parameter binder or literal formatter.
+func writeStep(step core.FilterStep, quote func(string) string, bind func(any) string) string {
 	if step.Kind == core.FilterRaw {
 		return step.Text
 	}
-	column := dialect.QuoteIdentifier(step.Column)
+	column := quote(step.Column)
 	switch step.Test {
 	case core.FilterIsNull:
 		return column + " is null"
@@ -83,10 +84,10 @@ func writeStep(step core.FilterStep, dialect *query.Dialect, bind func(any) stri
 	return ""
 }
 
-func joinSteps(steps []core.FilterStep, dialect *query.Dialect, bind func(any) string) string {
+func joinSteps(steps []core.FilterStep, quote func(string) string, bind func(any) string) string {
 	written := make([]string, 0, len(steps))
 	for _, step := range steps {
-		text := writeStep(step, dialect, bind)
+		text := writeStep(step, quote, bind)
 		if text != "" {
 			written = append(written, text)
 		}
@@ -100,16 +101,17 @@ func ComposeFilter(steps []core.FilterStep, dialect *query.Dialect, firstParamIn
 		return nil
 	}
 	bound := query.NewBoundValues(dialect, firstParamIndex)
-	text := joinSteps(steps, dialect, bound.Bind)
+	text := joinSteps(steps, dialect.QuoteIdentifier, bound.Bind)
 	return &Predicate{Text: text, Params: bound.Params}
 }
 
-// InlineFilter builds a filter with inline values for display.
+// InlineFilter builds a filter with inline values for display. A column is quoted only
+// where the server needs the quotes.
 func InlineFilter(steps []core.FilterStep, dialect *query.Dialect) *Predicate {
 	if len(steps) == 0 {
 		return nil
 	}
-	return &Predicate{Text: joinSteps(steps, dialect, func(value any) string {
+	return &Predicate{Text: joinSteps(steps, dialect.QuoteIdentifierIfNeeded, func(value any) string {
 		return RenderLiteral(value, dialect, "")
 	})}
 }

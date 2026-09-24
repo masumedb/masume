@@ -186,7 +186,9 @@ func (measure measurer) buildReferencingPredicate(relationship db.Relationship) 
 		return "", false
 	}
 	dialect := measure.dialect()
-	return dialect.QuoteIdentifier(relationship.Columns[0]) + " in (select " +
-		dialect.QuoteIdentifier(relationship.TargetColumns[0]) + " from " +
-		measure.quotedTable() + measure.buildPredicate() + ")", true
+	table := dialect.QuoteIdentifierIfNeeded(measure.table.Schema) + "." +
+		dialect.QuoteIdentifierIfNeeded(measure.table.Name)
+	return dialect.QuoteIdentifierIfNeeded(relationship.Columns[0]) + " in (select " +
+		dialect.QuoteIdentifierIfNeeded(relationship.TargetColumns[0]) + " from " +
+		table + measure.buildPredicate() + ")", true
 }
