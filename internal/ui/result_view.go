@@ -790,11 +790,14 @@ func (model *Model) renderGridRow(
 		if len(tab.Pending.Edits) > 0 {
 			if edit, held := tab.Pending.Edits[core.BuildEditKey(rowIndex, index)]; held {
 				cell = core.DescribeCellValue(edit.Value)
-				if cell == "" {
-					cell = "''"
+				if edit.Value.Kind == core.CellNull {
+					cell = present.NullDisplay
 				}
 				staged = true
 			}
+		}
+		if cell == "" {
+			cell = present.EmptyTextDisplay
 		}
 
 		// Every cell sets its own ground, otherwise the cursor highlight bleeds across
@@ -819,7 +822,7 @@ func (model *Model) renderGridRow(
 			ink = theme.Error
 		case staged:
 			ink = theme.Success
-		case cell == present.NullDisplay:
+		case cell == present.NullDisplay || cell == present.EmptyTextDisplay:
 			ink = theme.Muted
 		}
 

@@ -21,6 +21,9 @@ import (
 // NullDisplay is the grid form of a null, because the text "NULL" can be a stored value.
 const NullDisplay = "∅"
 
+// EmptyTextDisplay is the grid form of an empty string.
+const EmptyTextDisplay = "''"
+
 // typeAbbreviations shorten the names that are too long for a list column. A one-word name
 // is kept: `integer` is the name in SQLite and MySQL, and PostgreSQL already returns
 // `int4`.
