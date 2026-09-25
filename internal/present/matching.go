@@ -2,6 +2,7 @@ package present
 
 import (
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -32,6 +33,60 @@ func MatchesText(candidate, needle string) bool {
 		return true
 	}
 	return strings.Contains(strings.ToLower(candidate), strings.ToLower(needle))
+}
+
+// The scores of one typed word of a command search. A lower score ranks first.
+const (
+	scoreLeadWord   = -1
+	scoreLabelWord  = 0
+	scoreDetailWord = 2
+	scoreLabelChars = 3
+)
+
+// ScoreCommandMatch ranks a command against the typed words. Each word must start a word of
+// the label or of the detail, or be a subsequence of the label. A word also matches without
+// its plural "s". It returns false where one word matches nothing.
+func ScoreCommandMatch(label, detail, term string) (int, bool) {
+	labelWords, detailWords := splitMatchWords(label), splitMatchWords(detail)
+	typedWords := strings.Fields(strings.ToLower(term))
+	score := 0
+	if len(labelWords) > 0 && len(typedWords) > 0 &&
+		startsAnyWord(labelWords[:1], typedWords[0]) {
+		score = scoreLeadWord
+	}
+	for _, typed := range typedWords {
+		switch {
+		case startsAnyWord(labelWords, typed):
+			score += scoreLabelWord
+		case startsAnyWord(detailWords, typed):
+			score += scoreDetailWord
+		case MatchesSubsequence(label, typed):
+			score += scoreLabelChars
+		default:
+			return 0, false
+		}
+	}
+	return score, true
+}
+
+// splitMatchWords returns the lowercase words of a text, split at every character that is not
+// a letter or a digit.
+func splitMatchWords(text string) []string {
+	return strings.FieldsFunc(strings.ToLower(text), func(character rune) bool {
+		return !unicode.IsLetter(character) && !unicode.IsDigit(character)
+	})
+}
+
+// startsAnyWord is true where the typed word, or the typed word without a plural "s", starts
+// one of the words.
+func startsAnyWord(words []string, typed string) bool {
+	singular := strings.TrimSuffix(typed, "s")
+	for _, word := range words {
+		if strings.HasPrefix(word, typed) || (len(singular) > 2 && strings.HasPrefix(word, singular)) {
+			return true
+		}
+	}
+	return false
 }
 
 // FindTextSpan returns the byte range of the first place the candidate contains the typed

@@ -333,3 +333,22 @@ func TestThePaletteShowsTheStateOfARowThatSwitchesSomething(t *testing.T) {
 		}
 	}
 }
+
+func TestThePaletteSearchMatchesWordsAndSkipsTheCommandOfAnAgent(t *testing.T) {
+	model := buildLoadedModel(t, 1, 3, 8, 3)
+	overlay := app.Overlay{
+		Kind: app.OverlayPalette,
+		Palette: []app.PaletteAction{
+			{ID: "open-picker", Label: "Open the connection picker"},
+			{ID: aiAgentPrefix + "gemini", Label: "AI agent: gemini", Detail: "gemini --experimental-acp"},
+			{ID: "explain", Label: "Explain plan"},
+		},
+	}
+	for term, wanted := range map[string]string{"connections": "open-picker", "exp": "explain"} {
+		overlay.Draft = app.NewEditorBuffer(term, len(term))
+		found := model.filterPalette(overlay)
+		if len(found) != 1 || found[0].ID != wanted {
+			t.Errorf("%q found %+v, wanted only %q", term, found, wanted)
+		}
+	}
+}

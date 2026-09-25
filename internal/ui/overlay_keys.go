@@ -1671,11 +1671,32 @@ func (model *Model) filterThemes(overlay app.Overlay) []ThemeChoice {
 		})
 }
 
-// filterPalette returns the actions the term keeps. A term is matched against the keys, the
-// text and the detail of a row.
+// filterPalette returns the actions the term keeps, best match first. The term is matched
+// against the label and the detail of a row. The detail of an agent row is its command, and
+// is not matched.
 func (model *Model) filterPalette(overlay app.Overlay) []app.PaletteAction {
-	return keepMatchingRows(overlay.Palette, model.readOverlayTerm(overlay),
-		func(action app.PaletteAction) string {
-			return action.Label + " " + action.Detail + " " + action.Chord
-		})
+	term := model.readOverlayTerm(overlay)
+	if term == "" {
+		return overlay.Palette
+	}
+	type scored struct {
+		action app.PaletteAction
+		score  int
+	}
+	kept := []scored{}
+	for _, action := range overlay.Palette {
+		detail := action.Detail
+		if strings.HasPrefix(action.ID, aiAgentPrefix) {
+			detail = ""
+		}
+		if score, matched := present.ScoreCommandMatch(action.Label, detail, term); matched {
+			kept = append(kept, scored{action: action, score: score})
+		}
+	}
+	slices.SortStableFunc(kept, func(left, right scored) int { return left.score - right.score })
+	actions := make([]app.PaletteAction, 0, len(kept))
+	for _, held := range kept {
+		actions = append(actions, held.action)
+	}
+	return actions
 }
