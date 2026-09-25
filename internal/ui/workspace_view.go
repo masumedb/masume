@@ -449,7 +449,7 @@ func (model *Model) renderTree(
 	model.layout.closeConnectionFrom = inner - 1
 	model.layout.closeConnectionTo = inner
 	if len(rows) == 0 {
-		reason := "no objects to show"
+		reason := "no objects"
 		if connection.Catalog.Loading {
 			reason = spinnerFrame(model.spinnerAt) + " reading the objects…"
 		}

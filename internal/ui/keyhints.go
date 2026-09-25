@@ -332,7 +332,7 @@ var cardKeySpecs = map[app.OverlayKind][]keySpec{
 		keyOf(cfg.ScopeDialog, ActionStopSession, "stop statement"),
 		keyOf(cfg.ScopeDialog, ActionListSecondary, "end session"),
 		keyOf(cfg.ScopeDialog, ActionFoldRow, "fold").onlyWhen(showsLocks),
-		keyOf(cfg.ScopeDialog, ActionUnfoldRow, "open").onlyWhen(showsLocks),
+		keyOf(cfg.ScopeDialog, ActionUnfoldRow, "unfold").onlyWhen(showsLocks),
 		keyOf(cfg.ScopeDialog, ActionClose, "").withLabel(describeSettingsClose),
 	},
 	app.OverlayExport: {
@@ -349,7 +349,7 @@ var cardKeySpecs = map[app.OverlayKind][]keySpec{
 	},
 	app.OverlayPrompt: {
 		takesKey(cfg.ScopeDialog, ActionReplaceInStatement),
-		keyOf(cfg.ScopeList, ActionChooseRow, "save"),
+		keyOf(cfg.ScopeList, ActionChooseRow, "").withLabel(describePromptAnswer),
 		keyOf(cfg.ScopeDialog, ActionClose, "cancel"),
 	},
 	app.OverlayAiChat: {
@@ -520,7 +520,7 @@ var (
 	planStripKeySpecs = []keySpec{
 		firstChordOf(cfg.ScopePlan, ActionToggleRawPlan, "").withLabel(describePlanForm),
 		firstChordOf(cfg.ScopePlan, ActionCopyPlan, "copy"),
-		firstChordOf(cfg.ScopePlan, ActionAiCheckPlan, "ask ai"),
+		firstChordOf(cfg.ScopePlan, ActionAiCheckPlan, "ask AI"),
 	}
 	planCostKeySpecs = []keySpec{
 		firstChordOf(cfg.ScopeGlobal, ActionExplainAnalyze, "actual times"),
@@ -551,7 +551,7 @@ func filtersHelp(scene keyScene) bool {
 
 func describeHelpMatches(scene keyScene) string {
 	found := scene.model.findHelpRows(scene.model.readOverlayTerm(scene.overlay))
-	return present.FormatCount(int64(len(found))) + " matching entries"
+	return present.FormatCountOf(int64(len(found)), "match", "matches")
 }
 
 func readOverlayNotice(scene keyScene) string {
@@ -743,6 +743,23 @@ func describeSettingsChoose(scene keyScene) string {
 }
 
 // describeSettingsClose returns what Escape does from the page on show.
+// promptAnswers are the labels of the key that takes a prompt, by the kind of the prompt.
+var promptAnswers = map[app.PromptKind]string{
+	app.PromptTabName: "rename", app.PromptCellName: "rename",
+	app.PromptNotebookRename: "rename", app.PromptNotebookName: "create",
+	app.PromptWhere: "apply", app.PromptBuilderFilter: "apply",
+	app.PromptSearch: "search", app.PromptFind: "find", app.PromptReplace: "replace",
+	app.PromptGoToColumn: "go", app.PromptAiNotebook: "build",
+	app.PromptNotebookReport: "write",
+}
+
+func describePromptAnswer(scene keyScene) string {
+	if label, found := promptAnswers[scene.overlay.Prompt]; found {
+		return label
+	}
+	return "save"
+}
+
 func describeSettingsClose(scene keyScene) string {
 	held := scene.model.settingsForm
 	if held != nil && (len(held.Path) > 0 || held.Pane == paneItems) {

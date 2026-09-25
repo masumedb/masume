@@ -124,7 +124,7 @@ func TestTheTitleBarAiKeyCarriesItsMark(t *testing.T) {
 		t.Fatalf("the chat key stands on row %d", held.row)
 	}
 	text := cutRowText(frame[held.row], held.from, held.to)
-	if !strings.Contains(text, model.icons.Icon(cfg.IconAi)+" ask ai") {
+	if !strings.Contains(text, model.icons.Icon(cfg.IconAi)+" ask AI") {
 		t.Errorf("the key on the title bar covers %q", text)
 	}
 }

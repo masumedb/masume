@@ -49,10 +49,10 @@ func TestARunOnAnEngineWithCancelShowsTheKey(t *testing.T) {
 
 // The bar under the pane shows the cancel key only where the engine takes one.
 func TestTheBarShowsTheCancelKeyOnlyWhereTheEngineTakesOne(t *testing.T) {
-	if bar := readStatusBar(t, startRunOn(t, true)); !strings.Contains(bar, "cancel") {
+	if bar := readStatusBar(t, startRunOn(t, true)); !strings.Contains(bar, "stop") {
 		t.Errorf("the status bar drew %q, wanted the cancel key", bar)
 	}
-	if bar := readStatusBar(t, startRunOn(t, false)); strings.Contains(bar, "cancel") {
+	if bar := readStatusBar(t, startRunOn(t, false)); strings.Contains(bar, "stop") {
 		t.Errorf("the status bar drew %q, wanted no cancel key", bar)
 	}
 }

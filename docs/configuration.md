@@ -567,7 +567,7 @@ A terminal without a Nerd Font draws the `nerd` glyphs, and the example above, a
 
 `main` shows the primary keys: the main key of each pane (open a tree row, run the statement, run all, run a notebook cell), the key that opens the menu for the row under the cursor, keys for the current state (cancel a running read, retry a failed one, fetch more rows, count the rows, edit a table as a query), and keys for actions with no other key (show a hidden tree, step through the connections). On a card, `main` shows the answer keys and the close key, with no extras. The chat card shows `ask`, `to editor`, and `close`, and the notebook card shows `open` and `close`. The title bar, pane borders, and plan strip keep their keys; the tab row and the step keys of the result strips show none.
 
-`full` and `main` show the AI keys: `ask ai` on the title bar, the AI key on the editor border, and `ask ai` on the plan strip. `off` hides all three.
+`full` and `main` show the AI keys: `ask AI` on the title bar, the AI key on the editor border, and `ask AI` on the plan strip. `off` hides all three.
 
 Every mode shows the chords in menu rows, the palette, and the help card. Every mode also shows the answer chips of a question, and the key in a report that has one, such as the key that undoes a write. A hidden key still works. In every mode, the palette (`^K`) and the help card (`?`) list every action.
 

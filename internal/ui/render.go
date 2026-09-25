@@ -200,7 +200,7 @@ var titleBarShortcuts = []struct {
 }{
 	{id: ActionShowPalette, label: "palette"},
 	{id: ActionShowHelp, label: "help"},
-	{id: ActionShowAiChat, label: "ask ai", icon: cfg.IconAi},
+	{id: ActionShowAiChat, label: "ask AI", icon: cfg.IconAi},
 }
 
 // The application logo and spacing.

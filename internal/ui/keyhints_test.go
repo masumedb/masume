@@ -85,7 +85,7 @@ func TestTheOffModeHidesEveryKeyHint(t *testing.T) {
 
 	drawn := stripEscapes(model.render())
 	for _, said := range []string{
-		"palette", "? help", "full height", "ask ai", "ask about the statement",
+		"palette", "? help", "full height", "ask AI", "ask about the statement",
 	} {
 		if strings.Contains(drawn, said) {
 			t.Errorf("the frame drew the %q key with the hints off", said)
@@ -114,7 +114,7 @@ func TestTheOffModeHidesTheKeysOfAnEmptyPane(t *testing.T) {
 func TestTheIdleResultPaneDrawsEachKeyBesideItsLabel(t *testing.T) {
 	model := buildOfflineModel(t, 160, 48)
 	drawn := stripEscapes(model.render())
-	if !strings.Contains(drawn, "Run a query to see rows here") {
+	if !strings.Contains(drawn, "run a query to see rows here") {
 		t.Error("the idle result pane has no title")
 	}
 	run := model.registry.FormatFirstActionChord(cfg.ScopeGlobal, ActionRunAtCursor)
@@ -136,7 +136,7 @@ func TestTheMainModeShowsTheKeysOfTheModel(t *testing.T) {
 	for _, mode := range []cfg.KeyHintsMode{cfg.KeyHintsFull, cfg.KeyHintsMain} {
 		model, _ := buildHintModeModel(t, mode)
 		drawn := stripEscapes(model.render())
-		if !strings.Contains(drawn, "ask ai") {
+		if !strings.Contains(drawn, "ask AI") {
 			t.Errorf("the %q mode dropped the key that opens the chat", mode)
 		}
 		if !strings.Contains(drawn, "ask about the statement") {

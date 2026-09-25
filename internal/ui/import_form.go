@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"strconv"
 	"strings"
 
 	"github.com/masumedb/masume/internal/app"
@@ -233,6 +232,8 @@ func ApplyImportPath(overlay *app.Overlay) {
 func DescribeImportSummary(held app.ImportRequest) string {
 	mapped := len(held.Plan.ListMappedColumns())
 	written := present.FormatCount(int64(held.Report.Rows - held.Report.Refused))
-	return written + " of " + present.FormatCount(int64(held.Report.Rows)) +
-		" rows into " + held.Plan.Table.Name + ", " + strconv.Itoa(mapped) + " columns"
+	return written + " of " +
+		present.FormatCountOf(int64(held.Report.Rows), "row", "rows") +
+		" into " + held.Plan.Table.Name + ", " +
+		present.FormatCountOf(int64(mapped), "column", "columns")
 }

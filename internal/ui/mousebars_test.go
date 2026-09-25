@@ -44,7 +44,7 @@ func TestTheKeysOfTheBarsStandWhereTheyAreDrawn(t *testing.T) {
 		case model.layout.titleRow:
 			titleKeys++
 			if text := cutRowText(title, held.from, held.to); !strings.Contains(text, "palette") &&
-				!strings.Contains(text, "help") && !strings.Contains(text, "ask ai") {
+				!strings.Contains(text, "help") && !strings.Contains(text, "ask AI") {
 				t.Errorf("the key of %q covers %q", held.action, text)
 			}
 		case model.layout.hintRow:

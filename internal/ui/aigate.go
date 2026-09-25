@@ -34,7 +34,7 @@ var aiPaletteRows = map[string]bool{
 }
 
 // aiHelpSection is the title of the help section the AI features own.
-const aiHelpSection = "ai chat"
+const aiHelpSection = "AI chat"
 
 // offersAi reports whether the AI features are on.
 func (model *Model) offersAi() bool { return model.ai.Enabled }

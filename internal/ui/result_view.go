@@ -384,7 +384,7 @@ func (model *Model) renderBanner(
 	keys, dropped := clear, ""
 	if len(tab.Filter) > 1 {
 		dropped = model.registry.FormatFirstActionChord(scope, ActionPopFilter) +
-			" remove last filter"
+			" remove the last filter"
 		keys = dropped + " · " + clear
 	}
 	if !model.showsKeyHints() {
@@ -424,11 +424,11 @@ func (model *Model) renderGrid(
 
 	switch state.Kind {
 	case app.QueryIdle:
-		return model.renderEmptyState(width, height, "Run a query to see rows here",
+		return model.renderEmptyState(width, height, "run a query to see rows here",
 			model.buildIdleHints())
 	case app.QueryRunning:
 		return model.renderWaitingBlock(waitBlock{
-			label: "running", since: model.findRunStart(tab), stop: stop, note: note,
+			label: "running…", since: model.findRunStart(tab), stop: stop, note: note,
 			top: model.layout.gridHeaderRow, left: model.editorLeft + 1,
 		}, width, height)
 	case app.QueryFailed:
@@ -1024,7 +1024,7 @@ func (model *Model) renderDetailView(
 		return model.renderDocumentTree(connection, tab, width, height)
 	case app.DataLoading:
 		return model.renderWaitingBlock(waitBlock{
-			label: "reading", since: content.StartedAt,
+			label: "reading…", since: content.StartedAt,
 		}, width, height)
 	case app.DataIdle:
 		return model.renderEmptyState(width, height, content.Reason, nil)
@@ -1047,7 +1047,7 @@ func (model *Model) renderDetailView(
 		return model.renderTable(tab,
 			model.buildConstraintRows(content.Constraints), width, height)
 	}
-	return model.renderEmptyState(width, height, "nothing to show", nil)
+	return model.renderEmptyState(width, height, "no details", nil)
 }
 
 // detailTable is the header and the rows of a read-only table.
@@ -1133,7 +1133,7 @@ func (model *Model) renderTable(
 	tab *app.Tab, table detailTable, width, height int,
 ) []string {
 	if len(table.Rows) == 0 {
-		return model.renderEmptyState(width, height, "no entries to show", nil)
+		return model.renderEmptyState(width, height, "no entries", nil)
 	}
 
 	theme := model.styles.Theme
@@ -1222,7 +1222,7 @@ func (model *Model) renderLines(
 ) []string {
 	theme := model.styles.Theme
 	if len(held) == 0 {
-		return model.renderEmptyState(width, height, "no text to show", nil)
+		return model.renderEmptyState(width, height, "no text", nil)
 	}
 	tab.DetailOffset = clampOffset(tab.DetailOffset, height, len(held))
 
@@ -1256,7 +1256,7 @@ func (model *Model) renderWideLines(
 ) []string {
 	theme := model.styles.Theme
 	if len(held) == 0 {
-		return model.renderEmptyState(width, height, "no text to show", nil)
+		return model.renderEmptyState(width, height, "no text", nil)
 	}
 	tab.DetailOffset = clampOffset(tab.DetailOffset, height, len(held))
 	textWidth := max(width-2, 1)

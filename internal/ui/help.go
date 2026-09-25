@@ -301,7 +301,7 @@ var HelpSections = []HelpSection{
 		},
 	},
 	{
-		Title: "ai chat",
+		Title: "AI chat",
 		Entries: []HelpEntry{
 			{Scope: cfg.ScopeGlobal, Actions: []ActionID{ActionShowAiChat}},
 			{Scope: cfg.ScopeGlobal, Actions: []ActionID{ActionSendToAi}},

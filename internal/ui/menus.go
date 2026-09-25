@@ -61,11 +61,11 @@ func (model *Model) openTabMenu(connection *app.Connection) (tea.Model, tea.Cmd)
 		model.buildActionMenu(connection.Session.Capabilities(), cfg.ScopeGlobal, []menuEntry{
 			{ActionNewQueryTab, "New query tab", "beside this tab", cfg.IconQuery, true},
 			{
-				ActionNameTab, "Rename tab", "",
+				ActionNameTab, "Rename tab…", "",
 				cfg.IconNote, tab.Kind == app.TabQuery,
 			},
 			{
-				ActionSaveQuery, "Save this query", "under a name",
+				ActionSaveQuery, "Save this query…", "",
 				cfg.IconFavourites, tab.Kind == app.TabQuery,
 			},
 			{
@@ -104,14 +104,14 @@ func (model *Model) openEditorMenu(
 	return model.openActionMenu(connection, " statement ", cfg.ScopeEditor,
 		model.buildActionMenu(connection.Session.Capabilities(), cfg.ScopeEditor, []menuEntry{
 			{ActionRunAtCursor, "Run", "the selection, or the statement at the caret", cfg.IconQuery, written},
-			{ActionRunBatch, "Run every statement", "one result each", cfg.IconQuery, written},
+			{ActionRunBatch, "Run every statement", "one result per statement", cfg.IconQuery, written},
 			{ActionExplain, "Explain", "estimated query plan", cfg.IconPlan, written},
 			{ActionFormatSQL, "Format", "one clause per line", cfg.IconNote, written},
 			{ActionCommentLines, "Comment lines", "comment or uncomment selected lines", cfg.IconNote, written},
 			{ActionSelectAll, "Select all", "", cfg.IconColumn, written},
 			{ActionPasteText, "Paste", "the text on the system clipboard", cfg.IconQuery, true},
 			{ActionFindInStatement, "Find…", "", cfg.IconRecent, written},
-			{ActionSaveQuery, "Save this query", "under a name", cfg.IconFavourites, written},
+			{ActionSaveQuery, "Save this query…", "", cfg.IconFavourites, written},
 		}))
 }
 
@@ -128,7 +128,7 @@ func (model *Model) openColumnMenu(
 		model.buildActionMenu(connection.Session.Capabilities(), cfg.ScopeGrid, []menuEntry{
 			{ActionSortColumn, "Sort by column", "", cfg.IconIndex, sorts},
 			{ActionAddSortColumn, "Add column to sort", "", cfg.IconIndex, sorts},
-			{ActionFilterByValues, "Filter by values", "choose values to keep", cfg.IconColumn, len(shape.Text) > 0},
+			{ActionFilterByValues, "Filter by values…", "choose values to keep", cfg.IconColumn, len(shape.Text) > 0},
 			{ActionFreezeColumns, "Freeze column", "freeze or unfreeze this column", cfg.IconPrimaryKey, true},
 			{ActionGoToColumn, "Go to column…", "by name", cfg.IconRecent, true},
 			{ActionSearchColumns, "Search rows", "search loaded rows", cfg.IconRecent, true},

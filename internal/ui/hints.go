@@ -370,9 +370,9 @@ func (model *Model) buildViewHints(
 	case app.ViewTree:
 		keys := hintList{}
 		keys.add(model.buildHint(
-			capabilities, cfg.ScopeDocument, ActionOpenNode, "open or fold"))
+			capabilities, cfg.ScopeDocument, ActionOpenNode, "fold or unfold"))
 		keys.add(model.buildPairHint(
-			cfg.ScopeDocument, ActionFoldRow, ActionUnfoldRow, "fold or open", ""))
+			cfg.ScopeDocument, ActionFoldRow, ActionUnfoldRow, "fold / unfold", ""))
 		keys.add(model.buildPairHint(
 			cfg.ScopeDocument, ActionCursorUp, ActionCursorDown, "move", ""))
 		keys.add(model.buildHint(
@@ -393,7 +393,7 @@ func (model *Model) buildViewHints(
 		keys.add(model.buildHint(
 			capabilities, cfg.ScopeGlobal, ActionExplainAnalyze, "analyze"))
 		keys.add(model.buildHint(capabilities, cfg.ScopePlan, ActionCopyPlan, "copy"))
-		keys.add(model.buildHint(capabilities, cfg.ScopePlan, ActionAiCheckPlan, "ask ai"))
+		keys.add(model.buildHint(capabilities, cfg.ScopePlan, ActionAiCheckPlan, "ask AI"))
 		keys.addAll([]Hint{scroll})
 		return keys.build()
 	}
@@ -460,7 +460,7 @@ func (model *Model) BuildHints(context HintContext) []Hint {
 	if context.Running {
 		keys := hintList{}
 		keys.add(model.buildHint(
-			capabilities, cfg.ScopeGlobal, ActionCancelQuery, "cancel"))
+			capabilities, cfg.ScopeGlobal, ActionCancelQuery, "stop"))
 		return closeBar(keys.build())
 	}
 
@@ -509,7 +509,7 @@ func (model *Model) BuildHints(context HintContext) []Hint {
 
 	if context.FilterSteps > 1 {
 		keys.add(model.buildHint(
-			capabilities, cfg.ScopeGrid, ActionPopFilter, "drop the last filter"))
+			capabilities, cfg.ScopeGrid, ActionPopFilter, "remove the last filter"))
 	}
 	if context.Rewritten {
 		keys.add(model.buildHint(capabilities, cfg.ScopeGrid, ActionClearRewrites, "clear"))
