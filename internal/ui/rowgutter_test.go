@@ -22,9 +22,11 @@ func TestThePointerStandsInAGutterOfItsOwn(t *testing.T) {
 	for _, held := range []struct {
 		name  string
 		build func(*testing.T) (*Model, func(*Model) rowsHit)
+		// lead is the column of the list that only some rows fill.
+		lead int
 	}{
 		{
-			name: "the palette",
+			name: "the palette", lead: paletteGroupWidth,
 			build: func(t *testing.T) (*Model, func(*Model) rowsHit) {
 				model := buildLoadedModel(t, 1, 3, 8, 3)
 				connection := model.Active()
@@ -85,7 +87,8 @@ func TestThePointerStandsInAGutterOfItsOwn(t *testing.T) {
 				t.Errorf("the gutter reads %q over %q",
 					strings.Join(selected[at:at+2], ""), strings.Join(other[at:at+2], ""))
 			}
-			if first, next := findRowText(selected, at+2), findRowText(other, at+2); first != next {
+			if first, next := findRowText(selected, at+2+held.lead),
+				findRowText(other, at+2+held.lead); first != next {
 				t.Errorf("the selected row starts at column %d, the next row at %d", first, next)
 			}
 		})

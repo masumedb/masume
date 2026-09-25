@@ -58,6 +58,8 @@ type Model struct {
 	aiAgent string
 	// mcp is the access the MCP server of masume grants, which an agent reads through.
 	mcp cfg.McpConfig
+	// paletteRecent are the ids of the palette rows run last, newest first.
+	paletteRecent []string
 
 	// The file picker of the card that is open on each connection. It is kept here
 	// because it answers with commands of the draw loop.

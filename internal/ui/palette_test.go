@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -205,6 +206,7 @@ func TestThePaletteRowLeadsWithTheNameAndEndsWithTheKey(t *testing.T) {
 	text := strings.TrimSpace(strings.TrimPrefix(
 		strings.TrimSpace(cutRowText(frame[block.top], block.from, block.to)), "❯"))
 	text = strings.TrimSpace(strings.TrimSuffix(text, "█"))
+	text = strings.TrimSpace(strings.TrimPrefix(text, first.Group))
 	if !strings.HasPrefix(text, first.Label) || !strings.HasSuffix(text, first.Chord) {
 		t.Errorf("the first row reads %q, wanted %q first and %q last",
 			text, first.Label, first.Chord)
@@ -287,4 +289,47 @@ func TestThePaletteDrawsTheLabelInSentenceCase(t *testing.T) {
 		}
 	}
 	t.Error("the palette has no run-at-cursor row")
+}
+
+func TestThePaletteListsItsRowsByGroupWithTheRowsRunLastFirst(t *testing.T) {
+	model := buildLoadedModel(t, 1, 3, 8, 3)
+	connection := model.Active()
+
+	actions := model.buildPaletteActions(connection)
+	last := -1
+	for _, action := range actions {
+		at := slices.Index(paletteGroupOrder, action.Group)
+		if at < 0 || at < last {
+			t.Fatalf("the row %q of the group %q is out of order", action.ID, action.Group)
+		}
+		last = at
+	}
+
+	model.runPaletteAction(connection, "show-help")
+	connection.CloseEveryOverlay()
+	actions = model.buildPaletteActions(connection)
+	if actions[0].ID != "show-help" || actions[0].Group != groupRecent {
+		t.Errorf("the first row is %q of %q, wanted the help row of the recent group",
+			actions[0].ID, actions[0].Group)
+	}
+	if slices.ContainsFunc(actions[1:], func(action app.PaletteAction) bool {
+		return action.ID == "show-help"
+	}) {
+		t.Error("the help row is listed twice")
+	}
+}
+
+func TestThePaletteShowsTheStateOfARowThatSwitchesSomething(t *testing.T) {
+	model := buildLoadedModel(t, 1, 3, 8, 3)
+	connection := model.Active()
+	connection.SidebarVisible = false
+
+	for _, action := range model.buildPaletteActions(connection) {
+		if action.ID == "toggle-sidebar" && action.Detail != "hidden" {
+			t.Errorf("the tree row reads %q, wanted hidden", action.Detail)
+		}
+		if action.ID == "next-tab" && action.Chord == "]" {
+			t.Error("the next tab row names a key that types into the editor")
+		}
+	}
 }

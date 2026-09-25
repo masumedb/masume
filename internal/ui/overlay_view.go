@@ -669,6 +669,8 @@ const (
 // The columns of one row of the palette, the history and the saved statements.
 const (
 	paletteLabelWidth = 38
+	// paletteGroupWidth is the column the group of a palette row keeps.
+	paletteGroupWidth = 13
 	historyTimeWidth  = 12
 	historySQLWidth   = 74
 	savedNameWidth    = 26
@@ -893,7 +895,12 @@ func (model *Model) renderPalette(overlay app.Overlay, width int) string {
 	term := model.readOverlayTerm(overlay)
 	rows := make([]string, 0, len(actions))
 	for at, action := range actions {
+		lead := ""
+		if at == 0 || actions[at-1].Group != action.Group {
+			lead = action.Group
+		}
 		rows = append(rows, model.renderListRow(ListRowSpec{
+			Lead: lead, LeadWidth: paletteGroupWidth,
 			Label: action.Label, LabelWidth: paletteLabelWidth,
 			Detail: action.Detail, Key: action.Chord, Match: term,
 			Selected: at == overlay.List.Cursor, Width: width,

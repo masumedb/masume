@@ -44,144 +44,149 @@ type paletteEntry struct {
 	// when returns false where the state leaves this row out. A row the client cannot
 	// run now is left out, and not offered and refused.
 	when func(keyScene) bool
-	// detailScope and detailAction are for a row reached by the key of another action,
-	// such as the one that moves between the panes.
-	detailScope  cfg.KeyScope
-	detailAction ActionID
+	// group is the heading the row is listed under.
+	group string
+	// state returns the current value of a row that switches something, such as "on".
+	// It replaces the detail.
+	state func(keyScene) string
 }
 
-// paneChordAction names the key that moves between the panes.
-const paneChordAction = ActionFocusNextPane
+// The groups of the palette, in the order the palette lists them.
+const (
+	groupRecent      = "recent"
+	groupQuery       = "query"
+	groupResult      = "result"
+	groupTransaction = "transaction"
+	groupLayout      = "layout"
+	groupTabs        = "tabs"
+	groupNotebook    = "notebook"
+	groupConnection  = "connection"
+	groupAi          = "AI"
+	groupClient      = "client"
+)
+
+var paletteGroupOrder = []string{
+	groupRecent, groupQuery, groupResult, groupTransaction, groupLayout, groupTabs,
+	groupNotebook, groupConnection, groupAi, groupClient,
+}
+
+// paletteRecentLimit is the most rows the recent group lists.
+const paletteRecentLimit = 5
 
 // paletteEntries are the rows the palette offers, in order.
 var paletteEntries = []paletteEntry{
-	{id: "run-at-cursor", scope: cfg.ScopeGlobal, action: ActionRunAtCursor, when: holdsStatement},
-	{id: "run-batch", detail: "one result each",
+	{id: "run-at-cursor", group: groupQuery, scope: cfg.ScopeGlobal, action: ActionRunAtCursor, when: holdsStatement},
+	{id: "run-batch", group: groupQuery, detail: "one result per statement",
 		scope: cfg.ScopeGlobal, action: ActionRunBatch, when: holdsStatement},
-	{id: "explain", scope: cfg.ScopeGlobal, action: ActionExplain, when: holdsStatement},
-	{id: "explain-analyze",
+	{id: "explain", group: groupQuery, scope: cfg.ScopeGlobal, action: ActionExplain, when: holdsStatement},
+	{id: "explain-analyze", group: groupQuery,
 		scope: cfg.ScopeGlobal, action: ActionExplainAnalyze, when: holdsStatement},
-	{id: "cancel-query", scope: cfg.ScopeGlobal, action: ActionCancelQuery, when: runsQuery},
-	{id: "show-history", scope: cfg.ScopeGlobal, action: ActionShowHistory},
-	{id: "save-query", detail: "under a name",
+	{id: "cancel-query", group: groupQuery, scope: cfg.ScopeGlobal, action: ActionCancelQuery, when: runsQuery},
+	{id: "show-history", group: groupQuery, scope: cfg.ScopeGlobal, action: ActionShowHistory},
+	{id: "save-query", group: groupQuery,
 		scope: cfg.ScopeGlobal, action: ActionSaveQuery, when: savesQuery},
-	{id: "show-saved", scope: cfg.ScopeGlobal, action: ActionShowSaved},
-	{id: "show-activity", detail: "load, locks, and other sessions",
+	{id: "show-saved", group: groupQuery, scope: cfg.ScopeGlobal, action: ActionShowSaved},
+	{id: "show-activity", group: groupConnection, detail: "load, locks, and other sessions",
 		scope: cfg.ScopeGlobal, action: ActionShowActivity},
-	{id: "undo-write", detail: "run the saved undo statement",
+	{id: "undo-write", group: groupQuery, detail: "run the saved undo statement",
 		scope: cfg.ScopeGlobal, action: ActionUndoWrite, when: undoesWrite},
-	{id: "export-csv", scope: cfg.ScopeGlobal, action: ActionExportCSV, when: holdsResult},
-	{id: "export-json", scope: cfg.ScopeGlobal, action: ActionExportJSON, when: holdsResult},
-	{id: "reopen-tab", scope: cfg.ScopeGlobal, action: ActionReopenTab, when: holdsClosedTab},
-	{id: "undo-change", detail: "in the grid",
-		scope: cfg.ScopeGrid, action: ActionUndoChange, when: undoesChange},
-	{id: "redo-change", detail: "in the grid",
-		scope: cfg.ScopeGrid, action: ActionRedoChange, when: redoesChange},
-	{id: "review-changes", detail: "in the grid",
-		scope: cfg.ScopeGrid, action: ActionReviewChanges, when: stagesChanges},
-	{id: "discard-changes", detail: "asks first",
-		scope: cfg.ScopeGrid, action: ActionDiscardChanges, when: stagesChanges},
-	{id: "begin-transaction",
+	{id: "export-csv", group: groupResult, scope: cfg.ScopeGlobal, action: ActionExportCSV, when: holdsResult},
+	{id: "export-json", group: groupResult, scope: cfg.ScopeGlobal, action: ActionExportJSON, when: holdsResult},
+	{id: "reopen-tab", group: groupTabs, scope: cfg.ScopeGlobal, action: ActionReopenTab, when: holdsClosedTab},
+	{id: "undo-change", group: groupResult, scope: cfg.ScopeGrid, action: ActionUndoChange, when: undoesChange},
+	{id: "redo-change", group: groupResult, scope: cfg.ScopeGrid, action: ActionRedoChange, when: redoesChange},
+	{id: "review-changes", group: groupResult, scope: cfg.ScopeGrid, action: ActionReviewChanges, when: stagesChanges},
+	{id: "discard-changes", group: groupResult, scope: cfg.ScopeGrid, action: ActionDiscardChanges, when: stagesChanges},
+	{id: "begin-transaction", group: groupTransaction,
 		scope: cfg.ScopeGlobal, action: ActionBeginTransaction, when: opensTransaction},
-	{id: "commit-transaction",
+	{id: "commit-transaction", group: groupTransaction,
 		scope: cfg.ScopeGlobal, action: ActionCommitTransaction, when: holdsTransaction},
-	{id: "rollback-transaction", scope: cfg.ScopeGlobal, action: ActionRollbackTransaction,
+	{id: "rollback-transaction", group: groupTransaction, scope: cfg.ScopeGlobal, action: ActionRollbackTransaction,
 		when: holdsTransaction},
-	{id: "toggle-autocommit", scope: cfg.ScopeGlobal, action: ActionToggleAutocommit},
-	{id: "tab-data", label: "View: Data", detail: "result rows",
+	{id: "toggle-autocommit", group: groupTransaction, scope: cfg.ScopeGlobal,
+		action: ActionToggleAutocommit, state: describeAutocommitState},
+	{id: "tab-data", group: groupResult, label: "View: Data", detail: "result rows",
 		when: offersResultView(app.ViewData)},
-	{id: "tab-fields", label: "View: Fields",
+	{id: "tab-fields", group: groupResult, label: "View: Fields",
 		detail: "the columns the server returned",
 		when:   offersResultView(app.ViewFields)},
-	{id: "tab-statistics", label: "View: Statistics",
+	{id: "tab-statistics", group: groupResult, label: "View: Statistics",
 		detail: "affected rows and execution times",
 		when:   offersResultView(app.ViewStatistics)},
-	{id: "tab-columns", label: "View: Columns", detail: "table columns",
+	{id: "tab-columns", group: groupResult, label: "View: Columns", detail: "table columns",
 		when: offersResultView(app.ViewColumns)},
-	{id: "tab-indexes", label: "View: Indexes", detail: "table indexes",
+	{id: "tab-indexes", group: groupResult, label: "View: Indexes", detail: "table indexes",
 		when: offersResultView(app.ViewIndexes)},
-	{id: "tab-constraints", label: "View: Constraints", detail: "table constraints",
+	{id: "tab-constraints", group: groupResult, label: "View: Constraints", detail: "table constraints",
 		when: offersResultView(app.ViewConstraints)},
-	{id: "tab-ddl", label: "View: DDL", detail: "the statement that defines the table",
+	{id: "tab-ddl", group: groupResult, label: "View: DDL", detail: "the statement that defines the table",
 		when: offersResultView(app.ViewDDL)},
-	{id: "tab-plan", label: "View: Plan", detail: "query plan",
+	{id: "tab-plan", group: groupResult, label: "View: Plan", detail: "query plan",
 		when: offersResultView(app.ViewPlan)},
-	{id: "reveal-sql", detail: "a table opens as a query",
+	{id: "reveal-sql", group: groupQuery, detail: "a table opens as a query",
 		scope: cfg.ScopeGlobal, action: ActionRevealSQL, when: revealsStatement},
-	{id: "toggle-sidebar", scope: cfg.ScopeGlobal, action: ActionToggleSidebar},
-	{id: "toggle-result", detail: "the editor fills the pane",
-		scope: cfg.ScopeGlobal, action: ActionToggleResult},
-	{id: "focus-sidebar", scope: cfg.ScopeGlobal, action: ActionFocusSidebar,
-		detailScope: cfg.ScopeGlobal, detailAction: paneChordAction},
-	{id: "focus-editor", scope: cfg.ScopeGlobal, action: ActionFocusEditor, when: showsEditor,
-		detailScope: cfg.ScopeGlobal, detailAction: paneChordAction},
-	{id: "focus-result", scope: cfg.ScopeGlobal, action: ActionFocusResult,
-		detailScope: cfg.ScopeGlobal, detailAction: paneChordAction},
-	{id: "new-query-tab", scope: cfg.ScopeGlobal, action: ActionNewQueryTab},
-	{id: "new-notebook-tab", detail: "cells that share one connection",
+	{id: "toggle-sidebar", group: groupLayout, scope: cfg.ScopeGlobal, action: ActionToggleSidebar,
+		state: describeSidebarState},
+	{id: "toggle-result", group: groupLayout,
+		scope: cfg.ScopeGlobal, action: ActionToggleResult, state: describeResultState},
+	{id: "focus-sidebar", group: groupLayout, scope: cfg.ScopeGlobal, action: ActionFocusSidebar},
+	{id: "focus-editor", group: groupLayout, scope: cfg.ScopeGlobal, action: ActionFocusEditor, when: showsEditor},
+	{id: "focus-result", group: groupLayout, scope: cfg.ScopeGlobal, action: ActionFocusResult},
+	{id: "new-query-tab", group: groupTabs, scope: cfg.ScopeGlobal, action: ActionNewQueryTab},
+	{id: "new-notebook-tab", group: groupTabs, detail: "cells that share one connection",
 		scope: cfg.ScopeGlobal, action: ActionNewNotebookTab},
-	{id: "new-builder-tab", detail: "pick tables, join them, read the SQL",
+	{id: "new-builder-tab", group: groupTabs, detail: "pick tables, join them, read the SQL",
 		scope: cfg.ScopeGlobal, action: ActionNewBuilderTab, needs: NeedsJoinsTables},
-	{id: "show-notebooks", detail: "of the project and of the user",
+	{id: "show-notebooks", group: groupNotebook, detail: "project and user notebooks",
 		scope: cfg.ScopeGlobal, action: ActionShowNotebooks},
-	{id: "write-notebook-report", detail: "prose, statements and the rows of every cell",
+	{id: "write-notebook-report", group: groupNotebook, detail: "prose, statements and the rows of every cell",
 		scope: cfg.ScopeGlobal, action: ActionWriteNotebookReport,
 		when: editsNotebook},
-	{id: "notebook-run-policy", detail: "transaction and error policy",
+	{id: "notebook-run-policy", group: groupNotebook, detail: "transaction and error policy",
 		scope: cfg.ScopeGlobal, action: ActionNotebookRunPolicy, when: editsNotebook},
-	{id: "run-cell", detail: "in a notebook",
-		scope: cfg.ScopeNotebook, action: ActionRunCell, when: editsNotebook},
-	{id: "run-from-cell", detail: "in a notebook",
-		scope: cfg.ScopeNotebook, action: ActionRunFromCell, when: editsNotebook},
-	{id: "run-marked-cells", detail: "in a notebook",
-		scope: cfg.ScopeNotebook, action: ActionRunMarkedCells, when: editsNotebook},
-	{id: "add-cell-below", detail: "in a notebook",
-		scope: cfg.ScopeNotebook, action: ActionAddCellBelow, when: editsNotebook},
-	{id: "set-cell-kind", detail: "sql, md, param, or chart",
+	{id: "run-cell", group: groupNotebook, scope: cfg.ScopeNotebook, action: ActionRunCell, when: editsNotebook},
+	{id: "run-from-cell", group: groupNotebook, scope: cfg.ScopeNotebook, action: ActionRunFromCell, when: editsNotebook},
+	{id: "run-marked-cells", group: groupNotebook, scope: cfg.ScopeNotebook, action: ActionRunMarkedCells, when: editsNotebook},
+	{id: "add-cell-below", group: groupNotebook, scope: cfg.ScopeNotebook, action: ActionAddCellBelow, when: editsNotebook},
+	{id: "set-cell-kind", group: groupNotebook, detail: "sql, md, param, or chart",
 		scope: cfg.ScopeNotebook, action: ActionSetCellKind, when: editsNotebook},
-	{id: "edit-cell-source", detail: "a chart cell opens its form",
+	{id: "edit-cell-source", group: groupNotebook, detail: "a chart cell opens its form",
 		scope: cfg.ScopeNotebook, action: ActionEditCellSource, when: editsNotebook},
-	{id: "next-tab", scope: cfg.ScopeGlobal, action: ActionNextTab, when: showsManyTabs},
-	{id: "close-tab", detail: "asks if changes are staged",
+	{id: "next-tab", group: groupTabs, scope: cfg.ScopeGlobal, action: ActionNextTab, when: showsManyTabs},
+	{id: "close-tab", group: groupTabs,
 		scope: cfg.ScopeGlobal, action: ActionCloseTab},
-	{id: "name-tab", scope: cfg.ScopeGlobal, action: ActionNameTab, when: namesTab},
-	{id: "refresh-objects", detail: "read the catalog again",
+	{id: "name-tab", group: groupTabs, scope: cfg.ScopeGlobal, action: ActionNameTab, when: namesTab},
+	{id: "refresh-objects", group: groupConnection,
 		scope: cfg.ScopeGlobal, action: ActionRefreshObjects},
-	{id: "copy-csv", detail: "in the grid",
-		scope: cfg.ScopeGrid, action: ActionCopyCSV, when: holdsResult},
-	{id: "copy-json", detail: "in the grid",
-		scope: cfg.ScopeGrid, action: ActionCopyJSON, when: holdsResult},
-	{id: "copy-markdown", detail: "in the grid",
-		scope: cfg.ScopeGrid, action: ActionCopyMarkdown, when: holdsResult},
-	{id: "copy-inserts", detail: "in the grid",
-		scope: cfg.ScopeGrid, action: ActionCopyInserts, when: holdsResult},
-	{id: "copy-plan", detail: "in the plan view · raw server output",
+	{id: "copy-csv", group: groupResult, scope: cfg.ScopeGrid, action: ActionCopyCSV, when: holdsResult},
+	{id: "copy-json", group: groupResult, scope: cfg.ScopeGrid, action: ActionCopyJSON, when: holdsResult},
+	{id: "copy-markdown", group: groupResult, scope: cfg.ScopeGrid, action: ActionCopyMarkdown, when: holdsResult},
+	{id: "copy-inserts", group: groupResult, scope: cfg.ScopeGrid, action: ActionCopyInserts, when: holdsResult},
+	{id: "copy-plan", group: groupResult, detail: "in the plan view · raw server output",
 		scope: cfg.ScopePlan, action: ActionCopyPlan, when: holdsQueryPlan},
-	{id: "open-picker", scope: cfg.ScopeGlobal, action: ActionOpenPicker},
-	{id: "close-connection", detail: "close all its tabs",
+	{id: "open-picker", group: groupConnection, scope: cfg.ScopeGlobal, action: ActionOpenPicker},
+	{id: "close-connection", group: groupConnection, detail: "closes all its tabs",
 		scope: cfg.ScopeGlobal, action: ActionCloseConnection},
-	{id: "next-page", scope: cfg.ScopeGlobal, action: ActionNextPage, when: fetchesMoreRows},
-	{id: "count-rows", detail: "in the grid",
-		scope: cfg.ScopeGrid, action: ActionCountRows, when: countsRows},
-	{id: "format-sql", detail: "one clause per line",
+	{id: "next-page", group: groupResult, scope: cfg.ScopeGlobal, action: ActionNextPage, when: fetchesMoreRows},
+	{id: "count-rows", group: groupResult, scope: cfg.ScopeGrid, action: ActionCountRows, when: countsRows},
+	{id: "format-sql", group: groupQuery, detail: "one clause per line",
 		scope: cfg.ScopeEditor, action: ActionFormatSQL, when: editsStatement},
-	{id: "show-themes", detail: "preview the selected theme",
+	{id: "show-themes", group: groupClient, detail: "preview the selected theme",
 		scope: cfg.ScopeGlobal, action: ActionShowThemes},
-	{id: "reload-themes", label: "Reload the theme files",
-		detail: "read the theme files again"},
-	{id: settingsAction, label: "Settings", detail: "the client settings, written to config.toml"},
-	{id: "show-help", scope: cfg.ScopeGlobal, action: ActionShowHelp},
-	{id: "show-ai-chat", detail: "ask about this database, or for a query",
+	{id: "reload-themes", group: groupClient, label: "Reload the theme files"},
+	{id: settingsAction, group: groupClient, label: "Settings", detail: "written to config.toml"},
+	{id: "show-help", group: groupClient, scope: cfg.ScopeGlobal, action: ActionShowHelp},
+	{id: "show-ai-chat", group: groupAi, detail: "ask about this database, or for a query",
 		scope: cfg.ScopeGlobal, action: ActionShowAiChat},
-	{id: "ai-explain-query", label: "Ask AI: explain this query",
+	{id: "ai-explain-query", group: groupAi, label: "Ask AI: explain this query",
 		detail: "the query in the editor", when: editsStatement},
-	{id: "ai-optimize-query", label: "Ask AI: optimize this query",
+	{id: "ai-optimize-query", group: groupAi, label: "Ask AI: optimize this query",
 		detail: "the query in the editor", when: editsStatement},
-	{id: "ai-build-notebook", label: "Ask AI: build a notebook",
+	{id: "ai-build-notebook", group: groupAi, label: "Ask AI: build a notebook",
 		detail: "prose and one cell per query"},
-	{id: "chat-to-notebook", detail: "one cell per statement the model wrote",
+	{id: "chat-to-notebook", group: groupAi, detail: "one cell per statement the model wrote",
 		scope: cfg.ScopeDialog, action: ActionChatToNotebook, when: holdsChatText},
-	{id: "ai-fix-error", detail: "the last failed run in the editor",
+	{id: "ai-fix-error", group: groupAi, detail: "the last failed run in the editor",
 		scope: cfg.ScopeGlobal, action: ActionAiFixError, when: failedLastRun},
 }
 
@@ -297,14 +302,37 @@ var providerLabels = map[cfg.AiProviderID]string{
 	cfg.ProviderOpenaiCompatible: "Local or OpenAI compatible",
 }
 
-// readEntryDetail returns the detail of a row, which can be the chord of another action. A
-// row of the palette spells the chord, as a row of the help does.
-func (model *Model) readEntryDetail(entry paletteEntry) string {
-	if entry.detailAction != "" {
-		return model.registry.FormatFirstActionChordName(
-			entry.detailScope, entry.detailAction)
+// readEntryDetail returns the detail of a row: the current state of a row that switches
+// something, or its own detail.
+func readEntryDetail(entry paletteEntry, scene keyScene) string {
+	if entry.state != nil {
+		return entry.state(scene)
 	}
 	return entry.detail
+}
+
+// describeSidebarState, describeResultState and describeAutocommitState return the state
+// a palette row switches.
+func describeSidebarState(scene keyScene) string {
+	return describeShown(scene.connection.SidebarVisible)
+}
+
+func describeResultState(scene keyScene) string {
+	return describeShown(scene.connection.ResultVisible)
+}
+
+func describeAutocommitState(scene keyScene) string {
+	if scene.connection.Autocommit {
+		return "on"
+	}
+	return "off"
+}
+
+func describeShown(shown bool) string {
+	if shown {
+		return "shown"
+	}
+	return "hidden"
 }
 
 // readEntryLabel returns the text of a row: its own, or the label of its action in sentence
@@ -351,11 +379,11 @@ func (model *Model) buildPaletteActions(connection *app.Connection) []app.Palett
 		}
 		chord := ""
 		if entry.action != "" {
-			chord = model.registry.FormatFirstActionChordName(entry.scope, entry.action)
+			chord = model.registry.FormatModifiedActionChordName(entry.scope, entry.action)
 		}
 		actions = append(actions, app.PaletteAction{
 			ID: entry.id, Label: readEntryLabel(entry),
-			Detail: model.readEntryDetail(entry), Chord: chord,
+			Detail: readEntryDetail(entry, scene), Chord: chord, Group: entry.group,
 		})
 	}
 
@@ -370,13 +398,13 @@ func (model *Model) buildPaletteActions(connection *app.Connection) []app.Palett
 			actions = append(actions, app.PaletteAction{
 				ID:     aiProviderPrefix + string(id),
 				Label:  "AI provider: " + providerLabels[id],
-				Detail: detail,
+				Detail: detail, Group: groupAi,
 			})
 		}
 		for _, name := range sortedAgentNames(model.ai.Agents) {
 			actions = append(actions, app.PaletteAction{
 				ID: aiAgentPrefix + name, Label: "AI agent: " + name,
-				Detail: describeAgentCommand(model.ai.Agents[name]),
+				Detail: describeAgentCommand(model.ai.Agents[name]), Group: groupAi,
 			})
 		}
 	}
@@ -386,7 +414,7 @@ func (model *Model) buildPaletteActions(connection *app.Connection) []app.Palett
 		for _, preset := range presets {
 			actions = append(actions, app.PaletteAction{
 				ID: keyPresetPrefix + string(preset.ID), Label: "Keys: " + preset.Title,
-				Detail: preset.Describe,
+				Detail: preset.Describe, Group: groupClient,
 			})
 		}
 	}
@@ -395,9 +423,43 @@ func (model *Model) buildPaletteActions(connection *app.Connection) []app.Palett
 			ID: configProblemsAction, Label: "Config problems",
 			Detail: present.FormatCount(int64(len(model.problems))) +
 				" · config and theme file problems",
+			Group: groupClient,
 		})
 	}
-	return actions
+	return model.orderPaletteActions(actions)
+}
+
+// orderPaletteActions lists the rows group by group, with the rows run last at the top.
+func (model *Model) orderPaletteActions(actions []app.PaletteAction) []app.PaletteAction {
+	slices.SortStableFunc(actions, func(left, right app.PaletteAction) int {
+		return slices.Index(paletteGroupOrder, left.Group) -
+			slices.Index(paletteGroupOrder, right.Group)
+	})
+	recent := []app.PaletteAction{}
+	for _, id := range model.paletteRecent {
+		at := slices.IndexFunc(actions, func(action app.PaletteAction) bool {
+			return action.ID == id
+		})
+		if at < 0 {
+			continue
+		}
+		row := actions[at]
+		row.Group = groupRecent
+		recent = append(recent, row)
+		actions = slices.Delete(actions, at, at+1)
+	}
+	return append(recent, actions...)
+}
+
+// rememberPaletteRow puts a row the palette ran at the top of the recent group.
+func (model *Model) rememberPaletteRow(id string) {
+	kept := []string{id}
+	for _, held := range model.paletteRecent {
+		if held != id && len(kept) < paletteRecentLimit {
+			kept = append(kept, held)
+		}
+	}
+	model.paletteRecent = kept
 }
 
 // paletteViews name the view each `tab-` row of the palette moves to.
@@ -414,6 +476,7 @@ func (model *Model) runPaletteAction(
 ) (tea.Model, tea.Cmd) {
 	connection.CloseEveryOverlay()
 	tab := connection.Active()
+	model.rememberPaletteRow(id)
 
 	for _, view := range paletteViews {
 		if id != "tab-"+string(view) {

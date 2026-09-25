@@ -91,6 +91,8 @@ type PaletteAction struct {
 	Detail string
 	// Its key, drawn in the same column as the keys of a menu.
 	Chord string
+	// Group is the heading the row is listed under.
+	Group string
 }
 
 // PromptKind is the one-line input category.

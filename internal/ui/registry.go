@@ -386,6 +386,24 @@ func (registry *KeyRegistry) FormatFirstActionChordName(
 	return FormatChordName(chords[0])
 }
 
+// FormatModifiedActionChordName writes the first chord of an action that starts with Ctrl or
+// Alt, for a row that runs from any pane. A bare key types into the editor. An action with
+// no such chord writes its first chord.
+func (registry *KeyRegistry) FormatModifiedActionChordName(
+	scope cfg.KeyScope, id ActionID,
+) string {
+	chords := registry.FindActionChords(scope, id)
+	if len(chords) == 0 {
+		return ""
+	}
+	for _, sequence := range chords {
+		if len(sequence) > 0 && (sequence[0].Ctrl || sequence[0].Meta) {
+			return FormatChordName(sequence)
+		}
+	}
+	return FormatChordName(chords[0])
+}
+
 // FormatChord writes a binding as the interface draws it: every press in order, separated by
 // a space.
 func FormatChord(sequence cfg.ChordSequence) string {
