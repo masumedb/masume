@@ -550,3 +550,39 @@ func SafeLines(text string) string {
 func FormatDuration(elapsed time.Duration) string {
 	return core.FormatDuration(elapsed)
 }
+
+// SplitDecimal returns the digits before and after the point of a plain decimal number, such
+// as "-12.50". It returns false for any other text, such as "1e10" or "∅".
+func SplitDecimal(text string) (int, int, bool) {
+	digits := strings.TrimPrefix(text, "-")
+	whole, fraction, hasPoint := strings.Cut(digits, ".")
+	if whole == "" || !isDigits(whole) || (hasPoint && !isDigits(fraction)) {
+		return 0, 0, false
+	}
+	if !hasPoint {
+		return len(text), 0, true
+	}
+	return len(text) - len(fraction) - 1, len(fraction), true
+}
+
+func isDigits(text string) bool {
+	for _, character := range text {
+		if character < '0' || character > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// AlignDecimal pads a plain decimal number with spaces on its right, so its point stands
+// where a number with this many digits after the point has it. The digits do not change.
+func AlignDecimal(text string, fraction int) string {
+	_, held, ok := SplitDecimal(text)
+	if !ok || fraction == 0 {
+		return text
+	}
+	if held == 0 && !strings.Contains(text, ".") {
+		return text + strings.Repeat(" ", fraction+1)
+	}
+	return text + strings.Repeat(" ", fraction-held)
+}

@@ -6,6 +6,7 @@ import (
 
 	"github.com/masumedb/masume/internal/app"
 	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db"
 	"github.com/masumedb/masume/internal/present"
 )
 
@@ -48,5 +49,32 @@ func TestTheGridGutterWritesRowNumbersAsTheFooterDoes(t *testing.T) {
 	shape.RowIndexes = []int{12344, 12345, 12346}
 	if drawn := stripEscapes(model.renderGridRow(tab, shape, []int{0}, 0, 8, 60)); !strings.Contains(drawn, "12,345") {
 		t.Errorf("the gutter reads %q", drawn)
+	}
+}
+
+func TestTheDecimalPointsOfANumberColumnLineUp(t *testing.T) {
+	model := buildOfflineModel(t, 160, 48)
+	connection := model.Active()
+	tab := connection.Active()
+	tab.Results.Start([]string{"select revenue from t"}, 200)
+	tab.Results.Succeed(0, db.ComposedRead{Text: "select revenue from t"}, db.QueryResult{
+		Columns: []db.ResultColumn{{Name: "revenue", DataType: "numeric"}},
+		Rows:    [][]any{{"51395.99"}, {"51140.3"}, {"496"}},
+	})
+	shape := model.buildGridShape(connection, tab)
+
+	points := map[int]bool{}
+	for at := range 3 {
+		drawn := stripEscapes(model.renderGridRow(tab, shape, []int{0}, at, 3, 40))
+		if at == 2 {
+			if !strings.Contains(drawn, "496   ") {
+				t.Errorf("the whole number reads %q", drawn)
+			}
+			continue
+		}
+		points[strings.Index(drawn, ".")] = true
+	}
+	if len(points) != 1 {
+		t.Errorf("the points stand in %d different columns", len(points))
 	}
 }

@@ -812,6 +812,9 @@ func (model *Model) renderGridRow(
 		if cell == "" {
 			cell = present.EmptyTextDisplay
 		}
+		if shape.Numeric[index] && !staged {
+			cell = present.AlignDecimal(cell, shape.Fractions[index])
+		}
 
 		// Every cell sets its own ground, otherwise the cursor highlight bleeds across
 		// the rest of the row. The column of the cursor carries the ground of the row of

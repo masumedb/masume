@@ -35,6 +35,8 @@ type GridShape struct {
 	// The name of each column with its sort mark, as the header draws it.
 	Labels []string
 	Widths []int
+	// Fractions are the most digits after the point in each column of numbers.
+	Fractions map[int]int
 }
 
 // buildGridShape returns what the grid draws for the result on screen.
@@ -54,11 +56,43 @@ func (model *Model) buildGridShape(connection *app.Connection, tab *app.Tab) Gri
 	text, indexes, widths := model.resolveGridShape(
 		key, tab, formatted, answered.Rows, head.labels)
 
+	fractions, widths := measureDecimalColumns(text, head.numeric, widths)
 	return GridShape{
 		Columns: answered.Columns, Rows: answered.Rows, Text: text, RowIndexes: indexes,
 		Masked: head.masked, Numeric: head.numeric, Labels: head.labels,
-		Widths: applyColumnWidths(widths, tab.ColumnWidths),
+		Widths: applyColumnWidths(widths, tab.ColumnWidths), Fractions: fractions,
 	}
+}
+
+// measureDecimalColumns returns the most digits after the point in each column of numbers,
+// and the widths with room for the numbers once their points line up.
+func measureDecimalColumns(
+	text [][]string, numeric map[int]bool, widths []int,
+) (map[int]int, []int) {
+	fractions := map[int]int{}
+	if len(numeric) == 0 {
+		return fractions, widths
+	}
+	wholes := map[int]int{}
+	for _, row := range text {
+		for index := range numeric {
+			if index >= len(row) {
+				continue
+			}
+			if whole, fraction, ok := present.SplitDecimal(row[index]); ok {
+				wholes[index] = max(wholes[index], whole)
+				fractions[index] = max(fractions[index], fraction)
+			}
+		}
+	}
+	// The widths belong to the cache of the frame, so the wider ones are written to a copy.
+	widened := append([]int{}, widths...)
+	for index, fraction := range fractions {
+		if fraction > 0 && index < len(widened) {
+			widened[index] = max(widened[index], wholes[index]+1+fraction)
+		}
+	}
+	return fractions, widened
 }
 
 // The widths a column is held between while its border is dragged: wide enough for a mark of
