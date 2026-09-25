@@ -11,6 +11,7 @@ import (
 
 	"github.com/masumedb/masume/internal/app"
 	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/core"
 	"github.com/masumedb/masume/internal/present"
 )
 
@@ -231,22 +232,18 @@ func measureLongestEngineName(profiles []cfg.Profile) int {
 
 // The unfocused filter field shows this placeholder. The focused field is empty, with the
 // caret.
-const pickerFilterHint = "press / to filter"
+const pickerFilterHint = "filter connections"
 
 // renderPickerFilter draws the filter field above the rows. renderCard pads every line, so
 // the field is two columns narrower than the card. The match count is drawn beside a filter
 // that is set.
 func (model *Model) renderPickerFilter(cardWidth, count int) string {
-	kept := count
-	if model.picker.readFilterTerm() == "" {
-		kept = -1
-	}
 	placeholder := pickerFilterHint
 	if model.picker.filtersList() {
 		placeholder = ""
 	}
-	return model.renderFilterLine(model.picker.filter, cardWidth-2, placeholder, kept,
-		" "+model.icons.Icon(cfg.IconPrompt)+" ", model.picker.filtersList())
+	return model.renderFilterLine(model.picker.filter, cardWidth-2, placeholder, count,
+		" / ", model.picker.filtersList())
 }
 
 func (model *Model) renderPicker() string {
@@ -323,7 +320,18 @@ func (model *Model) renderPicker() string {
 		if profile.ProjectFile != "" {
 			source = "project"
 		}
-		target := present.TruncateText(cfg.DescribeProfileTarget(profile), targetWidth)
+		// The description takes up to half of the room, and the target the rest. A path is
+		// cut at its start, which keeps the file name.
+		description := ""
+		shownTarget := targetWidth
+		if profile.Description != "" && targetWidth > 2*pickerTargetWidth {
+			description = present.TruncateText(profile.Description, targetWidth/2-pickerGap)
+			shownTarget = targetWidth - present.MeasureText(description) - pickerGap
+		}
+		target := present.TruncateText(cfg.DescribeProfileTarget(profile), shownTarget)
+		if core.OpensFile(profile.Engine) {
+			target = present.TruncatePath(cfg.DescribeProfileTarget(profile), shownTarget)
+		}
 
 		row := lipgloss.NewStyle().Background(theme.Panel)
 		nameStyle := model.styles.Ink().Background(theme.Panel)
@@ -354,7 +362,10 @@ func (model *Model) renderPicker() string {
 			written += modeStyle.Render(
 				present.FitText(string(profile.Engine), engineWidth) + " ")
 		}
-		written += targetStyle.Render(target)
+		if description != "" {
+			target = present.PadText(target, shownTarget+pickerGap)
+		}
+		written += targetStyle.Render(target) + modeStyle.Render(description)
 		lines = append(lines, row.Width(cardWidth-2).Render(
 			nameStyle.Render(model.buildRowGutter(selected))+written))
 	}

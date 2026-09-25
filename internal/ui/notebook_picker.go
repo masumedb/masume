@@ -243,7 +243,7 @@ func (model *Model) renderNotebooks(overlay app.Overlay, width int) string {
 	return model.renderListCard(ListCard{
 		Kind:   app.OverlayNotebooks,
 		Title:  " notebooks · " + present.FormatCount(int64(len(overlay.Notebooks))) + " ",
-		Filter: model.renderFilterFieldOf(overlay, width, "name", -1), Rows: rows,
+		Filter: model.renderFilterFieldOf(overlay, width, "filter notebooks", len(rows)), Rows: rows,
 		Cursor: overlay.List.Cursor, Offset: overlay.List.Offset,
 		Rolled: overlay.List.Rolled, Width: width,
 		ReportsNoMatch: true, Keys: keys, ContentRows: len(overlay.Notebooks) + 1,

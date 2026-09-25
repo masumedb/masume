@@ -687,9 +687,9 @@ func (model *Model) readOverlayTerm(overlay app.Overlay) string {
 // renderSearchField draws the same line with the mark of a search rather than of a filter,
 // which is what the help draws.
 func (model *Model) renderSearchField(
-	overlay app.Overlay, width int, placeholder string,
+	overlay app.Overlay, width int, placeholder string, count int,
 ) string {
-	return model.renderFilterLine(overlay.Draft, width, placeholder, -1, " / ", fieldHasCaret)
+	return model.renderFilterLine(overlay.Draft, width, placeholder, count, " / ", fieldHasCaret)
 }
 
 // renderFilterFieldOf draws the same field with the word it asks for, and the count of
@@ -697,8 +697,7 @@ func (model *Model) renderSearchField(
 func (model *Model) renderFilterFieldOf(
 	overlay app.Overlay, width int, placeholder string, count int,
 ) string {
-	return model.renderFilterLine(overlay.Draft, width, placeholder, count,
-		" "+model.icons.Icon(cfg.IconPrompt)+" ", fieldHasCaret)
+	return model.renderFilterLine(overlay.Draft, width, placeholder, count, " / ", fieldHasCaret)
 }
 
 // fieldHasCaret draws the field as focused, with the caret.
@@ -788,7 +787,7 @@ func (model *Model) describeHelpKeys(entry HelpEntry) string {
 }
 
 // helpPlaceholder is what the search line of the help asks for.
-const helpPlaceholder = "Search keys…"
+const helpPlaceholder = "filter keys"
 
 // scrollHelpByCursor moves the help, which scrolls without a cursor of its own and so keeps
 // how far it has scrolled where a list keeps its cursor. Without this a drag of its bar writes
@@ -801,10 +800,11 @@ func scrollHelpByCursor(overlay *app.Overlay, offset int) {
 // drops the groups, and names the group of every row it kept.
 func (model *Model) renderHelp(overlay app.Overlay, width int) string {
 	term := model.readOverlayTerm(overlay)
-	filter := model.renderSearchField(overlay, width, helpPlaceholder)
+	filter := model.renderSearchField(overlay, width, helpPlaceholder, -1)
 
 	if term != "" {
 		found := model.findHelpRows(term)
+		filter = model.renderSearchField(overlay, width, helpPlaceholder, len(found))
 		keyWidth := measureHelpKeyWidth(found, width)
 		sectionWidth := measureHelpSectionWidth(found, width-6-keyWidth)
 		written := make([]string, 0, len(found))
@@ -908,7 +908,7 @@ func (model *Model) renderPalette(overlay app.Overlay, width int) string {
 	}
 	return model.renderListCard(ListCard{
 		Kind: app.OverlayPalette, Title: " command palette ",
-		Filter: model.renderFilterFieldOf(overlay, width, "Search commands…", -1), Rows: rows,
+		Filter: model.renderFilterFieldOf(overlay, width, "filter commands", len(actions)), Rows: rows,
 		Cursor: overlay.List.Cursor, Offset: overlay.List.Offset, Rolled: overlay.List.Rolled, Width: width,
 		ReportsNoMatch: true, ContentRows: len(overlay.Palette) + 1,
 		Keys: model.buildCardKeys(app.OverlayPalette, keyScene{overlay: overlay}),
@@ -944,7 +944,7 @@ func (model *Model) renderHistory(overlay app.Overlay, width int) string {
 	return model.renderListCard(ListCard{
 		Kind: app.OverlayHistory, Title: " query history ",
 		Filter: model.renderFilterFieldOf(
-			overlay, width, "search the statements", len(entries)),
+			overlay, width, "filter statements", len(entries)),
 		Rows: rows, Cursor: overlay.List.Cursor, Offset: overlay.List.Offset, Rolled: overlay.List.Rolled, Width: width,
 		ReportsNoMatch: true, Keys: keys, ContentRows: len(overlay.Entries) + 1,
 	})
@@ -993,7 +993,7 @@ func (model *Model) renderSaved(overlay app.Overlay, width int) string {
 	return model.renderListCard(ListCard{
 		Kind:   app.OverlaySaved,
 		Title:  " saved queries · " + present.FormatCount(int64(len(overlay.Saved))) + " ",
-		Filter: model.renderFilterFieldOf(overlay, width, "name", -1), Rows: rows,
+		Filter: model.renderFilterFieldOf(overlay, width, "filter saved queries", len(queries)), Rows: rows,
 		Cursor: overlay.List.Cursor, Offset: overlay.List.Offset, Rolled: overlay.List.Rolled, Width: width,
 		ReportsNoMatch: true, Keys: keys, ContentRows: len(overlay.Saved) + 1,
 	})
@@ -1043,14 +1043,14 @@ func (model *Model) renderMenu(overlay app.Overlay, width int) string {
 	} else if !strings.HasPrefix(title, " ") {
 		title = " " + title + " "
 	}
-	placeholder := "filter the actions"
+	placeholder := "filter actions"
 	if overlay.Kind == app.OverlayCopyMenu {
-		placeholder = "filter what to copy"
+		placeholder = "filter formats"
 	}
 	text := model.buildCardKeys(overlay.Kind, keyScene{overlay: overlay})
 	return model.renderListCard(ListCard{
 		Kind: overlay.Kind, Title: title,
-		Filter: model.renderFilterFieldOf(overlay, width, placeholder, -1), Rows: rows,
+		Filter: model.renderFilterFieldOf(overlay, width, placeholder, len(actions)), Rows: rows,
 		Cursor: overlay.List.Cursor, Offset: overlay.List.Offset, Rolled: overlay.List.Rolled, Width: width,
 		ReportsNoMatch: true, Keys: text,
 		// The filter line stands over the rows and takes one of them.
@@ -1515,7 +1515,7 @@ func (model *Model) renderThemePicker(overlay app.Overlay, width int) string {
 	}
 	return model.renderListCard(ListCard{
 		Kind: app.OverlayThemePicker, Title: " theme ",
-		Filter: model.renderFilterFieldOf(overlay, width, "theme", len(choices)), Rows: rows,
+		Filter: model.renderFilterFieldOf(overlay, width, "filter themes", len(choices)), Rows: rows,
 		Cursor: overlay.List.Cursor, Offset: overlay.List.Offset, Rolled: overlay.List.Rolled, Width: width,
 		ReportsNoMatch: true,
 		ContentRows:    len(model.styles.registry.ListThemeChoices()) + 1,

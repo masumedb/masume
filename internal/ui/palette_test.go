@@ -197,7 +197,7 @@ func TestThePaletteRowLeadsWithTheNameAndEndsWithTheKey(t *testing.T) {
 	}
 	frame := strings.Split(model.render(), "\n")
 	if filter := stripEscapes(frame[model.layout.overlayRows.top-1]); !strings.Contains(
-		filter, "Search commands…") {
+		filter, "filter commands") {
 		t.Errorf("the filter line reads %q", strings.TrimSpace(filter))
 	}
 

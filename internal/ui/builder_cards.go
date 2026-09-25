@@ -35,7 +35,7 @@ func (model *Model) renderBuilderTables(overlay app.Overlay, width int) string {
 	}
 	return model.renderListCard(ListCard{
 		Kind: app.OverlayBuilderTables, Title: overlay.Title,
-		Filter: model.renderFilterFieldOf(overlay, width, "table", len(tables)),
+		Filter: model.renderFilterFieldOf(overlay, width, "filter tables", len(tables)),
 		Rows:   rows, Cursor: overlay.List.Cursor, Offset: overlay.List.Offset,
 		Rolled: overlay.List.Rolled, Width: width, ReportsNoMatch: true,
 		Keys:        model.buildCardKeys(app.OverlayBuilderTables, keyScene{overlay: overlay}),

@@ -744,7 +744,7 @@ func (model *Model) renderAiChats(
 	return model.renderListCard(ListCard{
 		Kind: app.OverlayAiChats, Title: " " + model.icons.Prefix(cfg.IconAi) + "AI chats ",
 		Filter: model.renderFilterFieldOf(
-			overlay, width, "search the conversations", len(held)),
+			overlay, width, "filter conversations", len(held)),
 		Rows: rows, Cursor: overlay.List.Cursor, Offset: overlay.List.Offset, Width: width,
 		ReportsNoMatch: true, Keys: keys, ContentRows: len(chat.Conversations) + 1,
 	})
