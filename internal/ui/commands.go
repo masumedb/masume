@@ -583,7 +583,7 @@ func readRelationView(
 				return fail(err)
 			}
 			answered.Content = app.PaneContent{
-				Kind: app.DataColumns, Columns: detail.Columns,
+				Kind: app.DataColumns, Columns: detail.Columns, ForeignKeys: detail.ForeignKeys,
 			}
 		case app.ViewIndexes:
 			indexes, err := session.ListIndexes(ctx, table)

@@ -185,6 +185,24 @@ func (session *sqliteSession) ListSchemaObjects(ctx context.Context) ([]db.Schem
 	return objects, nil
 }
 
+// markRowidKeyNotNull marks a sole INTEGER PRIMARY KEY as not nullable. SQLite reports
+// not_null = 0 for it, but the column is the rowid and never holds NULL.
+func markRowidKeyNotNull(columns []db.ColumnDetail) {
+	keyed := -1
+	for at, column := range columns {
+		if !column.IsPrimaryKey {
+			continue
+		}
+		if keyed >= 0 {
+			return
+		}
+		keyed = at
+	}
+	if keyed >= 0 && columns[keyed].DataType == "integer" {
+		columns[keyed].Nullable = false
+	}
+}
+
 func (session *sqliteSession) DescribeTable(
 	ctx context.Context, table db.TableRef,
 ) (db.TableDetail, error) {
@@ -208,6 +226,7 @@ func (session *sqliteSession) DescribeTable(
 		}
 		columns = append(columns, column)
 	}
+	markRowidKeyNotNull(columns)
 
 	keys, keyErr := session.readForeignKeys(ctx, table.Schema, table.Name)
 	if keyErr != nil {

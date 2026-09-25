@@ -2,6 +2,7 @@ package ui
 
 import (
 	"image/color"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -1084,7 +1085,8 @@ func (model *Model) renderDetailView(
 	case app.DataPlan:
 		return model.renderPlan(tab, content.Plan, width, height, top)
 	case app.DataColumns:
-		return model.renderTable(tab, model.buildColumnRows(content.Columns), width, height)
+		return model.renderTable(tab,
+			model.buildColumnRows(content.Columns, content.ForeignKeys), width, height)
 	case app.DataResultColumns:
 		return model.renderTable(tab,
 			model.buildResultColumnRows(content.ResultColumns), width, height)
@@ -1109,8 +1111,10 @@ type detailTable struct {
 const detailGap = 2
 
 // buildColumnRows writes the columns of a relation as a table.
-func (model *Model) buildColumnRows(columns []db.ColumnDetail) detailTable {
-	table := detailTable{Headers: []string{"column", "type", "null", "default"}}
+func (model *Model) buildColumnRows(
+	columns []db.ColumnDetail, keys []db.ForeignKey,
+) detailTable {
+	table := detailTable{Headers: []string{"column", "type", "nullable", "default", "key"}}
 	for _, column := range columns {
 		nullable := "no"
 		if column.Nullable {
@@ -1118,11 +1122,32 @@ func (model *Model) buildColumnRows(columns []db.ColumnDetail) detailTable {
 		}
 		table.Rows = append(table.Rows, []string{
 			markKeyRow(column.IsPrimaryKey) + column.Name, column.DataType, nullable,
-			column.DefaultValue,
+			column.DefaultValue, describeColumnKey(column, keys),
 		})
 		table.Accented = append(table.Accented, column.IsPrimaryKey)
 	}
 	return table
+}
+
+// describeColumnKey returns the keys a column is part of: PK, and the target of each
+// foreign key that starts from it.
+func describeColumnKey(column db.ColumnDetail, keys []db.ForeignKey) string {
+	parts := []string{}
+	if column.IsPrimaryKey {
+		parts = append(parts, "PK")
+	}
+	for _, key := range keys {
+		at := slices.Index(key.Columns, column.Name)
+		if at < 0 {
+			continue
+		}
+		target := key.TargetTable
+		if at < len(key.TargetColumns) {
+			target += "." + key.TargetColumns[at]
+		}
+		parts = append(parts, "→ "+target)
+	}
+	return strings.Join(parts, " · ")
 }
 
 // keyRowMark stands before the name of a row the server keys a relation by.

@@ -104,6 +104,7 @@ type PaneContent struct {
 	Reason        string
 	Message       string
 	Columns       []db.ColumnDetail
+	ForeignKeys   []db.ForeignKey
 	ResultColumns []db.ResultColumn
 	Indexes       []db.IndexDetail
 	Constraints   []db.ConstraintDetail

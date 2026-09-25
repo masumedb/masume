@@ -25,3 +25,19 @@ func TestAResultWithNoRowsSaysSoUnderItsHeader(t *testing.T) {
 		t.Errorf("the grid under the header reads\n%s", drawn)
 	}
 }
+
+func TestTheColumnsViewNamesTheKeysOfEachColumn(t *testing.T) {
+	model := buildOfflineModel(t, 160, 48)
+	table := model.buildColumnRows([]db.ColumnDetail{
+		{Name: "id", DataType: "integer", IsPrimaryKey: true},
+		{Name: "customer_id", DataType: "integer", Nullable: true},
+	}, []db.ForeignKey{{
+		Columns: []string{"customer_id"}, TargetTable: "customers", TargetColumns: []string{"id"},
+	}})
+	if table.Headers[2] != "nullable" || table.Headers[4] != "key" {
+		t.Errorf("the headers read %v", table.Headers)
+	}
+	if table.Rows[0][4] != "PK" || table.Rows[1][4] != "→ customers.id" {
+		t.Errorf("the keys read %q and %q", table.Rows[0][4], table.Rows[1][4])
+	}
+}

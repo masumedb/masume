@@ -155,6 +155,9 @@ func TestSessionDescribesATable(t *testing.T) {
 	if byName["customer"].Nullable {
 		t.Error("customer is declared not null and reads as nullable")
 	}
+	if byName["id"].Nullable {
+		t.Error("the integer primary key is the rowid and reads as nullable")
+	}
 	if !byName["total"].HasDefault {
 		t.Error("total has a default and does not report one")
 	}
