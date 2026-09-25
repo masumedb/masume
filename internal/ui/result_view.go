@@ -631,9 +631,16 @@ func (model *Model) renderGridHeader(
 	}
 
 	for _, index := range visible {
-		label := shape.Columns[index].Name
+		name := shape.Columns[index].Name
+		label := name
 		if index < len(shape.Labels) {
 			label = shape.Labels[index]
+		}
+		// A name too long for the column is cut before the sort mark, so the mark stays.
+		if mark := strings.TrimPrefix(label, name); mark != label && mark != "" &&
+			present.MeasureText(label) > shape.Widths[index] {
+			label = present.TruncateText(name,
+				max(shape.Widths[index]-present.MeasureText(mark), 1)) + mark
 		}
 
 		highlighted := index == tab.GridColumn && focused

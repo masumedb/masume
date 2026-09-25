@@ -226,3 +226,15 @@ func TestGridHeadFollowsTheMasking(t *testing.T) {
 		t.Error("the row does not show the value with the masking taken off")
 	}
 }
+
+func TestANarrowColumnKeepsItsSortMark(t *testing.T) {
+	model, connection, tab := buildGridModel(t)
+	tab.Sort = []core.SortState{{Column: "customer", Direction: core.SortDescending}}
+	tab.ColumnWidths = map[int]int{1: 5}
+	shape := model.buildGridShape(connection, tab)
+
+	header := stripEscapes(model.renderGridHeader(tab, shape, []int{0, 1}, hiddenColumns{}, 0, 60))
+	if !strings.Contains(header, "↓") {
+		t.Errorf("the header reads %q, without the mark of the sort", header)
+	}
+}
