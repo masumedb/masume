@@ -895,8 +895,7 @@ func (model *Model) renderEditor(
 		}
 		text := model.renderCodeLine(drawn)
 		if placeholder && at == 0 {
-			text = paintText(theme.Muted, theme.Panel,
-				present.FitText(describeEditorHint(connection, tab), textWidth))
+			text = model.renderEditorPlaceholder(connection, tab, textWidth, focused)
 		}
 		written = append(written,
 			number+text+paintOn(gutterGround, " "))
@@ -1082,6 +1081,26 @@ func (model *Model) renderFaultRow(
 		padStyledOn(model.styles.Error().Render(present.TruncateText(text, room)),
 			inner-2-measureStyledWidth(right), theme.Panel) + right +
 		paintOn(theme.Panel, " ")
+}
+
+// renderEditorPlaceholder draws the first line of an empty editor: the caret, the shape of a
+// statement and the key that runs it, in faint italics.
+func (model *Model) renderEditorPlaceholder(
+	connection *app.Connection, tab *app.Tab, width int, focused bool,
+) string {
+	theme := model.styles.Theme
+	caret := paintOn(theme.Panel, " ")
+	if focused {
+		caret = paintOn(theme.Accent, " ")
+	}
+	hint := describeEditorHint(connection, tab)
+	if chord := model.registry.FormatFirstActionChord(
+		cfg.ScopeGlobal, ActionRunAtCursor); chord != "" && model.showsKeyHints() &&
+		tab.EditsStatements() {
+		hint += "   " + chord + " run"
+	}
+	return caret + lipgloss.NewStyle().Foreground(theme.Faint).Background(theme.Panel).
+		Italic(true).Render(present.FitText(hint, max(width-1, 0)))
 }
 
 // describeEditorHint returns what an empty pane says it takes, which is the shape of one
