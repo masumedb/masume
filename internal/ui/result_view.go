@@ -459,7 +459,7 @@ func (model *Model) renderGrid(
 
 	// The gutter numbers each row of the result, so the footer can name where the cursor is.
 	total := len(shape.Rows)
-	gutterWidth := present.MeasureText(strconv.Itoa(total)) + gutterGap
+	gutterWidth := present.MeasureText(present.FormatCount(int64(total))) + gutterGap
 	if total == 0 {
 		gutterWidth = 0
 	}
@@ -787,7 +787,7 @@ func (model *Model) renderGridRow(
 	written.Grow(width + (len(visible)+1)*cellEscapeBytes)
 	used := 1 + gutterWidth
 	writeTextOn(&written, gutterInk, ground,
-		" "+present.FitTextRight(strconv.Itoa(rowIndex+1), gutterWidth-gutterGap))
+		" "+present.FitTextRight(present.FormatCount(int64(rowIndex+1)), gutterWidth-gutterGap))
 	writeTextOn(&written, theme.Muted, ground, gridGutterRule)
 
 	for _, index := range visible {

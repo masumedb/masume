@@ -616,3 +616,15 @@ func TestReadUndoOpensTheIdentityColumnOfTheServer(t *testing.T) {
 		t.Errorf("the undo runs %q and %q around the restore", first, last)
 	}
 }
+
+func TestAnUndoOverTheLimitWritesBothCountsTheSameWay(t *testing.T) {
+	session := buildOrdersSession()
+	session.matched = 3000
+	plan, _ := writeplan.Build(context.Background(), session, writeplan.Request{
+		SQL: "delete from orders where status = 'open'", Tables: []db.TableRef{orders},
+		Mode: cfg.PlanUndo, UndoRows: 1000,
+	})
+	if plan.Undo.Reason != "3,000 rows is over the undo limit of 1,000 (undo_rows)" {
+		t.Errorf("the reason reads %q", plan.Undo.Reason)
+	}
+}

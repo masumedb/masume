@@ -64,8 +64,8 @@ func (measure measurer) planUndo(ctx context.Context, plan Plan, undoRows int) U
 		return refuse("the write matches no rows")
 	}
 	if undoRows > 0 && plan.Rows > int64(undoRows) {
-		return refuse(fmt.Sprintf("%s rows, over the undo_rows limit of %d",
-			present.FormatCount(plan.Rows), undoRows))
+		return refuse(fmt.Sprintf("%s rows is over the undo limit of %s (undo_rows)",
+			present.FormatCount(plan.Rows), present.FormatCount(int64(undoRows))))
 	}
 
 	detail, err := measure.session.DescribeTable(ctx, measure.table)
@@ -171,8 +171,8 @@ func ReadUndo(ctx context.Context, runner db.QueryRunner, plan UndoPlan) (Undo, 
 	}
 	if answered.Truncated {
 		return Undo{}, db.NewDatabaseError(
-			"the write matches more rows than the undo_rows limit of %d",
-			resolveUndoLimit(plan.Limit))
+			"the write matches more rows than the undo limit of %s (undo_rows)",
+			present.FormatCount(int64(resolveUndoLimit(plan.Limit))))
 	}
 	return buildUndoStatements(plan, answered.Rows, answered.Columns)
 }

@@ -60,11 +60,15 @@ func (model *Model) renderDocumentTree(
 		from: model.editorLeft + 1, to: model.editorLeft + width,
 	}
 	focused := tab.Focus == app.PaneResult && !connection.Overlay.IsOpen()
+	// The gutter is as wide as the number of the last document.
+	documents := int64(len(model.buildGridShape(connection, tab).Rows))
+	gutterWidth := max(documentGutterWidth,
+		present.MeasureText(present.FormatCount(documents))+1)
 
 	lines := make([]string, 0, height)
 	for at, node := range nodes {
 		lines = append(lines, model.renderDocumentNode(
-			node, tab.TreeRowOffset+at == tab.TreeRow && focused, width))
+			node, tab.TreeRowOffset+at == tab.TreeRow && focused, width, gutterWidth))
 	}
 	for len(lines) < height {
 		lines = append(lines, "")
@@ -115,7 +119,7 @@ func (model *Model) approachDrawnDocumentEnd(
 // renderDocumentNode draws one row of the tree: the guides, the fold mark, the key, the
 // value and the name of the type.
 func (model *Model) renderDocumentNode(
-	node present.DocumentNode, onCursor bool, width int,
+	node present.DocumentNode, onCursor bool, width, gutterWidth int,
 ) string {
 	theme := model.styles.Theme
 	ground := theme.Panel
@@ -127,7 +131,7 @@ func (model *Model) renderDocumentNode(
 	// under it is not, because the number belongs to the document and not to the field.
 	gutter := ""
 	if node.Depth == 0 {
-		gutter = strconv.Itoa(node.ResultRow + 1)
+		gutter = present.FormatCount(int64(node.ResultRow + 1))
 	}
 
 	keyInk, valueInk, typeInk := theme.Accent, theme.Text, theme.Muted
@@ -142,19 +146,19 @@ func (model *Model) renderDocumentNode(
 	}
 
 	label := buildDocumentGuides(node) + model.describeFoldMark(node) + node.Key
-	room := max(width-documentGutterWidth-documentKeyWidth-documentTypeWidth-
+	room := max(width-gutterWidth-documentKeyWidth-documentTypeWidth-
 		documentColumnGap*2, 8)
 
 	written := strings.Builder{}
 	writeTextOn(&written, theme.Muted, ground,
-		buildGutterText(gutter, documentGutterWidth))
+		buildGutterText(gutter, gutterWidth))
 	writeTextOn(&written, keyInk, ground, present.FitText(label, documentKeyWidth))
 	writeBlanksOn(&written, ground, documentColumnGap)
 	writeTextOn(&written, valueInk, ground, present.FitText(node.Value, room))
 	writeBlanksOn(&written, ground, documentColumnGap)
 	writeTextOn(&written, typeInk, ground, present.FitText(node.Type, documentTypeWidth))
 
-	used := documentGutterWidth + documentKeyWidth + room + documentTypeWidth +
+	used := gutterWidth + documentKeyWidth + room + documentTypeWidth +
 		documentColumnGap*2
 	if used > width {
 		return padStyledOn(truncateStyled(written.String(), width), width, ground)

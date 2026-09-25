@@ -570,3 +570,12 @@ func BenchmarkDrawTheDocumentTree(b *testing.B) {
 func formatRowCount(rows int) string {
 	return present.FormatCount(int64(rows))
 }
+
+func TestTheDocumentGutterFitsTheLargestNumber(t *testing.T) {
+	model := buildOfflineModel(t, 120, 40)
+	node := present.DocumentNode{Depth: 0, ResultRow: 123455, Key: "_id", Value: "x"}
+	drawn := stripEscapes(model.renderDocumentNode(node, false, 100, 8))
+	if !strings.HasPrefix(drawn, "123,456 ") {
+		t.Errorf("the row reads %q", drawn)
+	}
+}

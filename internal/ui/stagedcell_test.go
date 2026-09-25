@@ -41,3 +41,12 @@ func TestTheCursorRowStaysMarkedWhenTheGridLosesTheFocus(t *testing.T) {
 		t.Error("the cursor row is drawn like any other row while the editor has the focus")
 	}
 }
+
+func TestTheGridGutterWritesRowNumbersAsTheFooterDoes(t *testing.T) {
+	model, connection, tab := buildGridModel(t)
+	shape := model.buildGridShape(connection, tab)
+	shape.RowIndexes = []int{12344, 12345, 12346}
+	if drawn := stripEscapes(model.renderGridRow(tab, shape, []int{0}, 0, 8, 60)); !strings.Contains(drawn, "12,345") {
+		t.Errorf("the gutter reads %q", drawn)
+	}
+}
