@@ -395,7 +395,7 @@ func TestTheStatisticsBarStandsWhereTheDefinitionBarDoes(t *testing.T) {
 	statistics := model.layout.scrollbars[0]
 
 	model.layout.scrollbars = nil
-	model.renderLines(tab, lines, 60, 10, true)
+	model.renderLines(tab, lines, 60, 10, model.layout.detailTop, true)
 	if len(model.layout.scrollbars) != 1 {
 		t.Fatalf("the definition view recorded %d bars", len(model.layout.scrollbars))
 	}

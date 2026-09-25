@@ -512,14 +512,23 @@ func (model *Model) recordGridColumns(
 	left := model.editorLeft + 2 + gutterWidth
 	columns := make([]columnHit, 0, len(visible))
 	edges := make([]columnHit, 0, len(visible))
+	// A column cut at the edge of the pane covers only the cells drawn.
+	right := model.editorLeft + width
 	for _, index := range visible {
+		if left > right {
+			break
+		}
 		room := shape.Widths[index] + columnGap
-		columns = append(columns, columnHit{index: index, from: left, to: left + room - 1})
+		columns = append(columns, columnHit{
+			index: index, from: left, to: min(left+room-1, right),
+		})
 		// The gap after a column is the border between it and the next one, and a drag on
 		// it sets how wide the column is.
-		edges = append(edges, columnHit{
-			index: index, from: left + room - columnGap, to: left + room - 1,
-		})
+		if left+room-1 <= right {
+			edges = append(edges, columnHit{
+				index: index, from: left + room - columnGap, to: left + room - 1,
+			})
+		}
 		left += room
 	}
 	model.layout.gridColumns = columns
@@ -1253,7 +1262,7 @@ func (model *Model) renderStatistics(
 
 // renderLines draws a block of text, coloured as SQL where it is a definition.
 func (model *Model) renderLines(
-	tab *app.Tab, held []string, width, height int, asSQL bool,
+	tab *app.Tab, held []string, width, height, top int, asSQL bool,
 ) []string {
 	theme := model.styles.Theme
 	if len(held) == 0 {
@@ -1281,7 +1290,7 @@ func (model *Model) renderLines(
 	return model.drawScrollTrack(lines, scrollView{
 		offset: tab.DetailOffset, rows: height, total: len(held),
 		moveTo: func(offset int) tea.Cmd { tab.DetailOffset = offset; return nil },
-	}, model.layout.detailTop, model.editorLeft+1, width, theme.Panel)
+	}, top, model.editorLeft+1, width, theme.Panel)
 }
 
 // renderWideLines draws the DDL, coloured as SQL. A line wider than the pane is cut with an
@@ -1355,7 +1364,8 @@ func (model *Model) renderPlan(
 	body := height - 1
 	if tab.RawPlan {
 		return append(lines,
-			model.renderLines(tab, strings.Split(plan.Raw, "\n"), width, body, false)...)
+			model.renderLines(tab, strings.Split(plan.Raw, "\n"), width, body,
+				model.layout.detailTop+1, false)...)
 	}
 
 	// A node with a detail takes a second row, so the rows are built first and then

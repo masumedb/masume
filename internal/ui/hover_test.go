@@ -11,6 +11,7 @@ import (
 
 	"github.com/masumedb/masume/internal/app"
 	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/query"
 )
 
 // movePointer sends one move with no button down, as the terminal reports one for every cell
@@ -423,5 +424,42 @@ func TestACardOnShowKeepsThePointerToItself(t *testing.T) {
 					"the card at %d to %d", at, cell, card.from, card.to)
 			}
 		}
+	}
+}
+
+func TestAScrolledBlockTakesTheHoverOnEveryDrawnRow(t *testing.T) {
+	block := rowsHit{top: 10, count: 5, offset: 20, from: 0, to: 50}
+	if target := resolveRowHover(block, block.count, noFilledRow, 5, 14); !target.isSomething() {
+		t.Error("the last drawn row of a scrolled block takes no hover")
+	}
+	if target := resolveRowHover(block, block.count, 22, 5, 12); target.isSomething() {
+		t.Error("the row under the cursor takes the hover over its own ground")
+	}
+}
+
+func TestAColumnCutAtThePaneEdgeCoversOnlyItsDrawnCells(t *testing.T) {
+	model, connection, tab := buildGridModel(t)
+	shape := model.buildGridShape(connection, tab)
+	model.recordGridColumns(shape, []int{0, 1}, 3, 20, 3, 0)
+	last := model.layout.gridColumns[len(model.layout.gridColumns)-1]
+	if last.to > model.editorLeft+20 {
+		t.Errorf("the last column reaches cell %d, past the pane edge at %d",
+			last.to, model.editorLeft+20)
+	}
+}
+
+func TestTheRawPlanRecordsItsBarUnderTheStrip(t *testing.T) {
+	model := buildOfflineModel(t, 120, 40)
+	tab := model.Active().Active()
+	tab.RawPlan = true
+	raw := make([]string, 0, 80)
+	for range 80 {
+		raw = append(raw, "Seq Scan on orders")
+	}
+	model.layout.detailTop = 12
+	model.layout.scrollbars = nil
+	model.renderPlan(tab, query.QueryPlan{Raw: strings.Join(raw, "\n")}, 80, 20, 12)
+	if len(model.layout.scrollbars) != 1 || model.layout.scrollbars[0].top != 13 {
+		t.Errorf("the bar was recorded at %+v, wanted the row under the strip", model.layout.scrollbars)
 	}
 }

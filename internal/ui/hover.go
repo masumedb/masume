@@ -161,7 +161,7 @@ func (model *Model) resolveSettingsHover(x, y int) hoverTarget {
 // names none of them, with a row of minus one.
 func resolveRowHover(block rowsHit, items, filled, x, y int) hoverTarget {
 	row, found := block.holds(x, y)
-	if !found || row >= items || row == filled {
+	if !found || row-block.offset >= items || row == filled {
 		return hoverTarget{}
 	}
 	return hoverTarget{kind: hoverRow, row: y, from: block.from, to: block.to}
@@ -223,8 +223,8 @@ func (model *Model) resolveWorkspaceHover(x, y int) hoverTarget {
 		return target
 	}
 	if target := resolveRowHover(layout.treeRows, layout.treeRows.count,
-		filledRowOf(connection.Tree.Cursor-layout.treeRows.offset,
-			tab.Focus == app.PaneSidebar), x, y); target.isSomething() {
+		filledRowOf(connection.Tree.Cursor, tab.Focus == app.PaneSidebar),
+		x, y); target.isSomething() {
 		return target.insetBy(1)
 	}
 	if target := resolveChipHover(layout.statementChips, tab.Results.ActiveIndex(),
