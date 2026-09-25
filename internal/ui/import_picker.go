@@ -2,6 +2,7 @@ package ui
 
 import (
 	"os"
+	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -107,10 +108,19 @@ func (model *Model) renderFilePicker(connectionID int, width int) []string {
 // buildPickerLines draws the directory a picker stands in and its rows.
 func (model *Model) buildPickerLines(picker *filePicker, width int) []string {
 	theme := model.styles.Theme
-	lines := []string{
-		model.styles.Muted().Render(present.TruncatePath(picker.Directory, width)),
-		"",
+	// The directory stands at the left and the place in the list at the right.
+	place := ""
+	if len(picker.rows) > pickerRows {
+		place = strconv.Itoa(picker.cursor+1) + " of " + strconv.Itoa(len(picker.rows))
 	}
+	directory := present.TruncatePath(picker.Directory,
+		max(width-present.MeasureText(place)-1, 1))
+	heading := model.styles.Muted().Render(directory)
+	if place != "" {
+		heading = model.styles.Muted().Render(present.PadText(directory,
+			width-present.MeasureText(place))) + model.styles.Faint().Render(place)
+	}
+	lines := []string{heading, ""}
 	cursor := model.icons.Icon(cfg.IconField)
 	blank := strings.Repeat(" ", present.MeasureText(cursor))
 	for at := picker.offset; at < len(picker.rows) && at < picker.offset+pickerRows; at++ {

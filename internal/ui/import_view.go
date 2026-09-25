@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -58,6 +59,14 @@ func (model *Model) renderImportCard(
 		model.renderActiveEnvironmentBadge(), width, lines, plainCard)
 }
 
+// The rows the import form and the import review keep besides their content: the card
+// borders and the blank row inside each, the problem or notice line, and the buttons with the
+// blank row over them.
+const (
+	importFormChrome   = 9
+	importReviewChrome = 8
+)
+
 // renderImportForm draws one row per setting and one row per column of the file.
 func (model *Model) renderImportForm(overlay app.Overlay, width int) string {
 	fields := BuildImportFields(overlay)
@@ -71,11 +80,28 @@ func (model *Model) renderImportForm(overlay app.Overlay, width int) string {
 			break
 		}
 	}
+	// The column rows scroll where the card would not fit the screen. The source rows,
+	// the two headings, the problem line, the buttons and the card chrome keep their rows.
+	columns := len(fields) - sourceFields
+	room := max(model.height-2-sourceFields-importFormChrome, 3)
+	first, shown := 0, columns
+	if columns > room {
+		shown = room - 1
+		focus := max(overlay.Field-sourceFields, 0)
+		first = scrollTo(focus, overlay.Import.ColumnOffset, shown, columns)
+		if held := model.Active(); held != nil && held.Overlay.Kind == overlay.Kind {
+			held.Overlay.Import.ColumnOffset = first
+		}
+	}
+
 	lines := make([]string, 0, len(fields)+5)
 	lines = append(lines, model.renderFieldHeading("source"))
 	for at, field := range fields {
 		if at == sourceFields {
 			lines = append(lines, model.renderFieldHeading("columns"))
+		}
+		if at >= sourceFields && (at-sourceFields < first || at-sourceFields >= first+shown) {
+			continue
 		}
 		focused := at == overlay.Field
 		marker := "  "
@@ -103,6 +129,11 @@ func (model *Model) renderImportForm(overlay app.Overlay, width int) string {
 			fitFieldLabel(field.Label, importLabelWidth-present.MeasureText(marker)))+written)
 	}
 
+	if shown < columns {
+		lines = append(lines, model.styles.Faint().Render(fmt.Sprintf(
+			"  %d of %d columns", shown, columns)))
+	}
+
 	// The problem line is always counted, so the card keeps its height. A card that is
 	// writing draws how far it has come on that line instead.
 	text := FindImportProblem(overlay, model.readActiveDialect())
@@ -117,10 +148,10 @@ func (model *Model) renderImportForm(overlay app.Overlay, width int) string {
 
 	count, gap := len(fields), 0
 	if sourceFields < len(fields) {
-		count, gap = len(fields)+1, sourceFields
+		count, gap = sourceFields+shown+1, sourceFields
 	}
 	model.layout.formRows = rowsHit{
-		top: cardBodyRow + 1, count: count, gap: gap,
+		top: cardBodyRow + 1, count: count, gap: gap, skip: first,
 		from: cardBodyColumn - 1, to: cardBodyColumn + width - 4,
 	}
 	advance := model.buildCardButton(cfg.ScopeDialog, ActionSaveForm,
@@ -205,12 +236,20 @@ func (model *Model) renderImportReview(overlay app.Overlay, width int) string {
 		lines = append(lines, "")
 	}
 
+	// The statements take the rows the screen has left, and the rest is counted.
+	sql := []string{}
 	for _, statement := range held.Statements {
-		for line := range strings.SplitSeq(statement, "\n") {
-			lines = append(lines, model.styles.Faint().Render(
-				present.TruncateText(line, inner)))
-		}
-		lines = append(lines, "")
+		sql = append(sql, strings.Split(statement, "\n")...)
+		sql = append(sql, "")
+	}
+	room := max(model.height-2-len(lines)-importReviewChrome, 3)
+	if len(sql) > room {
+		hidden := len(sql) - (room - 1)
+		sql = append(sql[:room-1], fmt.Sprintf("… %s", present.FormatCountOf(
+			int64(hidden), "more line", "more lines")), "")
+	}
+	for _, line := range sql {
+		lines = append(lines, model.styles.Faint().Render(present.TruncateText(line, inner)))
 	}
 
 	if overlay.Notice != "" {

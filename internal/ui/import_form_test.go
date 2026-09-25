@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -429,5 +430,33 @@ func TestDescribeImportSummaryCountsTheRowsItWouldWrite(t *testing.T) {
 		if !strings.Contains(said, expected) {
 			t.Errorf("the summary reads %q, which is missing %q", said, expected)
 		}
+	}
+}
+
+func TestTheImportFormScrollsItsColumnsOnAShortScreen(t *testing.T) {
+	model := buildOfflineModel(t, 120, 24)
+	target := []load.TargetColumn{}
+	sample := load.Sample{}
+	for at := range 40 {
+		name := "column_" + strconv.Itoa(at+1)
+		target = append(target, load.TargetColumn{Name: name, DataType: "text", Optional: true, TakesNull: true})
+		sample.Columns = append(sample.Columns, load.SourceColumn{Name: name, Kind: core.KindText, Filled: 1})
+	}
+	plan := load.BuildPlan("/tmp/wide.csv", load.DefaultReadOptions(), sample,
+		query.QualifiedName{Schema: "public", Name: "wide"}, target)
+	model.Active().Overlay = app.Overlay{
+		Kind:   app.OverlayImport,
+		Import: app.ImportRequest{Stage: app.ImportMapping, Plan: plan, TargetNames: ListTargetNames(target)},
+		Draft:  app.NewEditorBuffer(plan.Path, len(plan.Path)),
+	}
+	overlay := &model.Active().Overlay
+	overlay.Field = len(BuildImportFields(*overlay)) - 1
+
+	drawn := stripEscapes(model.renderImportForm(*overlay, 100))
+	if rows := strings.Count(drawn, "\n") + 1; rows > 24 {
+		t.Errorf("the card takes %d rows of a 24-row screen", rows)
+	}
+	if !strings.Contains(drawn, "column_40") || !strings.Contains(drawn, "of 40 columns") {
+		t.Errorf("the card does not show the focused column and the count:\n%s", drawn)
 	}
 }

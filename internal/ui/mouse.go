@@ -60,6 +60,8 @@ type rowsHit struct {
 	// gap is the item that has a heading row drawn above it, or zero for none. The heading
 	// row is counted in count.
 	gap int
+	// skip is the items under the heading that are scrolled out of view.
+	skip int
 }
 
 // holds returns which item a press landed on.
@@ -73,7 +75,7 @@ func (block rowsHit) holds(x, y int) (int, bool) {
 		if item == block.gap {
 			return 0, false
 		}
-		item--
+		item += block.skip - 1
 	}
 	return block.offset + item, true
 }

@@ -185,7 +185,6 @@ var overlayHeightShares = map[app.OverlayKind]int{
 
 // overlayHeightRows name the cards that keep one height, whatever the screen is.
 var overlayHeightRows = map[app.OverlayKind]int{
-	app.OverlayMessage: 12,
 	app.OverlayConfirm: 16,
 	app.OverlayChoice:  16,
 }
@@ -468,6 +467,19 @@ func (model *Model) renderNotedTextCard(
 	}
 	height := model.resolveOverlayHeight(kind, contentRows, countHintRows(text, width))
 	body := countCardBodyRows(height, len(hint))
+
+	// A body taller than the card scrolls, with a bar in its last column.
+	if len(lines) > body {
+		offset := 0
+		if held := model.Active(); held != nil && held.Overlay.Kind == kind {
+			offset = held.Overlay.List.Offset
+		}
+		shown := lines
+		lines = model.scrollCardRows(len(shown), offset, body, content,
+			model.styles.Theme.Panel, func(at int) string {
+				return padStyledOn(shown[at], content, model.styles.Theme.Panel)
+			})
+	}
 
 	written := make([]string, 0, height)
 	written = append(written, "")
@@ -1148,8 +1160,23 @@ func (model *Model) renderMessage(overlay app.Overlay, width int) string {
 		lines = append(lines, model.wrapText(line, width-present.CardChrome)...)
 	}
 	return model.renderTextCard(overlay.Kind, overlay.Title, width, lines,
-		model.buildCardKeys(app.OverlayMessage, keyScene{overlay: overlay}),
-		len(lines), plainCard)
+		model.buildScrollingCardKeys(overlay, lines, len(lines), width), len(lines), plainCard)
+}
+
+// buildScrollingCardKeys returns the keys of a text card, with the keys that scroll it where
+// its body is taller than the card.
+func (model *Model) buildScrollingCardKeys(
+	overlay app.Overlay, lines []string, contentRows, width int,
+) *KeyLine {
+	scene := keyScene{overlay: overlay}
+	keys := model.buildCardKeys(overlay.Kind, scene)
+	text := keys.buildText()
+	height := model.resolveOverlayHeight(overlay.Kind, contentRows, countHintRows(text, width))
+	if len(lines) > countCardBodyRows(height, countHintLines(text, width-present.CardChrome)) {
+		scene.scrolls = true
+		keys = model.buildCardKeys(overlay.Kind, scene)
+	}
+	return keys
 }
 
 // renderDiagram draws the lines of an ER diagram. A line keeps its own shape and is never
@@ -1282,12 +1309,16 @@ func (model *Model) renderCellEditor(overlay app.Overlay, width int) string {
 	text := keys.buildText()
 
 	lines := model.renderCellChoices(overlay)
+	height := model.resolveOverlayHeight(
+		overlay.Kind, overlay.ContentRows, countHintRows(text, width))
+	body := countCardBodyRows(height, countHintLines(text, width-present.CardChrome))
 	if len(overlay.Cell.Choices) == 0 {
-		height := model.resolveOverlayHeight(
-			overlay.Kind, overlay.ContentRows, countHintRows(text, width))
-		lines = model.renderDraftRows(overlay.Draft, width-present.CardChrome,
-			countCardBodyRows(height, countHintLines(text, width-present.CardChrome)),
+		lines = model.renderDraftRows(overlay.Draft, width-present.CardChrome, body,
 			FieldLook{Ground: theme.Panel, Ink: theme.Text, Focused: true})
+	} else if held := model.Active(); held != nil && held.Overlay.Kind == overlay.Kind {
+		// The list follows the cursor, and the card scrolls it.
+		held.Overlay.List.Offset = scrollTo(held.Overlay.List.Cursor,
+			held.Overlay.List.Offset, body, len(overlay.Cell.Choices))
 	}
 	return model.renderTextCard(overlay.Kind, model.buildCellEditorTitle(overlay), width,
 		lines, keys, overlay.ContentRows, plainCard)
@@ -1465,7 +1496,8 @@ func (model *Model) renderChanges(overlay app.Overlay, width int) string {
 		}
 	}
 
-	keys := model.buildCardKeys(app.OverlayChanges, keyScene{overlay: overlay})
+	keys := model.buildScrollingCardKeys(
+		overlay, lines, max(len(overlay.Changes)*rowsPerChange, 1), width)
 	return model.renderTextCard(overlay.Kind,
 		" staged changes · "+present.FormatCount(int64(len(overlay.Changes)))+" ",
 		width, lines, keys, max(len(overlay.Changes)*rowsPerChange, 1), destructiveCard)

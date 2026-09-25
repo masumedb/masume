@@ -175,7 +175,7 @@ func takesListKeys(overlay app.Overlay) bool {
 		return len(overlay.Cell.Choices) > 0
 	case app.OverlayParameters, app.OverlayExport, app.OverlayImport, app.OverlayDump,
 		app.OverlayPrompt,
-		app.OverlayChart, app.OverlayChoice, app.OverlayMessage, app.OverlayConfirm,
+		app.OverlayChart, app.OverlayChoice, app.OverlayConfirm,
 		app.OverlayAiChat,
 		app.OverlayBuilderJoin, app.OverlayBuilderField:
 		return false
@@ -449,7 +449,8 @@ func (model *Model) runOverlayAction(
 	}
 	// The viewer of a cell and the row it was read from hold no cursor either: what is
 	// taller than the card scrolls inside it.
-	if (overlay.Kind == app.OverlayCell || overlay.Kind == app.OverlayRowDetail) &&
+	if (overlay.Kind == app.OverlayCell || overlay.Kind == app.OverlayRowDetail ||
+		overlay.Kind == app.OverlayChanges || overlay.Kind == app.OverlayMessage) &&
 		model.scrollCardLines(overlay, match) {
 		return true, model, nil
 	}

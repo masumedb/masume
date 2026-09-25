@@ -838,11 +838,16 @@ func (model *Model) renderSettings() string {
 	cardTop := titleBarRows + halfRoundedUp(model.height-2-(rows+chrome))
 
 	lines := make([]string, 0, rows+3)
+	// A page with more rows than the card shows draws a bar in the last column of its rows.
+	thumb := buildScrollThumb(state.Offset, rows, len(state.Items))
 	for at := range rows {
+		item := model.renderItemCell(at, itemWidth)
+		if at < len(thumb) {
+			item = model.styles.paintThumbColumn(item, thumb[at], itemWidth-1, theme.Panel)
+		}
 		lines = append(lines,
 			model.renderSectionCell(at)+
-				paintText(theme.Faint, theme.Panel, " │ ")+
-				model.renderItemCell(at, itemWidth))
+				paintText(theme.Faint, theme.Panel, " │ ")+item)
 	}
 
 	// A screen too short for the foot draws the rows alone, so the card still fits the

@@ -25,6 +25,8 @@ type keyScene struct {
 	text string
 	// hasFault is true while the scanner marked the statement in the editor.
 	hasFault bool
+	// scrolls is true where the body of the card is taller than the card.
+	scrolls bool
 }
 
 // keySpec is one part of a key line: a key of the registry, a key a widget reads itself, or
@@ -269,6 +271,9 @@ var cardKeySpecs = map[app.OverlayKind][]keySpec{
 		keyOf(cfg.ScopeDialog, ActionClose, "stay here"),
 	},
 	app.OverlayMessage: {
+		pairOf(cfg.ScopeList, ActionCursorUp, ActionCursorDown, "scroll", "").
+			onlyWhen(scrollsCard),
+		takesKey(cfg.ScopeList, ActionCursorPageUp), takesKey(cfg.ScopeList, ActionCursorPageDown),
 		keyOf(cfg.ScopeDialog, ActionClose, "").withLabel(describeSettingsClose),
 	},
 	app.OverlayDiagram: {
@@ -311,6 +316,9 @@ var cardKeySpecs = map[app.OverlayKind][]keySpec{
 		keyOf(cfg.ScopeDialog, ActionClose, "").withLabel(describeSettingsClose),
 	},
 	app.OverlayChanges: {
+		pairOf(cfg.ScopeList, ActionCursorUp, ActionCursorDown, "scroll", "").
+			onlyWhen(scrollsCard),
+		takesKey(cfg.ScopeList, ActionCursorPageUp), takesKey(cfg.ScopeList, ActionCursorPageDown),
 		keyOf(cfg.ScopeDialog, ActionApplyChanges, "apply"),
 		keyOf(cfg.ScopeDialog, ActionDiscardChanges, "discard"),
 		keyOf(cfg.ScopeDialog, ActionClose, "").withLabel(describeSettingsClose),
@@ -612,6 +620,8 @@ func describeDumpStepOf(scene keyScene) string {
 func dumpsTables(scene keyScene) bool {
 	return scene.overlay.Dump.Mode == app.DumpWrite
 }
+
+func scrollsCard(scene keyScene) bool { return scene.scrolls }
 
 // blocksChat is true where the chat cannot answer and has no conversation yet.
 func blocksChat(scene keyScene) bool {

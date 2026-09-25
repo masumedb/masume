@@ -220,6 +220,8 @@ type ImportRequest struct {
 	Written         int
 	// How far the write of the rows has come.
 	Progress Progress
+	// ColumnOffset is the first column row the form draws while the rows do not fit.
+	ColumnOffset int
 }
 
 // DumpMode is what the card of a dump file does.
