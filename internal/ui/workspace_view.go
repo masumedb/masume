@@ -872,9 +872,21 @@ func (model *Model) renderEditor(
 		if at == caretLine && focused {
 			gutterGround = theme.Zebra
 		}
+		// A line moved left shows a mark where its start is hidden, and a line cut at the
+		// right shows one at its end.
+		cells := present.MeasureText(lines[at])
 		sign := paintOn(gutterGround, " ")
-		if faulty[at] {
+		switch {
+		case faulty[at]:
 			sign = paintText(theme.Error, gutterGround, model.describeProblemSign())
+		case columnOffset > 0 && cells > 0:
+			sign = paintText(theme.Muted, gutterGround,
+				present.FitText(model.icons.Icon(cfg.IconStepBack), 1))
+		}
+		end := paintOn(gutterGround, " ")
+		if cells-columnOffset > textWidth {
+			end = paintText(theme.Muted, gutterGround,
+				present.FitText(model.icons.Icon(cfg.IconStepOn), 1))
 		}
 		// The number of the line the caret is on is drawn in the accent, as the number of
 		// the row the cursor is on is drawn in the grid.
@@ -897,8 +909,7 @@ func (model *Model) renderEditor(
 		if placeholder && at == 0 {
 			text = model.renderEditorPlaceholder(connection, tab, textWidth, focused)
 		}
-		written = append(written,
-			number+text+paintOn(gutterGround, " "))
+		written = append(written, number+text+end)
 		lineFrom += len(lines[at]) + 1
 	}
 	for len(written) < body {
