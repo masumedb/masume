@@ -758,13 +758,17 @@ func (model *Model) renderGridRow(
 	if at%2 == 1 {
 		ground = theme.Zebra
 	}
-	if deleted || (onCursor && focused) {
+	// The cursor row keeps its ground when the grid loses the focus.
+	if deleted || onCursor {
 		ground = theme.Header
 	}
 
 	gutterInk := theme.Muted
-	if onCursor && focused {
+	switch {
+	case onCursor && focused:
 		gutterInk = theme.Accent
+	case onCursor:
+		gutterInk = theme.Text
 	}
 	// The row grows a cell at a time, so it is built in one buffer rather than joined
 	// again for every column. Every cell lays its own ground, so the row needs no second
@@ -812,6 +816,8 @@ func (model *Model) renderGridRow(
 			cellGround = theme.BorderFocus
 		case onColumn && !deleted:
 			cellGround = theme.Header
+		case onCursor && index == tab.GridColumn:
+			cellGround = theme.Selection
 		}
 
 		ink := theme.Text
