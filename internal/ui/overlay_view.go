@@ -1076,18 +1076,21 @@ const (
 
 // renderConfirm draws a question with two answers. Each answer is a button.
 func (model *Model) renderConfirm(overlay app.Overlay, width int) string {
-	lines := model.wrapErrorText(overlay.Body, width-present.CardChrome)
+	lines := model.wrapText(overlay.Body, width-present.CardChrome)
+	if overlay.Destructive {
+		lines = model.wrapErrorText(overlay.Body, width-present.CardChrome)
+	}
 	lines = append(lines, "")
 
 	yes := model.buildCardButton(cfg.ScopeDialog, ActionAnswerYes, describeConfirmYes(keyScene{overlay: overlay}))
-	yes.primary, yes.destructive = true, true
+	yes.primary, yes.destructive = true, overlay.Destructive
 	no := model.buildCardButton(cfg.ScopeDialog, ActionAnswerNo, describeConfirmNo(keyScene{overlay: overlay}))
 	model.recordCardBody()
 	lines = append(lines, model.renderButtonRow(
 		[]cardButton{yes, no}, cardBodyRow+len(lines), cardBodyColumn))
 
 	card := model.renderNotedTextCard(overlay.Kind, overlay.Title,
-		model.renderActiveEnvironmentBadge(), "", width, lines, nil, 0, destructiveCard)
+		model.renderActiveEnvironmentBadge(), "", width, lines, nil, 0, overlay.Destructive)
 	model.rememberCardKeys(model.buildCardKeys(app.OverlayConfirm, keyScene{overlay: overlay}))
 	return card
 }

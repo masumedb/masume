@@ -263,6 +263,7 @@ func (model *Model) undoLastWrite(connection *app.Connection) (tea.Model, tea.Cm
 	connection.Open(app.Overlay{
 		Kind: app.OverlayConfirm, Title: " undo the write ",
 		Body: describeUndoQuestion(*held),
+		Yes:  "undo", Destructive: true,
 		Answers: app.OverlayAnswers{Answer: func(confirmed bool) app.AnswerCommand {
 			if !confirmed {
 				return nil

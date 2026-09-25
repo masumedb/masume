@@ -278,6 +278,9 @@ type Overlay struct {
 	// The labels of the two answers of a question. Empty gives "run" and "cancel".
 	Yes string
 	No  string
+	// Destructive is true for a question whose yes cannot be taken back. The card and its
+	// yes are drawn in the colour of an error.
+	Destructive bool
 
 	List ListState
 

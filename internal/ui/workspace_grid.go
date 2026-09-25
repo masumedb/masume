@@ -1193,6 +1193,7 @@ func (model *Model) writeExport(
 		connection.OpenOver(app.Overlay{
 			Kind: app.OverlayConfirm, Title: " overwrite the file ",
 			Body: path + " already exists. Overwrite the file?",
+			Yes:  "overwrite", Destructive: true,
 			Answers: app.OverlayAnswers{Answer: func(confirmed bool) app.AnswerCommand {
 				if !confirmed {
 					return nil

@@ -618,6 +618,7 @@ func (model *Model) requestCloseConnection(connection *app.Connection) (tea.Mode
 		Kind:  app.OverlayConfirm,
 		Title: " close connection ",
 		Body:  body + " Close the connection and every tab?",
+		Yes:   "close connection", Destructive: staged > 0 || transactions > 0,
 		Answers: app.OverlayAnswers{Answer: func(confirmed bool) app.AnswerCommand {
 			if !confirmed {
 				return nil
@@ -1504,6 +1505,7 @@ func (model *Model) requestDiscardChanges(
 		Kind:  app.OverlayConfirm,
 		Title: " discard changes ",
 		Body:  "Discard " + present.DescribeStagedChanges(staged) + "?",
+		Yes:   "discard", Destructive: true,
 		Answers: app.OverlayAnswers{Answer: func(confirmed bool) app.AnswerCommand {
 			if !confirmed {
 				return nil

@@ -298,6 +298,7 @@ func (model *Model) deleteNotebookRow(
 	connection.OpenOver(app.Overlay{
 		Kind: app.OverlayConfirm, Title: " delete this notebook ",
 		Body: "The file " + core.ShortenHomePath(entry.Path) + " is deleted.",
+		Yes:  "delete notebook", Destructive: true,
 		Answers: app.OverlayAnswers{Answer: func(confirmed bool) app.AnswerCommand {
 			if !confirmed {
 				// The question closes on its own, and the list it was asked over

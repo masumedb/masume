@@ -125,7 +125,7 @@ func TestThePlanCardSaysWhatTheWriteDoes(t *testing.T) {
 
 	drawn := stripStyles(model.renderWritePlan(connection.Overlay, 100))
 	for _, said := range []string{
-		"3 of 12 in orders", "status", "t_order_audit", "1 row to capture", "run", "cancel",
+		"3 of 12 in orders", "status", "t_order_audit", "1 row to capture", "update 3 rows", "cancel",
 	} {
 		if !strings.Contains(drawn, said) {
 			t.Errorf("the card says nothing of %q:\n%s", said, drawn)
@@ -235,7 +235,7 @@ func TestABlockedWriteLeadsWithTheBlockingRows(t *testing.T) {
 	for _, said := range []string{
 		"This delete will fail",
 		"3,000 rows in public.order_items still reference these rows (on delete no action).",
-		"show the blocking rows", "run anyway",
+		"show the blocking rows", "delete anyway",
 	} {
 		if !strings.Contains(drawn, said) {
 			t.Errorf("the card says nothing of %q:\n%s", said, drawn)

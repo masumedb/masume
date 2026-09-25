@@ -1015,17 +1015,17 @@ func (model *Model) askStopBackend(
 	id := model.ActiveID()
 
 	named := strconv.FormatInt(pid, 10)
-	title, question, text := " stop the statement ",
+	title, question, text, yes := " stop the statement ",
 		"Stop the statement in session "+named+"?",
-		"asked the server to stop the statement in session "+named
+		"asked the server to stop the statement in session "+named, "stop statement"
 	if ends {
-		title, question, text = " end the session ",
+		title, question, text, yes = " end the session ",
 			"End session "+named+"? Its statement stops and its connection closes.",
-			"asked the server to end session "+named
+			"asked the server to end session "+named, "end session"
 	}
 
 	connection.OpenOver(app.Overlay{
-		Kind: app.OverlayConfirm, Title: title,
+		Kind: app.OverlayConfirm, Title: title, Yes: yes, Destructive: true,
 		Body: question + "\n\n" + present.TruncateText(session.Query, 60),
 		Answers: app.OverlayAnswers{Answer: func(confirmed bool) app.AnswerCommand {
 			if !confirmed {

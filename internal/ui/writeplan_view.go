@@ -8,6 +8,7 @@ import (
 	"github.com/masumedb/masume/internal/app"
 	"github.com/masumedb/masume/internal/cfg"
 	"github.com/masumedb/masume/internal/present"
+	"github.com/masumedb/masume/internal/query/statement"
 	"github.com/masumedb/masume/internal/writeplan"
 )
 
@@ -85,12 +86,21 @@ func opensBlockingRows(scene keyScene) bool {
 	return found
 }
 
-// describeWritePlanRun returns the label of the key that runs the write.
+// describeWritePlanRun returns the label of the key that runs the write: the write and the
+// rows it changes.
 func describeWritePlanRun(scene keyScene) string {
-	if len(scene.overlay.Plan.Blockers) > 0 {
-		return "run anyway"
+	plan := scene.overlay.Plan
+	verb := string(plan.Kind)
+	if verb == "" {
+		verb = "run"
 	}
-	return "run"
+	if len(plan.Blockers) > 0 {
+		return verb + " anyway"
+	}
+	if plan.HasRows && (plan.Kind == statement.WriteUpdate || plan.Kind == statement.WriteDelete) {
+		return verb + " " + present.FormatCountOf(plan.Rows, "row", "rows")
+	}
+	return verb
 }
 
 // renderWritePlanHeadline draws the sentence that the write fails, and one line per table

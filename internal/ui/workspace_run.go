@@ -17,6 +17,7 @@ import (
 	"github.com/masumedb/masume/internal/query"
 	"github.com/masumedb/masume/internal/query/language"
 	"github.com/masumedb/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/query/syntax"
 	"github.com/masumedb/masume/internal/writeplan"
 )
 
@@ -299,6 +300,18 @@ func (model *Model) executeBound(
 	return model, model.startRun(connection, tab, kept, reads, writeplan.UndoPlan{})
 }
 
+// describeWriteAnswer returns the label of the key that runs the writes: the command word of
+// one statement, or the count of several.
+func describeWriteAnswer(statements []string, flavour syntax.SyntaxFlavour) string {
+	if len(statements) != 1 {
+		return "run " + present.FormatCountOf(int64(len(statements)), "statement", "statements")
+	}
+	if word := syntax.ReadCommandWord(statements[0], flavour); word != "" {
+		return word
+	}
+	return "run"
+}
+
 // askPlainWriteQuestion asks whether the statements may run, without measuring them. It is
 // what a connection that plans no write asks, and what a write this client could not read
 // as one relation falls back to.
@@ -310,6 +323,7 @@ func (model *Model) askPlainWriteQuestion(
 		string(connection.Profile().Environment), risk, kept)
 	connection.Open(app.Overlay{
 		Kind: app.OverlayConfirm, Title: " " + question.Title + " ", Body: question.Body,
+		Yes: describeWriteAnswer(kept, connection.Session.Dialect().Syntax), Destructive: true,
 		Answers: app.OverlayAnswers{Answer: func(confirmed bool) app.AnswerCommand {
 			if !confirmed {
 				return nil
@@ -353,7 +367,7 @@ func (model *Model) askBeforeDiscardingChanges(
 		Title: " discard changes ",
 		Body: action.gerund + " discards " +
 			present.FormatCountOf(int64(staged), "staged change", "staged changes") + ".",
-		Yes: action.yes, No: "keep editing",
+		Yes: action.yes, No: "keep editing", Destructive: true,
 		Answers: app.OverlayAnswers{Answer: func(confirmed bool) app.AnswerCommand {
 			if !confirmed {
 				return nil
@@ -1207,7 +1221,7 @@ func (model *Model) askToApplyOneAtATime(
 	id, tabID, session := model.ActiveID(), tab.ID, connection.Session
 	connection.Open(app.Overlay{
 		Kind:  app.OverlayConfirm,
-		Title: " apply one at a time ",
+		Title: " apply one at a time ", Yes: "apply", Destructive: true,
 		Body: "This server cannot apply these " + strconv.Itoa(len(changes)) +
 			" changes in one transaction. Changes run one at a time. If a change fails, " +
 			"earlier changes remain applied. Apply the changes?",
