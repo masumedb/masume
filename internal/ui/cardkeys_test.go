@@ -132,6 +132,9 @@ func TestEveryKeyOfACardIsDrawnAsAKey(t *testing.T) {
 		{
 			name: "the chat",
 			open: func(model *Model, connection *app.Connection) {
+				provider := model.ai.Providers[model.aiProvider]
+				provider.APIKey, provider.Model = "key", "model"
+				model.ai.Providers[model.aiProvider] = provider
 				connection.Overlay = app.Overlay{
 					Kind: app.OverlayAiChat, Draft: app.NewEditorBuffer("", 0),
 				}

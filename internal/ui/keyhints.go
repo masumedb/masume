@@ -355,10 +355,12 @@ var cardKeySpecs = map[app.OverlayKind][]keySpec{
 	app.OverlayAiChat: {
 		keyOf(cfg.ScopeDialog, ActionAnswerYes, "run").onlyWhen(asksToRun),
 		keyOf(cfg.ScopeDialog, ActionAnswerNo, "do not run").onlyWhen(asksToRun),
+		firstChordOf(cfg.ScopeDialog, ActionSendQuestion, "open AI settings").
+			onlyWhen(blocksChat),
 		firstChordOf(cfg.ScopeDialog, ActionSendQuestion, "ask").
-			onlyWhen(notFilters(asksToRun)),
+			onlyWhen(takesQuestion),
 		firstChordOf(cfg.ScopeDialog, ActionWriteNewline, "newline").
-			onlyWhen(notFilters(asksToRun)),
+			onlyWhen(takesQuestion),
 		keyOf(cfg.ScopeDialog, ActionStopAiReply, "stop").onlyWhen(writesReply),
 		keyOf(cfg.ScopeDialog, ActionAskAiAgain, "ask again").onlyWhen(asksAgain),
 		keyOf(cfg.ScopeDialog, ActionCopyAiReply, "copy reply").onlyWhen(holdsChatText),
@@ -366,8 +368,8 @@ var cardKeySpecs = map[app.OverlayKind][]keySpec{
 		// group of the chat, and the status bar carries them as well.
 		keyOf(cfg.ScopeDialog, ActionInsertAiSQL, "to editor").
 			onlyWhen(holdsChatQuery),
-		keyOf(cfg.ScopeDialog, ActionNewAiChat, "new").onlyWhen(notFilters(asksToRun)),
-		keyOf(cfg.ScopeDialog, ActionShowAiChats, "chats").onlyWhen(notFilters(asksToRun)),
+		keyOf(cfg.ScopeDialog, ActionNewAiChat, "new").onlyWhen(takesQuestion),
+		keyOf(cfg.ScopeDialog, ActionShowAiChats, "chats").onlyWhen(takesQuestion),
 		keyOf(cfg.ScopeDialog, ActionClose, "close").onlyWhen(notFilters(asksToRun)),
 		takesKey(cfg.ScopeDialog, ActionScrollBack),
 		takesKey(cfg.ScopeDialog, ActionScrollForward),
@@ -609,6 +611,16 @@ func describeDumpStepOf(scene keyScene) string {
 // dumpsTables is true for the card of a dump, which has rows a restore has not.
 func dumpsTables(scene keyScene) bool {
 	return scene.overlay.Dump.Mode == app.DumpWrite
+}
+
+// blocksChat is true where the chat cannot answer and has no conversation yet.
+func blocksChat(scene keyScene) bool {
+	return scene.model != nil && scene.model.blocksChat(readSceneChat(scene))
+}
+
+// takesQuestion is true where the field of the chat takes a question.
+func takesQuestion(scene keyScene) bool {
+	return !asksToRun(scene) && !blocksChat(scene)
 }
 
 func asksToRun(scene keyScene) bool {

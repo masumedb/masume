@@ -106,6 +106,12 @@ func (model *Model) runChatAction(
 		if chat.Pending != nil {
 			return false, model, nil
 		}
+		if model.blocksChat(chat) {
+			connection.CloseEveryOverlay()
+			model.settingsCameFrom = ScreenWorking
+			held, command := model.showSettings()
+			return true, held, command
+		}
 		held, command := model.submitChatQuestion(connection, tab)
 		return true, held, command
 	case ActionAskAiAgain:

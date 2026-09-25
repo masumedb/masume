@@ -339,20 +339,25 @@ func (model *Model) renderChatOpening(
 ) []string {
 	theme := model.styles.Theme
 	lines := []string{}
+	// A source that answers nothing replaces the opening with what to set up.
+	if missing := model.describeChatProblem(connection.Profile()); missing != "" {
+		lines = append(lines, "",
+			paintText(theme.Error, nil, " "+model.icons.Icon(cfg.IconDot)+" ")+
+				model.styles.Ink().Render("AI chat is not set up"), "")
+		for _, line := range present.WrapWords(missing, content-3) {
+			lines = append(lines, model.styles.Muted().Render("   "+line))
+		}
+		for len(lines) < room {
+			lines = append(lines, "")
+		}
+		return lines[:room]
+	}
 	for _, line := range present.WrapWords(chatOpening, content) {
 		lines = append(lines, model.styles.Ink().Render(line))
 	}
 	lines = append(lines, "")
 	for _, asked := range chatExamples {
 		lines = append(lines, paintText(theme.Info, nil, "  "+asked))
-	}
-	// A source that answers nothing is named before the first question rather than after
-	// it.
-	if missing := model.describeChatProblem(connection.Profile()); missing != "" {
-		lines = append(lines, "")
-		for _, line := range present.WrapWords(missing, content) {
-			lines = append(lines, model.styles.Error().Render(line))
-		}
 	}
 	for len(lines) < room {
 		lines = append(lines, "")
@@ -649,6 +654,10 @@ func (model *Model) renderChatBelow(
 		lines = append(lines, pending...)
 	}
 
+	if model.blocksChat(chat) {
+		return append(lines, model.styles.Faint().Render(
+			present.TruncateText(chat.Notice, content))), answersRow
+	}
 	// The field carries the marker in its placeholder rather than beside it, because it takes
 	// the width of the row whatever sits next to it. A question is written over several
 	// lines, so the field is as many rows and each of them is a row of the card.
@@ -708,7 +717,13 @@ func (model *Model) renderChatPending(pending app.PendingRun, content int) []str
 // describeChatKeys returns the keys of the chat panel: the answers to a question while one
 // waits, and the keys of the panel otherwise.
 func (model *Model) describeChatKeys(chat *app.Chat) *KeyLine {
-	return model.buildCardKeys(app.OverlayAiChat, keyScene{chat: chat})
+	return model.buildCardKeys(app.OverlayAiChat, keyScene{model: model, chat: chat})
+}
+
+// blocksChat is true before the first question while the source of the chat cannot answer.
+func (model *Model) blocksChat(chat *app.Chat) bool {
+	return chat != nil && len(chat.Messages) == 0 &&
+		model.describeChatProblem(cfg.Profile{}) != ""
 }
 
 // The columns a row of the list of conversations keeps for the title and the time.
