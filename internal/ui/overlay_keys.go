@@ -599,10 +599,9 @@ func (model *Model) runOverlayAction(
 			held, command := model.applyStagedChanges(connection, tab)
 			return true, held, command
 		case ActionDiscardChanges:
-			tab.DiscardChanges()
 			connection.CloseEveryOverlay()
-			connection.Show("the staged changes were discarded")
-			return true, model, nil
+			held, command := model.requestDiscardChanges(connection, tab)
+			return true, held, command
 		}
 
 	case app.OverlayCell:
@@ -914,6 +913,12 @@ func (model *Model) chooseOverlayRow(
 		return model.answerPrompt(connection, tab, *overlay)
 
 	case app.OverlayConfirm:
+		// Enter cancels a destructive question. Only the key of the yes button confirms it.
+		if overlay.Destructive {
+			model.answerNothing(overlay)
+			connection.CloseOverlay()
+			return model, nil
+		}
 		answer := overlay.Answers.Answer
 		connection.CloseOverlay()
 		return model, model.runAnswer(answer, true)
