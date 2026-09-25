@@ -407,6 +407,21 @@ func (model *Model) renderBanner(
 		style.Render(model.icons.Prefix(cfg.IconBanner)+banner), style.Render(keys))
 }
 
+// buildNoRowsHints returns the lines under "no rows": the filters on the result, and the key
+// that clears them.
+func (model *Model) buildNoRowsHints(connection *app.Connection, tab *app.Tab) []Hint {
+	banner := model.describeBanner(connection, tab)
+	if banner == "" {
+		return nil
+	}
+	hints := []Hint{{Label: banner}}
+	if chord := model.registry.FormatFirstActionChord(
+		cfg.ScopeGrid, ActionClearRewrites); chord != "" {
+		hints = append(hints, Hint{Key: chord, Label: "clear the filters"})
+	}
+	return hints
+}
+
 // renderGrid draws the header, the rows and the cursor of the result grid.
 func (model *Model) renderGrid(
 	connection *app.Connection, tab *app.Tab, shape GridShape, width, height int,
@@ -465,6 +480,10 @@ func (model *Model) renderGrid(
 			tab, shape, visible, at, gutterWidth, width))
 	}
 	model.recordGridColumns(shape, visible, gutterWidth, width, len(lines)-1, tab.GridRowOffset)
+	if len(shape.Text) == 0 {
+		lines = append(lines, model.renderEmptyState(width, max(height-1, 1), "no rows",
+			model.buildNoRowsHints(connection, tab))...)
+	}
 	for len(lines) < height {
 		lines = append(lines, "")
 	}
