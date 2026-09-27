@@ -73,9 +73,11 @@ Each card uses only its own actions, so two rows in this table can share a key w
 | `copy-value` | `ctrl+a` or `y` |
 | `delete-connection` | `d` |
 | `discard-changes` | `x` |
+| `edit-cell` | `e` |
 | `edit-connection` | `e` |
 | `filter-connections` | `/` |
 | `fold-row` | `left` |
+| `follow-foreign-key` | `g` |
 | `insert-ai-sql` | `ctrl+j` |
 | `keep-all-values` | `a` |
 | `keep-only-value` | `o` |

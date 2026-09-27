@@ -447,9 +447,11 @@ func (model *Model) runOverlayAction(
 	if overlay.Kind == app.OverlayHelp && model.scrollHelp(overlay, match, count) {
 		return true, model, nil
 	}
-	// The viewer of a cell and the row it was read from hold no cursor either: what is
-	// taller than the card scrolls inside it.
-	if (overlay.Kind == app.OverlayCell || overlay.Kind == app.OverlayRowDetail ||
+	if overlay.Kind == app.OverlayRowDetail && model.moveRowDetailCursor(overlay, match) {
+		return true, model, nil
+	}
+	// The viewer of a cell holds no cursor: what is taller than the card scrolls inside it.
+	if (overlay.Kind == app.OverlayCell ||
 		overlay.Kind == app.OverlayChanges || overlay.Kind == app.OverlayMessage) &&
 		model.scrollCardLines(overlay, match) {
 		return true, model, nil
@@ -526,7 +528,7 @@ func (model *Model) runOverlayAction(
 		}
 		overlay.Window.Index = wrap(overlay.Window.Index+step, len(overlay.Window.Rows))
 		// A row of its own starts at its first column.
-		overlay.List.Offset = 0
+		overlay.List.Offset, overlay.List.Rolled = 0, false
 		return true, model, nil
 	case ActionScrollLeft, ActionScrollRight:
 		step := ActionCursorLeft
@@ -601,6 +603,42 @@ func (model *Model) runOverlayAction(
 		case ActionDiscardChanges:
 			connection.CloseEveryOverlay()
 			held, command := model.requestDiscardChanges(connection, tab)
+			return true, held, command
+		}
+
+	case app.OverlayRowDetail:
+		switch match.Action {
+		case ActionCopyValue:
+			value, column, found := readRowDetailField(*overlay)
+			if !found {
+				return true, model, nil
+			}
+			overlay.Notice = "copied"
+			return true, model, model.keepOnClipboard(
+				present.FormatForViewer(value, column.DataType))
+		case ActionFollowForeignKey:
+			value, column, found := readRowDetailField(*overlay)
+			if !found {
+				return true, model, nil
+			}
+			target, points := build.FindForeignKeyTarget(tab.Target.ForeignKeys, column.Name)
+			if !points {
+				overlay.Notice = column.Name + " has no foreign key"
+				return true, model, nil
+			}
+			connection.CloseEveryOverlay()
+			held, command := model.openFilteredTable(connection, target.Schema, target.Table,
+				core.BuildCellFilter(target.Column, value, false))
+			return true, held, command
+		case ActionEditCell:
+			shape := model.buildGridShape(connection, tab)
+			at := slices.Index(shape.RowIndexes, overlay.Window.Index)
+			if at < 0 {
+				return true, model, nil
+			}
+			tab.GridRow, tab.GridColumn = at, clamp(overlay.List.Cursor, len(shape.Columns))
+			connection.CloseEveryOverlay()
+			held, command := model.editCell(connection, tab, shape)
 			return true, held, command
 		}
 
@@ -1705,4 +1743,48 @@ func (model *Model) filterPalette(overlay app.Overlay) []app.PaletteAction {
 		actions = append(actions, held.action)
 	}
 	return actions
+}
+
+// moveRowDetailCursor moves the cursor of the row card from field to field, and scrolls the
+// card to the lines of that field as the last frame drew them.
+func (model *Model) moveRowDetailCursor(overlay *app.Overlay, match Match) bool {
+	count := len(overlay.Window.Columns)
+	switch match.Action {
+	case ActionCursorUp:
+		overlay.List.Cursor--
+	case ActionCursorDown:
+		overlay.List.Cursor++
+	case ActionCursorPageUp, ActionScrollBack:
+		overlay.List.Cursor -= listPage
+	case ActionCursorPageDown, ActionScrollForward:
+		overlay.List.Cursor += listPage
+	case ActionCursorFirstRow:
+		overlay.List.Cursor = 0
+	case ActionCursorLastRow:
+		overlay.List.Cursor = count - 1
+	default:
+		return false
+	}
+	overlay.List.Cursor = clamp(overlay.List.Cursor, count)
+	overlay.List.Rolled = false
+	if fields := model.layout.rowDetailFields; overlay.List.Cursor < len(fields) {
+		overlay.List.Offset = followLineSpan(
+			fields[overlay.List.Cursor], overlay.List.Offset, model.layout.cardBody)
+	}
+	overlay.Notice = ""
+	return true
+}
+
+// readRowDetailField returns the value and the column under the cursor of the row card.
+func readRowDetailField(overlay app.Overlay) (any, db.ResultColumn, bool) {
+	window := overlay.Window
+	if window.Index < 0 || window.Index >= len(window.Rows) || len(window.Columns) == 0 {
+		return nil, db.ResultColumn{}, false
+	}
+	at := clamp(overlay.List.Cursor, len(window.Columns))
+	row := window.Rows[window.Index]
+	if at >= len(row) {
+		return nil, window.Columns[at], true
+	}
+	return row[at], window.Columns[at], true
 }

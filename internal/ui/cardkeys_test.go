@@ -153,8 +153,8 @@ func TestEveryKeyOfACardIsDrawnAsAKey(t *testing.T) {
 					},
 				}
 			},
-			keys:  []string{"←→", "↑↓"},
-			words: []string{"another row", "scroll"},
+			keys:  []string{"←→", "↑↓", "e", "y"},
+			words: []string{"another row", "field", "edit", "copy"},
 		},
 	} {
 		t.Run(held.name, func(t *testing.T) {

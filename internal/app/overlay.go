@@ -138,6 +138,8 @@ type RowWindow struct {
 	Columns []db.ResultColumn
 	Rows    [][]any
 	Index   int
+	// Truncated is true while the server holds more rows than the window.
+	Truncated bool
 }
 
 // CellTarget is the one cell the viewer shows and the editor writes.

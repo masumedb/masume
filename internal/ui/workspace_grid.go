@@ -532,8 +532,10 @@ func (model *Model) runGridAction(
 			Kind: app.OverlayRowDetail,
 			Window: app.RowWindow{
 				Columns: shape.Columns, Rows: shape.Rows,
-				Index: shape.RowIndexes[clamp(tab.GridRow, rowCount)],
+				Index:     shape.RowIndexes[clamp(tab.GridRow, rowCount)],
+				Truncated: isResultTruncated(tab),
 			},
+			List: app.ListState{Cursor: clamp(tab.GridColumn, len(shape.Columns))},
 		})
 	case ActionEditCell:
 		return model.editCell(connection, tab, shape)
@@ -1398,6 +1400,13 @@ func (model *Model) describeResultSize(
 		size += " · " + strconv.Itoa(shown) + " shown"
 	}
 	return size
+}
+
+// isResultTruncated is true while the server holds more rows than the active result.
+func isResultTruncated(tab *app.Tab) bool {
+	active := tab.Results.Active()
+	return active != nil && active.State.Kind == app.QuerySucceeded &&
+		active.State.Result.Truncated
 }
 
 // describeGridFooter writes the size of the result on the left, and the row the cursor is on

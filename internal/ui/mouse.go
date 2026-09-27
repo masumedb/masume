@@ -167,6 +167,8 @@ type frameLayout struct {
 	cardLines, cardBody int
 	// The columns a diagram card shows.
 	cardRoom int
+	// The lines each field of the row card takes, as the last frame drew them.
+	rowDetailFields []lineSpan
 	// The chips a card draws as returns, such as the two of a question.
 	overlayChips []chipHit
 

@@ -15,6 +15,7 @@ import (
 	"github.com/masumedb/masume/internal/core"
 	"github.com/masumedb/masume/internal/db"
 	"github.com/masumedb/masume/internal/present"
+	"github.com/masumedb/masume/internal/query/build"
 )
 
 // The widths a card of an overlay is drawn at.
@@ -1389,10 +1390,16 @@ func (model *Model) renderRowDetail(overlay app.Overlay, width int) string {
 	inner := max(width-present.CardChrome, 1)
 	plan := present.PlanFieldColumns(inner)
 	room := max(inner-plan.Name-plan.Type, 1)
+	target := app.EditTarget{}
+	if connection := model.Active(); connection != nil {
+		target = connection.Active().Target
+	}
+	cursor := clamp(overlay.List.Cursor, len(overlay.Window.Columns))
 
 	// A value too long for its column wraps under itself, so the whole of it is read
 	// without the two names giving way.
 	held := []string{}
+	fields := make([]lineSpan, 0, len(overlay.Window.Columns))
 	for at, column := range overlay.Window.Columns {
 		var value any
 		if at < len(row) {
@@ -1400,7 +1407,7 @@ func (model *Model) renderRowDetail(overlay app.Overlay, width int) string {
 		}
 		written := present.SafeLines(present.FormatColumnForViewer(value, column,
 			model.settings.TimeZone.ResolveLocation()))
-		ink := theme.Text
+		ink, nameInk, typeInk := theme.Text, theme.Accent, theme.Muted
 		if value == nil {
 			ink = theme.Muted
 		}
@@ -1408,8 +1415,17 @@ func (model *Model) renderRowDetail(overlay app.Overlay, width int) string {
 		if at%2 == 1 {
 			ground = theme.Zebra
 		}
-		head := paintText(theme.Accent, ground, present.FitText(column.Name, plan.Name)) +
-			paintText(theme.Muted, ground, present.FitText(column.DataType, plan.Type))
+		if at == cursor {
+			ground = theme.Accent
+			ink, nameInk, typeInk = theme.OnAccent, theme.OnAccent, theme.OnAccent
+		}
+		from := len(held)
+		mark := "  "
+		if icon, marked := resolveColumnKeyIcon(target, column.Name); marked {
+			mark = present.FitText(model.icons.Icon(icon), 2)
+		}
+		head := paintText(nameInk, ground, present.FitText(mark+column.Name, plan.Name)) +
+			paintText(typeInk, ground, present.FitText(column.DataType, plan.Type))
 		for line, text := range model.wrapText(written, room) {
 			if line > 0 {
 				head = paintOn(ground, strings.Repeat(" ", plan.Name+plan.Type))
@@ -1417,20 +1433,61 @@ func (model *Model) renderRowDetail(overlay app.Overlay, width int) string {
 			held = append(held, padStyledOn(
 				head+paintText(ink, ground, present.TruncateText(text, room)), inner, ground))
 		}
+		fields = append(fields, lineSpan{from: from, to: len(held)})
 	}
+	model.layout.rowDetailFields = fields
 
-	keys := model.buildCardKeys(app.OverlayRowDetail, keyScene{overlay: overlay})
+	keys := model.buildCardKeys(app.OverlayRowDetail, keyScene{model: model, overlay: overlay})
 	text := keys.buildText()
 	height := model.resolveOverlayHeight(
 		overlay.Kind, len(overlay.Window.Columns), countHintRows(text, width))
 	body := countCardBodyRows(height, countHintLines(text, inner))
-	lines := model.scrollCardRows(len(held), overlay.List.Offset, body, inner, theme.Panel,
+	offset := overlay.List.Offset
+	if !overlay.List.Rolled && cursor < len(fields) {
+		offset = followLineSpan(fields[cursor], offset, body)
+	}
+	lines := model.scrollCardRows(len(held), offset, body, inner, theme.Panel,
 		func(at int) string { return held[at] })
 
-	title := " row " + strconv.Itoa(overlay.Window.Index+1) + " of " +
-		strconv.Itoa(len(overlay.Window.Rows)) + " "
-	return model.renderTextCard(overlay.Kind, title, width, lines,
+	title := " row " + present.FormatCount(int64(overlay.Window.Index+1)) + " of " +
+		present.FormatCount(int64(len(overlay.Window.Rows)))
+	if overlay.Window.Truncated {
+		title += " loaded"
+	}
+	return model.renderTextCard(overlay.Kind, title+" ", width, lines,
 		keys, len(overlay.Window.Columns), plainCard)
+}
+
+// lineSpan is the lines one field of the row card takes, from the first to the one after the
+// last.
+type lineSpan struct {
+	from, to int
+}
+
+// followLineSpan returns the offset that keeps the span on screen, and moves as little as
+// it can.
+func followLineSpan(span lineSpan, offset, rows int) int {
+	if span.from < offset {
+		return span.from
+	}
+	if span.to > offset+rows {
+		return max(span.to-rows, 0)
+	}
+	return offset
+}
+
+// resolveColumnKeyIcon returns the icon of a key column of the table the rows were read
+// from: the primary key first, then a foreign key.
+func resolveColumnKeyIcon(target app.EditTarget, name string) (cfg.IconKind, bool) {
+	for _, key := range target.KeyColumns {
+		if strings.EqualFold(key, name) {
+			return cfg.IconPrimaryKey, true
+		}
+	}
+	if _, points := build.FindForeignKeyTarget(target.ForeignKeys, name); points {
+		return cfg.IconForeignKey, true
+	}
+	return "", false
 }
 
 // scrollCardRows returns the rows a card that scrolls without a cursor draws: the offset

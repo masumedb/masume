@@ -9,6 +9,7 @@ import (
 	"github.com/masumedb/masume/internal/core"
 	"github.com/masumedb/masume/internal/notebook"
 	"github.com/masumedb/masume/internal/present"
+	"github.com/masumedb/masume/internal/query/build"
 )
 
 // keyScene is the state a key spec reads.
@@ -311,8 +312,12 @@ var cardKeySpecs = map[app.OverlayKind][]keySpec{
 		keyOf(cfg.ScopeDialog, ActionClose, "cancel"),
 	},
 	app.OverlayRowDetail: {
+		readoutOf(readOverlayNotice),
 		pairOf(cfg.ScopeDialog, ActionPreviousRow, ActionNextRow, "another row", ""),
-		pairOf(cfg.ScopeList, ActionCursorUp, ActionCursorDown, "scroll", ""),
+		pairOf(cfg.ScopeList, ActionCursorUp, ActionCursorDown, "field", ""),
+		keyOf(cfg.ScopeDialog, ActionEditCell, "edit"),
+		keyOf(cfg.ScopeDialog, ActionFollowForeignKey, "follow key").onlyWhen(pointsAtRow),
+		keyOf(cfg.ScopeDialog, ActionCopyValue, "copy"),
 		keyOf(cfg.ScopeDialog, ActionClose, "").withLabel(describeSettingsClose),
 	},
 	app.OverlayChanges: {
@@ -622,6 +627,20 @@ func dumpsTables(scene keyScene) bool {
 }
 
 func scrollsCard(scene keyScene) bool { return scene.scrolls }
+
+// pointsAtRow is true while the field under the cursor of the row card is a foreign key.
+func pointsAtRow(scene keyScene) bool {
+	if scene.model == nil || scene.model.Active() == nil {
+		return false
+	}
+	_, column, found := readRowDetailField(scene.overlay)
+	if !found {
+		return false
+	}
+	_, points := build.FindForeignKeyTarget(
+		scene.model.Active().Active().Target.ForeignKeys, column.Name)
+	return points
+}
 
 // blocksChat is true where the chat cannot answer and has no conversation yet.
 func blocksChat(scene keyScene) bool {

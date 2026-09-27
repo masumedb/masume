@@ -279,6 +279,8 @@ var defaultChords = map[string][]string{
 	"dialog:run-with-values":      {"ctrl+r"},
 	"dialog:write-export":         {"ctrl+s"},
 	"dialog:copy-value":           {"ctrl+a", "y"},
+	"dialog:edit-cell":            {"e"},
+	"dialog:follow-foreign-key":   {"g"},
 	"dialog:open-in-new-tab":      {"alt+return"},
 	"dialog:list-secondary":       {"ctrl+d"},
 	"dialog:stop-session":         {"x"},
