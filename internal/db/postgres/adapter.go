@@ -34,6 +34,8 @@ type postgresSession struct {
 
 	// Server type names by OID, including custom enums, domains, and composites.
 	typeNames map[uint32]string
+	// The names format_type writes, by OID.
+	typeWritten map[uint32]string
 
 	// Each connection requires serialized driver calls.
 	mainQueue *db.CallQueue
@@ -148,7 +150,8 @@ func (session *postgresSession) readResultColumns(
 	for _, field := range fields {
 		columns = append(columns, db.ResultColumn{
 			Name: field.Name, DataType: session.readTypeName(field.DataTypeOID),
-			Zoned: field.DataTypeOID == pgtype.TimestamptzOID,
+			TypeName: session.typeWritten[field.DataTypeOID],
+			Zoned:    field.DataTypeOID == pgtype.TimestamptzOID,
 		})
 	}
 	return columns
@@ -1102,7 +1105,7 @@ func (adapter *postgresAdapter) Connect(
 
 	keepJSONFieldOrder(connection)
 
-	typeNames, typeErr := readTypeNames(ctx, connection)
+	typeNames, typeWritten, typeErr := readTypeNames(ctx, connection)
 	if typeErr != nil {
 		return fail(typeErr)
 	}
@@ -1138,6 +1141,7 @@ func (adapter *postgresAdapter) Connect(
 		flavour: adapter.flavour, connection: connection,
 		holdsStatementStats: holdsStatementStats,
 		backendPID:          backendPID, password: password, typeNames: typeNames,
+		typeWritten: typeWritten,
 		side: db.NewSideConnection(func() (*pgx.Conn, error) {
 			return openPostgresConnection(context.Background(), profile, password)
 		}),

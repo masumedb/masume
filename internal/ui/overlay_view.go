@@ -1381,7 +1381,7 @@ func (model *Model) renderCellEditor(overlay app.Overlay, width int) string {
 // buildCellEditorTitle names the column and the type the value is written for. A type that
 // holds JSON is named as such, because the card prettifies one.
 func (model *Model) buildCellEditorTitle(overlay app.Overlay) string {
-	title := overlay.Cell.Column.Name + " · " + overlay.Cell.Column.DataType
+	title := overlay.Cell.Column.Name + " · " + overlay.Cell.Column.DescribeType()
 	if present.IsJSONType(overlay.Cell.Column.DataType) {
 		title += " · json"
 	}
@@ -1412,6 +1412,12 @@ func (model *Model) renderRowDetail(overlay app.Overlay, width int) string {
 	row := overlay.Window.Rows[overlay.Window.Index]
 	inner := max(width-present.CardChrome, 1)
 	plan := present.PlanFieldColumns(inner)
+	for _, column := range overlay.Window.Columns {
+		wanted := present.MeasureText(column.DescribeType()) + rowDetailTypeGap
+		if wanted > plan.Type && inner-plan.Name-wanted >= rowDetailValueWidth {
+			plan.Type = wanted
+		}
+	}
 	room := max(inner-plan.Name-plan.Type, 1)
 	target := app.EditTarget{}
 	if connection := model.Active(); connection != nil {
@@ -1448,7 +1454,7 @@ func (model *Model) renderRowDetail(overlay app.Overlay, width int) string {
 			mark = present.FitText(model.icons.Icon(icon), 2)
 		}
 		head := paintText(nameInk, ground, present.FitText(mark+column.Name, plan.Name)) +
-			paintText(typeInk, ground, present.FitText(column.DataType, plan.Type))
+			paintText(typeInk, ground, present.FitText(column.DescribeType(), plan.Type))
 		for line, text := range model.wrapText(written, room) {
 			if line > 0 {
 				head = paintOn(ground, strings.Repeat(" ", plan.Name+plan.Type))
@@ -1498,6 +1504,12 @@ func followLineSpan(span lineSpan, offset, rows int) int {
 	}
 	return offset
 }
+
+// The gap after the widest type of the row card, and the value width the type never takes.
+const (
+	rowDetailTypeGap    = 2
+	rowDetailValueWidth = 20
+)
 
 // resolveColumnKeyIcon returns the icon of a key column of the table the rows were read
 // from: the primary key first, then a foreign key.

@@ -416,7 +416,7 @@ func buildColumnRows(plan treePlan, table db.TableRef, tableID string) []TreeRow
 	for _, column := range state.Detail.Columns {
 		rows = append(rows, buildRow(withIcon(rowOptions{
 			id: "column:" + tableID + ":" + column.Name, depth: 2, label: column.Name,
-			detail: AbbreviateDataType(column.DataType), selectable: true,
+			detail: column.DataType, selectable: true,
 			node: TreeNode{Kind: NodeColumn, Table: table, Column: column},
 		}, resolveColumnIcon(column, referencing))))
 	}

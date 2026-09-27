@@ -59,7 +59,7 @@ func (model *Model) buildCompletionSources(
 	if held := tab.Results.Active(); held != nil && held.State.Kind == app.QuerySucceeded {
 		for _, column := range held.State.Result.Columns {
 			columns = append(columns, editor.CompletionColumn{
-				Name: column.Name, Detail: column.DataType,
+				Name: column.Name, Detail: column.DescribeType(),
 			})
 		}
 	}

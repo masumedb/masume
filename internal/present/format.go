@@ -24,39 +24,6 @@ const NullDisplay = "∅"
 // EmptyTextDisplay is the grid form of an empty string.
 const EmptyTextDisplay = "''"
 
-// typeAbbreviations shorten the names that are too long for a list column. A one-word name
-// is kept: `integer` is the name in SQLite and MySQL, and PostgreSQL already returns
-// `int4`.
-var typeAbbreviations = map[string]string{
-	"character varying":           "varchar",
-	"character":                   "char",
-	"double precision":            "float8",
-	"timestamp with time zone":    "timestamptz",
-	"timestamp without time zone": "timestamp",
-	"time with time zone":         "timetz",
-	"time without time zone":      "time",
-}
-
-var typeModifier = regexp.MustCompile(`\(.*\)`)
-
-// AbbreviateDataType returns the short name of a type, without the length modifier.
-func AbbreviateDataType(dataType string) string {
-	base := strings.ToLower(strings.TrimSpace(typeModifier.ReplaceAllString(dataType, "")))
-	array := strings.HasSuffix(base, "[]")
-	singular := base
-	if array {
-		singular = strings.TrimSpace(strings.TrimSuffix(base, "[]"))
-	}
-	written, known := typeAbbreviations[singular]
-	if !known {
-		written = singular
-	}
-	if array {
-		return written + "[]"
-	}
-	return written
-}
-
 // MeasureText returns the number of terminal cells the text takes. A CJK glyph takes two
 // cells and a combining mark takes none, so the number of runes is not the width.
 func MeasureText(text string) int {

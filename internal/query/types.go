@@ -8,8 +8,18 @@ import "strings"
 type ResultColumn struct {
 	Name     string
 	DataType string
+	// TypeName is the name the server writes for the type, where it differs from DataType.
+	TypeName string
 	// Zoned marks a column of moments, such as timestamptz.
 	Zoned bool
+}
+
+// DescribeType returns the type name the server writes for the column.
+func (column ResultColumn) DescribeType() string {
+	if column.TypeName != "" {
+		return column.TypeName
+	}
+	return column.DataType
 }
 
 // BoundStatement is a statement with the values it binds.

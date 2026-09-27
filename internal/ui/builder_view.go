@@ -7,7 +7,6 @@ import (
 
 	"github.com/masumedb/masume/internal/app"
 	"github.com/masumedb/masume/internal/present"
-	"github.com/masumedb/masume/internal/query"
 	"github.com/masumedb/masume/internal/query/statement"
 )
 
@@ -251,7 +250,7 @@ func buildDiagramBoxes(builder *app.Builder) []present.BuilderBox {
 		for _, column := range table.Columns {
 			box.Columns = append(box.Columns, present.BuilderColumnBox{
 				Name: column.Name, Picked: column.Picked,
-				Kind: present.TruncateText(query.ReadBaseType(column.DataType), builderTypeWidth),
+				Kind: present.TruncateText(column.DataType, builderTypeWidth),
 				Note: describeColumnNote(column),
 			})
 		}

@@ -200,3 +200,21 @@ func TestServerEndsAStatementWithItsContext(t *testing.T) {
 		t.Error("a statement that ran past its context answered no error")
 	}
 }
+
+func TestAResultColumnCarriesTheTypeNameTheServerWrites(t *testing.T) {
+	session := openShop(t)
+
+	answered, err := session.RunQuery(context.Background(),
+		"select id, paid_at from masume_test.orders", dbtest.ReadEverything, nil)
+	if err != nil {
+		t.Fatalf("the read answered %v", err)
+	}
+	for at, wanted := range []string{"integer", "timestamp with time zone"} {
+		if written := answered.Columns[at].DescribeType(); written != wanted {
+			t.Errorf("column %d is written %q, wanted %q", at, written, wanted)
+		}
+	}
+	if answered.Columns[0].DataType != "int4" {
+		t.Errorf("the id reads as %q, wanted int4", answered.Columns[0].DataType)
+	}
+}

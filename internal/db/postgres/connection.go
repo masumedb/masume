@@ -110,22 +110,25 @@ func keepJSONFieldOrder(connection *pgx.Conn) {
 	})
 }
 
-// readTypeNames returns server type names by OID, including custom enums, domains, and composites.
-func readTypeNames(ctx context.Context, connection *pgx.Conn) (map[uint32]string, error) {
-	rows, err := connection.Query(ctx, "select oid, typname from pg_type")
+// readTypeNames returns server type names by OID, including custom enums, domains, and
+// composites: the internal name, and the name format_type writes.
+func readTypeNames(
+	ctx context.Context, connection *pgx.Conn,
+) (map[uint32]string, map[uint32]string, error) {
+	rows, err := connection.Query(ctx, "select oid, typname, format_type(oid, null) from pg_type")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer rows.Close()
 
-	names := map[uint32]string{}
+	names, written := map[uint32]string{}, map[uint32]string{}
 	for rows.Next() {
 		var oid uint32
-		var name string
-		if scanErr := rows.Scan(&oid, &name); scanErr != nil {
-			return nil, scanErr
+		var name, formatted string
+		if scanErr := rows.Scan(&oid, &name, &formatted); scanErr != nil {
+			return nil, nil, scanErr
 		}
-		names[oid] = name
+		names[oid], written[oid] = name, formatted
 	}
-	return names, rows.Err()
+	return names, written, rows.Err()
 }

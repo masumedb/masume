@@ -1188,7 +1188,7 @@ func (model *Model) buildResultColumnRows(columns []query.ResultColumn) detailTa
 	table := detailTable{Headers: []string{"#", "column", "type"}}
 	for at, column := range columns {
 		table.Rows = append(table.Rows, []string{
-			strconv.Itoa(at + 1), column.Name, column.DataType,
+			strconv.Itoa(at + 1), column.Name, column.DescribeType(),
 		})
 	}
 	return table

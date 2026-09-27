@@ -836,7 +836,7 @@ func readDiagram(
 			columns := make([]present.DiagramColumn, 0, len(detail.Columns))
 			for _, column := range detail.Columns {
 				columns = append(columns, present.DiagramColumn{
-					Name: column.Name, Type: present.AbbreviateDataType(column.DataType),
+					Name: column.Name, Type: column.DataType,
 					Primary: column.IsPrimaryKey,
 					Foreign: foreign[strings.ToLower(column.Name)],
 				})

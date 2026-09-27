@@ -1432,7 +1432,7 @@ func (model *Model) describeGridFooter(tab *app.Tab, shape GridShape) (string, s
 					"/" + strconv.Itoa(len(shape.Columns))
 			}
 			column := shape.Columns[tab.GridColumn]
-			where += " · " + column.Name + " " + present.AbbreviateDataType(column.DataType)
+			where += " · " + column.Name + " " + column.DescribeType()
 		}
 	}
 	return size, where
