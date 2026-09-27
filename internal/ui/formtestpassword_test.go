@@ -36,6 +36,9 @@ func TestATestOfTheFormAsksForThePasswordOnlyTheUserHas(t *testing.T) {
 	if !strings.Contains(drawn, "testing shop") {
 		t.Errorf("the card does not name the test:\n%s", drawn)
 	}
+	if !strings.Contains(drawn, " password  ") {
+		t.Errorf("the field has no label:\n%s", drawn)
+	}
 	if !strings.Contains(drawn, "test") || strings.Contains(drawn, "connect") {
 		t.Errorf("the card offers to connect instead of to test:\n%s", drawn)
 	}

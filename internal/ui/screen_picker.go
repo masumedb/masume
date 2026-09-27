@@ -424,6 +424,9 @@ func (model *Model) renderNotedCard(
 	})
 }
 
+// passwordLabel is drawn before the field of the password card.
+const passwordLabel = "password  "
+
 // renderPassword draws the field a password is typed into, and the profile it is for.
 func (model *Model) renderPassword() string {
 	theme := model.styles.Theme
@@ -443,10 +446,11 @@ func (model *Model) renderPassword() string {
 		model.styles.Muted().Render(present.TruncateText(
 			cfg.DescribeProfileTarget(profile), cardWidth-4)),
 		"",
-		model.renderField(model.picker.password, cardWidth-4, FieldLook{
-			Ground: theme.Header, Ink: theme.Text,
-			Masked: true, Focused: !model.picker.keyringFocused, Placeholder: "password",
-		}),
+		model.styles.Muted().Render(passwordLabel) +
+			model.renderField(model.picker.password, cardWidth-4-len(passwordLabel), FieldLook{
+				Ground: theme.Header, Ink: theme.Text,
+				Masked: true, Focused: !model.picker.keyringFocused,
+			}),
 	}
 	if model.picker.offersKeyring() {
 		lines = append(lines, "", model.renderKeyringBox(cardWidth))
