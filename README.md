@@ -212,18 +212,18 @@ See [headless mode](docs/headless.md) for formats, exit codes, dump, restore, an
 ## Command line
 
 ```text
-masume                                  open the client
-masume TARGET                           open a connection, postgres://you@host/shop
-masume --profile NAME                   open a user or project profile
-masume --detect                         open detected container databases
-masume run [TARGET | -p NAME] STATEMENT run statements
-masume nb run [TARGET | -p NAME] FILE   run a notebook
-masume dump [TARGET | -p NAME] FILE     dump schema and data
-masume restore [TARGET | -p NAME] FILE  restore a dump
-masume --mcp                            serve allowed MCP profiles
-masume --mcp --profile=NAME             serve one allowed MCP profile
-masume --mcp --check                    check enabled MCP profiles
-masume --version                        print the version
+masume                                   open the client
+masume TARGET                            open a connection, postgres://you@host/shop
+masume --profile NAME                    open a user or project profile
+masume --detect                          open detected container databases
+masume run [TARGET | -p NAME] STATEMENT  run statements
+masume nb run [TARGET | -p NAME] FILE    run a notebook
+masume dump [TARGET | -p NAME] FILE      dump schema and data
+masume restore [TARGET | -p NAME] FILE   restore a dump
+masume --mcp                             serve allowed MCP profiles
+masume --mcp --profile NAME              serve one allowed MCP profile
+masume --mcp --check                     check enabled MCP profiles
+masume --version                         print the version
 ```
 
 URL support is partial: most native driver options are ignored. See [connection targets](docs/usage.md#connection-targets).

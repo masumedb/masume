@@ -23,20 +23,20 @@ import (
 const usage = `masume - a database client for the terminal
 
 usage:
-  masume                                  open the client
-  masume TARGET                           open a connection, postgres://you@host/shop
-  masume --profile NAME                   open a user or project profile
-  masume --detect                         open the picker with detected container databases
-  masume run [TARGET | -p NAME] STATEMENT run statements
-  masume nb run [TARGET | -p NAME] FILE   run a notebook
-  masume dump [TARGET | -p NAME] FILE     dump schema and data
-  masume restore [TARGET | -p NAME] FILE  restore a dump
-  masume FILE.masume.md                   open a notebook file
-  masume --mcp                            serve allowed profiles over JSON-RPC on stdio
-  masume --mcp --profile=NAME             serve one allowed profile
-  masume --mcp --check                    check enabled MCP profiles
-  masume --version                        print the version
-  masume --help                           print this help
+  masume                                   open the client
+  masume TARGET                            open a connection, postgres://you@host/shop
+  masume --profile NAME                    open a user or project profile
+  masume --detect                          open the picker with detected container databases
+  masume run [TARGET | -p NAME] STATEMENT  run statements
+  masume nb run [TARGET | -p NAME] FILE    run a notebook
+  masume dump [TARGET | -p NAME] FILE      dump schema and data
+  masume restore [TARGET | -p NAME] FILE   restore a dump
+  masume FILE.masume.md                    open a notebook file
+  masume --mcp                             serve allowed profiles over JSON-RPC on stdio
+  masume --mcp --profile NAME              serve one allowed profile
+  masume --mcp --check                     check enabled MCP profiles
+  masume --version                         print the version
+  masume --help                            print this help
 
 Run masume run --help for headless options, and masume nb --help for notebooks.
 Run masume dump --help and masume restore --help for the SQL file commands.
