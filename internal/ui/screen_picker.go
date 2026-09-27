@@ -20,10 +20,13 @@ import (
 const (
 	widestPickerCard    = 96
 	narrowestPickerCard = 48
+	// widestPickerContent is the width the card grows to where its rows need more room.
+	widestPickerContent = 140
 	// The password card holds one field, so it is narrower than the list.
 	widestPasswordCard    = 60
 	narrowestPasswordCard = 32
 	pickerNameWidth       = 24
+	narrowestPickerName   = 8
 	pickerEnvWidth        = 4
 	// The mark of a connection that is already open, and the blank after it.
 	pickerOpenWidth = 2
@@ -249,7 +252,6 @@ func (model *Model) renderPickerFilter(cardWidth, count int) string {
 func (model *Model) renderPicker() string {
 	theme := model.styles.Theme
 	profiles := model.shownProfiles()
-	cardWidth := present.ResolveCardWidth(widestPickerCard, narrowestPickerCard, model.width)
 	// The source column stands empty where no connection comes from a project file, so a
 	// user without one loses no room to it.
 	sourceWidth := 0
@@ -258,8 +260,23 @@ func (model *Model) renderPicker() string {
 	}) {
 		sourceWidth = pickerSourceWidth
 	}
-	fixedWidth := pickerChrome + pickerOpenWidth + pickerNameWidth + pickerEnvWidth +
+	// The columns are measured over every profile, filtered out ones included, so no
+	// column moves while the filter changes.
+	nameWidth, targetWidest, descriptionWidest := narrowestPickerName, 0, 0
+	for _, profile := range model.profiles {
+		nameWidth = max(nameWidth, present.MeasureText(profile.Name))
+		targetWidest = max(targetWidest, present.MeasureText(cfg.DescribeProfileTarget(profile)))
+		descriptionWidest = max(descriptionWidest, present.MeasureText(profile.Description))
+	}
+	nameWidth = min(nameWidth, pickerNameWidth)
+	fixedWidth := pickerChrome + pickerOpenWidth + nameWidth + pickerEnvWidth +
 		pickerModeWidth + sourceWidth + pickerGap*3
+	wanted := fixedWidth + measureLongestEngineName(model.profiles) + pickerGap + targetWidest
+	if descriptionWidest > 0 {
+		wanted += pickerGap + descriptionWidest
+	}
+	cardWidth := present.ResolveCardWidth(
+		min(max(wanted, widestPickerCard), widestPickerContent), narrowestPickerCard, model.width)
 	// The engine column is as wide as the longest engine name of every profile, filtered
 	// out ones included, so no column moves while the filter changes. It stands only where
 	// the target keeps its own room beside it.
@@ -310,7 +327,7 @@ func (model *Model) renderPicker() string {
 
 	for index, profile := range profiles {
 		selected := index == model.picker.cursor
-		name := present.FitText(profile.Name, pickerNameWidth)
+		name := present.FitText(profile.Name, nameWidth)
 		environment := present.FitText(string(profile.Environment), pickerEnvWidth)
 		mode := "  "
 		if profile.AccessMode == cfg.AccessReadOnly {
@@ -325,7 +342,8 @@ func (model *Model) renderPicker() string {
 		description := ""
 		shownTarget := targetWidth
 		if profile.Description != "" && targetWidth > 2*pickerTargetWidth {
-			description = present.TruncateText(profile.Description, targetWidth/2-pickerGap)
+			description = present.TruncateText(profile.Description,
+				max(targetWidth-targetWidest-pickerGap, targetWidth/2-pickerGap))
 			shownTarget = targetWidth - present.MeasureText(description) - pickerGap
 		}
 		target := present.TruncateText(cfg.DescribeProfileTarget(profile), shownTarget)
