@@ -294,6 +294,7 @@ const (
 	ActionKeepAllValues    ActionID = "keep-all-values"
 	ActionKeepOnlyValue    ActionID = "keep-only-value"
 	ActionApplyChanges     ActionID = "apply-changes"
+	ActionToggleStatements ActionID = "toggle-statements"
 	ActionDiscardChanges   ActionID = "discard-changes"
 	ActionInsertAiSQL      ActionID = "insert-ai-sql"
 	ActionStopAiReply      ActionID = "stop-ai-reply"
@@ -574,6 +575,7 @@ var dialogActions = []ActionDefinition{
 	{ID: ActionKeepOnlyValue, Label: "keep only the value under the cursor"},
 	{ID: ActionApplyChanges, Label: "apply staged changes from the review", MainHint: true},
 	{ID: ActionDiscardChanges, Label: "discard staged changes from the review", MainHint: true},
+	{ID: ActionToggleStatements, Label: "show or hide the statements of the staged changes"},
 	{ID: ActionInsertAiSQL, Label: "insert the most recent query of the chat into the editor, or as a cell", MainHint: true},
 	{ID: ActionStopAiReply, Label: "stop the reply", MainHint: true},
 	{ID: ActionAskAiAgain, Label: "ask the last question again"},

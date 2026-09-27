@@ -194,6 +194,14 @@ func listCardSpecs(kind app.OverlayKind, scene keyScene) []keySpec {
 	return cardKeySpecs[kind]
 }
 
+// describeStatementsToggle returns the label of the key that shows or hides the statements.
+func describeStatementsToggle(scene keyScene) string {
+	if scene.overlay.ShowsStatements {
+		return "hide SQL"
+	}
+	return "show SQL"
+}
+
 // The keys of every card, in the order the card draws them. A card that follows its state
 // holds every key of every state, and each one carries the state it is drawn in.
 var cardKeySpecs = map[app.OverlayKind][]keySpec{
@@ -326,6 +334,7 @@ var cardKeySpecs = map[app.OverlayKind][]keySpec{
 		takesKey(cfg.ScopeList, ActionCursorPageUp), takesKey(cfg.ScopeList, ActionCursorPageDown),
 		keyOf(cfg.ScopeDialog, ActionApplyChanges, "apply"),
 		keyOf(cfg.ScopeDialog, ActionDiscardChanges, "discard"),
+		keyOf(cfg.ScopeDialog, ActionToggleStatements, "").withLabel(describeStatementsToggle),
 		keyOf(cfg.ScopeDialog, ActionClose, "").withLabel(describeSettingsClose),
 	},
 	app.OverlayValueFilter: {

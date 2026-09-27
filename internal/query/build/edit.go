@@ -104,17 +104,17 @@ func buildKeyPredicate(
 		}
 		if value == nil {
 			clauses = append(clauses, dialect.QuoteIdentifier(name)+" is null")
-			summary = append(summary, name+"="+core.NullText)
+			summary = append(summary, name+" is null")
 			continue
 		}
 		clauses = append(clauses, dialect.QuoteIdentifier(name)+" = "+bound.Bind(value))
-		summary = append(summary, name+"="+core.FormatCell(value, ""))
+		summary = append(summary, name+" = "+core.FormatCell(value, ""))
 	}
 
 	return keyPredicate{
 		text:    strings.Join(clauses, " and "),
 		params:  bound.Params,
-		summary: strings.Join(summary, ", "),
+		summary: strings.Join(summary, " and "),
 	}, nil
 }
 
@@ -142,7 +142,7 @@ func buildRowsPredicate(target WriteTarget, rows [][]any) (keyPredicate, error) 
 	return keyPredicate{
 		text:    strings.Join(clauses, " or "),
 		params:  params,
-		summary: strings.Join(summary, ", "),
+		summary: strings.Join(summary, " or "),
 	}, nil
 }
 

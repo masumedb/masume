@@ -326,7 +326,7 @@ func TestBuildRowCountStatementCountsWhatTheKeyMatches(t *testing.T) {
 	if len(answered.Params) != 1 || answered.Params[0] != int64(7) {
 		t.Errorf("Params = %v, want [7]", answered.Params)
 	}
-	if answered.Description != "count rows of orders where id=7" {
+	if answered.Description != "count rows of orders where id = 7" {
 		t.Errorf("Description = %q", answered.Description)
 	}
 }

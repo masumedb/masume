@@ -596,6 +596,10 @@ func (model *Model) runOverlayAction(
 
 	case app.OverlayChanges:
 		switch match.Action {
+		case ActionToggleStatements:
+			overlay.ShowsStatements = !overlay.ShowsStatements
+			overlay.List.Offset = 0
+			return true, model, nil
 		case ActionApplyChanges:
 			connection.CloseEveryOverlay()
 			held, command := model.applyStagedChanges(connection, tab)

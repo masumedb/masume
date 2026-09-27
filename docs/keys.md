@@ -115,6 +115,7 @@ Each card uses only its own actions, so two rows in this table can share a key w
 | `stop-ai-reply` | `ctrl+x` |
 | `stop-session` | `x` |
 | `test-connection` | `ctrl+t` |
+| `toggle-statements` | `s` |
 | `toggle-value` | `space` |
 | `toggle-whole-word` | `alt+w` |
 | `unfold-row` | `right` |

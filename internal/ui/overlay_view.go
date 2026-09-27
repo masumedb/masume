@@ -1543,51 +1543,92 @@ func scrollCardByOffset(overlay *app.Overlay, offset int) {
 	overlay.List.Offset, overlay.List.Rolled = offset, true
 }
 
-// rowsPerChange is how many rows one staged change takes in the review.
-const rowsPerChange = 3
+// changeRows returns how many rows one staged change takes in the review: the readable
+// statement, and the statement with its parameters when those are shown.
+func changeRows(overlay app.Overlay) int {
+	if overlay.ShowsStatements {
+		return 3
+	}
+	return 1
+}
 
-// renderChanges draws the staged work as the statements that will run, with their bind values.
+// changeRow is one row of a staged change in the review.
+type changeRow struct {
+	indent, text string
+	ink          color.Color
+}
+
+// renderChanges draws the staged changes of the tab, one statement each, and their buttons.
 func (model *Model) renderChanges(overlay app.Overlay, width int) string {
 	theme := model.styles.Theme
-	inner := width - present.CardChrome
-	lines := []string{}
-
-	if len(overlay.Changes) == 0 {
-		lines = append(lines, model.styles.Muted().Render("no staged changes"))
+	scene := keyScene{overlay: overlay}
+	apply := model.buildCardButton(cfg.ScopeDialog, ActionApplyChanges, "apply")
+	apply.primary, apply.destructive = true, true
+	buttons := []cardButton{
+		apply,
+		model.buildCardButton(cfg.ScopeDialog, ActionDiscardChanges, "discard"),
+		model.buildCardButton(cfg.ScopeDialog, ActionToggleStatements,
+			describeStatementsToggle(scene)),
+		model.buildCardButton(cfg.ScopeDialog, ActionClose, "close"),
 	}
-	// Each change takes three rows, on a ground that steps with it, so one change is
-	// read apart from the next.
+	title := " staged changes · " + present.FormatCount(int64(len(overlay.Changes))) + " "
+	widest := max(measureCardLines(
+		model.renderChangeLines(overlay, width-present.CardChrome)), measureButtonRow(buttons))
+	width = fitCardWidth(width, widest, "", title, "")
+	inner := width - present.CardChrome
+	changes := model.renderChangeLines(overlay, inner)
+
+	// The buttons stay under the list, so the list scrolls in the rows above them.
+	contentRows := max(len(overlay.Changes)*changeRows(overlay), 1) + 2
+	height := model.resolveOverlayHeight(overlay.Kind, contentRows, 0)
+	listRows := max(countCardBodyRows(height, 0)-2, 1)
+	scene.scrolls = len(changes) > listRows
+	lines := model.scrollCardRows(len(changes), overlay.List.Offset, listRows, inner,
+		theme.Panel, func(at int) string { return changes[at] })
+	for len(lines) < listRows {
+		lines = append(lines, "")
+	}
+	lines = append(lines, "")
+
+	model.recordCardBody()
+	lines = append(lines, model.renderButtonRow(buttons, cardBodyRow+len(lines), cardBodyColumn))
+	card := model.renderTextCard(overlay.Kind, title, width, lines, nil, contentRows,
+		destructiveCard)
+	model.rememberCardKeys(model.buildCardKeys(app.OverlayChanges, scene))
+	return card
+}
+
+// renderChangeLines draws the rows of every staged change on a ground that steps with the
+// change, so one change is read apart from the next.
+func (model *Model) renderChangeLines(overlay app.Overlay, inner int) []string {
+	theme := model.styles.Theme
+	if len(overlay.Changes) == 0 {
+		return []string{model.styles.Muted().Render("no staged changes")}
+	}
+	lines := []string{}
 	for at, change := range overlay.Changes {
 		ground := theme.Panel
 		if at%2 == 1 {
 			ground = theme.Zebra
 		}
-		written := make([]string, 0, len(change.Params))
-		for _, value := range change.Params {
-			written = append(written, core.WriteJSONValue(value))
+		rows := []changeRow{{" ", change.Description, theme.Text}}
+		if overlay.ShowsStatements {
+			written := make([]string, 0, len(change.Params))
+			for _, value := range change.Params {
+				written = append(written, core.WriteJSONValue(value))
+			}
+			rows = append(rows,
+				changeRow{"   ", change.Display, theme.Muted},
+				changeRow{"   ", "parameters: " + strings.Join(written, ", "), theme.Muted})
 		}
 		// The indent of a row is its own, so only the text of the row is collapsed: a
 		// statement written over several lines still takes one row.
-		for _, row := range []struct {
-			indent, text string
-			ink          color.Color
-		}{
-			{" ", change.Description, theme.Text},
-			{"   ", change.Display, theme.Muted},
-			{"   ", "parameters: " + strings.Join(written, ", "), theme.Muted},
-		} {
-			drawn := present.TruncateText(
-				row.indent+core.CollapseWhitespace(row.text), inner)
-			lines = append(lines,
-				padStyledOn(paintText(row.ink, ground, drawn), inner, ground))
+		for _, row := range rows {
+			drawn := present.TruncateText(row.indent+core.CollapseWhitespace(row.text), inner)
+			lines = append(lines, padStyledOn(paintText(row.ink, ground, drawn), inner, ground))
 		}
 	}
-
-	keys := model.buildScrollingCardKeys(
-		overlay, lines, max(len(overlay.Changes)*rowsPerChange, 1), width)
-	return model.renderTextCard(overlay.Kind,
-		" staged changes · "+present.FormatCount(int64(len(overlay.Changes)))+" ",
-		width, lines, keys, max(len(overlay.Changes)*rowsPerChange, 1), destructiveCard)
+	return lines
 }
 
 // renderValueFilter draws the values of one column, and which of them stay on screen.

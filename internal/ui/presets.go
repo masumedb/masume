@@ -285,14 +285,15 @@ var defaultChords = map[string][]string{
 	"dialog:list-secondary":       {"ctrl+d"},
 	"dialog:stop-session":         {"x"},
 	// The keys that fold a schema in the tree, so a panel of a card folds the same way.
-	"dialog:fold-row":        {"left"},
-	"dialog:unfold-row":      {"right"},
-	"dialog:toggle-value":    {"space"},
-	"dialog:keep-all-values": {"a"},
-	"dialog:keep-only-value": {"o"},
-	"dialog:apply-changes":   {"ctrl+y"},
-	"dialog:discard-changes": {"x"},
-	"dialog:insert-ai-sql":   {"ctrl+j"},
+	"dialog:fold-row":          {"left"},
+	"dialog:unfold-row":        {"right"},
+	"dialog:toggle-value":      {"space"},
+	"dialog:keep-all-values":   {"a"},
+	"dialog:keep-only-value":   {"o"},
+	"dialog:apply-changes":     {"ctrl+y"},
+	"dialog:discard-changes":   {"x"},
+	"dialog:toggle-statements": {"s"},
+	"dialog:insert-ai-sql":     {"ctrl+j"},
 	// The same key that cancels a running query in the workspace. The workspace takes no
 	// key while a dialog is open, so the panel binds its own.
 	"dialog:stop-ai-reply": {"ctrl+x"},

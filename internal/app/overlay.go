@@ -320,6 +320,8 @@ type Overlay struct {
 	ContentRows int
 	// The content width in cells fixed when the dialog opens. Zero keeps the width of the kind.
 	ContentWidth int
+	// ShowsStatements draws the statement and the parameters of each staged change.
+	ShowsStatements bool
 	// What a key of the card reported, drawn before the keys.
 	Notice string
 	// The text a field of the overlay holds.
