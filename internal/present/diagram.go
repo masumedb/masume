@@ -26,15 +26,36 @@ type DiagramTable struct {
 	ForeignKeys []query.ForeignKey
 }
 
-// The size of one box, and the number of columns it shows.
+// The spacing of the boxes, the number of columns a box shows, and the narrowest box.
 const (
-	diagramBoxWidth    = 30
 	diagramGap         = 8
 	diagramHeaderLines = 3
 	diagramMaxColumns  = 10
-	diagramTypeWidth   = 8
-	diagramNameWidth   = diagramBoxWidth - 2 - 3 - diagramTypeWidth - 2
+	diagramBoxLeast    = 24
+	// diagramRowChrome is the border, the mark and the blanks around the name and the type.
+	diagramRowChrome = 7
 )
+
+// diagramSizes are the widths every box of one diagram shares: the box, the name column and
+// the type column.
+type diagramSizes struct {
+	box, name, kind int
+}
+
+// measureDiagramSizes returns the widths that hold the longest title, name and type of the
+// tables.
+func measureDiagramSizes(tables []DiagramTable) diagramSizes {
+	title, name, kind := 0, 0, 0
+	for _, table := range tables {
+		title = max(title, len([]rune(QualifyDiagramTable(table.Schema, table.Name))))
+		for _, column := range listShownDiagramColumns(table) {
+			name = max(name, len([]rune(column.Name)))
+			kind = max(kind, len([]rune(column.Type)))
+		}
+	}
+	box := max(name+kind+diagramRowChrome, title+3, diagramBoxLeast)
+	return diagramSizes{box: box, name: box - diagramRowChrome - kind, kind: kind}
+}
 
 // DiagramMarks are the glyphs of a primary key column and of a foreign key column.
 type DiagramMarks struct {
@@ -144,8 +165,8 @@ func padDiagramCell(text string, width int) string {
 
 // buildDiagramBox returns the box of one table: the name, and then the columns with the mark
 // and the type of each one.
-func buildDiagramBox(table DiagramTable, marks DiagramMarks) []string {
-	inner := diagramBoxWidth - 2
+func buildDiagramBox(table DiagramTable, marks DiagramMarks, sizes diagramSizes) []string {
+	inner := sizes.box - 2
 	shown := listShownDiagramColumns(table)
 	lines := []string{
 		"╭" + strings.Repeat("─", inner) + "╮",
@@ -161,8 +182,8 @@ func buildDiagramBox(table DiagramTable, marks DiagramMarks) []string {
 		case column.Foreign:
 			mark = fitDiagramMark(marks.Foreign)
 		}
-		lines = append(lines, "│ "+mark+" "+padDiagramCell(column.Name, diagramNameWidth)+" "+
-			padDiagramCell(column.Type, diagramTypeWidth)+" │")
+		lines = append(lines, "│ "+mark+" "+padDiagramCell(column.Name, sizes.name)+" "+
+			padDiagramCell(column.Type, sizes.kind)+" │")
 	}
 	if len(table.Columns) > len(shown) {
 		lines = append(lines, "│"+padDiagramCell(
@@ -188,7 +209,7 @@ func fitDiagramMark(glyph string) string {
 }
 
 // listDiagramSpans returns the marks and the types of a box drawn at that corner.
-func listDiagramSpans(table DiagramTable, x, y int) []DiagramSpan {
+func listDiagramSpans(table DiagramTable, x, y int, sizes diagramSizes) []DiagramSpan {
 	spans := []DiagramSpan{}
 	for index, column := range listShownDiagramColumns(table) {
 		row := y + diagramHeaderLines + index
@@ -200,8 +221,8 @@ func listDiagramSpans(table DiagramTable, x, y int) []DiagramSpan {
 		}
 		if column.Type != "" {
 			spans = append(spans, DiagramSpan{
-				Kind: DiagramSpanType, X: x + 5 + diagramNameWidth, Y: row,
-				Width: min(len([]rune(column.Type)), diagramTypeWidth),
+				Kind: DiagramSpanType, X: x + 5 + sizes.name, Y: row,
+				Width: min(len([]rune(column.Type)), sizes.kind),
 			})
 		}
 	}
@@ -227,17 +248,18 @@ type diagramPlacement struct {
 }
 
 func placeDiagramBox(
-	canvas *diagramCanvas, drawn *ErDiagram, table DiagramTable, marks DiagramMarks, x, y int,
+	canvas *diagramCanvas, drawn *ErDiagram, table DiagramTable, marks DiagramMarks,
+	sizes diagramSizes, x, y int,
 ) diagramPlacement {
-	lines := buildDiagramBox(table, marks)
+	lines := buildDiagramBox(table, marks, sizes)
 	for index, line := range lines {
 		canvas.set(x, y+index, line)
 	}
 	drawn.Boxes = append(drawn.Boxes, DiagramBox{
 		Schema: table.Schema, Name: table.Name,
-		X: x, Y: y, Width: diagramBoxWidth, Height: len(lines),
+		X: x, Y: y, Width: sizes.box, Height: len(lines),
 	})
-	drawn.Spans = append(drawn.Spans, listDiagramSpans(table, x, y)...)
+	drawn.Spans = append(drawn.Spans, listDiagramSpans(table, x, y, sizes)...)
 	return diagramPlacement{table: table, x: x, y: y, height: len(lines)}
 }
 
@@ -281,6 +303,8 @@ func RenderErDiagram(root DiagramTable, related []DiagramTable, marks DiagramMar
 	canvas := &diagramCanvas{}
 	drawn := ErDiagram{}
 	rootName := QualifyDiagramTable(root.Schema, root.Name)
+	sizes := measureDiagramSizes(append([]DiagramTable{root}, related...))
+	boxWidth := sizes.box
 
 	findRelated := func(schema, name string) (DiagramTable, bool) {
 		for _, table := range related {
@@ -315,20 +339,20 @@ func RenderErDiagram(root DiagramTable, related []DiagramTable, marks DiagramMar
 	leftX := 0
 	middleX := 0
 	if len(incoming) > 0 {
-		middleX = diagramBoxWidth + diagramGap
+		middleX = boxWidth + diagramGap
 	}
-	rightX := middleX + diagramBoxWidth + diagramGap
+	rightX := middleX + boxWidth + diagramGap
 
 	leftY := 0
 	leftPlacements := make([]diagramPlacement, 0, len(incoming))
 	for _, held := range incoming {
-		placed := placeDiagramBox(canvas, &drawn, held.table, marks, leftX, leftY)
+		placed := placeDiagramBox(canvas, &drawn, held.table, marks, sizes, leftX, leftY)
 		leftY += placed.height + 1
 		leftPlacements = append(leftPlacements, placed)
 	}
 
 	drawn.Root = len(drawn.Boxes)
-	rootPlacement := placeDiagramBox(canvas, &drawn, root, marks, middleX, 0)
+	rootPlacement := placeDiagramBox(canvas, &drawn, root, marks, sizes, middleX, 0)
 
 	rightY := 0
 	for _, key := range outgoing {
@@ -336,7 +360,7 @@ func RenderErDiagram(root DiagramTable, related []DiagramTable, marks DiagramMar
 		if !found {
 			continue
 		}
-		placed := placeDiagramBox(canvas, &drawn, target, marks, rightX, rightY)
+		placed := placeDiagramBox(canvas, &drawn, target, marks, sizes, rightX, rightY)
 		rightY += placed.height + 1
 
 		fromRow, hasFrom := findDiagramColumnRow(root, firstOf(key.Columns))
@@ -345,7 +369,7 @@ func RenderErDiagram(root DiagramTable, related []DiagramTable, marks DiagramMar
 			continue
 		}
 		connectDiagram(canvas,
-			middleX+diagramBoxWidth, rootPlacement.y+fromRow, placed.x, placed.y+toRow)
+			middleX+boxWidth, rootPlacement.y+fromRow, placed.x, placed.y+toRow)
 	}
 
 	for index, held := range incoming {
@@ -359,7 +383,7 @@ func RenderErDiagram(root DiagramTable, related []DiagramTable, marks DiagramMar
 			continue
 		}
 		connectDiagram(canvas,
-			leftX+diagramBoxWidth, placed.y+fromRow, middleX, rootPlacement.y+toRow)
+			leftX+boxWidth, placed.y+fromRow, middleX, rootPlacement.y+toRow)
 	}
 
 	drawn.Lines = canvas.toLines()
@@ -436,9 +460,11 @@ type BuilderDiagram struct {
 	Lines  []string
 	Cells  []BuilderCell
 	Titles []BuilderCell
+	// BoxWidth is the width every box of the diagram shares.
+	BoxWidth int
 }
 
-// The size of one box of the builder diagram.
+// The narrowest box of the builder diagram, and the space between two boxes.
 const (
 	builderBoxWidth = 28
 	builderBoxGap   = 6
@@ -449,28 +475,29 @@ const (
 // RenderBuilderDiagram draws the tables left to right and connects every join.
 func RenderBuilderDiagram(boxes []BuilderBox, links []BuilderLink) BuilderDiagram {
 	canvas := &diagramCanvas{}
-	drawn := BuilderDiagram{}
+	boxWidth := MeasureBuilderBoxWidth(boxes)
+	drawn := BuilderDiagram{BoxWidth: boxWidth}
 	if len(boxes) == 0 {
 		return drawn
 	}
 
 	for index, box := range boxes {
-		x := index * (builderBoxWidth + builderBoxGap)
-		for row, line := range buildBuilderBox(box) {
+		x := index * (boxWidth + builderBoxGap)
+		for row, line := range buildBuilderBox(box, boxWidth-2) {
 			canvas.set(x, row, line)
 		}
 		drawn.Titles = append(drawn.Titles, BuilderCell{
-			Box: index, Column: -1, X: x + 1, Y: 1, Width: builderBoxWidth - 2,
+			Box: index, Column: -1, X: x + 1, Y: 1, Width: boxWidth - 2,
 		})
 		for at := range box.Columns {
 			drawn.Cells = append(drawn.Cells, BuilderCell{
 				Box: index, Column: at, X: x + 1, Y: builderHeaderLines + at,
-				Width: builderBoxWidth - 2,
+				Width: boxWidth - 2,
 			})
 		}
 	}
 
-	lane := countDiagramHeight(boxes)
+	lane := countDiagramHeight(boxes, boxWidth-2)
 	for _, link := range links {
 		left, right := link.From, link.To
 		leftColumn, rightColumn := link.FromColumn, link.ToColumn
@@ -484,8 +511,8 @@ func RenderBuilderDiagram(boxes []BuilderBox, links []BuilderLink) BuilderDiagra
 			continue
 		}
 
-		fromX := left*(builderBoxWidth+builderBoxGap) + builderBoxWidth
-		toX := right * (builderBoxWidth + builderBoxGap)
+		fromX := left*(boxWidth+builderBoxGap) + boxWidth
+		toX := right * (boxWidth + builderBoxGap)
 		if right-left == 1 {
 			connectDiagram(canvas, fromX, leftRow, toX, rightRow)
 			continue
@@ -499,12 +526,26 @@ func RenderBuilderDiagram(boxes []BuilderBox, links []BuilderLink) BuilderDiagra
 
 // countDiagramHeight returns the row under every box, which is the lane a long connector
 // runs along.
-func countDiagramHeight(boxes []BuilderBox) int {
+func countDiagramHeight(boxes []BuilderBox, inner int) int {
 	height := 0
 	for _, box := range boxes {
-		height = max(height, len(buildBuilderBox(box)))
+		height = max(height, len(buildBuilderBox(box, inner)))
 	}
 	return height
+}
+
+// MeasureBuilderBoxWidth returns the width every box of the diagram shares: the one that
+// holds the longest title and the longest column row, and never less than builderBoxWidth.
+func MeasureBuilderBoxWidth(boxes []BuilderBox) int {
+	inner := builderBoxWidth - 2
+	for _, box := range boxes {
+		inner = max(inner, len([]rune(box.Title))+2, len([]rune(box.Reason))+2)
+		for _, column := range box.Columns {
+			inner = max(inner, len(builderTick)+len([]rune(column.Name))+
+				len([]rune(describeBuilderColumnRight(column)))+builderColumnChrome)
+		}
+	}
+	return inner + 2
 }
 
 // connectBuilderLane draws a connector between two boxes that do not stand side by side. It
@@ -535,8 +576,7 @@ func connectBuilderLane(canvas *diagramCanvas, fromX, fromY, toX, toY, lane int)
 
 // buildBuilderBox returns the lines of one table: the name, then the columns with the tick
 // of each one.
-func buildBuilderBox(box BuilderBox) []string {
-	inner := builderBoxWidth - 2
+func buildBuilderBox(box BuilderBox, inner int) []string {
 	lines := []string{
 		"╭" + strings.Repeat("─", inner) + "╮",
 		"│" + padDiagramCell(" "+box.Title, inner) + "│",
@@ -552,19 +592,31 @@ func buildBuilderBox(box BuilderBox) []string {
 
 // buildBuilderColumn writes one column row: the tick, the name, the note and the type.
 func buildBuilderColumn(column BuilderColumnBox, inner int) string {
-	tick := "[ ] "
+	tick := builderTick
 	if column.Picked {
 		tick = "[x] "
 	}
-	right := column.Kind
-	if column.Note != "" {
-		right = column.Note + " " + column.Kind
-	}
-	room := inner - len(tick) - len([]rune(right)) - 2
+	right := describeBuilderColumnRight(column)
+	room := inner - len(tick) - len([]rune(right)) - builderColumnChrome
 	if room < 1 {
 		room = 1
 	}
-	return " " + tick + padDiagramCell(column.Name, room) + " " + right
+	return " " + tick + padDiagramCell(column.Name, room) + " " + right + " "
+}
+
+// The tick of a column that is not picked, and the blanks around the name and the type.
+const (
+	builderTick         = "[ ] "
+	builderColumnChrome = 3
+)
+
+// describeBuilderColumnRight returns what a column row writes after the name: the note and
+// the type.
+func describeBuilderColumnRight(column BuilderColumnBox) string {
+	if column.Note != "" {
+		return column.Note + " " + column.Kind
+	}
+	return column.Kind
 }
 
 // findBuilderColumnRow returns the row of a box that holds that column.
@@ -592,7 +644,7 @@ func ScrollBuilderDiagram(drawn BuilderDiagram, offset, width int) BuilderDiagra
 		return drawn
 	}
 
-	held := BuilderDiagram{}
+	held := BuilderDiagram{BoxWidth: drawn.BoxWidth}
 	for _, line := range drawn.Lines {
 		runes := []rune(line)
 		if offset >= len(runes) {
@@ -609,22 +661,22 @@ func ScrollBuilderDiagram(drawn BuilderDiagram, offset, width int) BuilderDiagra
 // FindBuilderColumnOffset returns the column the diagram is drawn from, so the box of that
 // index stands whole inside the width of the pane. A diagram that fits is drawn from its
 // first column.
-func FindBuilderColumnOffset(offset, box, boxes, width int) int {
+func FindBuilderColumnOffset(offset, box, boxes, boxWidth, width int) int {
 	if width <= 0 || boxes <= 0 {
 		return 0
 	}
-	widest := boxes*(builderBoxWidth+builderBoxGap) - builderBoxGap
+	widest := boxes*(boxWidth+builderBoxGap) - builderBoxGap
 	offset = min(max(offset, 0), max(widest-width, 0))
 	// A diagram the wheel moved follows no cursor until the cursor moves again.
 	if box < 0 {
 		return offset
 	}
 
-	left := box * (builderBoxWidth + builderBoxGap)
+	left := box * (boxWidth + builderBoxGap)
 	if left < offset {
 		return left
 	}
-	if right := left + builderBoxWidth; right > offset+width {
+	if right := left + boxWidth; right > offset+width {
 		return right - width
 	}
 	return offset

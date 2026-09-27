@@ -207,14 +207,14 @@ func TestScrollBuilderDiagramKeepsTheActiveBoxInView(t *testing.T) {
 	width := builderBoxWidth + builderBoxGap + 4
 
 	// The first box is drawn from the left, so nothing moves.
-	offset := FindBuilderColumnOffset(0, 0, 3, width)
+	offset := FindBuilderColumnOffset(0, 0, 3, builderBoxWidth, width)
 	held := ScrollBuilderDiagram(drawn, offset, width)
 	if !strings.Contains(held.Lines[1], "shop.customers") {
 		t.Errorf("the first box is not drawn:\n%s", strings.Join(held.Lines, "\n"))
 	}
 
 	// The last box is drawn at the right edge of the window.
-	offset = FindBuilderColumnOffset(0, 2, 3, width)
+	offset = FindBuilderColumnOffset(0, 2, 3, builderBoxWidth, width)
 	held = ScrollBuilderDiagram(drawn, offset, width)
 	text := strings.Join(held.Lines, "\n")
 	if !strings.Contains(text, "shop.order_items") {
@@ -236,7 +236,7 @@ func TestScrollBuilderDiagramMovesItsCells(t *testing.T) {
 	drawn := RenderBuilderDiagram(buildBuilderBoxes(), nil)
 	width := builderBoxWidth + builderBoxGap + 4
 
-	held := ScrollBuilderDiagram(drawn, FindBuilderColumnOffset(0, 2, 3, width), width)
+	held := ScrollBuilderDiagram(drawn, FindBuilderColumnOffset(0, 2, 3, builderBoxWidth, width), width)
 	for _, cell := range held.Cells {
 		if cell.X < 0 || cell.X >= width {
 			t.Errorf("the cell %+v stands outside the window", cell)
@@ -258,22 +258,46 @@ func TestFindBuilderColumnOffsetFollowsTheWheelAndTheCursor(t *testing.T) {
 	stride := builderBoxWidth + builderBoxGap
 
 	// A diagram the wheel moved follows no cursor: it stands where the wheel left it.
-	if held := FindBuilderColumnOffset(6, -1, 3, width); held != 6 {
+	if held := FindBuilderColumnOffset(6, -1, 3, builderBoxWidth, width); held != 6 {
 		t.Errorf("the wheel left the diagram at column %d", held)
 	}
 	// A cursor to the left of the window pulls it back to that box.
-	if held := FindBuilderColumnOffset(stride*2, 0, 3, width); held != 0 {
+	if held := FindBuilderColumnOffset(stride*2, 0, 3, builderBoxWidth, width); held != 0 {
 		t.Errorf("the cursor left the diagram at column %d", held)
 	}
 	// A cursor to the right of the window pulls it on.
-	if held := FindBuilderColumnOffset(0, 2, 3, width); held != stride*2+builderBoxWidth-width {
+	if held := FindBuilderColumnOffset(0, 2, 3, builderBoxWidth, width); held != stride*2+builderBoxWidth-width {
 		t.Errorf("the cursor left the diagram at column %d", held)
 	}
 	// The wheel stops at the last box, and never before the first.
-	if held := FindBuilderColumnOffset(9999, -1, 3, width); held != stride*3-builderBoxGap-width {
+	if held := FindBuilderColumnOffset(9999, -1, 3, builderBoxWidth, width); held != stride*3-builderBoxGap-width {
 		t.Errorf("the wheel ran past the last box to column %d", held)
 	}
-	if held := FindBuilderColumnOffset(-40, 0, 3, width); held != 0 {
+	if held := FindBuilderColumnOffset(-40, 0, 3, builderBoxWidth, width); held != 0 {
 		t.Errorf("the wheel ran before the first box to column %d", held)
+	}
+}
+
+func TestAnErDiagramBoxHoldsTheLongestType(t *testing.T) {
+	root := DiagramTable{Schema: "public", Name: "orders", Columns: []DiagramColumn{
+		{Name: "id", Type: "integer", Primary: true},
+		{Name: "placed_at", Type: "timestamp with time zone"},
+	}}
+	drawn := RenderErDiagram(root, nil, DiagramMarks{Primary: "*"})
+	if !strings.Contains(strings.Join(drawn.Lines, "\n"), "timestamp with time zone │") {
+		t.Errorf("the box cuts the type:\n%s", strings.Join(drawn.Lines, "\n"))
+	}
+}
+
+func TestABuilderBoxKeepsABlankBeforeItsBorder(t *testing.T) {
+	drawn := RenderBuilderDiagram([]BuilderBox{{
+		Title: "public.customers c",
+		Columns: []BuilderColumnBox{
+			{Name: "id", Kind: "integer"}, {Name: "created_at", Kind: "timestamp with time zone"},
+		},
+	}}, nil)
+	written := strings.Join(drawn.Lines, "\n")
+	if !strings.Contains(written, "timestamp with time zone │") || !strings.Contains(written, "integer │") {
+		t.Errorf("the box cuts a type or touches its border:\n%s", written)
 	}
 }

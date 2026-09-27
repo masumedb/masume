@@ -13,9 +13,6 @@ import (
 // The builder stands where a query tab draws its editor: the diagram of the tables at the
 // top, then the joins, the filters and the SQL it writes.
 
-// builderTypeWidth is the room the type of a column keeps in a box.
-const builderTypeWidth = 8
-
 // builderPress is what a press on one row of the pane does.
 type builderPress string
 
@@ -162,7 +159,7 @@ func (model *Model) buildDiagramRows(builder *app.Builder, width int) []builderR
 		box = -1
 	}
 	builder.ColumnOffset = present.FindBuilderColumnOffset(
-		builder.ColumnOffset, box, len(builder.Tables), width-2)
+		builder.ColumnOffset, box, len(builder.Tables), drawn.BoxWidth, width-2)
 	drawn = present.ScrollBuilderDiagram(drawn, builder.ColumnOffset, width-2)
 
 	rows := make([]builderRow, 0, len(drawn.Lines)+1)
@@ -250,7 +247,7 @@ func buildDiagramBoxes(builder *app.Builder) []present.BuilderBox {
 		for _, column := range table.Columns {
 			box.Columns = append(box.Columns, present.BuilderColumnBox{
 				Name: column.Name, Picked: column.Picked,
-				Kind: present.TruncateText(column.DataType, builderTypeWidth),
+				Kind: column.DataType,
 				Note: describeColumnNote(column),
 			})
 		}
