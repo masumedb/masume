@@ -147,6 +147,15 @@ type QueryResult struct {
 	HasAffected bool
 }
 
+// CountReportedRows returns the affected rows of a statement with no result set, and the
+// returned rows of any other statement.
+func (result QueryResult) CountReportedRows() int64 {
+	if len(result.Columns) == 0 && !result.HoldsResultSet && result.HasAffected {
+		return result.Affected
+	}
+	return int64(len(result.Rows))
+}
+
 // Change is a staged edit, built by the engine that applies it.
 type Change struct {
 	Description string

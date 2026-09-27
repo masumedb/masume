@@ -479,7 +479,7 @@ func runOneStatement(deps runOneStatementDeps) tea.Cmd {
 		}
 		answered.Result = result
 		entry.Elapsed = result.Elapsed
-		entry.RowCount, entry.HasRowCount = int64(len(result.Rows)), true
+		entry.RowCount, entry.HasRowCount = result.CountReportedRows(), true
 		_ = log.Record(entry)
 		return answered
 	}

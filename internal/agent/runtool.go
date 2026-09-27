@@ -123,7 +123,7 @@ var runQuery = ToolDefinition{
 		if runner.ReportRun != nil {
 			runner.ReportRun(StatementReport{
 				SQL: sql, RanAt: startedAt, Elapsed: answered.Elapsed,
-				RowCount: int64(len(answered.Rows)), HasRowCount: true,
+				RowCount: answered.CountReportedRows(), HasRowCount: true,
 			})
 		}
 
