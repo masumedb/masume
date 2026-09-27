@@ -706,7 +706,6 @@ const (
 	// paletteGroupWidth is the column the group of a palette row keeps.
 	paletteGroupWidth = 13
 	historyTimeWidth  = 12
-	historySQLWidth   = 74
 	savedNameWidth    = 26
 )
 
@@ -955,9 +954,15 @@ func (model *Model) renderHistory(overlay app.Overlay, width int) string {
 	rows := make([]string, 0, len(entries))
 	now := time.Now()
 
+	elapsedWidth := present.MeasureText(historyElapsedHeading)
+	for _, entry := range overlay.Entries {
+		elapsedWidth = max(elapsedWidth, present.MeasureText(present.FormatDuration(entry.Elapsed)))
+	}
+	// The statement takes the width the other columns leave.
+	sqlWidth := max(width-present.CardChrome-rowPaddingLeft-historyTimeWidth-
+		detailBesideTrail-elapsedWidth-rowScrollbarWidth, 12)
+
 	for at, entry := range entries {
-		// The count of the rows keeps a column and the time it took stands at the right,
-		// so the statements above one another read as a list rather than a paragraph.
 		outcome := ""
 		switch {
 		case entry.ErrorMessage != "":
@@ -967,22 +972,40 @@ func (model *Model) renderHistory(overlay app.Overlay, width int) string {
 		}
 		rows = append(rows, model.renderListRow(ListRowSpec{
 			Lead: present.FormatWhen(entry.RanAt, now), LeadWidth: historyTimeWidth,
-			Label: core.CollapseWhitespace(entry.SQL), LabelWidth: historySQLWidth,
-			Detail: outcome, Trail: present.FormatDuration(entry.Elapsed), HasTrail: true,
+			Label: core.CollapseWhitespace(entry.SQL), LabelWidth: sqlWidth,
+			Detail: present.FitTextRight(outcome, detailBesideTrail-2) + "  ",
+			Trail:  present.FitTextRight(present.FormatDuration(entry.Elapsed), elapsedWidth), HasTrail: true,
 			Selected: at == overlay.List.Cursor, Destructive: entry.ErrorMessage != "",
 			Width: width,
 		}))
 	}
 
+	theme := model.styles.Theme
+	heading := strings.Repeat(" ", rowPaddingLeft) +
+		present.FitText("ran at", historyTimeWidth) + present.FitText("statement", sqlWidth) +
+		present.FitTextRight("rows", detailBesideTrail-2) + "  " +
+		present.FitTextRight(historyElapsedHeading, elapsedWidth)
+	pad := paintOn(theme.Panel, " ")
+	header := pad + padStyledOn(paintText(theme.Muted, theme.Panel, heading), width-4, theme.Panel) +
+		pad + pad
+
+	title := " query history "
+	if connection := model.Active(); connection != nil {
+		title = " query history · " + connection.Profile().Name + " "
+	}
 	keys := model.buildCardKeys(app.OverlayHistory, keyScene{overlay: overlay})
 	return model.renderListCard(ListCard{
-		Kind: app.OverlayHistory, Title: " query history ",
+		Kind: app.OverlayHistory, Title: title,
 		Filter: model.renderFilterFieldOf(
 			overlay, width, "filter statements", len(entries)),
-		Rows: rows, Cursor: overlay.List.Cursor, Offset: overlay.List.Offset, Rolled: overlay.List.Rolled, Width: width,
-		ReportsNoMatch: true, Keys: keys, ContentRows: len(overlay.Entries) + 1,
+		Header: []string{header},
+		Rows:   rows, Cursor: overlay.List.Cursor, Offset: overlay.List.Offset, Rolled: overlay.List.Rolled, Width: width,
+		ReportsNoMatch: true, Keys: keys, ContentRows: len(overlay.Entries) + 2,
 	})
 }
+
+// historyElapsedHeading is the heading of the column of the time a statement took.
+const historyElapsedHeading = "time"
 
 // savedSQLWidth is how much of a saved statement the row shows, and the filter reads.
 const savedSQLWidth = 70
