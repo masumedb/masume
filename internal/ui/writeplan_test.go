@@ -297,6 +297,9 @@ func TestEnterOpensTheRowsThatBlockTheWrite(t *testing.T) {
 	if len(tab.Filter) != 1 || tab.Filter[0].Text != plan.Blockers[0].Referencing {
 		t.Errorf("the tab filters with %+v", tab.Filter)
 	}
+	if tab.Focus != app.PaneResult {
+		t.Errorf("the focus is on %q, wanted the result", tab.Focus)
+	}
 }
 
 // buildStagedTab returns the tab of a planned model with one cell of orders staged.

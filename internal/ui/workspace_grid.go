@@ -967,6 +967,7 @@ func (model *Model) openFilteredTable(
 		table, core.ReadRewrite{}).Display
 	opened := connection.OpenTable(table, preview)
 	opened.Filter = []core.FilterStep{step}
+	opened.Focus = app.PaneResult
 	return model.runTabRead(connection, opened)
 }
 
