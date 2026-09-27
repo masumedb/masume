@@ -1107,12 +1107,24 @@ func (model *Model) renderMenu(overlay app.Overlay, width int) string {
 	text := model.buildCardKeys(overlay.Kind, keyScene{overlay: overlay})
 	return model.renderListCard(ListCard{
 		Kind: overlay.Kind, Title: title,
-		Filter: model.renderFilterFieldOf(overlay, width, placeholder, len(actions)), Rows: rows,
+		Filter: model.renderFilterFieldOf(overlay, width, placeholder, countMenuActions(actions)),
+		Rows:   rows,
 		Cursor: overlay.List.Cursor, Offset: overlay.List.Offset, Rolled: overlay.List.Rolled, Width: width,
 		ReportsNoMatch: true, Keys: text,
 		// The filter line stands over the rows and takes one of them.
 		ContentRows: len(insertMenuDivider(overlay.Actions)) + 1,
 	})
+}
+
+// countMenuActions counts the rows of a menu that run an action, without its divider.
+func countMenuActions(actions []app.MenuAction) int {
+	count := 0
+	for _, action := range actions {
+		if !action.Divider {
+			count++
+		}
+	}
+	return count
 }
 
 // renderMenuDivider draws the line above the destructive rows of a menu.

@@ -427,7 +427,7 @@ const (
 
 // The entry offered on a table and on a view, which are read the same way.
 var generateSelect = MenuAction{
-	ID: ObjectGenerateSelect, Label: "Generate SELECT", Detail: "into the editor",
+	ID: ObjectGenerateSelect, Label: "Generate SELECT",
 	Icon: cfg.IconQuery,
 }
 
@@ -439,7 +439,7 @@ var tableActions = []MenuAction{
 	},
 	generateSelect,
 	{
-		ID: ObjectGenerateInsert, Label: "Generate INSERT", Detail: "into the editor",
+		ID: ObjectGenerateInsert, Label: "Generate INSERT",
 		Icon: cfg.IconQuery,
 	},
 	{
@@ -450,15 +450,15 @@ var tableActions = []MenuAction{
 		ID: ObjectDumpTable, Label: "Dump the table…", Detail: "definition and rows as SQL",
 		Icon: cfg.IconTable,
 	},
-	{ID: ObjectAddColumn, Label: "Add column…", Detail: "ALTER TABLE into the editor", Icon: cfg.IconColumn},
-	{ID: ObjectCreateIndex, Label: "Create index…", Detail: "CREATE INDEX into the editor", Icon: cfg.IconIndex},
-	{ID: ObjectRenameTable, Label: "Rename table…", Detail: "ALTER TABLE into the editor", Icon: cfg.IconTable},
+	{ID: ObjectAddColumn, Label: "Add column…", Icon: cfg.IconColumn},
+	{ID: ObjectCreateIndex, Label: "Create index…", Icon: cfg.IconIndex},
+	{ID: ObjectRenameTable, Label: "Rename table…", Icon: cfg.IconTable},
 	{
-		ID: ObjectTruncate, Label: "Truncate table", Detail: "TRUNCATE into the editor",
+		ID: ObjectTruncate, Label: "Truncate table", Detail: "into the editor",
 		Icon: cfg.IconNote, Destructive: true,
 	},
 	{
-		ID: ObjectDropRelation, Label: "Drop table", Detail: "DROP TABLE into the editor",
+		ID: ObjectDropRelation, Label: "Drop table", Detail: "into the editor",
 		Icon: cfg.IconNote, Destructive: true,
 	},
 }
@@ -466,14 +466,14 @@ var tableActions = []MenuAction{
 var viewActions = []MenuAction{
 	generateSelect,
 	{
-		ID: ObjectDropRelation, Label: "Drop view", Detail: "DROP VIEW into the editor",
+		ID: ObjectDropRelation, Label: "Drop view", Detail: "into the editor",
 		Icon: cfg.IconNote, Destructive: true,
 	},
 }
 
 var objectActions = []MenuAction{
 	{
-		ID: ObjectDropObject, Label: "Drop", Detail: "DROP into the editor",
+		ID: ObjectDropObject, Label: "Drop", Detail: "into the editor",
 		Icon: cfg.IconNote, Destructive: true,
 	},
 }
@@ -488,11 +488,11 @@ var schemaActions = []MenuAction{
 		Icon: cfg.IconTable,
 	},
 	{
-		ID: ObjectCreateTable, Label: "Create table…", Detail: "into the editor",
+		ID: ObjectCreateTable, Label: "Create table…",
 		Icon: cfg.IconTable,
 	},
 	{
-		ID: ObjectCreateView, Label: "Create view…", Detail: "into the editor",
+		ID: ObjectCreateView, Label: "Create view…",
 		Icon: cfg.IconView,
 	},
 	{
@@ -500,7 +500,7 @@ var schemaActions = []MenuAction{
 		Icon: cfg.IconQuery, Destructive: true,
 	},
 	{
-		ID: ObjectDropSchema, Label: "Drop schema", Detail: "DROP SCHEMA into the editor",
+		ID: ObjectDropSchema, Label: "Drop schema", Detail: "into the editor",
 		Icon: cfg.IconNote, Destructive: true,
 	},
 }

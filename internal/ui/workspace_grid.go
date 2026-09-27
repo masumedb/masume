@@ -1071,6 +1071,10 @@ func (model *Model) buildGridMenu(
 	capabilities := connection.Session.Capabilities()
 	hasRow := len(shape.Text) > 0
 	editable := tab.Target.Editable
+	pointsAtRow := false
+	if _, column, found := model.findCellUnderCursor(tab, shape); found {
+		_, pointsAtRow = build.FindForeignKeyTarget(tab.Target.ForeignKeys, column.Name)
+	}
 
 	// Each entry runs the grid action of the same id, so the menu offers what a key
 	// also reaches. An action that does not fit the row or the cell is left out. Copy
@@ -1086,7 +1090,7 @@ func (model *Model) buildGridMenu(
 		{ActionEditCell, "Edit value", "", hasRow && editable, false},
 		{ActionFilterByCell, "Filter by value", "keep rows that match", hasRow, false},
 		{ActionExcludeCell, "Exclude value", "drop rows that match", hasRow, false},
-		{ActionFollowForeignKey, "Follow foreign key", "open the row it points to", hasRow, false},
+		{ActionFollowForeignKey, "Follow foreign key", "open the row it points to", pointsAtRow, false},
 		{ActionFilterByValues, "Filter by values", "choose values to keep", hasRow, false},
 		{ActionSortColumn, "Sort by column", "", capabilities.SortsRead, false},
 		{
