@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"slices"
+
 	"github.com/masumedb/masume/internal/app"
 	"github.com/masumedb/masume/internal/cfg"
 	"github.com/masumedb/masume/internal/core"
@@ -26,10 +28,14 @@ func (model *Model) filterBuilderTables(overlay app.Overlay) []app.PaletteAction
 // renderBuilderTables draws the tables a builder tab can add.
 func (model *Model) renderBuilderTables(overlay app.Overlay, width int) string {
 	tables := model.filterBuilderTables(overlay)
+	icons := slices.ContainsFunc(overlay.Palette, func(table app.PaletteAction) bool {
+		return model.icons.Icon(table.Icon) != ""
+	})
 	rows := make([]string, 0, len(tables))
 	for at, table := range tables {
 		rows = append(rows, model.renderListRow(ListRowSpec{
-			Label: table.Label, LabelWidth: builderTableWidth,
+			Icon: table.Icon, HasIcon: icons,
+			Label: table.Label, LabelWidth: builderTableWidth, Detail: table.Detail,
 			Selected: at == overlay.List.Cursor, Width: width,
 		}))
 	}

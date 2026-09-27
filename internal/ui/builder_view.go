@@ -106,7 +106,10 @@ func (model *Model) describeBuilderBorder(builder *app.Builder) string {
 		return ""
 	}
 	keys := model.buildKeyLineOf(builderBorderKeySpecs, keyScene{})
-	return keys.buildText()
+	if text := keys.buildText(); text != "" {
+		return " " + text + " "
+	}
+	return ""
 }
 
 // recordBuilderRows keeps what every drawn row stands for, so a press reaches it.

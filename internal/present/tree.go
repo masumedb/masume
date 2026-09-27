@@ -74,6 +74,12 @@ var TableIcons = map[db.RelationKind]cfg.IconKind{
 	db.RelationMaterializedView: cfg.IconMaterializedView,
 }
 
+// TableKindNames give the word for each kind of table other than a plain table.
+var TableKindNames = map[db.RelationKind]string{
+	db.RelationView:             "view",
+	db.RelationMaterializedView: "materialized view",
+}
+
 // FindFavouriteOf returns the favourite the mark key sets on this node.
 func FindFavouriteOf(node TreeNode) (core.Favourite, bool) {
 	switch node.Kind {

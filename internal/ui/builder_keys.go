@@ -138,6 +138,7 @@ func (model *Model) askBuilderTable(
 	for _, table := range tables {
 		rows = append(rows, app.PaletteAction{
 			ID: present.BuildTableID(table), Label: table.Schema + "." + table.Name,
+			Detail: present.TableKindNames[table.Kind], Icon: present.TableIcons[table.Kind],
 		})
 	}
 	connection.Open(app.Overlay{

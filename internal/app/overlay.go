@@ -93,6 +93,8 @@ type PaletteAction struct {
 	Chord string
 	// Group is the heading the row is listed under.
 	Group string
+	// Icon is the glyph of what the row acts on.
+	Icon cfg.IconKind
 }
 
 // PromptKind is the one-line input category.
