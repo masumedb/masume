@@ -171,7 +171,7 @@ See [editing SQL](usage.md#editing-sql) for search, replacement, completion, and
 | --- | --- |
 | `activate-tab` | `alt+digit` |
 | `ai-fix-error` | `ctrl+h` |
-| `apply-suggestion` | `alt+return` |
+| `apply-suggestion` | `alt+a` |
 | `begin-transaction` | `ctrl+b` |
 | `cancel-query` | `ctrl+x` |
 | `close-connection` | `ctrl+w` |
@@ -384,7 +384,7 @@ The query builder diagram takes no text input, so single letters are free for bi
 | `filter-tree` | `/` |
 | `fold-row` | `left` |
 | `object-menu` | `m` |
-| `open-in-new-tab` | `o` |
+| `open-in-new-tab` | `alt+return` or `o` |
 | `open-node` | `return` |
 | `toggle-favourite` | `f` |
 | `toggle-system-schemas` | `h` |
