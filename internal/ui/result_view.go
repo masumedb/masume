@@ -471,6 +471,9 @@ func (model *Model) renderGrid(
 	tab.GridRowOffset = scrollFrom(
 		tab.GridRow, tab.GridRowOffset, rows, len(shape.Text), tab.GridRolled)
 
+	shape.Widths = present.FitColumnWidths(
+		shape.Widths, tab.ColumnWidths, width-gutterWidth, columnGap)
+	model.layout.gridWidths = shape.Widths
 	plan := model.followColumnCursor(tab, shape, width-gutterWidth)
 	visible := model.resolveVisibleColumns(tab, plan, len(shape.Columns))
 	hidden := countHiddenColumns(tab, plan, len(shape.Columns))

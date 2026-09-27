@@ -371,7 +371,8 @@ func PlanDetailColumns(headers []string, rows [][]string, available, gap int) []
 // The width limits of a result column.
 const (
 	minColumnWidth = 4
-	maxColumnWidth = 28
+	cutColumnWidth = 28
+	maxColumnWidth = 200
 )
 
 // CalculateColumnWidths measures each result column from its header and its cells.
@@ -408,6 +409,47 @@ func WidenColumns(widths []int, rows [][]string) []int {
 		}
 	}
 	return held
+}
+
+// FitColumnWidths returns the widths cut until the columns fit the available cells. The
+// widest columns are cut first, and no column is cut below cutColumnWidth. A held column
+// keeps its width.
+func FitColumnWidths(widths []int, held map[int]int, available, gap int) []int {
+	measureTotal := func(level int) int {
+		total := 0
+		for index, width := range widths {
+			if _, kept := held[index]; !kept && width > level {
+				width = level
+			}
+			total += width + gap
+		}
+		return total
+	}
+	widest := 0
+	for _, width := range widths {
+		widest = max(widest, width)
+	}
+	if widest <= cutColumnWidth || measureTotal(widest) <= available {
+		return widths
+	}
+
+	low, high := cutColumnWidth, widest
+	for low < high {
+		level := (low + high + 1) / 2
+		if measureTotal(level) <= available {
+			low = level
+		} else {
+			high = level - 1
+		}
+	}
+	fitted := make([]int, len(widths))
+	for index, width := range widths {
+		if _, kept := held[index]; !kept && width > low {
+			width = low
+		}
+		fitted[index] = width
+	}
+	return fitted
 }
 
 // CardChrome is the number of rows the border and the padding of a card take.

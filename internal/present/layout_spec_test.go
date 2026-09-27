@@ -139,3 +139,40 @@ func TestPlanSidebarWidthNeverPassesWhatThereIs(t *testing.T) {
 		}
 	}
 }
+
+func TestFitColumnWidthsKeepsWidthsThatFit(t *testing.T) {
+	widths := []int{4, 11, 8, 6, 30}
+	fitted := present.FitColumnWidths(widths, nil, 120, 2)
+	for index, width := range widths {
+		if fitted[index] != width {
+			t.Errorf("column %d is %d cells wide, wanted %d", index, fitted[index], width)
+		}
+	}
+}
+
+func TestFitColumnWidthsCutsTheWidestColumnsFirst(t *testing.T) {
+	fitted := present.FitColumnWidths([]int{10, 60, 40}, nil, 90, 2)
+	want := []int{10, 37, 37}
+	for index, width := range want {
+		if fitted[index] != width {
+			t.Errorf("column %d is %d cells wide, wanted %d", index, fitted[index], width)
+		}
+	}
+}
+
+func TestFitColumnWidthsCutsNoColumnBelowTheCutWidth(t *testing.T) {
+	fitted := present.FitColumnWidths([]int{30, 30, 30, 30, 5}, nil, 60, 2)
+	want := []int{28, 28, 28, 28, 5}
+	for index, width := range want {
+		if fitted[index] != width {
+			t.Errorf("column %d is %d cells wide, wanted %d", index, fitted[index], width)
+		}
+	}
+}
+
+func TestFitColumnWidthsKeepsAHeldColumn(t *testing.T) {
+	fitted := present.FitColumnWidths([]int{60, 60}, map[int]int{0: 60}, 90, 2)
+	if fitted[0] != 60 || fitted[1] != 28 {
+		t.Errorf("widths are %v, wanted [60 28]", fitted)
+	}
+}

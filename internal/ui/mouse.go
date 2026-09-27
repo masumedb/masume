@@ -131,6 +131,7 @@ type frameLayout struct {
 	gridColumns []columnHit
 	// The border after each column, which a drag on the row of names sets its width by.
 	columnEdges   []columnHit
+	gridWidths    []int
 	gridHeaderRow int
 
 	// The marks of the tab row that step to the tab before or after the ones on screen.
@@ -1130,11 +1131,10 @@ func (model *Model) pressColumnEdge(tab *app.Tab, mouse tea.Mouse) (tea.Model, b
 		delete(tab.ColumnWidths, edge.index)
 		return model, true
 	}
-	shape := model.buildGridShape(model.Active(), tab)
-	if edge.index >= len(shape.Widths) {
+	if edge.index >= len(model.layout.gridWidths) {
 		return model, true
 	}
-	model.drag.takeColumnEdge(edge.index, shape.Widths[edge.index], mouse.X)
+	model.drag.takeColumnEdge(edge.index, model.layout.gridWidths[edge.index], mouse.X)
 	return model, true
 }
 
