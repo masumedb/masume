@@ -41,9 +41,9 @@ var Dialect = &query.Dialect{
 	ReadOnlyUnit:   query.ReadOnlyUnit{Open: "begin read only", Close: "commit"},
 	// A GENERATED ALWAYS identity column takes a value of the client only with this clause.
 	InsertOverride: "overriding system value",
-	IdentityClause: "generated always as identity",
+	IdentityClause: "GENERATED ALWAYS AS IDENTITY",
 	RenderGeneratedColumn: func(expression string) string {
-		return "generated always as (" + expression + ") stored"
+		return "GENERATED ALWAYS AS (" + expression + ") STORED"
 	},
 	DropSchema: func(dialect *query.Dialect, schema string) string {
 		return "drop schema " + dialect.QuoteIdentifier(schema) + " restrict;"

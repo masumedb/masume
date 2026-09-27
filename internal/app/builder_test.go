@@ -42,8 +42,8 @@ func TestBuilderWritesTheSQLOfItsTables(t *testing.T) {
 
 	written := builder.BuildSQL(buildBuilderDialect())
 	wanted := `select c.name, o.total
-  from "shop"."customers" c
-  inner join "shop"."orders" o on o.customer_id = c.id`
+  from shop.customers c
+  inner join shop.orders o on o.customer_id = c.id`
 	if written != wanted {
 		t.Errorf("the builder wrote\n%s\nwanted\n%s", written, wanted)
 	}
@@ -156,7 +156,7 @@ func TestBuilderWritesTheConditionTheUserTyped(t *testing.T) {
 	})
 
 	written := builder.BuildSQL(buildBuilderDialect())
-	if !strings.Contains(written, "left join \"shop\".\"orders\" o on o.customer_id = c.id and o.total > 0") {
+	if !strings.Contains(written, "left join shop.orders o on o.customer_id = c.id and o.total > 0") {
 		t.Errorf("the builder wrote\n%s", written)
 	}
 }
@@ -324,8 +324,8 @@ func TestBuilderTabRoundTripsThroughTheWorkspace(t *testing.T) {
 
 	written := held.Builder.BuildSQL(buildBuilderDialect())
 	wanted := `select c.name, sum(o.total) as revenue
-  from "shop"."customers" c
-  left join "shop"."orders" o on o.customer_id = c.id
+  from shop.customers c
+  left join shop.orders o on o.customer_id = c.id
  where o.total > 0
  group by c.name
  order by revenue desc`

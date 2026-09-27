@@ -177,6 +177,13 @@ func (dialect *Dialect) BuildQualifiedName(target QualifiedName) string {
 	return dialect.QuoteIdentifier(target.Schema) + "." + dialect.QuoteIdentifier(target.Name)
 }
 
+// BuildQualifiedNameIfNeeded writes a schema and a name, each quoted only where the server
+// would not read it back as written.
+func (dialect *Dialect) BuildQualifiedNameIfNeeded(target QualifiedName) string {
+	return dialect.QuoteIdentifierIfNeeded(target.Schema) + "." +
+		dialect.QuoteIdentifierIfNeeded(target.Name)
+}
+
 // BuildTableSuffix writes the clause a new table needs after its columns. The key column is
 // the one the rows are ordered by, and is empty where the table has none.
 func (dialect *Dialect) BuildTableSuffix(keyColumn string) string {

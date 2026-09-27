@@ -611,6 +611,26 @@ func (model *Model) runPlanAction(
 	return model, nil
 }
 
+// runDefinitionAction returns the keys of the DDL view.
+func (model *Model) runDefinitionAction(
+	connection *app.Connection, tab *app.Tab, match Match,
+) (tea.Model, tea.Cmd) {
+	if tab.ViewData.Kind != app.DataDDL {
+		return model, nil
+	}
+	written := strings.Join(tab.ViewData.Lines, "\n")
+	switch match.Action {
+	case ActionCopyDefinition:
+		connection.Show("definition copied")
+		return model, model.keepOnClipboard(written)
+	case ActionEditDefinition:
+		opened := connection.OpenQueryTab(written)
+		opened.Focus = app.PaneEditor
+		connection.Show("the definition is open in the editor")
+	}
+	return model, nil
+}
+
 // clearRewrites throws away the sort, the filter and the screen filter, and reads the
 // relation again. Every view that draws the rows offers it, because every one of them is
 // showing what those laid over the read.

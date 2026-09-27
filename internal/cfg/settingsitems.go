@@ -419,6 +419,8 @@ func DescribeScopeFocus(scope KeyScope) string {
 		return "the result grid"
 	case ScopePlan:
 		return "the plan view"
+	case ScopeDefinition:
+		return "the DDL view"
 	case ScopeDocument:
 		return "the result document tree"
 	case ScopeTree:

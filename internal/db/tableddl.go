@@ -19,31 +19,36 @@ func describeColumnSource(column ColumnDetail, dialect *query.Dialect) string {
 		return dialect.RenderGeneratedColumn(column.DefaultValue)
 	}
 	if column.HasDefault {
-		return "default " + column.DefaultValue
+		return "DEFAULT " + column.DefaultValue
 	}
 	return ""
 }
 
-// RenderTableDDL builds CREATE TABLE SQL from catalog metadata.
+// RenderTableDDL builds CREATE TABLE SQL from catalog metadata, with keywords in capitals.
+// quotesEveryName quotes each name; otherwise a name is quoted only where needed.
 func RenderTableDDL(
 	detail TableDetail, indexes []IndexDetail, constraints []ConstraintDetail,
-	dialect *query.Dialect,
+	dialect *query.Dialect, quotesEveryName bool,
 ) []string {
-	lines := []string{"create table " + dialect.BuildQualifiedName(detail.Table.Qualified()) + " ("}
+	quote, qualify := dialect.QuoteIdentifierIfNeeded, dialect.BuildQualifiedNameIfNeeded
+	if quotesEveryName {
+		quote, qualify = dialect.QuoteIdentifier, dialect.BuildQualifiedName
+	}
+	lines := []string{"CREATE TABLE " + qualify(detail.Table.Qualified()) + " ("}
 
 	body := make([]string, 0, len(detail.Columns)+len(constraints))
 	for _, column := range detail.Columns {
-		parts := []string{"    " + dialect.QuoteIdentifier(column.Name) + " " + column.DataType}
+		parts := []string{"    " + quote(column.Name) + " " + column.DataType}
 		if written := describeColumnSource(column, dialect); written != "" {
 			parts = append(parts, written)
 		}
 		if !column.Nullable {
-			parts = append(parts, "not null")
+			parts = append(parts, "NOT NULL")
 		}
 		body = append(body, strings.Join(parts, " "))
 	}
 	for _, constraint := range constraints {
-		body = append(body, "    constraint "+dialect.QuoteIdentifier(constraint.Name)+" "+
+		body = append(body, "    CONSTRAINT "+quote(constraint.Name)+" "+
 			constraint.Definition)
 	}
 

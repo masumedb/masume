@@ -319,7 +319,7 @@ func TestBuilderJoinCardStepsTheKindAndCloses(t *testing.T) {
 		t.Errorf("enter left %q open", connection.Overlay.Kind)
 	}
 	if !strings.Contains(tab.Builder.BuildSQL(connection.Session.Dialect()),
-		"inner join \"shop\".\"orders\" o on o.customer_id = c.id") {
+		"inner join shop.orders o on o.customer_id = c.id") {
 		t.Errorf("the builder wrote\n%s", tab.Builder.BuildSQL(connection.Session.Dialect()))
 	}
 }
@@ -780,7 +780,7 @@ func TestBuilderWritesACrossJoinWithoutACondition(t *testing.T) {
 	pressKey(t, model, tea.KeyPressMsg{Code: tea.KeyEscape})
 
 	written := tab.Builder.BuildSQL(connection.Session.Dialect())
-	if !strings.Contains(written, `cross join "shop"."orders" o`) {
+	if !strings.Contains(written, `cross join shop.orders o`) {
 		t.Errorf("the builder wrote\n%s", written)
 	}
 	if strings.Contains(written, "inner join") {

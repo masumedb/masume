@@ -11,6 +11,7 @@ package postgres_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -216,5 +217,25 @@ func TestAResultColumnCarriesTheTypeNameTheServerWrites(t *testing.T) {
 	}
 	if answered.Columns[0].DataType != "int4" {
 		t.Errorf("the id reads as %q, wanted int4", answered.Columns[0].DataType)
+	}
+}
+
+func TestTheDefinitionQuotesOnlyTheNamesThatNeedIt(t *testing.T) {
+	session := openShop(t)
+
+	lines, err := session.BuildTableDDL(context.Background(),
+		db.TableRef{Schema: "masume_test", Name: "orders"})
+	if err != nil {
+		t.Fatalf("the definition answered %v", err)
+	}
+	written := strings.Join(lines, "\n")
+	for _, wanted := range []string{
+		"CREATE TABLE masume_test.orders (", "    customer text NOT NULL",
+		"CONSTRAINT orders_pkey PRIMARY KEY (id)",
+		"CREATE INDEX orders_customer_idx ON masume_test.orders",
+	} {
+		if !strings.Contains(written, wanted) {
+			t.Errorf("the definition has no %q:\n%s", wanted, written)
+		}
 	}
 }

@@ -238,7 +238,7 @@ func (session *sqlserverSession) BuildTableDDL(
 	if constraintErr != nil {
 		return nil, db.WrapDatabaseOperation("reading the constraints", constraintErr)
 	}
-	return db.RenderTableDDL(detail, indexes, constraints, session.Support.Dialect), nil
+	return db.RenderTableDDL(detail, indexes, constraints, session.Support.Dialect, true), nil
 }
 
 // BuildObjectDDL returns the statement that made the object, which the server keeps for a

@@ -99,6 +99,8 @@ func (model *Model) readWorkspaceKey(key tea.Key) (next tea.Model, command tea.C
 				scopes = append(scopes, cfg.ScopeList, cfg.ScopePlan)
 			case app.ViewTree:
 				scopes = append(scopes, cfg.ScopeDocument, cfg.ScopeList)
+			case app.ViewDDL:
+				scopes = append(scopes, cfg.ScopeList, cfg.ScopeDefinition, cfg.ScopeGrid)
 			default:
 				if view != app.ViewData {
 					scopes = append(scopes, cfg.ScopeList)
@@ -206,6 +208,8 @@ func (model *Model) runAction(
 		return model.runGridAction(connection, tab, match)
 	case cfg.ScopePlan:
 		return model.runPlanAction(connection, tab, match)
+	case cfg.ScopeDefinition:
+		return model.runDefinitionAction(connection, tab, match)
 	case cfg.ScopeDocument:
 		return model.runDocumentTreeAction(connection, tab, match)
 	case cfg.ScopeEditor:

@@ -308,12 +308,12 @@ const listSlowStatementsSQL = `
 var postgresObjectDDL = map[db.SchemaObjectKind]string{
 	db.ObjectFunction: "select pg_get_functiondef($1::oid) as ddl",
 	db.ObjectTrigger:  "select pg_get_triggerdef($1::oid) as ddl",
-	db.ObjectSequence: "select format('create sequence %s.%s start %s increment %s;', " +
+	db.ObjectSequence: "select format('CREATE SEQUENCE %s.%s START %s INCREMENT %s;', " +
 		"quote_ident(schemaname), quote_ident(sequencename), coalesce(start_value, 1), " +
 		"increment_by) as ddl from pg_sequences where schemaname || '.' || sequencename = " +
 		"(select n.nspname || '.' || c.relname from pg_class c " +
 		"join pg_namespace n on n.oid = c.relnamespace where c.oid = $1::oid)",
-	db.ObjectType: "select format('create type %s.%s as enum (%s);', quote_ident(n.nspname), " +
+	db.ObjectType: "select format('CREATE TYPE %s.%s AS ENUM (%s);', quote_ident(n.nspname), " +
 		"quote_ident(t.typname), string_agg(quote_literal(e.enumlabel), ', ' " +
 		"order by e.enumsortorder)) as ddl from pg_type t " +
 		"join pg_namespace n on n.oid = t.typnamespace " +

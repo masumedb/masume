@@ -409,6 +409,11 @@ func (model *Model) buildViewHints(
 			cfg.ScopeGrid, ActionCursorLeft, ActionCursorRight, "scroll sideways", ""); found {
 			hints = append(hints, sideways)
 		}
+		keys := hintList{}
+		keys.add(model.buildHint(capabilities, cfg.ScopeDefinition, ActionCopyDefinition, "copy"))
+		keys.add(model.buildHint(
+			capabilities, cfg.ScopeDefinition, ActionEditDefinition, "open in the editor"))
+		hints = append(hints, keys.build()...)
 	}
 	target, found := findViewToLeaveFor(view, views)
 	if !found {

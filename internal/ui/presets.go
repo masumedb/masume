@@ -230,9 +230,11 @@ var defaultChords = map[string][]string{
 	"document:search-columns":   {"/"},
 	"document:unfold-row":       {"right"},
 
-	"plan:toggle-raw-plan": {"r"},
-	"plan:copy-plan":       {"y"},
-	"plan:ai-check-plan":   {"i"},
+	"plan:toggle-raw-plan":       {"r"},
+	"plan:copy-plan":             {"y"},
+	"definition:copy-definition": {"y"},
+	"definition:edit-definition": {"e"},
+	"plan:ai-check-plan":         {"i"},
 
 	"tree:cursor-up":             {"up"},
 	"tree:cursor-down":           {"down"},

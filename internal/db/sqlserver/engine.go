@@ -54,7 +54,7 @@ var Dialect = &query.Dialect{
 		core.KindTimestamp: "datetime2",
 	},
 	IdentityColumn: "id bigint identity(1,1) primary key",
-	IdentityClause: "identity(1,1)",
+	IdentityClause: "IDENTITY(1,1)",
 	// An INSERT writes into an identity column only between these two statements, and the
 	// server holds one table open at a time.
 	SwitchIdentityInsert: func(_ *query.Dialect, target string, on bool) string {

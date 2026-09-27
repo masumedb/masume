@@ -40,9 +40,9 @@ func TestBuildQueryPlanSQLWritesTheJoins(t *testing.T) {
 	written := statement.BuildQueryPlanSQL(buildShopPlan(), buildTestDialect())
 
 	wanted := `select c.name, o.total
-  from "shop"."customers" c
-  inner join "shop"."orders" o on o.customer_id = c.id
-  left join "shop"."order_items" i on i.order_id = o.id`
+  from shop.customers c
+  inner join shop.orders o on o.customer_id = c.id
+  left join shop.order_items i on i.order_id = o.id`
 	if written != wanted {
 		t.Errorf("the plan wrote\n%s\nwanted\n%s", written, wanted)
 	}
@@ -57,7 +57,7 @@ func TestBuildQueryPlanSQLReadsEveryColumnWithoutAField(t *testing.T) {
 	}
 
 	written := statement.BuildQueryPlanSQL(plan, buildTestDialect())
-	if written != "select *\n  from \"shop\".\"orders\" o" {
+	if written != "select *\n  from shop.orders o" {
 		t.Errorf("the plan wrote %q", written)
 	}
 }
@@ -133,7 +133,7 @@ func TestBuildQueryPlanSQLWritesATableWithoutAnAlias(t *testing.T) {
 	}
 
 	written := statement.BuildQueryPlanSQL(plan, buildTestDialect())
-	if written != "select id\n  from \"shop\".\"orders\"" {
+	if written != "select id\n  from shop.orders" {
 		t.Errorf("the plan wrote %q", written)
 	}
 }

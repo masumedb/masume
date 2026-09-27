@@ -128,6 +128,8 @@ var HelpSections = []HelpSection{
 			{Scope: cfg.ScopeDocument, Actions: []ActionID{ActionCopyPath}},
 			{Scope: cfg.ScopePlan, Actions: []ActionID{ActionToggleRawPlan}},
 			{Scope: cfg.ScopePlan, Actions: []ActionID{ActionCopyPlan}},
+			{Scope: cfg.ScopeDefinition, Actions: []ActionID{ActionCopyDefinition}},
+			{Scope: cfg.ScopeDefinition, Actions: []ActionID{ActionEditDefinition}},
 			{Scope: cfg.ScopeGlobal, Actions: []ActionID{ActionShowPalette}},
 			{Scope: cfg.ScopeGlobal, Actions: []ActionID{ActionShowHistory}},
 			{Scope: cfg.ScopeGlobal, Actions: []ActionID{ActionShowSaved}},

@@ -218,9 +218,11 @@ const (
 	ActionSearchColumns    ActionID = "search-columns"
 	ActionFilterWhere      ActionID = "filter-where"
 
-	ActionToggleRawPlan ActionID = "toggle-raw-plan"
-	ActionCopyPlan      ActionID = "copy-plan"
-	ActionAiCheckPlan   ActionID = "ai-check-plan"
+	ActionToggleRawPlan  ActionID = "toggle-raw-plan"
+	ActionCopyPlan       ActionID = "copy-plan"
+	ActionCopyDefinition ActionID = "copy-definition"
+	ActionEditDefinition ActionID = "edit-definition"
+	ActionAiCheckPlan    ActionID = "ai-check-plan"
 
 	ActionCopyPath ActionID = "copy-path"
 
@@ -435,6 +437,12 @@ var planActions = []ActionDefinition{
 	{ID: ActionAiCheckPlan, Label: "send the plan to the chat, in the plan view", Needs: NeedsPlansStatement, MainHint: true},
 }
 
+// definitionActions answer while the DDL view is drawn in place of the grid.
+var definitionActions = []ActionDefinition{
+	{ID: ActionCopyDefinition, Label: "copy the definition"},
+	{ID: ActionEditDefinition, Label: "open the definition in a query tab"},
+}
+
 // documentActions answer while the tree that opens the rows as documents is drawn. It holds
 // a cursor and folds like the object tree, and it copies like the grid, so it answers to both
 // kinds of key under bindings of its own.
@@ -613,6 +621,7 @@ var ActionCatalog = func() []ActionDefinition {
 	add(cfg.ScopeGlobal, globalActions)
 	add(cfg.ScopeGrid, gridActions)
 	add(cfg.ScopePlan, planActions)
+	add(cfg.ScopeDefinition, definitionActions)
 	add(cfg.ScopeDocument, documentActions)
 	add(cfg.ScopeTree, treeActions)
 	add(cfg.ScopeEditor, editorActions)

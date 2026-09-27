@@ -146,7 +146,7 @@ func BuildQueryPlanSQL(plan QueryPlan, dialect *query.Dialect) string {
 
 // buildPlanTable writes one table with its alias.
 func buildPlanTable(table PlanTable, dialect *query.Dialect) string {
-	written := dialect.BuildQualifiedName(table.Name)
+	written := dialect.BuildQualifiedNameIfNeeded(table.Name)
 	if table.Alias == "" {
 		return written
 	}

@@ -10,11 +10,13 @@ import (
 // KeyScope is the interface area for a binding. Focus selects the active scope; dialogs receive all keys while open.
 type KeyScope string
 
-// The ten scopes a chord can be bound to.
+// The eleven scopes a chord can be bound to.
 const (
 	ScopeGlobal KeyScope = "global"
 	ScopeGrid   KeyScope = "grid"
 	ScopePlan   KeyScope = "plan"
+	// ScopeDefinition is the DDL view of a table tab.
+	ScopeDefinition KeyScope = "definition"
 	// ScopeDocument is the result document tree, separate from the catalog tree.
 	ScopeDocument KeyScope = "document"
 	ScopeTree     KeyScope = "tree"
@@ -29,7 +31,7 @@ const (
 
 // KeyScopes lists the scopes a config file can use.
 var KeyScopes = []KeyScope{
-	ScopeGlobal, ScopeGrid, ScopePlan, ScopeDocument, ScopeTree, ScopeEditor,
+	ScopeGlobal, ScopeGrid, ScopePlan, ScopeDefinition, ScopeDocument, ScopeTree, ScopeEditor,
 	ScopeNotebook, ScopeBuilder, ScopeList, ScopeDialog,
 }
 
