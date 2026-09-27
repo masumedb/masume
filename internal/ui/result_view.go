@@ -440,8 +440,11 @@ func (model *Model) renderGrid(
 
 	switch state.Kind {
 	case app.QueryIdle:
-		return model.renderEmptyState(width, height, "run a query to see rows here",
-			model.buildIdleHints())
+		title := "run a query to see rows here"
+		if tab.Kind == app.TabNotebook {
+			title = "run a cell to see rows here"
+		}
+		return model.renderEmptyState(width, height, title, model.buildIdleHints(tab))
 	case app.QueryRunning:
 		return model.renderWaitingBlock(waitBlock{
 			label: "running…", since: model.findRunStart(tab), stop: stop, note: note,
@@ -945,18 +948,33 @@ const emptyStateKeyGap = 2
 
 // buildIdleHints returns the keys of a result pane with nothing run yet. An action with no
 // chord is left out.
-func (model *Model) buildIdleHints() []Hint {
-	hints := []Hint{}
-	for _, hint := range []struct {
+func (model *Model) buildIdleHints(tab *app.Tab) []Hint {
+	type idleHint struct {
 		scope  cfg.KeyScope
 		action ActionID
 		label  string
-	}{
+	}
+	shown := []idleHint{
 		{cfg.ScopeGlobal, ActionRunAtCursor, "run the statement"},
 		{cfg.ScopeTree, ActionOpenNode, "open the object selected in the tree"},
 		{cfg.ScopeGlobal, ActionShowHistory, "open query history"},
 		{cfg.ScopeGlobal, ActionShowAiChat, "ask AI to write a query"},
-	} {
+	}
+	switch tab.Kind {
+	case app.TabNotebook:
+		shown = []idleHint{
+			{cfg.ScopeNotebook, ActionRunCell, "run the cell"},
+			{cfg.ScopeGlobal, ActionRunBatch, "run every cell"},
+			{cfg.ScopeNotebook, ActionAddCellBelow, "add a cell"},
+		}
+	case app.TabBuilder:
+		shown = []idleHint{
+			{cfg.ScopeBuilder, ActionAddBuilderTable, "add a table"},
+			{cfg.ScopeGlobal, ActionRunAtCursor, "run the query"},
+		}
+	}
+	hints := []Hint{}
+	for _, hint := range shown {
 		if key := model.registry.FormatFirstActionChord(hint.scope, hint.action); key != "" {
 			hints = append(hints, Hint{Key: key, Label: hint.label})
 		}

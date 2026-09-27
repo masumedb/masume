@@ -41,3 +41,13 @@ func TestTheColumnsViewNamesTheKeysOfEachColumn(t *testing.T) {
 		t.Errorf("the keys read %q and %q", table.Rows[0][4], table.Rows[1][4])
 	}
 }
+
+func TestTheEmptyResultOfANotebookListsTheCellKeys(t *testing.T) {
+	model, _ := buildNotebookModel(t, "```sql\nselect 1\n```\n")
+	screen := stripEscapes(model.render())
+	for _, said := range []string{"run a cell to see rows here", "run the cell", "add a cell"} {
+		if !strings.Contains(screen, said) {
+			t.Errorf("the result pane says nothing of %q:\n%s", said, screen)
+		}
+	}
+}
