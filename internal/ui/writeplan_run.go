@@ -13,6 +13,7 @@ import (
 	"github.com/masumedb/masume/internal/db"
 	"github.com/masumedb/masume/internal/present"
 	"github.com/masumedb/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/query/syntax"
 	"github.com/masumedb/masume/internal/writeplan"
 )
 
@@ -262,8 +263,9 @@ func (model *Model) undoLastWrite(connection *app.Connection) (tea.Model, tea.Cm
 	id, session := model.ActiveID(), connection.Session
 	connection.Open(app.Overlay{
 		Kind: app.OverlayConfirm, Title: " undo the write ",
-		Body: describeUndoQuestion(*held),
-		Yes:  "undo", Destructive: true,
+		Body:        describeUndoQuestion(*held, connection.Session.Dialect().Syntax),
+		Yes:         "undo " + present.FormatCountOf(int64(held.Undo.Rows), "row", "rows"),
+		Destructive: true,
 		Answers: app.OverlayAnswers{Answer: func(confirmed bool) app.AnswerCommand {
 			if !confirmed {
 				return nil
@@ -274,11 +276,17 @@ func (model *Model) undoLastWrite(connection *app.Connection) (tea.Model, tea.Cm
 	return model, nil
 }
 
-func describeUndoQuestion(held app.HeldUndo) string {
-	written := "Undo this write? " +
-		present.FormatCountOf(int64(held.Undo.Rows), "row", "rows") + " of " +
-		held.Undo.Table.Name + " will return to their values from " +
-		core.FormatLargestUnit(time.Since(held.RanAt)) + " ago.\n\n" + held.SQL
+func describeUndoQuestion(held app.HeldUndo, flavour syntax.SyntaxFlavour) string {
+	verb := syntax.ReadOpeningWord(syntax.ReadCodeTokens(held.SQL, flavour))
+	switch verb {
+	case "update", "delete", "insert", "truncate":
+	default:
+		verb = "write"
+	}
+	written := "Undo the " + verb + " of " +
+		present.FormatCountOf(int64(held.Undo.Rows), "row", "rows") + " in " +
+		held.Undo.Table.Name + " from " + core.FormatLargestUnit(time.Since(held.RanAt)) +
+		" ago?\n\n" + held.SQL
 	if len(held.Undo.Display) > 0 {
 		written += "\n\n" + held.Undo.Display[0]
 	}

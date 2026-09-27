@@ -205,14 +205,8 @@ var overlayHeightShares = map[app.OverlayKind]int{
 	app.OverlayAiChats:     widestOverlayHeightShare,
 }
 
-// overlayHeightRows name the cards that keep one height, whatever the screen is.
-var overlayHeightRows = map[app.OverlayKind]int{
-	app.OverlayConfirm: 16,
-	app.OverlayChoice:  16,
-}
-
 // resolveOverlayHeight returns how tall one card draws: the share of the screen it is given,
-// the height it keeps, or the rows of what it shows with the chrome and the keys around them.
+// or the rows of what it shows with the chrome and the keys around them.
 // The largest share is the ceiling, and a row more is taken where the rows left over cannot
 // be shared evenly.
 func (model *Model) resolveOverlayHeight(
@@ -229,12 +223,8 @@ func (model *Model) resolveOverlayHeight(
 		if contentRows > 0 {
 			asked = min(asked, contentRows+present.CardChrome+hintRows)
 		}
-	default:
-		if rows, fixed := overlayHeightRows[kind]; fixed {
-			asked = rows
-		} else if contentRows > 0 {
-			asked = contentRows + present.CardChrome + hintRows
-		}
+	case contentRows > 0:
+		asked = contentRows + present.CardChrome + hintRows
 	}
 	if asked > ceiling {
 		asked = ceiling
@@ -1159,7 +1149,7 @@ func (model *Model) renderConfirm(overlay app.Overlay, width int) string {
 		[]cardButton{yes, no}, cardBodyRow+len(lines), cardBodyColumn))
 
 	card := model.renderNotedTextCard(overlay.Kind, overlay.Title,
-		model.renderActiveEnvironmentBadge(), "", width, lines, nil, 0, overlay.Destructive)
+		model.renderActiveEnvironmentBadge(), "", width, lines, nil, len(lines), overlay.Destructive)
 	model.rememberCardKeys(model.buildCardKeys(app.OverlayConfirm, keyScene{overlay: overlay}))
 	return card
 }
@@ -1203,7 +1193,7 @@ func (model *Model) renderChoice(overlay app.Overlay, width int) string {
 		from: model.layout.cardBodyLeft - 1,
 		to:   model.layout.cardBodyLeft + width - present.CardChrome,
 	}
-	return model.renderTextCard(overlay.Kind, overlay.Title, width, lines, keys, 0, plainCard)
+	return model.renderTextCard(overlay.Kind, overlay.Title, width, lines, keys, len(lines), plainCard)
 }
 
 // renderMessage draws a block of text that has to be read.
