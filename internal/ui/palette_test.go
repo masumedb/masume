@@ -352,3 +352,25 @@ func TestThePaletteSearchMatchesWordsAndSkipsTheCommandOfAnAgent(t *testing.T) {
 		}
 	}
 }
+
+func TestThePaletteSearchKeepsAGroupTogether(t *testing.T) {
+	model := buildLoadedModel(t, 1, 3, 8, 3)
+	overlay := app.Overlay{
+		Kind: app.OverlayPalette,
+		Palette: []app.PaletteAction{
+			{ID: "ask", Label: "Ask AI", Detail: "ask for a query", Group: "AI"},
+			{ID: "run", Label: "Run the statement", Detail: "ask nothing", Group: "query"},
+			{ID: "notebook", Label: "Ask AI: build a notebook", Group: "AI"},
+		},
+	}
+	overlay.Draft = app.NewEditorBuffer("ask", 3)
+	groups := []string{}
+	for _, action := range model.filterPalette(overlay) {
+		if len(groups) == 0 || groups[len(groups)-1] != action.Group {
+			groups = append(groups, action.Group)
+		}
+	}
+	if len(groups) != 2 || groups[0] != "AI" {
+		t.Errorf("the groups are listed as %v, wanted AI then query", groups)
+	}
+}

@@ -1742,6 +1742,16 @@ func (model *Model) filterPalette(overlay app.Overlay) []app.PaletteAction {
 		}
 	}
 	slices.SortStableFunc(kept, func(left, right scored) int { return left.score - right.score })
+	// A group stays together under one heading, placed by its best match.
+	groupOrder := map[string]int{}
+	for _, held := range kept {
+		if _, placed := groupOrder[held.action.Group]; !placed {
+			groupOrder[held.action.Group] = len(groupOrder)
+		}
+	}
+	slices.SortStableFunc(kept, func(left, right scored) int {
+		return groupOrder[left.action.Group] - groupOrder[right.action.Group]
+	})
 	actions := make([]app.PaletteAction, 0, len(kept))
 	for _, held := range kept {
 		actions = append(actions, held.action)

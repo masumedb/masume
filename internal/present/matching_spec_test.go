@@ -71,7 +71,9 @@ func TestScoreCommandMatchFindsEachTypedWord(t *testing.T) {
 		{"Export the result as CSV", "", "exp csv", true},
 		{"Export the result as CSV", "", "csv exp", true},
 		{"Close the connection", "closes all its tabs", "tabs", true},
-		{"Explain plan", "", "xpl", true},
+		{"Explain plan", "", "xpl", false},
+		{"View: Constraints", "table constraints", "trans", false},
+		{"Run the selection or the statement", "", "note", false},
 		{"Explain plan", "", "export", false},
 	} {
 		if _, matched := present.ScoreCommandMatch(held.label, held.detail, held.term); matched != held.matched {

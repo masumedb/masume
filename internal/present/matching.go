@@ -40,12 +40,11 @@ const (
 	scoreLeadWord   = -1
 	scoreLabelWord  = 0
 	scoreDetailWord = 2
-	scoreLabelChars = 3
 )
 
 // ScoreCommandMatch ranks a command against the typed words. Each word must start a word of
-// the label or of the detail, or be a subsequence of the label. A word also matches without
-// its plural "s". It returns false where one word matches nothing.
+// the label or of the detail. A word also matches without its plural "s". It returns false
+// where one word matches nothing.
 func ScoreCommandMatch(label, detail, term string) (int, bool) {
 	labelWords, detailWords := splitMatchWords(label), splitMatchWords(detail)
 	typedWords := strings.Fields(strings.ToLower(term))
@@ -60,8 +59,6 @@ func ScoreCommandMatch(label, detail, term string) (int, bool) {
 			score += scoreLabelWord
 		case startsAnyWord(detailWords, typed):
 			score += scoreDetailWord
-		case MatchesSubsequence(label, typed):
-			score += scoreLabelChars
 		default:
 			return 0, false
 		}
