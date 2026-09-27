@@ -136,7 +136,7 @@ mode     = "write"
 
 ### Browse and query
 
-The object tree lists the database objects. Table views show data, columns, indexes, constraints, DDL, and query plans. An ER diagram shows a table and the tables linked to it by foreign keys.
+The explorer lists the database objects. Table views show data, columns, indexes, constraints, DDL, and query plans. An ER diagram shows a table and the tables linked to it by foreign keys.
 
 The editor has syntax highlighting and completion from the database catalog. Local checks, and server checks where the engine supports them, mark errors before execution. A statement with `:name` placeholders opens a form for the values. Query plans are drawn as a tree with estimated or measured costs.
 

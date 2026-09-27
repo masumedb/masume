@@ -127,7 +127,7 @@ func (model *Model) askBuilderTable(
 ) (tea.Model, tea.Cmd) {
 	tables := connection.Catalog.Tables
 	if len(tables) == 0 {
-		connection.ShowError("the object tree holds no table yet")
+		connection.ShowError("the explorer holds no table yet")
 		return model, nil
 	}
 	title := " add a table "

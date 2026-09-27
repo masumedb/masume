@@ -422,7 +422,7 @@ func DescribeScopeFocus(scope KeyScope) string {
 	case ScopeDocument:
 		return "the result document tree"
 	case ScopeTree:
-		return "the object tree"
+		return "the explorer"
 	case ScopeEditor:
 		return "the SQL editor"
 	case ScopeNotebook:

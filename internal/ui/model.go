@@ -1262,7 +1262,7 @@ func (model *Model) readCatalogAnswer(answered catalogReadMsg) (tea.Model, tea.C
 	case answered.PartProblem != "":
 		connection.ShowError(answered.PartProblem)
 	case answered.Announce:
-		connection.Show("object tree reloaded")
+		connection.Show("explorer reloaded")
 	}
 
 	// The columns of a relation the tree still holds open are read again, because the read

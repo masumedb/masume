@@ -520,7 +520,7 @@ A terminal without a Nerd Font draws the `nerd` glyphs, and the example above, a
 
 | Kind | Drawn for | `plain` | `ascii` | `nerd` |
 | --- | --- | --- | --- | --- |
-| `schema` | A schema in the object tree | `◇` | `~` | `` |
+| `schema` | A schema in the explorer | `◇` | `~` | `` |
 | `table` | A table | `▦` | `T` | `` |
 | `view` | A view | `◈` | `V` | `` |
 | `materialized-view` | A materialized view | `◆` | `M` | `` |
@@ -594,7 +594,7 @@ Each table under `[keys]` is a scope. An entry binds an action to one chord or t
 | Scope | Applies to |
 | --- | --- |
 | `global` | The whole client. Bindings of the focused pane and open dialogs come first |
-| `tree` | The object tree on the left |
+| `tree` | The explorer on the left |
 | `grid` | The result grid |
 | `editor` | The query editor |
 | `plan` | The query plan tree |

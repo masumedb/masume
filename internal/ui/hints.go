@@ -45,6 +45,8 @@ type HintContext struct {
 	HasSelection bool
 	// False while the tree is hidden.
 	SidebarVisible bool
+	ResultVisible  bool
+	RawPlan        bool
 	Rewritten      bool
 	FilterSteps    int
 	CanFetchMore   bool
@@ -319,7 +321,9 @@ func (model *Model) buildTreeHints(
 	return keys.build()
 }
 
-func (model *Model) buildEditorHints(capabilities core.Capabilities) []Hint {
+func (model *Model) buildEditorHints(
+	capabilities core.Capabilities, resultVisible bool,
+) []Hint {
 	keys := hintList{}
 	keys.add(model.buildHint(
 		capabilities, cfg.ScopeGlobal, ActionRunAtCursor, "run the statement"))
@@ -332,7 +336,7 @@ func (model *Model) buildEditorHints(capabilities core.Capabilities) []Hint {
 	// The key that reaches the model stands on the border of the editor, where the one key
 	// the editor offers the model always stands, so the bar does not name it a second time.
 	keys.add(model.buildHint(
-		capabilities, cfg.ScopeGlobal, ActionToggleResult, "full height"))
+		capabilities, cfg.ScopeGlobal, ActionToggleResult, describeResultToggle(resultVisible)))
 	// The editor returns these keys itself, so the registry cannot move them.
 	keys.add(model.buildScreenHint(cfg.ScopeDialog, ActionAcceptCompletion, "complete"))
 	// A caret key with Shift takes the selection along. The registry binds the two as one
@@ -362,7 +366,7 @@ func findViewToLeaveFor(view app.ResultView, views []app.ResultView) (app.Result
 }
 
 func (model *Model) buildViewHints(
-	view app.ResultView, views []app.ResultView, capabilities core.Capabilities,
+	view app.ResultView, views []app.ResultView, capabilities core.Capabilities, rawPlan bool,
 ) []Hint {
 	scroll, _ := model.buildPairHint(
 		cfg.ScopeList, ActionCursorUp, ActionCursorDown, "scroll", "")
@@ -388,7 +392,8 @@ func (model *Model) buildViewHints(
 	if view == app.ViewPlan {
 		keys := hintList{}
 		keys.add(model.buildHint(
-			capabilities, cfg.ScopePlan, ActionToggleRawPlan, "raw or tree"))
+			capabilities, cfg.ScopePlan, ActionToggleRawPlan,
+			describePlanToggle(rawPlan)))
 		keys.add(model.buildHint(capabilities, cfg.ScopeGlobal, ActionExplain, "explain"))
 		keys.add(model.buildHint(
 			capabilities, cfg.ScopeGlobal, ActionExplainAnalyze, "analyze"))
@@ -478,7 +483,7 @@ func (model *Model) BuildHints(context HintContext) []Hint {
 		if context.TabKind == app.TabNotebook {
 			return closeBar(model.buildCellEditorHints(context))
 		}
-		return closeBar(model.buildEditorHints(capabilities))
+		return closeBar(model.buildEditorHints(capabilities, context.ResultVisible))
 	}
 
 	// After a failure: run again once it is fixed. The key that asks the model why it
@@ -492,7 +497,7 @@ func (model *Model) BuildHints(context HintContext) []Hint {
 
 	// Sorting and filtering act on rows, so a view without rows offers other keys.
 	if context.View != app.ViewData {
-		return closeBar(model.buildViewHints(context.View, context.Views, capabilities))
+		return closeBar(model.buildViewHints(context.View, context.Views, capabilities, context.RawPlan))
 	}
 
 	if !context.HasResult {

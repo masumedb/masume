@@ -85,7 +85,7 @@ func (model *Model) openConnectionMenu(connection *app.Connection) (tea.Model, t
 		cfg.ScopeGlobal,
 		model.buildActionMenu(connection.Session.Capabilities(), cfg.ScopeGlobal, []menuEntry{
 			{ActionNewQueryTab, "New query tab", "on this connection", cfg.IconQuery, true},
-			{ActionRefreshObjects, "Refresh the object tree", "read the catalog again", cfg.IconRecent, true},
+			{ActionRefreshObjects, "Refresh the explorer", "read the catalog again", cfg.IconRecent, true},
 			{ActionShowActivity, "Server activity", "load, locks, and other sessions", cfg.IconRole, true},
 			{
 				ActionToggleAutocommit, "Autocommit", "commit each statement on its own",

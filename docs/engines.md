@@ -294,7 +294,7 @@ The server sends no column types. A result column gets the type of its first val
 
 ## ClickHouse
 
-masume connects to ClickHouse over its native protocol; the default port is 9000. Each ClickHouse database is a schema, and the connected database is the default. The object tree shows only that database.
+masume connects to ClickHouse over its native protocol; the default port is 9000. Each ClickHouse database is a schema, and the connected database is the default. The explorer shows only that database.
 
 The protocol accepts one statement per call. A buffer of several statements runs them one at a time and returns the result of the last one. Such a buffer cannot bind values; `:name` parameters work only in a buffer with one statement.
 

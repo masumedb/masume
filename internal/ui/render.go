@@ -505,6 +505,7 @@ func (model *Model) renderWorkspaceStatusBar() string {
 		View:     tab.View, Views: tab.Views(connection.Session),
 		HasResult: hasResult, Connections: model.connections.count(),
 		HasSelection: model.holdsSelection(), SidebarVisible: connection.SidebarVisible,
+		ResultVisible: connection.ResultVisible, RawPlan: tab.RawPlan,
 		Rewritten: tab.HasRewrite(), FilterSteps: len(tab.Filter),
 		CanFetchMore: tab.Results.CanFetchMore(),
 		CanCountRows: tab.Results.CanCountRows() &&

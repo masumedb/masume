@@ -28,6 +28,8 @@ type keyScene struct {
 	hasFault bool
 	// scrolls is true where the body of the card is taller than the card.
 	scrolls bool
+	// resultVisible is true while the result pane is shown.
+	resultVisible bool
 }
 
 // keySpec is one part of a key line: a key of the registry, a key a widget reads itself, or
@@ -461,7 +463,7 @@ var dumpFormKeySpecs = []keySpec{
 var (
 	builderBorderKeySpecs = []keySpec{
 		keyOf(cfg.ScopeBuilder, ActionPickColumn, "pick"),
-		keyOf(cfg.ScopeBuilder, ActionEditBuilderRow, "edit"),
+		keyOf(cfg.ScopeBuilder, ActionEditBuilderRow, "aggregate and sort"),
 		keyOf(cfg.ScopeBuilder, ActionAddBuilderTable, "table or join"),
 		keyOf(cfg.ScopeBuilder, ActionAddBuilderFilter, "where"),
 		keyOf(cfg.ScopeBuilder, ActionDropBuilderRow, "drop"),
@@ -833,8 +835,21 @@ func namesTab(scene keyScene) bool {
 		(scene.tab.Kind == app.TabQuery || scene.tab.Kind == app.TabNotebook)
 }
 
+// describeResultToggle returns the label of the key that shows or hides the result pane.
+func describeResultToggle(visible bool) string {
+	if visible {
+		return "hide the result"
+	}
+	return "show the result"
+}
+
 func describePlanForm(scene keyScene) string {
-	if scene.tab.RawPlan {
+	return describePlanToggle(scene.tab.RawPlan)
+}
+
+// describePlanToggle returns the label of the key that switches the form of the plan.
+func describePlanToggle(rawPlan bool) string {
+	if rawPlan {
 		return "the plan tree"
 	}
 	return "the raw plan"
@@ -884,7 +899,8 @@ var (
 			onlyWhen(editsSQLCell),
 		firstChordOf(cfg.ScopeDialog, ActionAcceptCompletion, "complete").onlyWhen(editsSQLCell),
 		firstChordOf(cfg.ScopeGlobal, ActionSaveQuery, "save"),
-		firstChordOf(cfg.ScopeGlobal, ActionToggleResult, "full height"),
+		firstChordOf(cfg.ScopeGlobal, ActionToggleResult, "").
+			withLabel(func(scene keyScene) string { return describeResultToggle(scene.resultVisible) }),
 	}
 )
 
@@ -926,7 +942,7 @@ func (model *Model) buildBuilderHints(capabilities core.Capabilities) []Hint {
 
 func (model *Model) buildCellEditorHints(context HintContext) []Hint {
 	return keepServerHints(model.buildKeyLineOf(cellEditorHintSpecs, keyScene{
-		cellKind: context.CellKind,
+		cellKind: context.CellKind, resultVisible: context.ResultVisible,
 	}).buildHints(), context.Capabilities)
 }
 

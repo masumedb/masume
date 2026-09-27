@@ -11,7 +11,7 @@ A scope is the pane or card where a binding applies. Cards and input fields hand
 | Scope | Focus |
 | --- | --- |
 | `global` | Workspace, outside cards and prompts |
-| `tree` | Object tree |
+| `tree` | Explorer |
 | `editor` | SQL editor |
 | `grid` | Result grid |
 | `document` | Result document tree |

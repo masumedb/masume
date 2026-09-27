@@ -12,7 +12,7 @@ The filter field is above the list, and `/` focuses it. The filter matches the n
 
 An explicit target or `$DATABASE_URL` opens a connection directly. See [connection targets](#connection-targets), [container detection](#databases-in-a-container), and [passwords](configuration.md#passwords).
 
-A connection without restored tabs starts with an empty query tab, and focus moves to the object tree. `Tab` and `Shift+Tab` move between visible panes. `Alt+P s` focuses the tree, `Alt+P e` the editor, and `Alt+P r` the result pane.
+A connection without restored tabs starts with an empty query tab, and focus moves to the explorer. `Tab` and `Shift+Tab` move between visible panes. `Alt+P s` focuses the tree, `Alt+P e` the editor, and `Alt+P r` the result pane.
 
 The tree shows every schema on the server, including empty schemas. A MySQL-family or ClickHouse profile with a `database` shows only that database. A MySQL-family profile without one shows every database on the server. See [profiles](configuration.md#profiles).
 
@@ -255,7 +255,7 @@ Result JSON exports and copies keep JSON nulls and native numbers and booleans. 
 
 ## Importing files
 
-In the object tree, select a table, press `m`, and choose Import a file. The schema menu imports into a new table. Imports support PostgreSQL-family, MySQL-family, and SQLite engines. MongoDB has no import, and read-only connections reject imports.
+In the explorer, select a table, press `m`, and choose Import a file. The schema menu imports into a new table. Imports support PostgreSQL-family, MySQL-family, and SQLite engines. MongoDB has no import, and read-only connections reject imports.
 
 ![The import form](../vhs/shots/18-import-form.png)
 
@@ -290,7 +290,7 @@ Imports keep no undo and do not use `write_plan`. The input must be UTF-8: CSV, 
 
 ## Dump and restore
 
-In the object tree, select a schema, press `m`, and choose Dump the schema. The form has the file, the content, and the drop option. Up and Down move between fields, and Left and Right change choices. Enter writes the file. Overwriting an existing file needs confirmation.
+In the explorer, select a schema, press `m`, and choose Dump the schema. The form has the file, the content, and the drop option. Up and Down move between fields, and Left and Right change choices. Enter writes the file. Overwriting an existing file needs confirmation.
 
 | Content | Meaning |
 | --- | --- |
@@ -422,7 +422,7 @@ A change rewrites only the table of its row. Every line outside that table stays
 - Click a column header to sort. Shift-click adds the column to the sort. Sorting discards staged edits.
 - Drag a column edge to resize the column. Double-click the edge to reset the width.
 - Drag the divider between the editor and the result to resize both panes. Either edge works: the bottom of the editor or the top of the result. Click the bottom of the editor without dragging to show or hide the result pane.
-- Drag the divider between the object tree and the panes to set the tree width. Either edge works: the right border of the tree or the left border of the pane. The tree is at least 16 columns wide, and the pane beside it at least 32.
+- Drag the divider between the explorer and the panes to set the explorer width. Either edge works: the right border of the explorer or the left border of the pane. The explorer is at least 16 columns wide, and the pane beside it at least 32.
 - Drag a scrollbar or turn the wheel to scroll. The wheel does not move the cursor. The next cursor key scrolls back to the cursor.
 - A trackpad or a tilting wheel scrolls the grid sideways by columns, and the editor sideways by cells. `Shift` with a plain wheel does the same.
 - In the editor, click to place the caret. Double-click selects a word, and triple-click selects a line. Drag to select text.

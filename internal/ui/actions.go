@@ -330,7 +330,7 @@ const (
 var globalActions = []ActionDefinition{
 	{ID: ActionRunBatch, Label: "run every statement", WhileRunning: true, AnswersInResult: true, MainHint: true},
 	{ID: ActionNewQueryTab, Label: "new query tab", WhileRunning: true},
-	{ID: ActionToggleSidebar, Label: "show or hide the object tree", WhileRunning: true, MainHint: true},
+	{ID: ActionToggleSidebar, Label: "show or hide the explorer", WhileRunning: true, MainHint: true},
 	{ID: ActionToggleResult, Label: "show or hide the result", WhileRunning: true},
 	{ID: ActionRevealSQL, Label: "edit the query for this result", WhileRunning: true, MainHint: true},
 	{ID: ActionNameTab, Label: "name this tab", WhileRunning: true},
@@ -356,7 +356,7 @@ var globalActions = []ActionDefinition{
 	{ID: ActionShowNotebooks, Label: "notebooks", WhileRunning: true},
 	{ID: ActionNotebookRunPolicy, Label: "notebook run policy", WhileRunning: true},
 	{ID: ActionWriteNotebookReport, Label: "write a report of this notebook", WhileRunning: true},
-	{ID: ActionFocusSidebar, Label: "focus the object tree", WhileRunning: true},
+	{ID: ActionFocusSidebar, Label: "focus the explorer", WhileRunning: true},
 	{ID: ActionFocusEditor, Label: "focus the editor", WhileRunning: true},
 	{ID: ActionFocusResult, Label: "focus the result", WhileRunning: true},
 	{ID: ActionCancelQuery, Label: "cancel the running query", Needs: NeedsCancelsRunning, WhileRunning: true, MainHint: true},
@@ -384,7 +384,7 @@ var globalActions = []ActionDefinition{
 
 	{ID: ActionPreviousStatement},
 	{ID: ActionNextStatement},
-	{ID: ActionRefreshObjects, Label: "refresh the object tree"},
+	{ID: ActionRefreshObjects, Label: "refresh the explorer"},
 	{ID: ActionSelectView, Label: "go to a view of the result by its number"},
 	{ID: ActionPreviousView},
 	{ID: ActionNextView},
