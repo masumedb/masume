@@ -29,9 +29,25 @@ const (
 // renderWritePlan draws the plan and its buttons. A write that a foreign key blocks opens
 // with a headline.
 func (model *Model) renderWritePlan(overlay app.Overlay, width int) string {
-	inner := max(width-present.CardChrome, 1)
 	plan := overlay.Plan
+	buttons := model.buildWritePlanButtons(plan)
+	badge := model.renderActiveEnvironmentBadge()
+	widest := max(measureCardLines(
+		model.renderWritePlanBody(plan, max(width-present.CardChrome, 1))),
+		measureButtonRow(buttons))
+	width = fitCardWidth(width, widest, "", overlay.Title, badge)
+	lines := model.renderWritePlanBody(plan, max(width-present.CardChrome, 1))
 
+	model.recordCardBody()
+	lines = append(lines, model.renderButtonRow(buttons, cardBodyRow+len(lines), cardBodyColumn))
+	card := model.renderNotedTextCard(overlay.Kind, overlay.Title,
+		badge, "", width, lines, nil, len(lines), destructiveCard)
+	model.rememberCardKeys(model.buildCardKeys(app.OverlayWritePlan, keyScene{overlay: overlay}))
+	return card
+}
+
+// renderWritePlanBody draws the lines of the plan above its buttons.
+func (model *Model) renderWritePlanBody(plan writeplan.Plan, inner int) []string {
 	lines := []string{}
 	if len(plan.Blockers) > 0 {
 		lines = append(lines, model.renderWritePlanHeadline(plan, inner)...)
@@ -40,15 +56,7 @@ func (model *Model) renderWritePlan(overlay app.Overlay, width int) string {
 	lines = append(lines, model.renderWritePlanStatement(plan.SQL, inner)...)
 	lines = append(lines, "")
 	lines = append(lines, model.renderWritePlanLines(plan, inner)...)
-	lines = append(lines, "")
-
-	model.recordCardBody()
-	lines = append(lines, model.renderButtonRow(
-		model.buildWritePlanButtons(plan), cardBodyRow+len(lines), cardBodyColumn))
-	card := model.renderNotedTextCard(overlay.Kind, overlay.Title,
-		model.renderActiveEnvironmentBadge(), "", width, lines, nil, len(lines), destructiveCard)
-	model.rememberCardKeys(model.buildCardKeys(app.OverlayWritePlan, keyScene{overlay: overlay}))
-	return card
+	return append(lines, "")
 }
 
 // buildWritePlanButtons returns the buttons of the plan. A blocked write leads with the

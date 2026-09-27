@@ -8,6 +8,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/masumedb/masume/internal/app"
 	"github.com/masumedb/masume/internal/cfg"
@@ -158,6 +159,26 @@ func (model *Model) resolveOverlayWidth(kind app.OverlayKind) int {
 	}
 	// The screen is the last limit, so a terminal under the narrowest card still fits.
 	return max(min(wanted, model.width), 1)
+}
+
+// cardTitleChrome is the cells the top border takes around the title and the note.
+const cardTitleChrome = 6
+
+// fitCardWidth returns the width of a card sized to its widest line, its keys and its title.
+// The width the card is given is the maximum, and narrowestOverlayCard is the minimum.
+func fitCardWidth(width, content int, keys, title, note string) int {
+	wanted := max(content+present.CardChrome, present.MeasureText(keys)+present.CardChrome,
+		measureStyledWidth(title)+measureStyledWidth(note)+cardTitleChrome)
+	return min(max(wanted, narrowestOverlayCard), width)
+}
+
+// measureCardLines returns the cells of the widest drawn line, without the padding at its end.
+func measureCardLines(lines []string) int {
+	widest := 0
+	for _, line := range lines {
+		widest = max(widest, present.MeasureText(strings.TrimRight(ansi.Strip(line), " ")))
+	}
+	return widest
 }
 
 // The largest share of the screen a card may take, and the height under which a card is
@@ -1182,10 +1203,15 @@ func (model *Model) buildScrollingCardKeys(
 // renderDiagram draws the lines of an ER diagram. A line keeps its own shape and is never
 // wrapped, because a box drawn over two rows would come apart.
 func (model *Model) renderDiagram(overlay app.Overlay, width int) string {
-	room := max(width-present.CardChrome, 1)
 	drawn := overlay.Diagram
 	keys := model.buildCardKeys(app.OverlayDiagram, keyScene{overlay: overlay})
 	text := keys.buildText()
+	widest := 0
+	for _, line := range drawn.Lines {
+		widest = max(widest, present.MeasureText(line))
+	}
+	width = fitCardWidth(width, widest, text, overlay.Title, "")
+	room := max(width-present.CardChrome, 1)
 	height := model.resolveOverlayHeight(
 		overlay.Kind, len(drawn.Lines), countHintRows(text, width))
 	model.layout.cardBody = countCardBodyRows(height, countHintLines(text, room))
@@ -1307,6 +1333,10 @@ func (model *Model) renderCellEditor(overlay app.Overlay, width int) string {
 	theme := model.styles.Theme
 	keys := model.buildCardKeys(app.OverlayCellEdit, keyScene{overlay: overlay})
 	text := keys.buildText()
+	title := model.buildCellEditorTitle(overlay)
+	if overlay.ContentWidth > 0 {
+		width = fitCardWidth(width, overlay.ContentWidth, text, title, "")
+	}
 
 	lines := model.renderCellChoices(overlay)
 	height := model.resolveOverlayHeight(
@@ -1320,7 +1350,7 @@ func (model *Model) renderCellEditor(overlay app.Overlay, width int) string {
 		held.Overlay.List.Offset = scrollTo(held.Overlay.List.Cursor,
 			held.Overlay.List.Offset, body, len(overlay.Cell.Choices))
 	}
-	return model.renderTextCard(overlay.Kind, model.buildCellEditorTitle(overlay), width,
+	return model.renderTextCard(overlay.Kind, title, width,
 		lines, keys, overlay.ContentRows, plainCard)
 }
 

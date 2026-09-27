@@ -316,6 +316,8 @@ type Overlay struct {
 
 	// The content height fixed when the dialog opens.
 	ContentRows int
+	// The content width in cells fixed when the dialog opens. Zero keeps the width of the kind.
+	ContentWidth int
 	// What a key of the card reported, drawn before the keys.
 	Notice string
 	// The text a field of the overlay holds.

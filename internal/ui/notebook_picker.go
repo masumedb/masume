@@ -229,6 +229,15 @@ const (
 
 // renderNotebooks draws the notebooks of the project and of the user.
 func (model *Model) renderNotebooks(overlay app.Overlay, width int) string {
+	widest := 0
+	for _, entry := range overlay.Notebooks {
+		widest = max(widest, present.MeasureText(describeNotebookEntry(entry)))
+	}
+	keys := model.buildCardKeys(app.OverlayNotebooks, keyScene{overlay: overlay})
+	title := " notebooks · " + present.FormatCount(int64(len(overlay.Notebooks))) + " "
+	width = fitCardWidth(width, rowPaddingLeft+notebookLeadWidth+notebookNameWidth+widest+
+		rowScrollbarWidth, keys.buildText(), title, "")
+
 	entries := model.filterNotebooks(overlay)
 	rows := make([]string, 0, len(entries))
 	for at, entry := range entries {
@@ -239,10 +248,9 @@ func (model *Model) renderNotebooks(overlay app.Overlay, width int) string {
 			Selected: at == overlay.List.Cursor, Width: width,
 		}))
 	}
-	keys := model.buildCardKeys(app.OverlayNotebooks, keyScene{overlay: overlay})
 	return model.renderListCard(ListCard{
 		Kind:   app.OverlayNotebooks,
-		Title:  " notebooks · " + present.FormatCount(int64(len(overlay.Notebooks))) + " ",
+		Title:  title,
 		Filter: model.renderFilterFieldOf(overlay, width, "filter notebooks", len(rows)), Rows: rows,
 		Cursor: overlay.List.Cursor, Offset: overlay.List.Offset,
 		Rolled: overlay.List.Rolled, Width: width,

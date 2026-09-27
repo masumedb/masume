@@ -809,11 +809,15 @@ func buildCellEditor(overlay app.Overlay, initial string) app.Overlay {
 			if choice == initial {
 				overlay.List.Cursor = at
 			}
+			overlay.ContentWidth = max(overlay.ContentWidth, present.MeasureText(choice)+1)
 		}
 		return overlay
 	}
 	overlay.Draft = app.NewEditorBuffer(initial, len(initial))
 	overlay.ContentRows = max(strings.Count(initial, "\n")+1, minCellEditorRows)
+	for line := range strings.SplitSeq(initial, "\n") {
+		overlay.ContentWidth = max(overlay.ContentWidth, present.MeasureText(line)+1)
+	}
 	return overlay
 }
 
