@@ -406,3 +406,18 @@ func TestTheStatisticsBarStandsWhereTheDefinitionBarDoes(t *testing.T) {
 			statistics.column, definition.column)
 	}
 }
+
+func TestTheStatisticsKeepAGapAfterTheLongestLabel(t *testing.T) {
+	model := buildOfflineModel(t, 140, 30)
+	tab := model.Active().Active()
+	lines := model.renderStatistics(tab, []app.Statistic{
+		{Label: "command", Value: "UPDATE"},
+		{Label: "execution time", Value: "10 ms"},
+	}, 60, 4)
+	if written := stripEscapes(lines[1]); !strings.Contains(written, "execution time  10 ms") {
+		t.Errorf("the row reads %q", written)
+	}
+	if written := stripEscapes(lines[0]); !strings.Contains(written, "command         UPDATE") {
+		t.Errorf("the row reads %q", written)
+	}
+}

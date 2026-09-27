@@ -1255,8 +1255,8 @@ func (model *Model) renderTable(
 	return lines
 }
 
-// statisticLabelWidth is the column the label of a statistic takes, so every value lines up.
-const statisticLabelWidth = 14
+// statisticLabelGap is the space between the widest statistic label and the values.
+const statisticLabelGap = 2
 
 // renderStatistics draws what a statement with no result set did: the label of each line in
 // the muted ink, and the line that reports what changed marked.
@@ -1269,7 +1269,12 @@ func (model *Model) renderStatistics(
 	}
 	tab.DetailOffset = clampOffset(tab.DetailOffset, height, len(held))
 
-	room := max(width-1-statisticLabelWidth, 1)
+	labelWidth := 0
+	for _, line := range held {
+		labelWidth = max(labelWidth, present.MeasureText(line.Label))
+	}
+	labelWidth += statisticLabelGap
+	room := max(width-1-labelWidth, 1)
 	lines := make([]string, 0, height)
 	for at := tab.DetailOffset; at < len(held) && len(lines) < height; at++ {
 		line := held[at]
@@ -1280,7 +1285,7 @@ func (model *Model) renderStatistics(
 		}
 		lines = append(lines, paintOn(theme.Panel, " ")+
 			paintText(theme.Muted, theme.Panel,
-				present.PadText(line.Label, statisticLabelWidth))+value)
+				present.PadText(line.Label, labelWidth))+value)
 	}
 	for len(lines) < height {
 		lines = append(lines, "")
