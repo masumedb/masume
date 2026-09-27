@@ -42,6 +42,7 @@ func (model *Model) readWorkspaceKey(key tea.Key) (next tea.Model, command tea.C
 	if connection.Overlay.IsOpen() {
 		return model.readOverlayKey(connection, key)
 	}
+	connection.DropInfoNotice()
 	if connection.Tree.Filtering {
 		return model.readTreeFilterKey(connection, key)
 	}

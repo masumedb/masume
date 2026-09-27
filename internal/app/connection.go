@@ -307,6 +307,13 @@ func (connection *Connection) ShowError(text string) {
 	connection.Notice = &Notice{Text: text, Tone: NoticeError, ShownAt: time.Now()}
 }
 
+// DropInfoNotice takes a report that is not an error away.
+func (connection *Connection) DropInfoNotice() {
+	if connection.Notice != nil && connection.Notice.Tone == NoticeInfo {
+		connection.Notice = nil
+	}
+}
+
 // DropStaleNotice takes the report away once it has been on screen long enough.
 func (connection *Connection) DropStaleNotice(now time.Time) {
 	if connection.Notice != nil && now.Sub(connection.Notice.ShownAt) > connection.Notice.ReadLife() {
