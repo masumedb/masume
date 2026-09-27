@@ -69,7 +69,7 @@ func (model *Model) renderAiChat(
 	body := model.resolveChatBodyRows(connection, width, content)
 
 	// The field is pinned to the foot of the panel, and the conversation takes what is left.
-	below, answersRow := model.renderChatBelow(overlay, chat, content)
+	below, answersRow := model.renderChatBelow(overlay, chat, connection.Profile().Name, content)
 	room := max(body-len(below), 1)
 	shown := model.renderChatBody(connection, chat, content, room)
 	lines := append(shown, below...)
@@ -89,10 +89,12 @@ func (model *Model) renderAiChat(
 					present.MeasureText(chatRefuseChip) - 1},
 		}
 	}
+	profile := connection.Profile()
 	return model.renderNotedTextCard(app.OverlayAiChat,
-		" "+model.icons.Prefix(cfg.IconAi)+"AI chat · "+
+		" "+model.icons.Prefix(cfg.IconAi)+"AI chat · "+profile.Name+" · "+
 			model.describeChatSource()+" ",
-		"", model.renderChatTokens(chat), width, lines, keys, 0, plainCard)
+		model.renderEnvironmentBadge(profile.Environment), model.renderChatTokens(chat),
+		width, lines, keys, 0, plainCard)
 }
 
 // renderChatTokens draws the tokens the chat has spent this session, for the bottom border.
@@ -123,7 +125,8 @@ func (model *Model) resolveChatBodyRows(
 func (model *Model) chatViewRows(connection *app.Connection) int {
 	width := model.resolveOverlayWidth(app.OverlayAiChat)
 	content := max(width-present.CardChrome, 1)
-	below, _ := model.renderChatBelow(connection.Overlay, connection.Chat, content)
+	below, _ := model.renderChatBelow(
+		connection.Overlay, connection.Chat, connection.Profile().Name, content)
 	return max(model.resolveChatBodyRows(connection, width, content)-len(below), 1)
 }
 
@@ -634,7 +637,7 @@ func (model *Model) renderChatStep(part app.ChatPart, content int) string {
 // renderChatBelow draws everything under the conversation: what failed, the statement that
 // waits for a yes, the field, and the most recent report.
 func (model *Model) renderChatBelow(
-	overlay app.Overlay, chat *app.Chat, content int,
+	overlay app.Overlay, chat *app.Chat, profile string, content int,
 ) ([]string, int) {
 	theme := model.styles.Theme
 	lines := []string{}
@@ -648,7 +651,7 @@ func (model *Model) renderChatBelow(
 		}
 	}
 	if chat.Pending != nil {
-		pending := model.renderChatPending(*chat.Pending, content)
+		pending := model.renderChatPending(*chat.Pending, profile, content)
 		// The answers stand on the last row the question takes.
 		answersRow = len(lines) + len(pending) - 1
 		lines = append(lines, pending...)
@@ -686,13 +689,16 @@ const (
 )
 
 // renderChatPending draws the statement the chat wants to run, and the two answers.
-func (model *Model) renderChatPending(pending app.PendingRun, content int) []string {
+func (model *Model) renderChatPending(
+	pending app.PendingRun, profile string, content int,
+) []string {
 	theme := model.styles.Theme
 	ground := theme.Header
 	filled := lipgloss.NewStyle().Background(ground)
 
+	question := "run this on " + profile + "? it " + pending.Summary
 	lines := []string{"", filled.Render(" ") +
-		padStyledOn(paintText(theme.Error, ground, present.TruncateText("run this? it "+pending.Summary, content-2)),
+		padStyledOn(paintText(theme.Error, ground, present.TruncateText(question, content-2)),
 			content-1, ground)}
 	for _, line := range pending.Plan {
 		lines = append(lines, filled.Render(" ")+padStyledOn(

@@ -8,6 +8,7 @@ import (
 	uv "github.com/charmbracelet/ultraviolet"
 
 	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/cfg"
 	"github.com/masumedb/masume/internal/hist"
 )
 
@@ -147,5 +148,22 @@ func TestTheChatCopiesTheLastReply(t *testing.T) {
 	model.readKey(tea.Key{Code: 'a', Mod: uv.ModCtrl})
 	if !strings.Contains(chat.Notice, "on the clipboard") {
 		t.Errorf("the panel reports %q", chat.Notice)
+	}
+}
+
+func TestTheChatNamesTheConnectionAndProduction(t *testing.T) {
+	model := buildOfflineModel(t, 160, 48)
+	session := model.Active().Session.(*offlineSession)
+	session.profile.Name, session.profile.Environment = "shop-prod", cfg.EnvironmentProd
+	chat := openChatPanel(model)
+	chat.Ask(app.PendingRun{Summary: "writes to the database", SQL: "delete from orders"},
+		make(chan bool, 1))
+
+	screen := stripEscapes(model.render())
+	if !strings.Contains(screen, "AI chat · shop-prod ·") || !strings.Contains(screen, "PRODUCTION") {
+		t.Errorf("the chat title does not name shop-prod and production:\n%s", screen)
+	}
+	if !strings.Contains(screen, "run this on shop-prod? it writes to the database") {
+		t.Errorf("the question does not name shop-prod:\n%s", screen)
 	}
 }
