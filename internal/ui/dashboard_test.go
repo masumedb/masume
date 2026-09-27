@@ -298,7 +298,7 @@ func TestTheDashboardLeavesOutWhatTheEngineDoesNotReport(t *testing.T) {
 			t.Errorf("the card draws %q for an engine that reports none of it", absent)
 		}
 	}
-	if !strings.Contains(frame, "sessions 3") {
+	if !strings.Contains(frame, "other sessions 3") {
 		t.Error("the card does not say how many sessions the server holds")
 	}
 }
@@ -422,5 +422,17 @@ func TestTheSlowPanelDrawsTheWorstFew(t *testing.T) {
 	// One row for the heading and one per statement it draws.
 	if lines := model.buildSlowPanel(overlay, 100); len(lines) != slowStatementRows+1 {
 		t.Errorf("the panel drew %d rows, wanted %d", len(lines), slowStatementRows+1)
+	}
+}
+
+func TestTheSessionListHasHeadingsAndTheCardItsName(t *testing.T) {
+	model, connection, _ := buildDashboardModel(t)
+	openDashboard(t, model, connection)
+
+	frame := stripStyles(model.render())
+	for _, said := range []string{"server activity · ", "pid", "state", "user@app", "statement"} {
+		if !strings.Contains(frame, said) {
+			t.Errorf("the card has no %q:\n%s", said, frame)
+		}
 	}
 }

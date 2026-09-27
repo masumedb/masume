@@ -674,10 +674,9 @@ const (
 
 // The name column of the lists that carry no key of their own.
 const (
-	themeLabelWidth    = 26
-	activityLabelWidth = 20
-	valueMarkWidth     = 2
-	valueLabelWidth    = 34
+	themeLabelWidth = 26
+	valueMarkWidth  = 2
+	valueLabelWidth = 34
 )
 
 // selectedThemeMark stands on the theme that was applied when the picker opened.
@@ -1740,18 +1739,16 @@ const (
 func (model *Model) renderActivity(
 	connection *app.Connection, overlay app.Overlay, width int,
 ) string {
+	columns := measureActivityColumns(overlay.Sessions)
 	rows := make([]string, 0, len(overlay.Sessions))
 	for at, session := range overlay.Sessions {
-		application := session.ApplicationName
-		if application == "" {
-			application = "?"
-		}
-		detail := core.FormatClock(session.Duration) + " · " +
-			session.User + "@" + application + " · " +
-			present.TruncateText(core.CollapseWhitespace(session.Query), 60)
 		rows = append(rows, model.renderListRow(ListRowSpec{
-			Label:      strconv.FormatInt(session.PID, 10) + " " + session.State,
-			LabelWidth: activityLabelWidth, Detail: detail,
+			Label: present.FitTextRight(strconv.FormatInt(session.PID, 10), columns.pid) + "  " +
+				present.FitText(session.State, columns.state),
+			LabelWidth: columns.pid + 2 + columns.state + 2,
+			Detail: present.FitTextRight(core.FormatClock(session.Duration), columns.time) + "  " +
+				present.FitText(describeActivityUser(session), columns.user) + "  " +
+				core.CollapseWhitespace(session.Query),
 			Selected: at == overlay.List.Cursor, Destructive: session.State == "active",
 			Width: width,
 		}))
@@ -1759,28 +1756,69 @@ func (model *Model) renderActivity(
 
 	profile := connection.Profile()
 	keys := model.buildCardKeys(app.OverlayActivity, keyScene{overlay: overlay})
+	header := model.buildDashboardHeader(overlay, width)
+	if len(rows) > 0 {
+		theme := model.styles.Theme
+		heading := strings.Repeat(" ", rowPaddingLeft) +
+			present.FitTextRight("pid", columns.pid) + "  " + present.FitText("state", columns.state) +
+			"  " + present.FitTextRight("time", columns.time) + "  " +
+			present.FitText("user@app", columns.user) + "  statement"
+		pad := paintOn(theme.Panel, " ")
+		header = append(header, pad+padStyledOn(
+			paintText(theme.Muted, theme.Panel, heading), width-4, theme.Panel)+pad+pad)
+	}
 
 	return model.renderListCard(ListCard{
 		Kind:   app.OverlayActivity,
 		Title:  " " + buildDashboardTitle(profile) + " ",
 		Note:   model.renderServerUptime(overlay.Server),
-		Header: model.buildDashboardHeader(overlay, width),
+		Header: header,
 		Rows:   rows,
 		Cursor: overlay.List.Cursor, Offset: overlay.List.Offset,
 		Rolled: overlay.List.Rolled, Width: width,
-		EmptyReport: "no other sessions on the server",
+		EmptyReport: "no other sessions",
 		Keys:        keys,
 		// A floor under the rows, so the card does not resize on every refresh while
 		// the sessions of a quiet server come and go.
-		ContentRows: max(len(rows), narrowestActivityRows) +
-			len(model.buildDashboardHeader(overlay, width)),
+		ContentRows: max(len(rows), narrowestActivityRows) + len(header),
 	})
+}
+
+// activityColumns are the widths of the columns of the session list.
+type activityColumns struct {
+	pid, state, time, user int
+}
+
+// measureActivityColumns returns the widths that hold the widest value and heading of each
+// column of the session list.
+func measureActivityColumns(sessions []db.Activity) activityColumns {
+	columns := activityColumns{pid: 3, state: 5, time: 4, user: 8}
+	for _, session := range sessions {
+		columns.pid = max(columns.pid, len(strconv.FormatInt(session.PID, 10)))
+		columns.state = max(columns.state, present.MeasureText(session.State))
+		columns.time = max(columns.time, present.MeasureText(core.FormatClock(session.Duration)))
+		columns.user = min(max(columns.user, present.MeasureText(describeActivityUser(session))),
+			activityUserWidth)
+	}
+	return columns
+}
+
+// activityUserWidth is the widest user@app column the session list draws.
+const activityUserWidth = 28
+
+// describeActivityUser returns the user and the application of a session.
+func describeActivityUser(session db.Activity) string {
+	application := session.ApplicationName
+	if application == "" {
+		application = "?"
+	}
+	return session.User + "@" + application
 }
 
 // buildDashboardTitle names the connection the card is watching, its environment, and how
 // often it refreshes.
 func buildDashboardTitle(profile cfg.Profile) string {
-	text := present.SafeText(profile.Name)
+	text := "server activity · " + present.SafeText(profile.Name)
 	if profile.Environment != "" {
 		text += " · " + string(profile.Environment)
 	}
@@ -1832,7 +1870,7 @@ func (model *Model) buildDashboardSummary(overlay app.Overlay, width int) string
 		text += paintOn(theme.Panel, dashboardGap)
 	}
 
-	text += paintText(theme.Muted, theme.Panel, "sessions ")
+	text += paintText(theme.Muted, theme.Panel, "other sessions ")
 	text += paintText(theme.Text, theme.Panel, strconv.Itoa(len(overlay.Sessions)))
 
 	if reading.HasLocks {
