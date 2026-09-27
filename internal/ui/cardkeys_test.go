@@ -248,3 +248,14 @@ func TestDeletingASavedQueryReportsAfterTheFileTookIt(t *testing.T) {
 		t.Error("a removal the file refused was not reported as a failure")
 	}
 }
+
+func TestTheTitleBarNamesTheConnection(t *testing.T) {
+	model := buildOfflineModel(t, 160, 40)
+	session := model.Active().Session.(*offlineSession)
+	session.profile.Name = "shop-prod"
+
+	top := stripEscapes(strings.Split(model.render(), "\n")[0])
+	if !strings.Contains(top, "masume   shop-prod · ") {
+		t.Errorf("the title bar reads %q", top)
+	}
+}

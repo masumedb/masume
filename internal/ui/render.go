@@ -254,6 +254,10 @@ func (model *Model) renderTitleBar() string {
 	var text strings.Builder
 	text.WriteString(name)
 	writeTextOn(&text, follow, ground, logoGap)
+	if profile.Name != "" {
+		writeTextOn(&text, resolveMarkInk(theme.Text), ground, present.SafeText(profile.Name))
+		writeTextOn(&text, follow, ground, hintSeparator)
+	}
 	writeTextOn(&text, resolveMarkInk(model.styles.EnvironmentColor(profile.Environment)),
 		ground, string(profile.Environment))
 	if profile.AccessMode == cfg.AccessReadOnly {
