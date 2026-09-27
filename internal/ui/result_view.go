@@ -405,7 +405,19 @@ func (model *Model) renderBanner(
 
 	return model.styles.RenderStrip(
 		theme.Warning, width,
-		style.Render(model.icons.Prefix(cfg.IconBanner)+banner), style.Render(keys))
+		style.Render(model.icons.Prefix(resolveBannerIcon(tab))+banner), style.Render(keys))
+}
+
+// resolveBannerIcon returns the glyph of the banner: the sort arrow while the banner names
+// only a sort, and the filter flag otherwise.
+func resolveBannerIcon(tab *app.Tab) cfg.IconKind {
+	if len(tab.Filter) > 0 || !tab.Screen.IsEmpty() || len(tab.Sort) == 0 {
+		return cfg.IconBanner
+	}
+	if tab.Sort[0].Direction == core.SortDescending {
+		return cfg.IconSortDown
+	}
+	return cfg.IconSortUp
 }
 
 // buildNoRowsHints returns the lines under "no rows": the filters on the result, and the key

@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/core"
 	"github.com/masumedb/masume/internal/db"
 )
 
@@ -49,5 +51,16 @@ func TestTheEmptyResultOfANotebookListsTheCellKeys(t *testing.T) {
 		if !strings.Contains(screen, said) {
 			t.Errorf("the result pane says nothing of %q:\n%s", said, screen)
 		}
+	}
+}
+
+func TestABannerOfASortAloneDrawsTheSortArrow(t *testing.T) {
+	tab := &app.Tab{Sort: []core.SortState{{Column: "status", Direction: core.SortDescending}}}
+	if icon := resolveBannerIcon(tab); icon != cfg.IconSortDown {
+		t.Errorf("a sort alone draws %q", icon)
+	}
+	tab.Filter = []core.FilterStep{{Text: "id < 10"}}
+	if icon := resolveBannerIcon(tab); icon != cfg.IconBanner {
+		t.Errorf("a sort and a filter draw %q", icon)
 	}
 }
