@@ -410,6 +410,7 @@ func (overlay Overlay) IsOpen() bool {
 const (
 	ObjectGenerateSelect = "gen-select"
 	ObjectGenerateInsert = "gen-insert"
+	ObjectCopyDDL        = "copy-ddl"
 	ObjectAddColumn      = "add-column"
 	ObjectCreateIndex    = "create-index"
 	ObjectRenameTable    = "rename-table"
@@ -433,6 +434,9 @@ var generateSelect = MenuAction{
 	Icon: cfg.IconQuery,
 }
 
+// The entry that copies the definition of a table, a view or another object.
+var copyDDL = MenuAction{ID: ObjectCopyDDL, Label: "Copy DDL", Icon: cfg.IconQuery}
+
 // Table actions include target icons and destructive action markers.
 var tableActions = []MenuAction{
 	{
@@ -444,6 +448,7 @@ var tableActions = []MenuAction{
 		ID: ObjectGenerateInsert, Label: "Generate INSERT",
 		Icon: cfg.IconQuery,
 	},
+	copyDDL,
 	{
 		ID: ObjectImportFile, Label: "Import a file…", Detail: "a CSV or a JSON file",
 		Icon: cfg.IconTable,
@@ -467,6 +472,7 @@ var tableActions = []MenuAction{
 
 var viewActions = []MenuAction{
 	generateSelect,
+	copyDDL,
 	{
 		ID: ObjectDropRelation, Label: "Drop view", Detail: "into the editor",
 		Icon: cfg.IconNote, Destructive: true,
@@ -474,6 +480,7 @@ var viewActions = []MenuAction{
 }
 
 var objectActions = []MenuAction{
+	copyDDL,
 	{
 		ID: ObjectDropObject, Label: "Drop", Detail: "into the editor",
 		Icon: cfg.IconNote, Destructive: true,

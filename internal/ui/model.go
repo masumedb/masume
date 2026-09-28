@@ -486,6 +486,9 @@ func (model *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	case relationViewMsg:
 		return model.readRelationViewAnswer(held)
 
+	case definitionCopiedMsg:
+		return model.readDefinitionCopied(held)
+
 	case changesAppliedMsg:
 		return model.readChangesAnswer(held)
 

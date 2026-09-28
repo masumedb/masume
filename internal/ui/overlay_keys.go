@@ -1334,6 +1334,8 @@ func (model *Model) runObjectAction(
 		return model.openImport(connection, db.TableRef{
 			Schema: row.Node.Schema, Name: "",
 		}, intoNewTable)
+	case app.ObjectCopyDDL:
+		return model, copyDefinition(model.ActiveID(), connection.Session, row.Node)
 	case app.ObjectDumpTable:
 		table := row.Node.Table
 		return model.openDump(connection, table.Name, dump.Options{
@@ -1371,6 +1373,20 @@ func (model *Model) runObjectAction(
 		connection.Show("the statement is in the editor: read it, then run it")
 	}
 	return model, nil
+}
+
+// readDefinitionCopied puts the definition the object menu asked for on the clipboard.
+func (model *Model) readDefinitionCopied(answered definitionCopiedMsg) (tea.Model, tea.Cmd) {
+	connection, _, found := model.findConnection(answered.ConnectionID)
+	if !found {
+		return model, nil
+	}
+	if answered.Problem != "" {
+		connection.ShowError(answered.Problem)
+		return model, nil
+	}
+	connection.Show("DDL copied")
+	return model, model.keepOnClipboard(strings.Join(answered.Lines, "\n"))
 }
 
 // buildInsertTemplate writes an INSERT for the relation, from the columns the catalog

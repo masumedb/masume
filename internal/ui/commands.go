@@ -614,6 +614,36 @@ func readRelationView(
 	}
 }
 
+// definitionCopiedMsg returns the definition read for the clipboard, or the reason it could
+// not be read.
+type definitionCopiedMsg struct {
+	ConnectionID int
+	Lines        []string
+	Problem      string
+}
+
+// copyDefinition reads the definition of a table, a view or another object of the tree for
+// the clipboard.
+func copyDefinition(connectionID int, session db.CatalogReader, node present.TreeNode) tea.Cmd {
+	return func() tea.Msg {
+		ctx, stop := context.WithTimeout(context.Background(), readTimeout)
+		defer stop()
+
+		var lines []string
+		var err error
+		if node.Kind == present.NodeTable {
+			lines, err = session.BuildTableDDL(ctx, node.Table)
+		} else {
+			lines, err = session.BuildObjectDDL(ctx, node.Object)
+		}
+		answered := definitionCopiedMsg{ConnectionID: connectionID, Lines: lines}
+		if err != nil {
+			answered.Problem = db.DescribeError(err)
+		}
+		return answered
+	}
+}
+
 // readObjectDDL asks the server for the definition of one schema object.
 func readObjectDDL(
 	connectionID, tabID int, session db.CatalogReader, object db.SchemaObject,
