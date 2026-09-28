@@ -502,7 +502,7 @@ func (model *Model) renderWorkspaceStatusBar() string {
 		Pane: tab.Focus, Capabilities: connection.Session.Capabilities(),
 		TabKind: tab.Kind, ListsCells: tab.ListsCells(),
 		CellKind: readFocusedCellKind(tab),
-		View:     tab.View, Views: tab.Views(connection.Session),
+		View:     tab.ActiveView(connection.Session), Views: tab.Views(connection.Session),
 		HasResult: hasResult, Connections: model.connections.count(),
 		HasSelection: model.holdsSelection(), SidebarVisible: connection.SidebarVisible,
 		ResultVisible: connection.ResultVisible, RawPlan: tab.RawPlan,

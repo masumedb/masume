@@ -232,6 +232,8 @@ var defaultChords = map[string][]string{
 
 	"plan:toggle-raw-plan":       {"r"},
 	"plan:copy-plan":             {"y"},
+	"definition:scroll-left":     {"left"},
+	"definition:scroll-right":    {"right"},
 	"definition:copy-definition": {"y"},
 	"definition:edit-definition": {"e"},
 	"plan:ai-check-plan":         {"i"},

@@ -439,6 +439,8 @@ var planActions = []ActionDefinition{
 
 // definitionActions answer while the DDL view is drawn in place of the grid.
 var definitionActions = []ActionDefinition{
+	{ID: ActionScrollLeft, Label: "scroll the definition left"},
+	{ID: ActionScrollRight, Label: "scroll the definition right"},
 	{ID: ActionCopyDefinition, Label: "copy the definition"},
 	{ID: ActionEditDefinition, Label: "open the definition in a query tab"},
 }

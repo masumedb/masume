@@ -302,6 +302,8 @@ See [editing SQL](usage.md#editing-sql) for search, replacement, completion, and
 | --- | --- |
 | `copy-definition` | `y` |
 | `edit-definition` | `e` |
+| `scroll-left` | `left` |
+| `scroll-right` | `right` |
 
 ## Document
 

@@ -620,6 +620,10 @@ func (model *Model) runDefinitionAction(
 	}
 	written := strings.Join(tab.ViewData.Lines, "\n")
 	switch match.Action {
+	case ActionScrollLeft:
+		tab.DetailColumnOffset = max(tab.DetailColumnOffset-detailColumnStep, 0)
+	case ActionScrollRight:
+		tab.DetailColumnOffset += detailColumnStep
 	case ActionCopyDefinition:
 		connection.Show("definition copied")
 		return model, model.keepOnClipboard(written)

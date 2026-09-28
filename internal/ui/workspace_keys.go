@@ -94,18 +94,17 @@ func (model *Model) readWorkspaceKey(key tea.Key) (next tea.Model, command tea.C
 		case app.PaneSidebar:
 			scopes = append(scopes, cfg.ScopeTree)
 		case app.PaneResult:
-			switch view := tab.ActiveView(connection.Session); view {
+			switch tab.ActiveView(connection.Session) {
+			case app.ViewData:
+				scopes = append(scopes, cfg.ScopeGrid)
 			case app.ViewPlan:
 				scopes = append(scopes, cfg.ScopeList, cfg.ScopePlan)
 			case app.ViewTree:
 				scopes = append(scopes, cfg.ScopeDocument, cfg.ScopeList)
 			case app.ViewDDL:
-				scopes = append(scopes, cfg.ScopeList, cfg.ScopeDefinition, cfg.ScopeGrid)
+				scopes = append(scopes, cfg.ScopeList, cfg.ScopeDefinition)
 			default:
-				if view != app.ViewData {
-					scopes = append(scopes, cfg.ScopeList)
-				}
-				scopes = append(scopes, cfg.ScopeGrid)
+				scopes = append(scopes, cfg.ScopeList)
 			}
 		}
 	}
@@ -130,9 +129,6 @@ func (model *Model) readWorkspaceKey(key tea.Key) (next tea.Model, command tea.C
 			return model.runDocumentTreeAction(connection, tab, match)
 		case cfg.ScopeList:
 			scrollDetailView(tab, match)
-			return model, nil
-		}
-		if scrollDetailColumns(tab, tab.ActiveView(connection.Session), match) {
 			return model, nil
 		}
 		next, command := model.runAction(connection, tab, match)
@@ -526,23 +522,6 @@ func scrollDetailView(tab *app.Tab, match Match) bool {
 
 // detailColumnStep is the cells one key press moves the DDL view sideways.
 const detailColumnStep = 8
-
-// scrollDetailColumns moves the lines of the DDL view sideways. The draw holds the offset to
-// the widest line. It reports whether the action belonged to the view.
-func scrollDetailColumns(tab *app.Tab, drawn app.ResultView, match Match) bool {
-	if drawn != app.ViewDDL || match.Scope != cfg.ScopeGrid {
-		return false
-	}
-	switch match.Action {
-	case ActionCursorLeft:
-		tab.DetailColumnOffset = max(tab.DetailColumnOffset-detailColumnStep, 0)
-	case ActionCursorRight:
-		tab.DetailColumnOffset += detailColumnStep
-	default:
-		return false
-	}
-	return true
-}
 
 // requestCloseTab asks before a tab with staged work is closed.
 func (model *Model) requestCloseTab(connection *app.Connection) (tea.Model, tea.Cmd) {

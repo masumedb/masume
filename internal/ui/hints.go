@@ -406,7 +406,7 @@ func (model *Model) buildViewHints(
 	hints := []Hint{scroll}
 	if view == app.ViewDDL {
 		if sideways, found := model.buildPairHint(
-			cfg.ScopeGrid, ActionCursorLeft, ActionCursorRight, "scroll sideways", ""); found {
+			cfg.ScopeDefinition, ActionScrollLeft, ActionScrollRight, "scroll sideways", ""); found {
 			hints = append(hints, sideways)
 		}
 		keys := hintList{}
