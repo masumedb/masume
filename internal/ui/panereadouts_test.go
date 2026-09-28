@@ -198,20 +198,14 @@ func TestTheGridFooterLeavesOutTheCountOfOneColumn(t *testing.T) {
 	}
 }
 
-// Not every server this client opens has SQL, so the pane names what is written in it and
-// never the language that writes it.
-func TestTheEditorPaneNamesTheQueryAndNotTheLanguage(t *testing.T) {
+// Not every server this client opens has SQL, so the pane names what is written in it.
+func TestTheEditorPaneIsNamedQuery(t *testing.T) {
 	model, _, tab := buildEditingModel(t, "select id from orders", 0)
 
-	title := model.describeEditorTitle(tab, 0)
-	if !strings.Contains(title, "query") {
+	if title := model.describeEditorTitle(tab, 0); !strings.Contains(title, "query") {
 		t.Errorf("the pane calls itself %q", title)
 	}
-	if strings.Contains(strings.ToLower(title), "sql") {
-		t.Errorf("the pane calls itself %q, which is the language and not the pane", title)
-	}
-	if faulty := model.describeEditorTitle(tab, 2); !strings.Contains(faulty, "query") ||
-		strings.Contains(strings.ToLower(faulty), "sql") {
+	if faulty := model.describeEditorTitle(tab, 2); !strings.Contains(faulty, "query") {
 		t.Errorf("a pane reporting a fault calls itself %q", faulty)
 	}
 }

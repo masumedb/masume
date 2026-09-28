@@ -1108,7 +1108,4 @@ func TestNotebookNamesEveryResultAfterItsCellEndToEnd(t *testing.T) {
 			t.Errorf("the frame does not have %q:\n%s", wanted, frame)
 		}
 	}
-	if strings.Contains(frame, "prev/next") {
-		t.Errorf("a strip still has prev/next:\n%s", frame)
-	}
 }

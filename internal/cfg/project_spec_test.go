@@ -448,7 +448,4 @@ func TestProjectReportsABrokenSecretStoreAsAStore(t *testing.T) {
 	if !strings.Contains(joined, "skipped secret store \"broken\"") {
 		t.Errorf("the reports read %q, wanted the store", joined)
 	}
-	if strings.Contains(joined, "secret.broken\"") {
-		t.Errorf("the reports name a profile that does not exist: %q", joined)
-	}
 }

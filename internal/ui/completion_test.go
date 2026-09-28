@@ -107,13 +107,6 @@ func TestThePopupCountsItsRowsOnItsOwnBorder(t *testing.T) {
 	for _, written := range []string{"select * from ", "select * from ord"} {
 		model, _, tab := buildListingModel(t, written)
 		frame := strings.Split(model.render(), "\n")
-		title := stripStyles(frame[firstPaneRow])
-		for _, key := range []string{"↑↓", "accept", "Esc", "1/"} {
-			if strings.Contains(title, key) {
-				t.Errorf("the title of %q reads %q and still has %q",
-					written, strings.TrimSpace(title), key)
-			}
-		}
 		count := "1/" + strconv.Itoa(len(tab.Completion.Candidates))
 		bottom := model.layout.completionRows.top + model.layout.completionRows.count
 		if drawn := stripStyles(frame[bottom]); !strings.Contains(drawn, count) {

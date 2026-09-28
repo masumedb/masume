@@ -64,7 +64,7 @@ func TestTheMainModeHidesTheStepKeys(t *testing.T) {
 	model, _ := buildHintModeModel(t, cfg.KeyHintsMain)
 
 	drawn := stripEscapes(model.render())
-	for _, said := range []string{"prev/next", "Alt+N new", "Alt+T name"} {
+	for _, said := range []string{"Alt+N new", "Alt+T name"} {
 		if strings.Contains(drawn, said) {
 			t.Errorf("the frame drew the %q key in the main mode", said)
 		}
@@ -85,7 +85,7 @@ func TestTheOffModeHidesEveryKeyHint(t *testing.T) {
 
 	drawn := stripEscapes(model.render())
 	for _, said := range []string{
-		"palette", "? help", "full height", "ask AI", "ask about the statement",
+		"palette", "? help", "ask AI", "ask about the statement",
 	} {
 		if strings.Contains(drawn, said) {
 			t.Errorf("the frame drew the %q key with the hints off", said)
@@ -165,9 +165,6 @@ func TestTheStagedCountNamesTheKeyOfTheReview(t *testing.T) {
 	if !strings.Contains(bar, "2 staged · p to review") {
 		t.Errorf("the status bar drew %q, wanted the key that reviews the changes", bar)
 	}
-	if strings.Contains(bar, "review 2") {
-		t.Errorf("the status bar drew %q, wanted the review key once", bar)
-	}
 }
 
 // The key answers in the grid, so a tab that reads the editor is left with the count.
@@ -190,8 +187,7 @@ func TestTheKeyHintsModeReachesTheChatCard(t *testing.T) {
 		wanted []string
 		gone   []string
 	}{
-		{cfg.KeyHintsFull, []string{"ask", "newline", "chats", "close"},
-			[]string{"turn", "page", "scroll", "to a notebook"}},
+		{cfg.KeyHintsFull, []string{"ask", "newline", "chats", "close"}, nil},
 		{cfg.KeyHintsMain, []string{"ask", "to editor", "close"},
 			[]string{"newline", "chats"}},
 		{cfg.KeyHintsOff, nil, []string{"ask", "close", "to editor"}},

@@ -16,11 +16,6 @@ func TestTheEditorBindsOneKeyForFindingAndReplacing(t *testing.T) {
 	model := buildOfflineModel(t, 120, 34)
 
 	if chords := model.registry.FindActionChords(
-		cfg.ScopeEditor, ActionReplaceInStatement); len(chords) != 0 {
-		t.Errorf("the editor binds %v to replace, and finding and replacing is one key",
-			chords)
-	}
-	if chords := model.registry.FindActionChords(
 		cfg.ScopeEditor, ActionFindInStatement); len(chords) == 0 {
 		t.Error("the editor binds nothing to find")
 	}

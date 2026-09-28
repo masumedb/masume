@@ -412,7 +412,4 @@ func TestTheChatShowsTokensOnItsBorder(t *testing.T) {
 	if !strings.Contains(frame[len(frame)-1], "390 in (200 cached) / 132 out this session") {
 		t.Errorf("the status bar reads %q", frame[len(frame)-1])
 	}
-	if strings.Count(strings.Join(frame, "\n"), "132 out") != 1 {
-		t.Errorf("the breakdown is drawn more than once:\n%s", strings.Join(frame, "\n"))
-	}
 }

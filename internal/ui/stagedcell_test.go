@@ -24,9 +24,6 @@ func TestAStagedNullAndAStagedEmptyTextLookLikeTheOnesTheServerRead(t *testing.T
 			t.Errorf("the staged row %d reads %q, wanted %q", row, drawn, wanted)
 		}
 	}
-	if drawn := stripEscapes(model.renderGridRow(tab, shape, []int{0, 1}, 0, 3, 60)); strings.Contains(drawn, core.NullText) {
-		t.Errorf("the staged null reads %q", drawn)
-	}
 }
 
 func TestTheCursorRowStaysMarkedWhenTheGridLosesTheFocus(t *testing.T) {

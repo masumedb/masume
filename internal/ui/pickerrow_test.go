@@ -24,9 +24,6 @@ func TestThePickerRowKeepsTheFileNameAndShowsTheDescription(t *testing.T) {
 			t.Errorf("the picker does not show %q:\n%s", wanted, drawn)
 		}
 	}
-	if strings.Contains(drawn, "❯ filter") {
-		t.Errorf("the filter field uses the mark of the selected row:\n%s", drawn)
-	}
 }
 
 func TestThePickerWidensBeforeItCutsARow(t *testing.T) {

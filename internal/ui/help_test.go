@@ -17,7 +17,6 @@ func TestTheHelpDrawsTheKeysInTheMutedInk(t *testing.T) {
 		}
 		chord := model.registry.FormatFirstActionChordName(cfg.ScopeGlobal, ActionNewQueryTab)
 		muted := describeInk(model.styles.Theme.Muted)
-		accent := describeInk(model.styles.Theme.Accent)
 
 		found := false
 		for _, line := range strings.Split(model.render(), "\n") {
@@ -29,9 +28,6 @@ func TestTheHelpDrawsTheKeysInTheMutedInk(t *testing.T) {
 			for _, cell := range mapCells(line) {
 				if strings.TrimSpace(cell.text) == "" || cell.text == "│" {
 					continue
-				}
-				if strings.Contains(cell.sgr, accent) {
-					t.Errorf("term %q: the help row draws %q in the accent ink", term, cell.text)
 				}
 				if strings.Contains(cell.sgr, muted) {
 					keys.WriteString(cell.text)

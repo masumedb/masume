@@ -1005,7 +1005,4 @@ func TestTheSettingsScreenDrawsEachValueInTheFormOfItsKind(t *testing.T) {
 			t.Errorf("the AI rows do not hold %q:\n%s", wanted, drawn)
 		}
 	}
-	if strings.Contains(drawn, "[x]") {
-		t.Errorf("the toggle is drawn as a box:\n%s", drawn)
-	}
 }

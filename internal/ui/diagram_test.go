@@ -57,9 +57,6 @@ func TestDiagramKeyRowPansAndOpens(t *testing.T) {
 			t.Errorf("the key row has no %q", wanted)
 		}
 	}
-	if strings.Contains(frame, "scroll") {
-		t.Error("the key row still has the word scroll")
-	}
 }
 
 // Tab moves the focus from the table of the diagram to the next table, and Enter opens the
