@@ -127,7 +127,7 @@ func TestBuilderRunsAgainstTheServer(t *testing.T) {
 
 	written := tab.Builder.BuildSQL(connection.Session.Dialect())
 	if !strings.Contains(written,
-		`inner join "masume_builder"."orders" o on o.customer_id = c.id`) {
+		`inner join masume_builder.orders o on o.customer_id = c.id`) {
 		t.Fatalf("the builder wrote\n%s", written)
 	}
 
