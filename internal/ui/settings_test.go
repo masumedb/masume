@@ -510,9 +510,6 @@ func TestTheKeyLineFollowsTheRowUnderTheCaret(t *testing.T) {
 	openSettings(t, model)
 	focusItem(t, model, cfg.ItemChatSource)
 
-	if drawn := stripEscapes(model.renderSettings()); !strings.Contains(drawn, "change") {
-		t.Errorf("a row that steps through values names no key:\n%s", drawn)
-	}
 	showProviderPage(t, model)
 	focusItem(t, model, cfg.ItemModel)
 	if drawn := stripEscapes(model.renderSettings()); !strings.Contains(drawn, "type") {

@@ -52,7 +52,7 @@ func TestDiagramKeyRowPansAndOpens(t *testing.T) {
 	model, _ := buildDiagramModel(t)
 
 	frame := stripEscapes(model.render())
-	for _, wanted := range []string{"↑↓←→ pan", "next table", "↵ open"} {
+	for _, wanted := range []string{"next table", "↵ open"} {
 		if !strings.Contains(frame, wanted) {
 			t.Errorf("the key row has no %q", wanted)
 		}

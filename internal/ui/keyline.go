@@ -63,13 +63,13 @@ func (line *KeyLine) listParts() []keyPart {
 	if line == nil {
 		return nil
 	}
-	if line.mode == cfg.KeyHintsFull || line.mode == "" {
-		return line.parts
-	}
 	drawn := make([]keyPart, 0, len(line.parts))
 	for _, part := range line.parts {
 		switch {
+		case isArrowKeyText(part.chord):
 		case part.chord == "":
+			drawn = append(drawn, part)
+		case line.mode == cfg.KeyHintsFull || line.mode == "":
 			drawn = append(drawn, part)
 		case line.mode == cfg.KeyHintsOff:
 		case !part.main:
@@ -78,6 +78,22 @@ func (line *KeyLine) listParts() []keyPart {
 		}
 	}
 	return drawn
+}
+
+// isArrowKeyText is true for a key drawn as bare arrow keys only, such as ↑↓ or ←→. A hint
+// for such a key is never drawn.
+func isArrowKeyText(chord string) bool {
+	arrows := false
+	for _, character := range chord {
+		switch character {
+		case '↑', '↓', '←', '→':
+			arrows = true
+		case ' ', '/':
+		default:
+			return false
+		}
+	}
+	return arrows
 }
 
 // bind adds every chord of an action, with its label after them. An action with no chord is

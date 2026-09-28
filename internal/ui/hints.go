@@ -122,14 +122,16 @@ type hintList struct {
 
 // add keeps one hint where the builder found one.
 func (list *hintList) add(hint Hint, found bool) {
-	if found {
+	if found && !isArrowKeyText(hint.Key) {
 		list.hints = append(list.hints, hint)
 	}
 }
 
 // addAll keeps every hint another bar built.
 func (list *hintList) addAll(hints []Hint) {
-	list.hints = append(list.hints, hints...)
+	for _, hint := range hints {
+		list.add(hint, true)
+	}
 }
 
 // build returns the hints kept, in the order they were added.

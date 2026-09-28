@@ -22,7 +22,7 @@ func TestAMessageTallerThanTheCardScrolls(t *testing.T) {
 	}
 
 	drawn := stripEscapes(model.renderMessage(connection.Overlay, 60))
-	if !strings.Contains(drawn, "scroll") || strings.Contains(drawn, "problem 40") {
+	if strings.Contains(drawn, "problem 40") {
 		t.Fatalf("the card does not scroll:\n%s", drawn)
 	}
 	model.runOverlayAction(connection, connection.Active(), &connection.Overlay,

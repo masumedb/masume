@@ -153,8 +153,8 @@ func TestEveryKeyOfACardIsDrawnAsAKey(t *testing.T) {
 					},
 				}
 			},
-			keys:  []string{"←→", "↑↓", "e", "y"},
-			words: []string{"another row", "field", "edit", "copy"},
+			keys:  []string{"e", "y"},
+			words: []string{"edit", "copy"},
 		},
 	} {
 		t.Run(held.name, func(t *testing.T) {
@@ -257,5 +257,16 @@ func TestTheTitleBarNamesTheConnection(t *testing.T) {
 	top := stripEscapes(strings.Split(model.render(), "\n")[0])
 	if !strings.Contains(top, "masume   shop-prod · ") {
 		t.Errorf("the title bar reads %q", top)
+	}
+}
+
+func TestOnlyBareArrowKeysAreReadAsArrows(t *testing.T) {
+	for chord, arrows := range map[string]bool{
+		"↑↓": true, "←→": true, "↑↓←→": true, "↑ / ↓": true,
+		"⇧ ←→": false, "Alt+↑": false, "↵": false, "": false,
+	} {
+		if isArrowKeyText(chord) != arrows {
+			t.Errorf("%q is read as bare arrows: %v, wanted %v", chord, !arrows, arrows)
+		}
 	}
 }
