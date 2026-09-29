@@ -8,6 +8,8 @@ import (
 
 	"github.com/masumedb/masume/internal/app"
 	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db"
 )
 
 // splitView is the state of the split view: the two tabs on screen and the side with the focus.
@@ -572,4 +574,53 @@ func (model *Model) buildSplitMenuEntry() menuEntry {
 	return menuEntry{
 		ActionToggleSplitView, "Split view", "this tab beside the next one", cfg.IconColumn, true,
 	}
+}
+
+// buildOpenActions returns the rows of the table menu that open the table.
+func (model *Model) buildOpenActions() []app.MenuAction {
+	split := app.MenuAction{
+		ID: app.ObjectOpenInSplit, Label: "Open in split view",
+		Detail: "beside the tab on screen", Icon: cfg.IconColumn,
+	}
+	if model.split.open {
+		split.Detail = "on the other side"
+	}
+	return []app.MenuAction{
+		{
+			ID: app.ObjectOpen, Label: "Open", Icon: cfg.IconTable,
+			Chord: model.registry.FormatFirstActionChordName(cfg.ScopeTree, ActionOpenNode),
+		},
+		{
+			ID: app.ObjectOpenInNewTab, Label: "Open in new tab", Icon: cfg.IconNewTab,
+			Chord: model.registry.FormatFirstActionChordName(cfg.ScopeTree, ActionOpenInNewTab),
+		},
+		split,
+	}
+}
+
+// openTableBeside shows the table on the other side of the split view, and opens the split
+// with the tab on screen on the first side where it is closed. The table takes the focus.
+func (model *Model) openTableBeside(
+	connection *app.Connection, table db.TableRef,
+) (tea.Model, tea.Cmd) {
+	first, found := model.findActiveKey()
+	if !found {
+		return model, nil
+	}
+	preview := connection.Session.Composer().ComposeRelationRead(
+		table, core.ReadRewrite{}).Display
+	tab, created := connection.OpenTableBeside(table, preview)
+	shown := model.buildTabKey(connection, tab)
+	if model.split.open {
+		aside := model.split.resolveAside()
+		model.split.sides[aside], model.split.focused = shown, aside
+	} else {
+		model.split.open = true
+		model.split.sides = [2]tabKey{first, shown}
+		model.split.focused = 1
+	}
+	if !created {
+		return model, nil
+	}
+	return model.runTabRead(connection, tab)
 }

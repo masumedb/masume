@@ -408,6 +408,9 @@ func (overlay Overlay) IsOpen() bool {
 
 // Object menu action IDs.
 const (
+	ObjectOpen           = "open"
+	ObjectOpenInNewTab   = "open-in-new-tab"
+	ObjectOpenInSplit    = "open-in-split"
 	ObjectGenerateSelect = "gen-select"
 	ObjectGenerateInsert = "gen-insert"
 	ObjectCopyDDL        = "copy-ddl"

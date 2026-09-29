@@ -1335,6 +1335,9 @@ func (model *Model) runTreeAction(
 			model.ActiveID(), model.log, connection.Profile().Name, favourite)
 	case ActionObjectMenu:
 		actions := app.BuildObjectActions(row.Node, connection.Session.Capabilities())
+		if row.Node.Kind == present.NodeTable {
+			actions = append(model.buildOpenActions(), actions...)
+		}
 		if len(actions) == 0 {
 			return model, nil
 		}

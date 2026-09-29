@@ -403,6 +403,20 @@ func (connection *Connection) OpenTableInNewTab(table db.TableRef, preview strin
 	return connection.showTab(NewTableTab(connection.nextTabID, table, preview))
 }
 
+// OpenTableBeside moves to a tab of the table other than the active tab, or appends a new one.
+// It reports whether the tab is new.
+func (connection *Connection) OpenTableBeside(table db.TableRef, preview string) (*Tab, bool) {
+	for at, tab := range connection.Tabs {
+		if at != connection.ActiveIndex && tab.Kind == TabTable &&
+			tab.Table.Schema == table.Schema && tab.Table.Name == table.Name {
+			connection.ActiveIndex = at
+			return tab, false
+		}
+	}
+	connection.nextTabID++
+	return connection.appendTab(NewTableTab(connection.nextTabID, table, preview)), true
+}
+
 // OpenObject opens a tab that shows the definition of one schema object.
 func (connection *Connection) OpenObject(object db.SchemaObject) *Tab {
 	for at, tab := range connection.Tabs {

@@ -7,6 +7,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/present"
 )
 
 var (
@@ -404,5 +406,77 @@ func TestTheTabRowMarksTheTabOfTheOtherSide(t *testing.T) {
 	}
 	if !strings.Contains(row, resolveOpening(theme.OnAccent, theme.Accent)+" 2 ") {
 		t.Errorf("the tab with the focus is not drawn as active: %q", row)
+	}
+}
+
+func TestTheTableMenuLeadsWithTheWaysToOpenTheTable(t *testing.T) {
+	for _, held := range []struct {
+		name         string
+		capabilities core.Capabilities
+	}{
+		{"a server that writes DDL", core.Capabilities{WritesDDL: true}},
+		{"a server that writes no DDL", core.Capabilities{}},
+	} {
+		t.Run(held.name, func(t *testing.T) {
+			model, connection, session := buildTreeDumpModel(t)
+			session.offlineSession.capabilities = held.capabilities
+			openObjectMenu(t, model, connection, present.NodeTable)
+
+			wanted := []string{app.ObjectOpen, app.ObjectOpenInNewTab, app.ObjectOpenInSplit}
+			actions := connection.Overlay.Actions
+			if len(actions) < len(wanted) {
+				t.Fatalf("the menu has %d rows", len(actions))
+			}
+			for at, id := range wanted {
+				if actions[at].ID != id {
+					t.Errorf("row %d is %q, wanted %q", at, actions[at].ID, id)
+				}
+			}
+		})
+	}
+}
+
+func TestOpenInSplitViewShowsTheTableBesideTheTabOnScreen(t *testing.T) {
+	model, connection, _ := buildTreeDumpModel(t)
+	first := connection.Active()
+	openObjectMenu(t, model, connection, present.NodeTable)
+	chooseMenuRow(t, model, connection, app.ObjectOpenInSplit)
+
+	if !model.split.open || model.split.focused != 1 {
+		t.Fatal("the menu row opened no split with the focus on the second side")
+	}
+	table := findSideTab(t, model, 1)
+	if findSideTab(t, model, 0) != first || table.Kind != app.TabTable ||
+		table.Table.Name != "orders" {
+		t.Error("the sides do not show the tab on screen and the table")
+	}
+
+	model.render()
+	pressKey(t, model, focusPaneKey)
+	pressKey(t, model, otherSideKey)
+	openObjectMenu(t, model, connection, present.NodeTable)
+	chooseMenuRow(t, model, connection, app.ObjectOpenInSplit)
+	if model.split.focused != 1 || findSideTab(t, model, 1) != table {
+		t.Error("the table did not come back to the other side")
+	}
+	if findSideTab(t, model, 0) != first {
+		t.Error("the side the menu was opened on lost its tab")
+	}
+}
+
+func TestOpenInSplitViewOfTheTableOnScreenOpensASecondTab(t *testing.T) {
+	model, connection, _ := buildTreeDumpModel(t)
+	openObjectMenu(t, model, connection, present.NodeTable)
+	chooseMenuRow(t, model, connection, app.ObjectOpen)
+	table := connection.Active()
+	if table.Kind != app.TabTable {
+		t.Fatal("Open did not open the table")
+	}
+
+	openObjectMenu(t, model, connection, present.NodeTable)
+	chooseMenuRow(t, model, connection, app.ObjectOpenInSplit)
+	second := findSideTab(t, model, 1)
+	if findSideTab(t, model, 0) != table || second == table || second.Table.Name != "orders" {
+		t.Error("the table is not on both sides in two tabs")
 	}
 }

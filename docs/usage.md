@@ -338,6 +338,8 @@ Each side shows one tab of any open connection. The keys, the explorer, the tab 
 
 `Alt+P V` moves the focus to the other side. `Tab` and `Shift+Tab` step through the explorer, the panes of the left side, and the panes of the right side. Selecting a tab or a connection that the other side shows moves the focus to that side. A new tab opens on the side with the focus.
 
+The menu of a table in the explorer (`m` or a right-click) starts with Open, Open in new tab, and Open in split view. Open in split view shows the table on the other side and moves the focus there. Where the view is not split, it opens the split with the tab on screen on the left.
+
 `Alt+Shift+V` stacks the two sides one over the other, or puts them side by side again. A terminal too narrow for two sides side by side stacks them. A terminal too small for either shows only the side with the focus.
 
 Closing the tab or the connection of a side closes the split view, and the other side fills the view. The split view is not restored on the next connect.

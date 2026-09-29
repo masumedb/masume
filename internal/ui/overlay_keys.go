@@ -1312,6 +1312,13 @@ func (model *Model) runObjectAction(
 	statement := ""
 
 	switch chosen.ID {
+	case app.ObjectOpen:
+		return model.openTreeNode(connection, row)
+	case app.ObjectOpenInNewTab:
+		return model.runTreeAction(connection,
+			Match{Action: ActionOpenInNewTab, Scope: cfg.ScopeTree})
+	case app.ObjectOpenInSplit:
+		return model.openTableBeside(connection, row.Node.Table)
 	case app.ObjectGenerateSelect:
 		statement = build.GenerateSelect(row.Node.Table.Qualified(), dialect)
 	case app.ObjectGenerateInsert:
