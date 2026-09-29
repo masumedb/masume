@@ -61,6 +61,9 @@ var HelpSections = []HelpSection{
 		Entries: []HelpEntry{
 			{Scope: cfg.ScopeGlobal, Actions: []ActionID{ActionFocusNextPane}},
 			{Scope: cfg.ScopeGlobal, Actions: []ActionID{ActionFocusPreviousPane}},
+			{Scope: cfg.ScopeGlobal, Actions: []ActionID{ActionToggleSplitView}},
+			{Scope: cfg.ScopeGlobal, Actions: []ActionID{ActionFocusOtherSide}},
+			{Scope: cfg.ScopeGlobal, Actions: []ActionID{ActionFlipSplitView}},
 		},
 	},
 	{

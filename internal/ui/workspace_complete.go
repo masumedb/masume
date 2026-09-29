@@ -152,7 +152,7 @@ func (model *Model) renderCompletionPopup(tab *app.Tab, height int) (string, int
 		limit = model.faultRow
 	}
 	roomBelow := limit - model.caretRow - 1
-	roomAbove := model.caretRow - tabRowHeight - 1
+	roomAbove := model.caretRow - model.paneTop
 	if !list.Placed {
 		list.Placed = true
 		list.Above = popupHeight > roomBelow &&

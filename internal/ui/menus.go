@@ -68,6 +68,7 @@ func (model *Model) openTabMenu(connection *app.Connection) (tea.Model, tea.Cmd)
 				ActionSaveQuery, "Save this query…", "",
 				cfg.IconFavourites, tab.Kind == app.TabQuery,
 			},
+			model.buildSplitMenuEntry(),
 			{
 				ActionReopenTab, "Reopen the last closed tab", "",
 				cfg.IconRecent, connection.HasClosedTab(),

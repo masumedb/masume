@@ -330,6 +330,18 @@ In Plan, `r` toggles the raw server plan. `y` copies the raw plan. `i` asks AI t
 
 On the next connect, masume restores each tab with its query text or notebook text, caret, sort, and server filters, and the active tab. Results, staged edits, transaction state, screen filters, column widths, and frozen columns are not restored. Restored query tabs do not run. Restored table and object tabs read their data when first shown.
 
+## Split view
+
+`Alt+V` splits the view into two sides. The tab on screen stays on the left side. The right side shows the next tab and takes the focus. A connection with one tab opens a new query tab for the right side. `Alt+V` again closes the split, and the side with the focus fills the view.
+
+Each side shows one tab of any open connection. The keys, the explorer, the tab row, and the status bar apply to the side with the focus. The tab row marks the tab of the other side, and the titles of the other side are muted. While the two sides show two connections, each side shows its connection name before its title.
+
+`Alt+P V` moves the focus to the other side. `Tab` and `Shift+Tab` step through the explorer, the panes of the left side, and the panes of the right side. Selecting a tab or a connection that the other side shows moves the focus to that side. A new tab opens on the side with the focus.
+
+`Alt+Shift+V` stacks the two sides one over the other, or puts them side by side again. A terminal too narrow for two sides side by side stacks them. A terminal too small for either shows only the side with the focus.
+
+Closing the tab or the connection of a side closes the split view, and the other side fills the view. The split view is not restored on the next connect.
+
 ## Notebooks
 
 `Alt+B` opens a notebook. `Alt+O n` lists the notebooks of the project and of the user. Opening a notebook runs no cell. See the [notebook guide](notebooks.md) for cell kinds, run policy, the file format, and `masume nb run`.
@@ -423,6 +435,8 @@ A change rewrites only the table of its row. Every line outside that table stays
 - Drag a column edge to resize the column. Double-click the edge to reset the width.
 - Drag the divider between the editor and the result to resize both panes. Either edge works: the bottom of the editor or the top of the result. Click the bottom of the editor without dragging to show or hide the result pane.
 - Drag the divider between the explorer and the panes to set the explorer width. Either edge works: the right border of the explorer or the left border of the pane. The explorer is at least 16 columns wide, and the pane beside it at least 32.
+- In a split view, click the other side to focus it. The wheel scrolls either side and leaves the focus where it is.
+- Drag the divider between the two sides of a split view to resize them. Each side keeps at least 32 columns, or 6 rows when stacked. Double-click the divider to give both sides the same size.
 - Drag a scrollbar or turn the wheel to scroll. The wheel does not move the cursor. The next cursor key scrolls back to the cursor.
 - A trackpad or a tilting wheel scrolls the grid sideways by columns, and the editor sideways by cells. `Shift` with a plain wheel does the same.
 - In the editor, click to place the caret. Double-click selects a word, and triple-click selects a line. Drag to select text.

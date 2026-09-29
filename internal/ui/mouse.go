@@ -119,6 +119,12 @@ type frameLayout struct {
 	// The rows each pane covers, so a press moves the keyboard to it.
 	editorTop, editorRows int
 	resultTop, resultRows int
+	// The columns of the panes with the focus, and the rows of the explorer.
+	paneFrom, paneTo int
+	bodyRows         int
+	// The side of the split view without the focus, and the divider between the sides.
+	aside   blockRect
+	divider sideDivider
 
 	// Where the text of the statement is drawn, and which part of it is on show, so a press
 	// of the pointer can be read as an offset in the buffer.
@@ -333,6 +339,7 @@ func (model *Model) readPress(press tea.MouseClickMsg) (tea.Model, tea.Cmd) {
 	default:
 		return model, nil
 	}
+	model.pressAside(mouse)
 
 	// A press with the left button begins a drag, and lets the last selection go. The
 	// press itself still acts, because a drag of one cell is a press.
@@ -623,6 +630,8 @@ func (model *Model) readMouseMotion(moved tea.MouseMotionMsg) (tea.Model, tea.Cm
 			return model.dragSplit(mouse)
 		case dragTreeEdge:
 			return model.dragTreeEdge(mouse)
+		case dragSideDivider:
+			return model.dragSideDivider(mouse)
 		case dragScrollbar:
 			return model.dragScrollbar(mouse)
 		case dragEditorText:
@@ -690,6 +699,11 @@ func (model *Model) readMouseRelease(released tea.MouseReleaseMsg) (tea.Model, t
 // rollWheel moves the rows the view under the pointer shows. The cursor stays where it is,
 // so it may scroll off screen.
 func (model *Model) rollWheel(mouse tea.Mouse, step int) (tea.Model, tea.Cmd) {
+	if command, rolled := model.rollAside(mouse, func(held tea.Mouse) (tea.Model, tea.Cmd) {
+		return model.rollWheel(held, step)
+	}); rolled {
+		return model, command
+	}
 	connection := model.Active()
 	if model.screen != ScreenWorking || connection == nil {
 		return model, nil
@@ -793,6 +807,9 @@ func (model *Model) pressWorkspace(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 	if mouse.Y == model.layout.tabRow {
 		return model.pressTabRow(connection, mouse)
 	}
+	if model.pressSideDivider(mouse) {
+		return model, nil
+	}
 	if model.pressPaneBorder(mouse) {
 		return model, nil
 	}
@@ -860,7 +877,7 @@ func (model *Model) pressPaneBorder(mouse tea.Mouse) bool {
 // under the pointer. The divider is two rows: the editor foot and the result head.
 func (model *Model) findSplitLine(x, y int) (int, app.Pane, bool) {
 	layout := model.layout
-	if layout.editorRows < 1 || x < model.editorLeft {
+	if layout.editorRows < 1 || x < layout.paneFrom || x > layout.paneTo {
 		return 0, "", false
 	}
 	if y == layout.editorTop+layout.editorRows-1 {
@@ -876,14 +893,13 @@ func (model *Model) findSplitLine(x, y int) (int, app.Pane, bool) {
 // pointer. The divider is two columns: the tree border and the pane border.
 func (model *Model) findTreeEdge(x, y int) (int, app.Pane, bool) {
 	layout := model.layout
-	if layout.treeTo < layout.treeFrom ||
-		y < firstPaneRow || y >= firstPaneRow+layout.editorRows+layout.resultRows {
+	if layout.treeTo < layout.treeFrom || y < firstPaneRow || y >= firstPaneRow+layout.bodyRows {
 		return 0, "", false
 	}
 	switch {
 	case x == layout.treeTo:
 		return 0, app.PaneSidebar, true
-	case x == layout.treeTo+1 && y < firstPaneRow+layout.editorRows:
+	case x == layout.treeTo+1 && y < layout.editorTop+layout.editorRows:
 		return 1, app.PaneEditor, true
 	case x == layout.treeTo+1:
 		return 1, app.PaneResult, true
@@ -1281,6 +1297,11 @@ func (model *Model) resolveEditorOffset(tab *app.Tab, x, y int) (int, bool) {
 // cells of its lines, and the grid along its columns. The cursor stays where it is, so it may
 // scroll off screen.
 func (model *Model) rollWheelSideways(mouse tea.Mouse, step int) (tea.Model, tea.Cmd) {
+	if command, rolled := model.rollAside(mouse, func(held tea.Mouse) (tea.Model, tea.Cmd) {
+		return model.rollWheelSideways(held, step)
+	}); rolled {
+		return model, command
+	}
 	connection := model.Active()
 	if model.screen != ScreenWorking || connection == nil || connection.Overlay.IsOpen() {
 		return model, nil

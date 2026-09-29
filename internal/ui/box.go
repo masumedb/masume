@@ -39,6 +39,8 @@ type BoxOptions struct {
 	BottomNote string
 	// True while the user is in this pane, which colours the frame.
 	Focused bool
+	// True for a box on the side of the split view without the focus. Its titles are muted.
+	Faded bool
 	// True for a box that asks about something that cannot be undone.
 	Destructive bool
 	// The lines of the body, already styled and already cut to the inner width.
@@ -90,9 +92,13 @@ func (styles *Styles) RenderBoxRows(options BoxOptions) []string {
 	side := paintText(frame, ground, borderVertical)
 	opening := resolveOpening(nil, ground)
 
+	titleInk := styles.Theme.Accent
+	if options.Faded {
+		titleInk = styles.Theme.Muted
+	}
 	lines := make([]string, 0, options.Height)
-	lines = append(lines, styles.renderBorderRow(
-		cornerTopLeft, cornerTopRight, options.Title, options.Note, inner, frame, ground))
+	lines = append(lines, styles.renderTitledBorderRow(cornerTopLeft, cornerTopRight,
+		options.Title, options.Note, inner, frame, ground, titleInk))
 
 	rows := options.innerHeight()
 	var written strings.Builder
@@ -113,9 +119,9 @@ func (styles *Styles) RenderBoxRows(options BoxOptions) []string {
 		lines = append(lines, written.String())
 	}
 
-	lines = append(lines, styles.renderBorderRow(
+	lines = append(lines, styles.renderTitledBorderRow(
 		cornerBottomLeft, cornerBottomRight, options.BottomTitle, options.BottomNote,
-		inner, frame, ground))
+		inner, frame, ground, titleInk))
 	return lines
 }
 
@@ -128,6 +134,14 @@ func measureBorderNoteLeft(width, noteWidth int) int {
 // renderBorderRow draws one border row, with a title written into it where there is one.
 func (styles *Styles) renderBorderRow(
 	left, right, title, note string, inner int, frame, ground color.Color,
+) string {
+	return styles.renderTitledBorderRow(
+		left, right, title, note, inner, frame, ground, styles.Theme.Accent)
+}
+
+// renderTitledBorderRow draws one border row with the title in that ink.
+func (styles *Styles) renderTitledBorderRow(
+	left, right, title, note string, inner int, frame, ground, titleInk color.Color,
 ) string {
 	if title == "" && note == "" {
 		return paintText(frame, ground, left+strings.Repeat(borderHorizontal, inner)+right)
@@ -151,7 +165,7 @@ func (styles *Styles) renderBorderRow(
 	}
 
 	drawn := paintText(frame, ground, left+borderHorizontal) +
-		paintText(styles.Theme.Accent, ground, written) +
+		paintText(titleInk, ground, written) +
 		paintText(frame, ground, strings.Repeat(borderHorizontal, tail))
 	if noteWidth > 0 {
 		drawn += note + paintText(frame, ground, borderHorizontal)

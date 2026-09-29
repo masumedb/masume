@@ -43,9 +43,9 @@ func (model *Model) renderResultPane(
 	theme := model.styles.Theme
 	// A prompt drawn at the foot of this pane leaves the pane looking as it did, because the
 	// reader is still working in it.
-	prompt, asking := findPromptBar(
+	prompt, asking := model.findPanePrompt(
 		connection, app.PromptSearch, app.PromptWhere, app.PromptGoToColumn)
-	focused := tab.Focus == app.PaneResult && (asking || !connection.Overlay.IsOpen())
+	focused := model.holdsFocus(tab, app.PaneResult) && (asking || !connection.Overlay.IsOpen())
 	inner := width - 2
 	body := max(height-2, 1)
 
@@ -135,8 +135,8 @@ func (model *Model) renderResultPane(
 	lines = append(lines, promptRows...)
 
 	return model.styles.RenderBoxRows(BoxOptions{
-		Width: width, Height: height, Focused: focused,
-		Title: model.describeResultTitle(connection, tab, drawn),
+		Width: width, Height: height, Focused: focused, Faded: model.drawingAside,
+		Title: model.labelResultTitle(tab, model.describeResultTitle(connection, tab, drawn)),
 		Lines: lines, Ground: theme.Panel,
 	})
 }
@@ -644,7 +644,7 @@ func (model *Model) renderGridHeader(
 ) string {
 	theme := model.styles.Theme
 	ground := theme.Header
-	focused := tab.Focus == app.PaneResult
+	focused := model.holdsFocus(tab, app.PaneResult)
 
 	// Every name lays its own ground, so the header needs no second pass to ground it, and
 	// the cells it covers are counted as they are written rather than measured again.
@@ -776,7 +776,7 @@ func (model *Model) renderGridRow(
 ) string {
 	theme := model.styles.Theme
 	rowIndex := shape.RowIndexes[at]
-	focused := tab.Focus == app.PaneResult
+	focused := model.holdsFocus(tab, app.PaneResult)
 	onCursor := at == tab.GridRow
 	deleted := tab.Pending.DeletedRows[rowIndex]
 

@@ -449,6 +449,16 @@ func (connection *Connection) HasClosedTab() bool {
 	return len(connection.closed) > 0
 }
 
+// WasClosed is true for a tab of that id among the tabs that can be opened again.
+func (connection *Connection) WasClosed(id int) bool {
+	for _, tab := range connection.closed {
+		if tab.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
 // ReopenTab opens the tab closed last, with the statement it held.
 func (connection *Connection) ReopenTab() bool {
 	if len(connection.closed) == 0 {

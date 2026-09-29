@@ -206,6 +206,9 @@ func (model *Model) resolveWorkspaceHover(x, y int) hoverTarget {
 	if y == layout.tabRow {
 		return resolveTabHover(layout.tabs, connection.ActiveIndex, x, y)
 	}
+	if _, onDivider := layout.divider.holds(x, y); onDivider || model.isOnAside(x, y) {
+		return hoverTarget{}
+	}
 	if _, _, onLine := model.findSplitLine(x, y); onLine {
 		return hoverTarget{}
 	}

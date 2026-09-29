@@ -58,27 +58,6 @@ func (model *Model) renderWorkspace(height int) []string {
 	}
 	tab := connection.Active()
 
-	treeWidth := 0
-	// A builder tab takes the whole width: its own picker lists the tables, so the tree
-	// has nothing to add beside it. The keyboard follows, or it would stand in a pane
-	// that is not drawn.
-	if tab.BuildsQuery() && tab.Focus == app.PaneSidebar {
-		tab.Focus = app.PaneEditor
-	}
-	if connection.SidebarVisible && !tab.BuildsQuery() {
-		wanted := min(max(model.width*sidebarShare/100, sidebarWidthFloor), sidebarWidthCeiling)
-		if connection.SidebarWidth > 0 {
-			wanted = connection.SidebarWidth
-		}
-		treeWidth = present.PlanSidebarWidth(model.width, wanted)
-		// A terminal too narrow for the tree and a readable pane drops the tree, because a
-		// pane held at its floor next to the tree draws wider than the frame.
-		if model.width-treeWidth < narrowestPaneWidth {
-			treeWidth = 0
-		}
-	}
-	paneWidth := max(model.width-treeWidth, narrowestPaneWidth)
-
 	// A prompt that names the tab opens a field under the panes, in place of two of their
 	// rows.
 	naming := []string{}
@@ -87,20 +66,38 @@ func (model *Model) renderWorkspace(height int) []string {
 	}
 
 	paneHeight := max(height-tabRowHeight-len(naming), minPaneHeight)
+	arrangement := model.resolveSideArrangement(paneHeight)
+	panesAcross := 1
+	if arrangement == arrangeAcross {
+		panesAcross = 2
+	}
 
-	// The editor and the result share the height. The editor keeps a third of it, and takes
-	// the whole pane while the result is hidden.
-	editorHeight, resultHeight := model.planPaneHeights(connection, tab, paneHeight)
+	treeWidth := 0
+	// A builder tab takes the whole width: its own picker lists the tables, so the tree
+	// has nothing to add beside it. The keyboard follows, or it would stand in a pane
+	// that is not drawn.
+	holdsTree := !tab.BuildsQuery() || arrangement != arrangeSingle
+	if !holdsTree && tab.Focus == app.PaneSidebar {
+		tab.Focus = app.PaneEditor
+	}
+	if connection.SidebarVisible && holdsTree {
+		wanted := min(max(model.width*sidebarShare/100, sidebarWidthFloor), sidebarWidthCeiling)
+		if connection.SidebarWidth > 0 {
+			wanted = connection.SidebarWidth
+		}
+		treeWidth = present.PlanSidebarWidth(model.width, wanted)
+		// A terminal too narrow for the tree and a readable pane drops the tree, because a
+		// pane held at its floor next to the tree draws wider than the frame.
+		if model.width-treeWidth < narrowestPaneWidth*panesAcross {
+			treeWidth = 0
+		}
+	}
+	paneWidth := max(model.width-treeWidth, narrowestPaneWidth*panesAcross)
 
 	// Where each part is drawn, so a press of a button can be read as a press on a row,
 	// a cell or a tab. The tab row is the first row under the title bar.
-	model.layout = frameLayout{tabRow: tabRowIndex, treeFrom: 0, treeTo: treeWidth - 1}
-	if editorHeight > 0 {
-		model.layout.editorTop, model.layout.editorRows = firstPaneRow, editorHeight
-	}
-	if resultHeight > 0 {
-		model.layout.resultTop = firstPaneRow + editorHeight
-		model.layout.resultRows = resultHeight
+	model.layout = frameLayout{
+		tabRow: tabRowIndex, treeFrom: 0, treeTo: treeWidth - 1, bodyRows: paneHeight,
 	}
 
 	// The inside of each pane is a block of its own, so a drag that began in one never
@@ -111,41 +108,31 @@ func (model *Model) renderWorkspace(height int) []string {
 			fromY: firstPaneRow + 1, toY: firstPaneRow + paneHeight - 2,
 		})
 	}
-	if editorHeight > 0 {
-		model.layout.selectionBlocks = append(model.layout.selectionBlocks, blockRect{
-			fromX: treeWidth + 1, toX: treeWidth + paneWidth - 2,
-			fromY: firstPaneRow + 1, toY: firstPaneRow + editorHeight - 2,
-		})
-	}
-	if resultHeight > 0 {
-		model.layout.selectionBlocks = append(model.layout.selectionBlocks, blockRect{
-			fromX: treeWidth + 1, toX: treeWidth + paneWidth - 2,
-			fromY: firstPaneRow + editorHeight + 1,
-			toY:   firstPaneRow + editorHeight + resultHeight - 2,
-		})
-	}
 
-	// The pane opens where the tree ends, which the editor needs before it draws: the cell
-	// of the caret is read from it, and so is the offset a press of the pointer lands on.
-	model.editorLeft = treeWidth
-
-	right := make([]string, 0, editorHeight+resultHeight)
-	if editorHeight > 0 {
-		switch {
-		case tab.BuildsQuery():
-			right = append(right,
-				model.renderBuilder(connection, tab, paneWidth, editorHeight)...)
-		case tab.ListsCells():
-			right = append(right,
-				model.renderNotebook(connection, tab, paneWidth, editorHeight)...)
-		default:
-			right = append(right,
-				model.renderEditor(connection, tab, paneWidth, editorHeight)...)
+	sides := model.planSides(arrangement, treeWidth, firstPaneRow, paneWidth, paneHeight)
+	focusedRect := sides[0]
+	rows := [2][]string{}
+	labels := [2]string{}
+	if arrangement != arrangeSingle {
+		labels = model.labelSides()
+		aside := model.split.resolveAside()
+		model.sideLabel = labels[aside]
+		rows[aside] = model.renderAside(sides[aside])
+		model.layout.aside = blockRect{
+			fromX: sides[aside].left, toX: sides[aside].left + sides[aside].width - 1,
+			fromY: sides[aside].top, toY: sides[aside].top + sides[aside].height - 1,
 		}
+		model.layout.divider = buildSideDivider(arrangement, sides)
+		focusedRect = sides[model.split.focused]
 	}
-	if resultHeight > 0 {
-		right = append(right,
-			model.renderResultPane(connection, tab, paneWidth, resultHeight)...)
+	model.sideLabel = labels[model.split.focused]
+	focusedRows := model.renderSide(connection, tab, focusedRect)
+	model.sideLabel = ""
+
+	right := focusedRows
+	if arrangement != arrangeSingle {
+		rows[model.split.focused] = focusedRows
+		right = model.joinSides(arrangement, sides, rows[0], rows[1])
 	}
 
 	middle := right
@@ -168,6 +155,58 @@ func (model *Model) renderWorkspace(height int) []string {
 		return placeOver(frame, popup, left, top, model.styles.Theme.Background)
 	}
 	return frame
+}
+
+// renderSide draws the editor and the result of one tab in the cells of one side, and records
+// where they were drawn.
+func (model *Model) renderSide(connection *app.Connection, tab *app.Tab, rect sideRect) []string {
+	// The editor and the result share the height. The editor keeps a third of it, and takes
+	// the whole pane while the result is hidden.
+	editorHeight, resultHeight := model.planPaneHeights(connection, tab, rect.height)
+
+	model.layout.editorTop, model.layout.editorRows = 0, 0
+	model.layout.resultTop, model.layout.resultRows = 0, 0
+	model.layout.paneFrom, model.layout.paneTo = rect.left, rect.left+rect.width-1
+	if editorHeight > 0 {
+		model.layout.editorTop, model.layout.editorRows = rect.top, editorHeight
+		model.layout.selectionBlocks = append(model.layout.selectionBlocks, blockRect{
+			fromX: rect.left + 1, toX: rect.left + rect.width - 2,
+			fromY: rect.top + 1, toY: rect.top + editorHeight - 2,
+		})
+	}
+	if resultHeight > 0 {
+		model.layout.resultTop = rect.top + editorHeight
+		model.layout.resultRows = resultHeight
+		model.layout.selectionBlocks = append(model.layout.selectionBlocks, blockRect{
+			fromX: rect.left + 1, toX: rect.left + rect.width - 2,
+			fromY: rect.top + editorHeight + 1,
+			toY:   rect.top + editorHeight + resultHeight - 2,
+		})
+	}
+
+	// The pane opens where the tree ends, which the editor needs before it draws: the cell
+	// of the caret is read from it, and so is the offset a press of the pointer lands on.
+	model.editorLeft, model.paneTop = rect.left, rect.top
+
+	drawn := make([]string, 0, editorHeight+resultHeight)
+	if editorHeight > 0 {
+		switch {
+		case tab.BuildsQuery():
+			drawn = append(drawn,
+				model.renderBuilder(connection, tab, rect.width, editorHeight)...)
+		case tab.ListsCells():
+			drawn = append(drawn,
+				model.renderNotebook(connection, tab, rect.width, editorHeight)...)
+		default:
+			drawn = append(drawn,
+				model.renderEditor(connection, tab, rect.width, editorHeight)...)
+		}
+	}
+	if resultHeight > 0 {
+		drawn = append(drawn,
+			model.renderResultPane(connection, tab, rect.width, resultHeight)...)
+	}
+	return drawn
 }
 
 // firstPaneRow is the screen row the panes start on: the title bar takes the first, and the
@@ -257,14 +296,15 @@ func (model *Model) renderTabRow(connection *app.Connection, active *app.Tab) st
 		at += measureStyledWidth(mark)
 	}
 
+	asideTab, hasAside := model.findAsideTab(connection)
 	hits := []tabHit{}
 	for offset := 0; offset < window.Count; offset++ {
 		index := window.Start + offset
 		if index >= len(connection.Tabs) {
 			break
 		}
-		drawn := model.renderTab(
-			connection.Tabs[index], index, index == connection.ActiveIndex, closable)
+		drawn := model.renderTab(connection.Tabs[index], index,
+			resolveTabMark(connection, index, asideTab, hasAside), closable)
 		written = append(written, drawn)
 		// The close mark is the two cells before the padding and the gap, so a press on
 		// it closes the tab rather than opening it.
@@ -351,18 +391,42 @@ func resolveTabIcon(tab *app.Tab) cfg.IconKind {
 	return cfg.IconQuery
 }
 
+// tabMark is the style of a tab in the row: the tab with the focus, the tab on the other side
+// of the split view, or a plain tab.
+type tabMark int
+
+const (
+	tabPlain tabMark = iota
+	tabActive
+	tabAside
+)
+
+// resolveTabMark returns the style of the tab at that position.
+func resolveTabMark(connection *app.Connection, index, asideTab int, hasAside bool) tabMark {
+	switch {
+	case index == connection.ActiveIndex:
+		return tabActive
+	case hasAside && connection.Tabs[index].ID == asideTab:
+		return tabAside
+	}
+	return tabPlain
+}
+
 // renderTab draws one tab of the row.
-func (model *Model) renderTab(tab *app.Tab, index int, active, closable bool) string {
+func (model *Model) renderTab(tab *app.Tab, index int, drawnAs tabMark, closable bool) string {
 	theme := model.styles.Theme
 	ground := theme.Header
-	if active {
+	switch drawnAs {
+	case tabActive:
 		ground = theme.Accent
+	case tabAside:
+		ground = theme.Selection
 	}
 
 	icon := resolveTabIcon(tab)
 	numberInk, iconInk := theme.Muted, model.styles.IconColor(icon)
 	labelInk, stagedInk := theme.Text, theme.Warning
-	if active {
+	if drawnAs == tabActive {
 		numberInk, iconInk, labelInk, stagedInk =
 			theme.OnAccent, theme.OnAccent, theme.OnAccent, theme.OnAccent
 	}
@@ -784,8 +848,8 @@ func (model *Model) renderEditor(
 	theme := model.styles.Theme
 	// The field of a search opens at the foot of this pane, and the pane keeps the look of
 	// a pane the reader is working in while it stands there.
-	prompt, asking := findPromptBar(connection, app.PromptFind, app.PromptReplace)
-	focused := tab.Focus == app.PaneEditor && (asking || !connection.Overlay.IsOpen())
+	prompt, asking := model.findPanePrompt(connection, app.PromptFind, app.PromptReplace)
+	focused := model.holdsFocus(tab, app.PaneEditor) && (asking || !connection.Overlay.IsOpen())
 	inner := width - 2
 	body := max(height-2, 1)
 
@@ -839,13 +903,13 @@ func (model *Model) renderEditor(
 	tab.EditorColumnOffset = columnOffset
 
 	// The cell of the caret on the screen, which the completion popup is placed from.
-	model.caretRow = tabRowHeight + 1 + (caretLine - offset)
+	model.caretRow = model.paneTop + (caretLine - offset)
 	model.caretColumn = model.editorLeft + 1 + gutterWidth + caretCell - columnOffset
 
 	// Where the text of the statement is drawn, so a press of the pointer can be read as an
 	// offset in the buffer.
 	model.layout.editorTextLeft = model.editorLeft + 1 + gutterWidth
-	model.layout.editorTextTop = firstPaneRow + 1
+	model.layout.editorTextTop = model.paneTop + 1
 	model.layout.editorTextWidth = textWidth
 	model.layout.editorTextRows = body
 	model.layout.editorFirstLine = offset
@@ -917,15 +981,15 @@ func (model *Model) renderEditor(
 	}
 	model.faultRow = 0
 	if drawsFaultRow {
-		model.faultRow = tabRowHeight + 1 + len(written)
+		model.faultRow = model.paneTop + len(written)
 		written = append(written, model.renderFaultRow(shown, faults, tab, inner,
-			firstPaneRow+1+len(written)))
+			model.paneTop+1+len(written)))
 	}
 	written = append(written, promptRows...)
 
 	return model.styles.RenderBoxRows(BoxOptions{
-		Width: width, Height: height, Focused: focused,
-		Title:       model.describeEditorTitle(tab, len(faults)),
+		Width: width, Height: height, Focused: focused, Faded: model.drawingAside,
+		Title:       model.labelSideTitle(model.describeEditorTitle(tab, len(faults))),
 		Note:        model.renderEditorAiKey(connection, tab, hasFault, width),
 		BottomTitle: model.describeEditorBorder(connection),
 		BottomNote: model.styles.Muted().Background(theme.Panel).
@@ -953,7 +1017,7 @@ func (model *Model) renderEditorAiKey(
 	blank := paintOn(ground, " ")
 	left := model.editorLeft +
 		measureBorderNoteLeft(width, measureKeyLine(keys)+2) + 1
-	return blank + model.writeKeyLine(keys, ground, firstPaneRow, left) + blank
+	return blank + model.writeKeyLine(keys, ground, model.paneTop, left) + blank
 }
 
 // buildEditorAiKey returns the one key the editor gives the model now.

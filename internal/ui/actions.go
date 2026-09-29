@@ -136,6 +136,9 @@ const (
 	ActionShowActivity        ActionID = "show-activity"
 	ActionUndoWrite           ActionID = "undo-write"
 	ActionShowThemes          ActionID = "show-themes"
+	ActionToggleSplitView     ActionID = "toggle-split-view"
+	ActionFocusOtherSide      ActionID = "focus-other-side"
+	ActionFlipSplitView       ActionID = "flip-split-view"
 
 	ActionNewNotebookTab      ActionID = "new-notebook-tab"
 	ActionShowNotebooks       ActionID = "show-notebooks"
@@ -334,6 +337,9 @@ var globalActions = []ActionDefinition{
 	{ID: ActionNewQueryTab, Label: "new query tab", WhileRunning: true},
 	{ID: ActionToggleSidebar, Label: "show or hide the explorer", WhileRunning: true, MainHint: true},
 	{ID: ActionToggleResult, Label: "show or hide the result", WhileRunning: true},
+	{ID: ActionToggleSplitView, Label: "split view", WhileRunning: true},
+	{ID: ActionFocusOtherSide, Label: "focus the other side of the split", WhileRunning: true},
+	{ID: ActionFlipSplitView, Label: "split view layout", WhileRunning: true},
 	{ID: ActionRevealSQL, Label: "edit the query for this result", WhileRunning: true, MainHint: true},
 	{ID: ActionNameTab, Label: "name this tab", WhileRunning: true},
 	{ID: ActionCloseTab, Label: "close the tab", WhileRunning: true},

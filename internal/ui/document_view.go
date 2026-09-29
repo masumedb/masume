@@ -59,7 +59,7 @@ func (model *Model) renderDocumentTree(
 		top: model.layout.detailTop, count: len(nodes), offset: tab.TreeRowOffset,
 		from: model.editorLeft + 1, to: model.editorLeft + width,
 	}
-	focused := tab.Focus == app.PaneResult && !connection.Overlay.IsOpen()
+	focused := model.holdsFocus(tab, app.PaneResult) && !connection.Overlay.IsOpen()
 	// The gutter is as wide as the number of the last document.
 	documents := int64(len(model.buildGridShape(connection, tab).Rows))
 	gutterWidth := max(documentGutterWidth,

@@ -140,7 +140,7 @@ The explorer lists the database objects. Table views show data, columns, indexes
 
 The editor has syntax highlighting and completion from the database catalog. Local checks, and server checks where the engine supports them, mark errors before execution. A statement with `:name` placeholders opens a form for the values. Query plans are drawn as a tree with estimated or measured costs.
 
-A query builder tab writes a select from tables, joins, and filters. Query history and saved queries keep the statements. MongoDB takes a [subset of shell syntax](docs/engines.md#mongodb), Redis takes [commands, one per line](docs/engines.md#redis), and Cassandra takes [CQL with the keyspace as the schema](docs/engines.md#cassandra).
+A query builder tab writes a select from tables, joins, and filters. A [split view](docs/usage.md#split-view) shows two tabs side by side, from one connection or from two. Query history and saved queries keep the statements. MongoDB takes a [subset of shell syntax](docs/engines.md#mongodb), Redis takes [commands, one per line](docs/engines.md#redis), and Cassandra takes [CQL with the keyspace as the schema](docs/engines.md#cassandra).
 
 ![The SQL editor with the completion menu open](vhs/shots/08-completion.png)
 

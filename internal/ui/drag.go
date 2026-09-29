@@ -11,6 +11,7 @@ const (
 	dragSplitLine
 	dragColumnEdge
 	dragTreeEdge
+	dragSideDivider
 )
 
 type pointerDrag struct {
@@ -52,6 +53,10 @@ func (drag *pointerDrag) takeSplitLine(grab int, pane app.Pane) {
 
 func (drag *pointerDrag) takeTreeEdge(grab int, pane app.Pane) {
 	*drag = pointerDrag{kind: dragTreeEdge, lineGrab: grab, pane: pane}
+}
+
+func (drag *pointerDrag) takeSideDivider(grab int) {
+	*drag = pointerDrag{kind: dragSideDivider, lineGrab: grab}
 }
 
 func (drag *pointerDrag) takeColumnEdge(column, width, from int) {

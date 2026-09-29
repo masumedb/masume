@@ -274,6 +274,25 @@ func (model *Model) runGlobalAction(
 			}
 		}
 
+	case ActionToggleSplitView:
+		if model.split.open {
+			model.split.open = false
+		} else {
+			model.openSplitView(connection)
+		}
+	case ActionFocusOtherSide:
+		if !model.split.open {
+			connection.Show("no split view")
+			return model, nil
+		}
+		model.focusSide(model.split.resolveAside())
+	case ActionFlipSplitView:
+		if !model.split.open {
+			connection.Show("no split view")
+			return model, nil
+		}
+		model.split.stacked = !model.split.stacked
+
 	case ActionNewQueryTab:
 		// A new query tab opens with the caret in the editor.
 		connection.OpenQueryTab("").Focus = app.PaneEditor
@@ -423,6 +442,9 @@ func (model *Model) applySuggestion(
 
 // stepPane moves the caret to the next pane that is drawn.
 func (model *Model) stepPane(connection *app.Connection, tab *app.Tab, step int) {
+	if model.stepSidePane(connection, tab, step) {
+		return
+	}
 	order := []app.Pane{}
 	if connection.SidebarVisible && !tab.BuildsQuery() {
 		order = append(order, app.PaneSidebar)

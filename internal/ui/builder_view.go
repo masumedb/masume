@@ -43,8 +43,8 @@ func (model *Model) renderBuilder(
 ) []string {
 	theme := model.styles.Theme
 	builder := tab.Builder
-	prompt, asking := findPromptBar(connection, app.PromptBuilderFilter)
-	focused := tab.Focus == app.PaneEditor && (asking || !connection.Overlay.IsOpen())
+	prompt, asking := model.findPanePrompt(connection, app.PromptBuilderFilter)
+	focused := model.holdsFocus(tab, app.PaneEditor) && (asking || !connection.Overlay.IsOpen())
 	inner := width - 2
 	body := max(height-2, 1)
 
@@ -77,12 +77,12 @@ func (model *Model) renderBuilder(
 			builder.Offset = held
 			return nil
 		},
-	}, firstPaneRow+1, model.editorLeft+1, inner, theme.Panel)
+	}, model.paneTop+1, model.editorLeft+1, inner, theme.Panel)
 	written = append(written, promptRows...)
 
 	return model.styles.RenderBoxRows(BoxOptions{
-		Width: width, Height: height, Focused: focused,
-		Title:       " builder ",
+		Width: width, Height: height, Focused: focused, Faded: model.drawingAside,
+		Title:       model.labelSideTitle(" builder "),
 		Note:        model.describeBuilderNote(builder, inner),
 		BottomTitle: model.describeBuilderBorder(builder),
 		Lines:       written, Ground: theme.Panel,
@@ -116,7 +116,7 @@ func (model *Model) describeBuilderBorder(builder *app.Builder) string {
 func (model *Model) recordBuilderRows(rows []builderRow, offset, drawn, width int) {
 	model.builderRows = rows
 	model.layout.builderRows = rowsHit{
-		top: firstPaneRow + 1, count: drawn, offset: offset,
+		top: model.paneTop + 1, count: drawn, offset: offset,
 		from: model.editorLeft + 1, to: model.editorLeft + width - 2,
 	}
 }

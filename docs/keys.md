@@ -182,8 +182,10 @@ See [editing SQL](usage.md#editing-sql) for search, replacement, completion, and
 | `explain-analyze` | `ctrl+y` |
 | `export-csv` | `ctrl+s` |
 | `export-json` | `ctrl+g` |
+| `flip-split-view` | `alt+shift+v` |
 | `focus-editor` | `alt+p e` |
 | `focus-next-pane` | `tab` |
+| `focus-other-side` | `alt+p v` |
 | `focus-previous-pane` | `shift+tab` |
 | `focus-result` | `alt+p r` |
 | `focus-sidebar` | `alt+p s` |
@@ -223,6 +225,7 @@ See [editing SQL](usage.md#editing-sql) for search, replacement, completion, and
 | `toggle-autocommit` | `ctrl+o` |
 | `toggle-result` | `alt+d` |
 | `toggle-sidebar` | `alt+s` |
+| `toggle-split-view` | `alt+v` |
 | `undo-write` | `alt+u` |
 
 ## Grid

@@ -116,6 +116,14 @@ type Model struct {
 	caretRow    int
 	caretColumn int
 	editorLeft  int
+	// The first row of the pane being drawn.
+	paneTop int
+	// The split view.
+	split splitView
+	// True while the side of the split view without the focus is drawn.
+	drawingAside bool
+	// The connection name before the titles of the side being drawn, or empty.
+	sideLabel string
 	// The frame row of the fault row under the statement, and 0 while the editor draws none.
 	faultRow int
 
@@ -321,6 +329,16 @@ func (model *Model) findConnection(id int) (*app.Connection, int, bool) {
 
 // Update reads one message and returns the work it asks for.
 func (model *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
+	next, command := model.readMessage(message)
+	model.settleSplitView()
+	if read := model.readShownSides(); read != nil {
+		command = tea.Batch(command, read)
+	}
+	return next, command
+}
+
+// readMessage reads one message and returns the work it asks for.
+func (model *Model) readMessage(message tea.Msg) (tea.Model, tea.Cmd) {
 	// Only a move of the pointer that changes nothing holds the frame, and it says so
 	// itself, so every other message draws again.
 	model.frame.held = false

@@ -50,8 +50,8 @@ func (model *Model) renderNotebook(
 ) []string {
 	theme := model.styles.Theme
 	book := tab.Notebook
-	prompt, asking := findPromptBar(connection, app.PromptCellName)
-	focused := tab.Focus == app.PaneEditor && (asking || !connection.Overlay.IsOpen())
+	prompt, asking := model.findPanePrompt(connection, app.PromptCellName)
+	focused := model.holdsFocus(tab, app.PaneEditor) && (asking || !connection.Overlay.IsOpen())
 	inner := width - 2
 	body := max(height-2, 1)
 
@@ -86,12 +86,12 @@ func (model *Model) renderNotebook(
 			book.Offset, book.Rolled = held, true
 			return nil
 		},
-	}, firstPaneRow+1, model.editorLeft+1, inner, theme.Panel)
+	}, model.paneTop+1, model.editorLeft+1, inner, theme.Panel)
 	written = append(written, promptRows...)
 
 	return model.styles.RenderBoxRows(BoxOptions{
-		Width: width, Height: height, Focused: focused,
-		Title:       model.describeNotebookTitle(connection, tab),
+		Width: width, Height: height, Focused: focused, Faded: model.drawingAside,
+		Title:       model.labelSideTitle(model.describeNotebookTitle(connection, tab)),
 		Note:        model.describeNotebookNote(connection, tab, inner),
 		BottomTitle: model.describeNotebookBorder(book),
 		BottomNote: model.styles.Muted().Background(theme.Panel).
@@ -109,7 +109,7 @@ func (model *Model) recordCellRows(rows []notebookRow, offset, drawn, width int)
 	}
 	model.cellsOfRows = cells
 	model.layout.cellRows = rowsHit{
-		top: firstPaneRow + 1, count: drawn, offset: offset,
+		top: model.paneTop + 1, count: drawn, offset: offset,
 		from: model.editorLeft + 1, to: model.editorLeft + width - 2,
 	}
 }

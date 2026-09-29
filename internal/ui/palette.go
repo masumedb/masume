@@ -129,6 +129,12 @@ var paletteEntries = []paletteEntry{
 		state: describeSidebarState},
 	{id: "toggle-result", group: groupLayout,
 		scope: cfg.ScopeGlobal, action: ActionToggleResult, state: describeResultState},
+	{id: "toggle-split-view", group: groupLayout, scope: cfg.ScopeGlobal,
+		action: ActionToggleSplitView, state: describeSplitState},
+	{id: "focus-other-side", group: groupLayout, scope: cfg.ScopeGlobal,
+		action: ActionFocusOtherSide, when: splitsView},
+	{id: "flip-split-view", group: groupLayout, scope: cfg.ScopeGlobal,
+		action: ActionFlipSplitView, when: splitsView, state: describeSplitArrangement},
 	{id: "focus-sidebar", group: groupLayout, scope: cfg.ScopeGlobal, action: ActionFocusSidebar},
 	{id: "focus-editor", group: groupLayout, scope: cfg.ScopeGlobal, action: ActionFocusEditor, when: showsEditor},
 	{id: "focus-result", group: groupLayout, scope: cfg.ScopeGlobal, action: ActionFocusResult},
@@ -319,6 +325,20 @@ func describeSidebarState(scene keyScene) string {
 
 func describeResultState(scene keyScene) string {
 	return describeShown(scene.connection.ResultVisible)
+}
+
+func describeSplitState(scene keyScene) string {
+	if splitsView(scene) {
+		return "on"
+	}
+	return "off"
+}
+
+func describeSplitArrangement(scene keyScene) string {
+	if scene.model.split.stacked {
+		return "stacked"
+	}
+	return "side by side"
 }
 
 func describeAutocommitState(scene keyScene) string {

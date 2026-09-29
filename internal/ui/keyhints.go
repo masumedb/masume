@@ -535,6 +535,7 @@ var (
 		keyOf(cfg.ScopeGlobal, ActionActivateTab, "go").onlyWhen(showsManyTabs),
 		keyOf(cfg.ScopeGlobal, ActionNameTab, "name").onlyWhen(namesTab),
 		keyOf(cfg.ScopeGlobal, ActionCloseTab, "close").onlyWhen(showsManyTabs),
+		keyOf(cfg.ScopeGlobal, ActionToggleSplitView, "split").withLabel(describeSplitKey),
 	}
 	statementStripKeySpecs = []keySpec{
 		readoutOf(readSceneText),
@@ -824,6 +825,17 @@ func describeSettingsClose(scene keyScene) string {
 func leavesSettingPage(scene keyScene) bool {
 	held := scene.model.settingsForm
 	return held != nil && len(held.Path) > 0 && !stepsSettingValue(scene)
+}
+
+func splitsView(scene keyScene) bool {
+	return scene.model != nil && scene.model.split.open
+}
+
+func describeSplitKey(scene keyScene) string {
+	if splitsView(scene) {
+		return "close split"
+	}
+	return "split"
 }
 
 func showsManyTabs(scene keyScene) bool {

@@ -7,6 +7,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/cfg"
 	"github.com/masumedb/masume/internal/core"
 	"github.com/masumedb/masume/internal/db"
 	"github.com/masumedb/masume/internal/notebook"
@@ -209,6 +210,17 @@ func TestFrameHoldsNothingATerminalCannotDraw(t *testing.T) {
 			opened.Editor = opened.Notebook.GetFocusedCell().Editor
 			opened.Focus = app.PaneEditor
 		}},
+		{"a split view", func() {
+			model.openSplitView(connection)
+			model.settleSplitView()
+		}},
+		{"a split view of two connections", func() {
+			model.connections.open(app.NewConnection(&offlineSession{
+				profile: cfg.Profile{Name: "sta\x1b[31mging\a", Engine: "postgres"},
+			}, nil, true))
+			model.settleSplitView()
+		}},
+		{"a stacked split view", func() { model.split.stacked = true }},
 	} {
 		connection.CloseEveryOverlay()
 		held.open()
