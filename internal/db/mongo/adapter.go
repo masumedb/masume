@@ -992,7 +992,7 @@ func BuildClientOptions(profile cfg.Profile, password string) (*options.ClientOp
 
 	// The driver dials other replica set members directly, which the tunnel does not
 	// reach.
-	if profile.OpensTunnel() {
+	if profile.OpensTunnel() || profile.DirectConnection {
 		held.SetDirect(true)
 	}
 

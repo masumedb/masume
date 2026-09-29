@@ -83,3 +83,15 @@ func TestIsAuthenticationErrorNamesOnlyTheCodesOfWhoTheConnectionIs(t *testing.T
 		t.Error("an error the server never sent reads as one about who the connection is")
 	}
 }
+
+func TestBuildClientOptionsConnectsDirectly(t *testing.T) {
+	profile := buildProbeProfile("reader")
+	profile.DirectConnection = true
+	built, err := BuildClientOptions(profile, "")
+	if err != nil {
+		t.Fatalf("the options do not build: %v", err)
+	}
+	if built.Direct == nil || !*built.Direct {
+		t.Error("the options do not connect directly")
+	}
+}

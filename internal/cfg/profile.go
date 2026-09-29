@@ -146,11 +146,14 @@ type Profile struct {
 	// trust store.
 	SSLRootCert string
 	// The client certificate the server asks for, and its private key.
-	SSLCert       string
-	SSLKey        string
-	Autocommit    bool
-	ConfirmWrites ConfirmWrites
-	WritePlan     WritePlan
+	SSLCert string
+	SSLKey  string
+	// MongoDB only: the driver dials Host and does not discover the other replica set
+	// members.
+	DirectConnection bool
+	Autocommit       bool
+	ConfirmWrites    ConfirmWrites
+	WritePlan        WritePlan
 	// The maximum row count for undo.
 	UndoRows int
 	// SSH tunnel. Without SSHHost the driver dials the server directly.
@@ -497,6 +500,8 @@ func buildProfile(name string, source Table) (Profile, error) {
 		autocommit = written
 	}
 
+	directConnection, _ := FindBool(source, "direct_connection")
+
 	sshPort, hasSSHPort, err := readPositiveInteger(source, "ssh_port")
 	if err != nil {
 		return Profile{}, err
@@ -527,7 +532,8 @@ func buildProfile(name string, source Table) (Profile, error) {
 		PasswordEnv: passwordEnv, PasswordCommand: passwordCommand,
 		Secret: secretName, SecretRef: secretRef,
 		SSLMode: sslMode, SSLRootCert: sslFiles.RootCert, SSLCert: sslFiles.Cert,
-		SSLKey: sslFiles.Key, Autocommit: autocommit, ConfirmWrites: confirmWrites,
+		SSLKey: sslFiles.Key, DirectConnection: directConnection,
+		Autocommit: autocommit, ConfirmWrites: confirmWrites,
 		WritePlan: writePlan, UndoRows: undoRows,
 		SSHHost: sshHost, SSHPort: sshPort, SSHUser: sshUser, SSHKey: sshKey,
 		SSHKeyPassphraseEnv: sshKeyPassphraseEnv, SSHPasswordEnv: sshPasswordEnv,

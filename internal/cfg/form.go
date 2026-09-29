@@ -44,6 +44,7 @@ func resolveDatabaseLabel(engine core.Engine) string {
 const (
 	sshToggleKey = "ssh"
 	tlsToggleKey = "tls"
+	directKey    = "directConnection"
 	toggleOff    = "off"
 	toggleOn     = "on"
 )
@@ -215,6 +216,11 @@ func BuildFormFields(profile Profile, editing bool, secretStoreNames []string) [
 		{Key: "sslCert", Label: "ssl cert", Value: source.SSLCert},
 		{Key: "sslKey", Label: "ssl key", Value: source.SSLKey},
 		{
+			Key: directKey, Label: "direct connection",
+			Value:   describeToggle(source.DirectConnection),
+			Choices: []string{toggleOff, toggleOn},
+		},
+		{
 			Key: sshToggleKey, Label: "ssh tunnel",
 			Value:   describeToggle(source.OpensTunnel()),
 			Choices: []string{toggleOff, toggleOn},
@@ -245,7 +251,7 @@ func FindShownFields(fields []FormField) []FormField {
 		kept := make([]FormField, 0, len(fields))
 		for _, field := range fields {
 			if serverFields[field.Key] || sshFields[field.Key] ||
-				field.Key == sshToggleKey {
+				field.Key == sshToggleKey || field.Key == directKey {
 				continue
 			}
 			kept = append(kept, field)
@@ -263,9 +269,13 @@ func FindShownFields(fields []FormField) []FormField {
 
 	opensTunnel := ReadField(fields, sshToggleKey) == toggleOn
 	sendsFiles := ReadField(fields, tlsToggleKey) == toggleOn
+	speaksMongo := known && isMongoEngine(engine)
 	kept := make([]FormField, 0, len(fields))
 	for _, field := range fields {
 		if everyPasswordField[field.Key] && !read[field.Key] {
+			continue
+		}
+		if field.Key == directKey && !speaksMongo {
 			continue
 		}
 		if sshFields[field.Key] && !opensTunnel {
@@ -326,6 +336,7 @@ func BuildProfileFromFields(fields []FormField, source Profile, editing bool) (P
 	built.SecretRef = read("secretRef")
 	built.Description = read("description")
 	built.AiInstructions = read("aiInstructions")
+	built.DirectConnection = isMongoEngine(engine) && read(directKey) == toggleOn
 
 	// A file engine uses no port, so the form does not show one.
 	built.Port = core.ResolveDefaultPort(engine)
@@ -443,13 +454,14 @@ func applyFormTunnel(built Profile, read func(string) string) (Profile, error) {
 
 // ConnectionURL is a parsed connection URL without a password.
 type ConnectionURL struct {
-	Engine   core.Engine
-	Host     string
-	Port     int
-	Database string
-	User     string
-	SSLMode  string
-	SSLFiles core.SSLFiles
+	Engine           core.Engine
+	Host             string
+	Port             int
+	Database         string
+	User             string
+	SSLMode          string
+	SSLFiles         core.SSLFiles
+	DirectConnection bool
 }
 
 // urlSchemes are the engines for supported URL schemes and aliases.
@@ -494,6 +506,27 @@ func readURLSSLFiles(parsed *url.URL) core.SSLFiles {
 	}
 }
 
+// isMongoEngine is true for an engine of the MongoDB wire protocol.
+func isMongoEngine(engine core.Engine) bool {
+	return core.ResolveEngineInfo(engine).Family == core.FamilyMongo
+}
+
+// readURLDirectConnection reads the `directConnection` option of a MongoDB URL. The value
+// is false for other engines.
+func readURLDirectConnection(parsed *url.URL, engine core.Engine) (bool, error) {
+	written := parsed.Query().Get(directKey)
+	if written == "" || !isMongoEngine(engine) {
+		return false, nil
+	}
+	switch written {
+	case "true":
+		return true, nil
+	case "false":
+		return false, nil
+	}
+	return false, failTarget("directConnection %q is not true or false", written)
+}
+
 // tlsSchemes are the schemes that request TLS by their name, with the mode of each one. A
 // Redis client reads `rediss://` as a TLS connection that verifies the certificate, so a
 // URL without a mode must not fall back to an unencrypted connection.
@@ -532,6 +565,11 @@ func ParseConnectionURL(text string) (ConnectionURL, bool) {
 		port = held
 	}
 
+	direct, directErr := readURLDirectConnection(parsed, engine)
+	if directErr != nil {
+		return ConnectionURL{}, false
+	}
+
 	sslMode := readURLQuery(parsed, sslKeys)
 	user := ""
 	if parsed.User != nil {
@@ -540,6 +578,7 @@ func ParseConnectionURL(text string) (ConnectionURL, bool) {
 	return ConnectionURL{
 		Engine: engine, Host: host, Port: port, Database: database,
 		User: user, SSLMode: sslMode, SSLFiles: readURLSSLFiles(parsed),
+		DirectConnection: direct,
 	}, true
 }
 
@@ -572,6 +611,7 @@ func ApplyConnectionURL(fields []FormField, held ConnectionURL) []FormField {
 		{"sslRootCert", held.SSLFiles.RootCert}, {"sslCert", held.SSLFiles.Cert},
 		{"sslKey", held.SSLFiles.Key},
 		{tlsToggleKey, describeToggle(held.SSLFiles.HasFiles())},
+		{directKey, describeToggle(held.DirectConnection)},
 	} {
 		filled = writeField(filled, written[0], written[1])
 	}
@@ -704,6 +744,7 @@ var formFieldLines = map[string]string{
 	"sslRootCert":     "CA certificate file, PEM",
 	"sslCert":         "client certificate file, PEM",
 	"sslKey":          "client key file, PEM",
+	directKey:         "connect to this host only; no replica set discovery",
 	sshToggleKey:      "connect through an ssh server",
 	"aiInstructions":  "context sent to the AI chat with every request",
 }

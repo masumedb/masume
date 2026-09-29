@@ -458,3 +458,66 @@ func TestBuildProfileFromFieldsReportsATunnelWithoutAUser(t *testing.T) {
 		t.Errorf("the form reported %q", err)
 	}
 }
+
+func TestApplyConnectionUrlTurnsOnDirectConnection(t *testing.T) {
+	held, is := cfg.ParseConnectionURL("mongodb://127.0.0.1:27017/shop?directConnection=true")
+	if !is {
+		t.Fatal("the URL was not read")
+	}
+	fields := cfg.ApplyConnectionURL(cfg.BuildFormFields(cfg.Profile{}, false, nil), held)
+	fields = cfg.ApplyFieldChange(fields, "name", "shop")
+	built, err := cfg.BuildProfileFromFields(fields, cfg.Profile{}, false)
+	if err != nil {
+		t.Fatalf("the form does not build a profile: %v", err)
+	}
+	if !built.DirectConnection {
+		t.Error("the profile does not connect directly")
+	}
+}
+
+func TestFindShownFieldsShowsDirectConnectionOnlyForMongo(t *testing.T) {
+	for _, one := range []struct {
+		engine core.Engine
+		want   bool
+	}{
+		{core.EngineMongo, true},
+		{core.EngineDocumentdb, true},
+		{core.EnginePostgres, false},
+		{core.EngineSqlite, false},
+	} {
+		fields := cfg.BuildFormFields(cfg.Profile{Engine: one.engine}, true, nil)
+		shown := false
+		for _, field := range cfg.FindShownFields(fields) {
+			shown = shown || field.Key == "directConnection"
+		}
+		if shown != one.want {
+			t.Errorf("%s shows direct connection: %v, wanted %v", one.engine, shown, one.want)
+		}
+	}
+}
+
+func TestSaveProfileToFileWritesDirectConnection(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	source := cfg.Profile{
+		Name: "shop", Engine: core.EngineMongo, Host: "127.0.0.1", Port: 27017,
+		Database: "shop", DirectConnection: true,
+	}
+	if err := cfg.SaveProfileToFile(source, "", path); err != nil {
+		t.Fatalf("the profile was not written: %v", err)
+	}
+	if held := findProfile(t, cfg.LoadConfig(path), "shop"); !held.DirectConnection {
+		t.Error("direct_connection did not read back")
+	}
+
+	source.DirectConnection = false
+	if err := cfg.SaveProfileToFile(source, "shop", path); err != nil {
+		t.Fatalf("the profile was not written: %v", err)
+	}
+	written, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("the config file could not be read: %v", err)
+	}
+	if strings.Contains(string(written), "direct_connection") {
+		t.Errorf("the file keeps direct_connection:\n%s", written)
+	}
+}

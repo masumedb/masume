@@ -184,6 +184,10 @@ func buildProfileFromURL(text string) (Profile, error) {
 		}
 	}
 
+	if built.DirectConnection, err = readURLDirectConnection(parsed, engine); err != nil {
+		return Profile{}, err
+	}
+
 	built.Database = strings.TrimPrefix(parsed.Path, "/")
 	// The database path has one segment.
 	if strings.Contains(built.Database, "/") {

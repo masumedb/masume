@@ -43,7 +43,7 @@ A URL without a database uses the user name on PostgreSQL-family engines, databa
 
 Connection strings accept single-quoted values and backslash escapes inside quotes. `engine` takes the profile engine names. An unknown key is an error.
 
-A URL can carry one host, credentials, a port, a database, `sslmode` (also spelled `ssl-mode` or `sslMode`), and the certificate files `sslrootcert`, `sslcert`, and `sslkey`. Other URL options, such as `authSource`, `replicaSet`, and `connect_timeout`, are ignored. `mongodb+srv` URLs are rejected.
+A URL can carry one host, credentials, a port, a database, `sslmode` (also spelled `ssl-mode` or `sslMode`), the certificate files `sslrootcert`, `sslcert`, and `sslkey`, and on MongoDB `directConnection`. Other URL options, such as `authSource`, `replicaSet`, and `connect_timeout`, are ignored. `mongodb+srv` URLs are rejected.
 
 `rediss://` connects with TLS and verifies the certificate. Other settings take the defaults of a new connection, such as `env = "dev"`, `mode = "write"`, and `page_size = 200`.
 

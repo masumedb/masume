@@ -86,6 +86,7 @@ mode     = "write"
 | `sslrootcert` | the system trust store | Certificate authority bundle in PEM form. See [Certificate files](#certificate-files) |
 | `sslcert` | | Client certificate in PEM form, sent when the server asks for one |
 | `sslkey` | | Private key for `sslcert`. Required with `sslcert` |
+| `direct_connection` | `false` | MongoDB and Amazon DocumentDB. `true` connects to `host` only, without replica set discovery |
 | `statement_timeout_ms` | `0` | Time limit for one statement in milliseconds. `0` means the server default |
 | `keepalive_s` | `30` | Seconds between connection checks. `0` disables the keepalive |
 | `page_size` | `200` | Rows per page, in the grid and in `masume run`. Must be above zero |

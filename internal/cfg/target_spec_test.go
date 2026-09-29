@@ -479,3 +479,25 @@ func TestBuildProfileFromTargetKeepsTheBackslashesOfAPath(t *testing.T) {
 		t.Errorf("the quoted value reads %q, wanted a'b", quoted.Database)
 	}
 }
+
+func TestBuildProfileFromTargetReadsDirectConnectionOfAMongoURL(t *testing.T) {
+	built, err := cfg.BuildProfileFromTarget(
+		"mongodb://127.0.0.1:27017/shop?directConnection=true")
+	if err != nil {
+		t.Fatalf("the URL does not read: %v", err)
+	}
+	if !built.DirectConnection {
+		t.Error("the profile does not connect directly")
+	}
+
+	if _, err = cfg.BuildProfileFromTarget(
+		"mongodb://127.0.0.1:27017/shop?directConnection=yes"); err == nil {
+		t.Error("directConnection=yes reads without an error")
+	}
+
+	postgres, err := cfg.BuildProfileFromTarget(
+		"postgres://127.0.0.1/shop?directConnection=true")
+	if err != nil || postgres.DirectConnection {
+		t.Errorf("a postgres URL reads %v, %v", postgres.DirectConnection, err)
+	}
+}

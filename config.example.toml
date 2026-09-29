@@ -164,6 +164,7 @@ paths = []
 # sslrootcert          = "~/.certs/rds-ca.pem"   # certificate authority bundle. without it the system trust store applies
 # sslcert              = "~/.certs/client.pem"   # client certificate the server asks for
 # sslkey               = "~/.certs/client.key"   # private key of sslcert. set with sslcert
+# direct_connection    = false        # mongodb only. true connects to host only, without replica set discovery
 # statement_timeout_ms = 0            # time limit per statement. 0 uses the server default
 # keepalive_s          = 30           # seconds between connection checks. 0 disables the keepalive
 # page_size            = 200          # rows the grid loads per page
