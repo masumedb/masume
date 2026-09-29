@@ -140,9 +140,20 @@ The explorer lists the database objects. Table views show data, columns, indexes
 
 The editor has syntax highlighting and completion from the database catalog. Local checks, and server checks where the engine supports them, mark errors before execution. A statement with `:name` placeholders opens a form for the values. Query plans are drawn as a tree with estimated or measured costs.
 
-A query builder tab writes a select from tables, joins, and filters. A [split view](docs/usage.md#split-view) shows two tabs side by side, from one connection or from two. Query history and saved queries keep the statements. MongoDB takes a [subset of shell syntax](docs/engines.md#mongodb), Redis takes [commands, one per line](docs/engines.md#redis), and Cassandra takes [CQL with the keyspace as the schema](docs/engines.md#cassandra).
+Query history and saved queries keep the statements. MongoDB takes a [subset of shell syntax](docs/engines.md#mongodb), Redis takes [commands, one per line](docs/engines.md#redis), and Cassandra takes [CQL with the keyspace as the schema](docs/engines.md#cassandra).
 
 ![The SQL editor with the completion menu open](vhs/shots/08-completion.png)
+
+### Workspace
+
+- **Tabs:** query, table, notebook, and query builder tabs. The next connect restores them with their text, sort, and filters. See [tabs and history](docs/usage.md#tabs-and-history).
+- **Split view:** two tabs side by side or stacked, from one connection or from two. See [split view](docs/usage.md#split-view).
+- **Query builder:** tables, joins, filters, groups, and sorts drawn as a diagram, with the SQL under it. See [query builder](docs/usage.md#query-builder).
+- **Command palette:** every command by name, with its key. `Ctrl+K` opens it.
+- **Keys and mouse:** every key can be rebound. The mouse selects, scrolls, and drags the pane borders. See [keys](docs/keys.md) and [mouse controls](docs/usage.md#mouse-controls).
+- **Settings screen:** theme, icons, keys, AI, and MCP settings, written to the config file. See [settings](docs/usage.md#settings).
+
+![A query and a table side by side in a split view](vhs/shots/21-split-view.png)
 
 ### Results and editing
 
