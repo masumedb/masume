@@ -653,6 +653,9 @@ func (model *Model) renderListRow(row ListRowSpec) string {
 
 	room := max(row.Width-present.CardChrome-rowPaddingLeft-
 		row.LeadWidth-row.LabelWidth-rowScrollbarWidth, 0)
+	if row.HasIcon {
+		room = max(room-listRowIconWidth, 0)
+	}
 	switch {
 	case row.HasTrail:
 		written += paint(quiet, present.FitText(

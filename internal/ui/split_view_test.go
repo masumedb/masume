@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/cfg"
 	"github.com/masumedb/masume/internal/core"
 	"github.com/masumedb/masume/internal/present"
 )
@@ -479,4 +480,21 @@ func TestOpenInSplitViewOfTheTableOnScreenOpensASecondTab(t *testing.T) {
 	if findSideTab(t, model, 0) != table || second == table || second.Table.Name != "orders" {
 		t.Error("the table is not on both sides in two tabs")
 	}
+}
+
+func TestAMenuThatScrollsShowsTheWholeKeyOfARowWithAnIcon(t *testing.T) {
+	model, connection, _ := buildTreeDumpModel(t)
+	model.Update(tea.WindowSizeMsg{Width: 140, Height: 30})
+	openObjectMenu(t, model, connection, present.NodeTable)
+
+	chord := model.registry.FormatFirstActionChordName(cfg.ScopeTree, ActionOpenInNewTab)
+	for _, row := range readFrameRows(model.render()) {
+		if strings.Contains(row, "Open in new tab") {
+			if !strings.Contains(row, chord+" ") {
+				t.Errorf("the row cuts its key %q: %q", chord, row)
+			}
+			return
+		}
+	}
+	t.Fatal("the menu draws no Open in new tab row")
 }
