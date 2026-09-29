@@ -29,7 +29,7 @@ func TestTheFrameUnderACardIsDimmed(t *testing.T) {
 
 	inside := model.layout.selectionBlocks[0]
 	card := blockRect{
-		fromX: inside.fromX - 1, toX: inside.toX + 1,
+		fromX: inside.fromX - cardBodyColumn, toX: inside.toX + cardBodyColumn,
 		fromY: inside.fromY - 1, toY: inside.toY + 1,
 	}
 	if text, row, found := findBrightCell(model, frame, card); found {

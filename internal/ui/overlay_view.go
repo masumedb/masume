@@ -51,10 +51,7 @@ func (model *Model) renderOverlayOver(
 
 	// The inside of the card is the block a drag over it stays in, and it stands over the
 	// panes, so it is looked at first.
-	model.layout.selectionBlocks = append([]blockRect{{
-		fromX: left + 1, toX: left + measureStyledWidth(card) - 2,
-		fromY: screenTop + 1, toY: screenTop + len(rows) - 2,
-	}}, model.layout.selectionBlocks...)
+	model.keepCardBlock(card, left, screenTop)
 
 	model.placeCardHits(left, screenTop, placedBars, placedKeys)
 	// A card owns the pointer while it is open, so the keys and the bars the panes behind
@@ -65,6 +62,25 @@ func (model *Model) renderOverlayOver(
 	theme := model.styles.Theme
 	return placeOver(dimRows(frame, theme.Faint, theme.Background), card, left, top,
 		theme.Background)
+}
+
+// keepCardBlock records the text cells of a card as the first selection block. The block
+// leaves out the border and the blank column inside it.
+func (model *Model) keepCardBlock(card string, left, top int) {
+	rows := strings.Count(card, "\n") + 1
+	block := blockRect{
+		fromX: left + cardBodyColumn, toX: left + measureStyledWidth(card) - 1 - cardBodyColumn,
+		fromY: top + 1, toY: top + rows - 2,
+	}
+	model.layout.selectionBlocks = append([]blockRect{block}, model.layout.selectionBlocks...)
+}
+
+// centerCard centres a card on the screen body and records its selection block.
+func (model *Model) centerCard(card string, body int) []string {
+	rows := strings.Count(card, "\n") + 1
+	model.keepCardBlock(card, halfRoundedUp(model.width-measureStyledWidth(card)),
+		titleBarRows+halfRoundedUp(body-rows))
+	return model.styles.CenterRowsOn(card, model.width, body)
 }
 
 // placeCardHits carries every hit box a card recorded from the cells of the card onto the

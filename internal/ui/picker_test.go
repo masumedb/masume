@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -293,5 +294,33 @@ func TestThePickerWrapsALongProblem(t *testing.T) {
 	drawn := stripEscapes(model.renderPicker())
 	if !strings.Contains(drawn, "timeout") {
 		t.Errorf("the end of the problem is cut:\n%s", drawn)
+	}
+}
+
+func TestADragOverThePickerCopiesNoBorder(t *testing.T) {
+	model := buildOfflineModel(t, 120, 30)
+	model.screen = ScreenPickingProfile
+	model.profiles = []cfg.Profile{
+		{Name: "shop", Engine: core.EngineMongo, Host: "127.0.0.1", Port: 27017},
+	}
+	model.picker.problem = "cannot connect to shop: " + strings.Repeat("server selection ", 10) +
+		"timeout"
+	model.View()
+
+	rows := strings.Split(stripEscapes(model.frame.text), "\n")
+	top := slices.IndexFunc(rows, func(row string) bool {
+		return strings.Contains(row, "cannot connect")
+	})
+	if top < 0 {
+		t.Fatalf("the problem is not drawn:\n%s", strings.Join(rows, "\n"))
+	}
+	left := present.MeasureText(rows[top][:strings.Index(rows[top], "cannot connect")])
+	model.readMouse(tea.MouseClickMsg{X: left, Y: top, Button: tea.MouseLeft})
+	model.readMouseMotion(tea.MouseMotionMsg{X: 119, Y: top + 1, Button: tea.MouseLeft})
+	model.readMouseRelease(tea.MouseReleaseMsg{X: 119, Y: top + 1, Button: tea.MouseLeft})
+
+	copied, copies := model.readTextToCopy()
+	if !copies || strings.Contains(copied, "│") || !strings.HasPrefix(copied, "cannot connect") {
+		t.Errorf("the drag copied %q", copied)
 	}
 }

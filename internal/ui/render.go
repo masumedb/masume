@@ -25,6 +25,7 @@ func (model *Model) render() string {
 	// so the frame is walked once and a press finds what it landed on.
 	model.layout.buttons = nil
 	model.layout.scrollbars = nil
+	model.layout.selectionBlocks = nil
 	// The keys of the card on show are learnt while the card is drawn, which is before the
 	// status bar under it is.
 	model.cardKeys = nil
@@ -37,11 +38,11 @@ func (model *Model) render() string {
 	case ScreenWorking:
 		middle = model.renderWorkspace(body)
 	case ScreenPickingProfile:
-		middle = model.styles.CenterRowsOn(model.renderPicker(), model.width, body)
+		middle = model.centerCard(model.renderPicker(), body)
 	case ScreenPromptingPassword:
-		middle = model.styles.CenterRowsOn(model.renderPassword(), model.width, body)
+		middle = model.centerCard(model.renderPassword(), body)
 	case ScreenEditingConnection:
-		middle = model.styles.CenterRowsOn(model.renderForm(), model.width, body)
+		middle = model.centerCard(model.renderForm(), body)
 	case ScreenSettings:
 		middle = model.renderSettingsOver(body)
 	case ScreenConnecting:
@@ -61,6 +62,7 @@ func (model *Model) render() string {
 		})
 		left := halfRoundedUp(model.width - measureStyledWidth(card))
 		top := halfRoundedUp(body - len(strings.Split(card, "\n")))
+		model.keepCardBlock(card, left, titleBarRows+top)
 		for at := range model.layout.buttons {
 			model.layout.buttons[at].row += titleBarRows + top
 			model.layout.buttons[at].from += left
@@ -90,13 +92,15 @@ func (model *Model) renderSettingsOver(body int) []string {
 	model.layout.scrollbars = nil
 	card := model.drawCard(model.renderSettings)
 	if len(frame) == 0 {
-		return model.styles.CenterRowsOn(card, model.width, body)
+		return model.centerCard(card, body)
 	}
 	rows := strings.Split(card, "\n")
+	left := halfRoundedUp(model.width - measureStyledWidth(card))
+	top := halfRoundedUp(body - len(rows))
+	model.keepCardBlock(card, left, titleBarRows+top)
 	theme := model.styles.Theme
-	return placeOver(dimRows(frame, theme.Faint, theme.Background), card,
-		halfRoundedUp(model.width-measureStyledWidth(card)),
-		halfRoundedUp(body-len(rows)), theme.Background)
+	return placeOver(dimRows(frame, theme.Faint, theme.Background), card, left, top,
+		theme.Background)
 }
 
 // renderConnecting draws the line that says which server the client is waiting for.
