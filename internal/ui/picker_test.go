@@ -280,3 +280,18 @@ func TestThePickerDrawsTheFilterField(t *testing.T) {
 		t.Errorf("the card draws a row the term dropped:\n%s", drawn)
 	}
 }
+
+func TestThePickerWrapsALongProblem(t *testing.T) {
+	model := buildOfflineModel(t, 80, 30)
+	model.screen = ScreenPickingProfile
+	model.profiles = []cfg.Profile{
+		{Name: "shop", Engine: core.EngineMongo, Host: "127.0.0.1", Port: 27017},
+	}
+	model.picker.problem = "cannot connect to shop: " + strings.Repeat("server selection ", 10) +
+		"timeout"
+
+	drawn := stripEscapes(model.renderPicker())
+	if !strings.Contains(drawn, "timeout") {
+		t.Errorf("the end of the problem is cut:\n%s", drawn)
+	}
+}

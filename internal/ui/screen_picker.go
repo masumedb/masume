@@ -305,11 +305,15 @@ func (model *Model) renderPicker() string {
 	// Where the rows land on the screen, so a press opens the row it looks like. The card
 	// stands in the middle of everything under the title bar, with a blank row inside its
 	// border.
-	cardRows := len(profiles) + len(lines) + pickerCardChrome +
-		len(describePickerProblems(model.problems))
+	problemLines := []string{}
 	if model.picker.problem != "" {
-		cardRows += 2
+		problemLines = append(problemLines, "")
+		problemLines = append(problemLines, present.WrapWords(model.picker.problem, cardWidth-4)...)
 	}
+	for _, problem := range describePickerProblems(model.problems) {
+		problemLines = append(problemLines, present.WrapWords(problem, cardWidth-4)...)
+	}
+	cardRows := len(profiles) + len(lines) + pickerCardChrome + len(problemLines)
 	if model.connections.count() > 0 {
 		cardRows++
 	}
@@ -388,15 +392,10 @@ func (model *Model) renderPicker() string {
 			nameStyle.Render(model.buildRowGutter(selected))+written))
 	}
 
-	if model.picker.problem != "" {
-		lines = append(lines, "", model.styles.Error().Render(
-			present.TruncateText(model.picker.problem, cardWidth-4)))
-	}
 	// A config file the client could not read leaves the list empty, so the card says what
 	// the file got wrong rather than letting the empty list stand for it.
-	for _, problem := range describePickerProblems(model.problems) {
-		lines = append(lines, model.styles.Error().Render(
-			present.TruncateText(problem, cardWidth-4)))
+	for _, line := range problemLines {
+		lines = append(lines, model.styles.Error().Render(line))
 	}
 
 	keys := model.buildKeyLineOf(pickerKeySpecs, keyScene{})

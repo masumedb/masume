@@ -503,7 +503,11 @@ func (model *Model) renderForm() string {
 	}
 
 	// The card stands under the title bar, and its height follows what it holds.
+	messageLines := present.WrapWords(form.Message, cardWidth-4)
 	cardRows := len(form.Shown()) + formCardChrome
+	if form.Test == TestFailed {
+		cardRows += len(messageLines) - 1
+	}
 	left := halfRoundedUp(model.width - cardWidth)
 	cardTop := titleBarRows + halfRoundedUp(model.height-2-cardRows)
 	model.layout.formChoices = nil
@@ -565,8 +569,9 @@ func (model *Model) renderForm() string {
 	case TestPassed:
 		lines = append(lines, paintText(model.styles.Theme.Success, nil, "ok · "+form.Message))
 	case TestFailed:
-		lines = append(lines, model.styles.Error().Render(
-			present.TruncateText(form.Message, cardWidth-4)))
+		for _, line := range messageLines {
+			lines = append(lines, model.styles.Error().Render(line))
+		}
 	default:
 		lines = append(lines, model.styles.Muted().Render("not tested"))
 	}

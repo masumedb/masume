@@ -46,3 +46,17 @@ func TestAFailedSaveNamesTheFieldInTheWordsOfTheForm(t *testing.T) {
 		t.Errorf("the save answered %#v, wanted the password command field", err)
 	}
 }
+
+func TestTheFormWrapsALongTestFailure(t *testing.T) {
+	model := buildOfflineModel(t, 80, 48)
+	model.form = NewFormState(cfg.Profile{}, false, nil)
+	model.screen = ScreenEditingConnection
+	model.form.Test = TestFailed
+	model.form.Message = "cannot connect to shop: " + strings.Repeat("server selection ", 10) +
+		"timeout"
+
+	drawn := stripEscapes(model.renderForm())
+	if !strings.Contains(drawn, "timeout") {
+		t.Errorf("the end of the failure is cut:\n%s", drawn)
+	}
+}
