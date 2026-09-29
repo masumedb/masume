@@ -212,7 +212,7 @@ PATH="$PWD/.demo/bin:$PATH" mise exec \\
   "go:github.com/charmbracelet/vhs@0.10.0" ttyd@latest ffmpeg@latest \\
   -- vhs vhs/demo.tape
 rm -rf .demo
-ls -la vhs/demo.gif vhs/demo.mp4
+ls -la vhs/demo.mp4
 """
 
 [tasks.demo-notebook]
@@ -224,6 +224,7 @@ PATH="$PWD/.demo/bin:$PATH" mise exec \\
   "go:github.com/charmbracelet/vhs@0.10.0" ttyd@latest ffmpeg@latest \\
   -- vhs vhs/notebook.tape
 rm -rf .demo
+rm -f /tmp/masume-demo
 ls -la vhs/notebook.mp4
 """
 
@@ -254,13 +255,13 @@ PATH="$PWD/.demo/bin:$PATH" mise exec \\
   "go:github.com/charmbracelet/vhs@0.10.0" ttyd@latest ffmpeg@latest \\
   -- vhs vhs/dialogs.tape
 count=$(find .demo/shots -name '*.png' | wc -l)
-if [ "$count" -lt 19 ]; then
-  echo "vhs wrote $count of 19 frames. vhs/shots is unchanged." >&2
+if [ "$count" -lt 23 ]; then
+  echo "vhs wrote $count of 23 frames. vhs/shots is unchanged." >&2
   rm -rf .demo
   exit 1
 fi
-rm -rf vhs/shots
-mv .demo/shots vhs/shots
+mkdir -p vhs/shots
+mv .demo/shots/*.png vhs/shots/
 rm -rf .demo
 ls -la vhs/shots
 """

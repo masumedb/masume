@@ -6,7 +6,6 @@
 # Width, Height and FontSize scale together. Raising all three keeps the same character
 # grid and renders it with more pixels.
 
-Output vhs/demo.gif
 Output vhs/demo.mp4
 
 Require masume
@@ -48,14 +47,19 @@ Type "2" Sleep 2200ms
 Type "3" Sleep 2200ms
 Type "4" Sleep 2200ms
 Type "5" Sleep 2500ms
+Type "1" Sleep 800ms
 
-# The object menu, and the ER diagram of the tables related to this one.
+# The object menu, and the ER diagram of the tables related to this one. Esc closes the
+# diagram and then the menu it was opened from.
 Type "m"
-Sleep 2200ms
+Sleep 1500ms
+Down Sleep 400ms
+Down Sleep 400ms
+Down Sleep 800ms
 Enter
 Sleep 3500ms
-Escape
-Sleep 800ms
+Escape Sleep 500ms
+Escape Sleep 800ms
 
 # A new tab opens with the caret already in the editor.
 Alt+n
@@ -88,9 +92,66 @@ Ctrl+e
 Sleep 3s
 Ctrl+y
 Sleep 3500ms
+Type "1"
+Sleep 1s
 
-# A notebook is a fourth kind of tab: cells of prose, values and statements over one
-# connection, kept as a Markdown file.
+# The split view puts two tabs side by side: here the query and the table it reads.
+Alt+v
+Sleep 3s
+
+# The explorer opens a table on the side with the focus.
+Alt+p
+Type "s"
+Sleep 600ms
+Up Sleep 350ms
+Up Sleep 350ms
+Up Sleep 800ms
+Enter
+Sleep 3s
+
+# Alt+V again closes the split.
+Alt+v
+Sleep 1500ms
+
+# The query builder writes a select from tables, joins and picked columns.
+Alt+j
+Sleep 1500ms
+Type "orders"
+Sleep 800ms
+Enter
+Sleep 1500ms
+
+# The join follows the foreign key.
+Type "t"
+Sleep 1200ms
+Enter
+Sleep 1500ms
+Enter
+Sleep 1500ms
+
+# Pick the country, then sum the totals and sort by the sum.
+Down Sleep 300ms
+Down Sleep 300ms
+Down Sleep 600ms
+Space
+Sleep 1200ms
+Left
+Sleep 600ms
+Enter
+Sleep 1200ms
+Right Sleep 400ms
+Right Sleep 800ms
+Down Sleep 300ms
+Down Sleep 400ms
+Right Sleep 400ms
+Right Sleep 1000ms
+Enter
+Sleep 2s
+Ctrl+r
+Sleep 3500ms
+
+# A notebook is cells of prose, values, statements and charts over one connection, kept as
+# a Markdown file.
 Alt+o
 Type "n"
 Sleep 2200ms
@@ -108,12 +169,6 @@ Type "j" Sleep 1600ms
 Type "j" Sleep 2500ms
 Type "j" Sleep 2500ms
 
-# A new cell asks for its kind first.
-Type "b"
-Sleep 2200ms
-Escape
-Sleep 800ms
-
 # The command palette searches actions by name.
 Ctrl+k
 Sleep 1200ms
@@ -123,17 +178,16 @@ Enter
 Sleep 1500ms
 
 # Moving the cursor repaints the whole screen in the highlighted theme before you choose one.
-# Tokyo Night, Catppuccin Mocha, Gruvbox Dark, Dracula, Nord.
+Down Sleep 400ms
 Down Sleep 1200ms
 Down Sleep 1200ms
 Down Sleep 1200ms
 Down Sleep 1200ms
 Down Sleep 1400ms
 
-# The light themes come after Rosé Pine and Solarized Dark. Stop on Catppuccin Latte.
-Down Sleep 500ms
-Down Sleep 500ms
-Down Sleep 2500ms
+# The filter finds a light theme by name.
+Type "latte"
+Sleep 2500ms
 
 # Esc cancels the preview, and the screen returns to the theme from the config file.
 Escape

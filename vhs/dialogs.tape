@@ -72,6 +72,10 @@ Type "import"
 Sleep 1s
 Enter
 Sleep 2s
+# The file picker opens on the working directory. Its first row is ../, and orders.csv is
+# the second.
+Down
+Sleep 500ms
 Enter
 Sleep 3s
 Show

@@ -20,7 +20,10 @@ Set Theme "ayu"
 Set TypingSpeed 40ms
 
 Hide
-Type "export XDG_CONFIG_HOME=$PWD/.demo/config XDG_STATE_HOME=$PWD/.demo/state MASUME_DEMO_PASSWORD=secret" Enter
+# The notebook is written under the state directory, and the bar prints that path, so the
+# state directory is reached through a neutral path.
+Type "ln -sfn $PWD/.demo /tmp/masume-demo" Enter
+Type "export XDG_CONFIG_HOME=/tmp/masume-demo/config XDG_STATE_HOME=/tmp/masume-demo/state MASUME_DEMO_PASSWORD=secret" Enter
 Type "clear" Enter
 Show
 
@@ -54,30 +57,29 @@ Type "j" Sleep 2500ms
 Type "j" Sleep 3s
 
 # Enter opens the form of a chart: the source cell, the two columns, the shape and the
-# order. The columns offered are the columns that cell returned, and Enter applies it.
+# order. The columns offered are the columns that cell returned. Enter applies the form.
 Enter
 Sleep 2500ms
 Down Sleep 600ms
 Down Sleep 600ms
-Right Sleep 2000ms
-Left Sleep 1200ms
-Down Sleep 800ms
+Down Sleep 1200ms
 Right Sleep 2500ms
 Enter
 Sleep 3s
 
-# The last cell, and the run of one cell on its own.
-Type "j" Sleep 1200ms
-Type "r"
-Sleep 3s
+# The last cell and its result.
+Type "j" Sleep 2500ms
 
-# A new cell asks for its kind first: statements, prose, values, or a chart.
+# A new cell asks for its kind: statements, prose, values, or a chart. Esc keeps it a
+# statement cell, and u takes the new cell back.
 Type "b"
 Sleep 2500ms
 Down Sleep 700ms
 Down Sleep 1500ms
 Escape
 Sleep 1200ms
+Type "u"
+Sleep 1500ms
 
 # The whole notebook is one Markdown file. Ctrl+P writes it.
 Ctrl+p

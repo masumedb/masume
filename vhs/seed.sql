@@ -34,14 +34,26 @@ CREATE VIEW order_totals AS
   FROM orders o JOIN order_items i ON i.order_id = o.id
   GROUP BY o.id, o.status;
 
-INSERT INTO customers (name, email, country)
+INSERT INTO customers (name, email, country, created_at)
 SELECT 'Customer ' || g, 'user' || g || '@example.com',
-       (ARRAY['DE','FR','GB','NL','PL','ES'])[1 + (g % 6)]
+       CASE WHEN g * 7 % 100 < 30 THEN 'DE'
+            WHEN g * 7 % 100 < 52 THEN 'GB'
+            WHEN g * 7 % 100 < 70 THEN 'FR'
+            WHEN g * 7 % 100 < 84 THEN 'NL'
+            WHEN g * 7 % 100 < 94 THEN 'ES'
+            ELSE 'PL' END,
+       now() - make_interval(days => 400 + g % 700)
 FROM generate_series(1, 500) g;
 
-INSERT INTO orders (customer_id, status, total)
-SELECT 1 + (g % 500), (ARRAY['new','paid','shipped','refunded'])[1 + (g % 4)],
-       round((random() * 400 + 10)::numeric, 2)
+INSERT INTO orders (customer_id, status, total, placed_at)
+SELECT 1 + (g % 500),
+       CASE WHEN g * 13 % 100 < 45 THEN 'shipped'
+            WHEN g * 13 % 100 < 75 THEN 'paid'
+            WHEN g * 13 % 100 < 90 THEN 'new'
+            ELSE 'refunded' END,
+       round((random() * 400 + 10)::numeric, 2),
+       date_trunc('second', now() - make_interval(days => g * 37 % 365, hours => g % 24,
+                                                  mins => g * 11 % 60))
 FROM generate_series(1, 4000) g;
 
 INSERT INTO order_items (order_id, sku, qty, price)

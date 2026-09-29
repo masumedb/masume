@@ -50,13 +50,18 @@ Screenshot .demo/shots/04-indexes.png
 
 Type "5" Sleep 2s
 Screenshot .demo/shots/05-ddl.png
+Type "1" Sleep 1s
 
-# The object menu, and the diagram that its first entry opens.
+# The object menu, and the diagram that its ER diagram row opens.
 Type "m" Sleep 2s
 Screenshot .demo/shots/06-object-menu.png
 
+Down Sleep 200ms
+Down Sleep 200ms
+Down Sleep 200ms
 Enter Sleep 3s
 Screenshot .demo/shots/07-er-diagram.png
+Escape Sleep 500ms
 Escape Sleep 800ms
 
 # A partly typed statement with the completion menu open.
@@ -85,6 +90,63 @@ Screenshot .demo/shots/09-result.png
 Ctrl+y
 Sleep 4s
 Screenshot .demo/shots/10-plan.png
+Type "1" Sleep 1s
+
+# The split view: the query on the left, and a table opened from the explorer on the right.
+Alt+v
+Sleep 1500ms
+Alt+p
+Type "s"
+Sleep 500ms
+Up Sleep 200ms
+Up Sleep 200ms
+Up Sleep 200ms
+Enter
+Sleep 3s
+Screenshot .demo/shots/21-split-view.png
+Alt+v
+Sleep 1s
+
+# A query builder tab: two joined tables, a group and an aggregate, and the result.
+Alt+j
+Sleep 1500ms
+Type "orders"
+Sleep 800ms
+Enter
+Sleep 1500ms
+Type "t"
+Sleep 1200ms
+Enter
+Sleep 1500ms
+Enter
+Sleep 1500ms
+Down Sleep 200ms
+Down Sleep 200ms
+Down Sleep 200ms
+Space
+Sleep 800ms
+Left
+Sleep 500ms
+Enter
+Sleep 1s
+Right Sleep 200ms
+Right Sleep 200ms
+Down Sleep 200ms
+Down Sleep 200ms
+Right Sleep 200ms
+Right Sleep 200ms
+Enter
+Sleep 1500ms
+Ctrl+r
+Sleep 3s
+Screenshot .demo/shots/22-query-builder.png
+
+# The server activity dashboard.
+Alt+o
+Type "a"
+Sleep 4s
+Screenshot .demo/shots/23-server-activity.png
+Escape Sleep 800ms
 
 # The palette.
 Ctrl+k
@@ -109,22 +171,32 @@ Type "j" Sleep 400ms
 Type "j" Sleep 2s
 Screenshot .demo/shots/14-notebook-chart.png
 
-# The palette again, for the light theme frame.
+# The settings screen.
+Ctrl+k
+Sleep 1s
+Type "settings" Sleep 1500ms
+Enter
+Sleep 2s
+Screenshot .demo/shots/24-settings.png
+Escape Sleep 800ms
+
+# And the same notebook in a light theme.
 Ctrl+k
 Sleep 1500ms
-
-# And the same screen in a light theme.
 Type "theme" Sleep 1500ms
 Enter Sleep 1500ms
-Down Sleep 200ms
-Down Sleep 200ms
-Down Sleep 200ms
-Down Sleep 200ms
-Down Sleep 200ms
-Down Sleep 200ms
-Down Sleep 200ms
-Down Sleep 1500ms
+Type "latte" Sleep 1500ms
 Enter
 Sleep 2500ms
 Screenshot .demo/shots/15-light-theme.png
 Sleep 500ms
+
+# Choosing a theme writes it to the config file, so the theme of the config file comes back
+# before vhs/dialogs.tape runs with that file.
+Ctrl+k
+Sleep 1s
+Type "theme" Sleep 1s
+Enter Sleep 1s
+Type "ayu dark" Sleep 1s
+Enter
+Sleep 1500ms
