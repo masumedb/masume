@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -234,5 +235,33 @@ func TestASaveThatFailsNamesWhereItStopped(t *testing.T) {
 	}
 	if len(model.unsaved) != 2 {
 		t.Errorf("%d connections are still to save, wanted both", len(model.unsaved))
+	}
+}
+
+func TestTheQuestionWrapsItsBodyInTheTextInk(t *testing.T) {
+	model := buildOfflineModel(t, 100, 30)
+	model.confirm = &confirmState{
+		Title: " save connection ",
+		Body:  strings.Repeat("a long line of the body that runs past the card ", 3) + "END",
+	}
+
+	red, green, blue, _ := model.styles.Theme.Text.RGBA()
+	ink := fmt.Sprintf("38;2;%d;%d;%d", red>>8, green>>8, blue>>8)
+	frame := model.render()
+	styled := strings.Split(frame, "\n")
+	wrapped := false
+	for at, row := range readFrameRows(frame) {
+		if strings.Contains(row, "the body") && strings.Contains(row, "…") {
+			t.Errorf("the question cut its body: %q", row)
+		}
+		if strings.Contains(row, "END") {
+			wrapped = true
+		}
+		if strings.Contains(row, "a long line") && !strings.Contains(styled[at], ink) {
+			t.Errorf("the question draws its body without the text ink: %q", styled[at])
+		}
+	}
+	if !wrapped {
+		t.Error("the end of the body is not on the card")
 	}
 }

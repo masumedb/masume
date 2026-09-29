@@ -143,13 +143,16 @@ func (model *Model) renderThinkingLine(label string, since time.Time, ground col
 }
 
 // buildConfirmLines returns the rows of a question. A card holds one string per row, so a
-// body of several lines is split into them and each one is cut to the width of the card. The
-// last row has the buttons, counted from the card.
+// body of several lines is split into them and each one is wrapped to the width of the card.
+// The last row has the buttons, counted from the card.
 func (model *Model) buildConfirmLines(held *confirmState, cardWidth int) []string {
 	inner := max(cardWidth-4, 1)
+	theme := model.styles.Theme
 	lines := []string{}
 	for line := range strings.SplitSeq(held.Body, "\n") {
-		lines = append(lines, present.TruncateText(line, inner))
+		for _, row := range present.WrapWords(line, inner) {
+			lines = append(lines, paintText(theme.Text, theme.Panel, row))
+		}
 	}
 	lines = model.fitCardLines(append(lines, "", ""), inner)
 	lines[len(lines)-1] = model.renderButtonRow(model.buildConfirmButtons(held),
