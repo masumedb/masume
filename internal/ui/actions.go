@@ -247,6 +247,7 @@ const (
 	ActionDropBuilderRow   ActionID = "drop-row"
 	ActionPreviousTable    ActionID = "previous-table"
 	ActionNextTable        ActionID = "next-table"
+	ActionFollowTable      ActionID = "follow-table"
 	ActionSendToEditor     ActionID = "send-to-editor"
 	ActionNewBuilderTab    ActionID = "new-builder-tab"
 
@@ -609,7 +610,9 @@ var dialogActions = []ActionDefinition{
 	{ID: ActionWriteNewline, Label: "a newline in the question"},
 	{ID: ActionPreviousRow, MainHint: true}, {ID: ActionNextRow, MainHint: true},
 	{ID: ActionScrollLeft}, {ID: ActionScrollRight},
+	{ID: ActionPreviousTable, Label: "focus the previous table of the diagram"},
 	{ID: ActionNextTable, Label: "focus the next table of the diagram"},
+	{ID: ActionFollowTable, Label: "draw the diagram of the focused table"},
 	{ID: ActionOpenDirectory}, {ID: ActionLeaveDirectory},
 	// The find field marks whole words only, or every match of the term.
 	{ID: ActionToggleWholeWord, Label: "toggle whole-word matching"},

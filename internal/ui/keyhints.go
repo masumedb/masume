@@ -288,11 +288,15 @@ var cardKeySpecs = map[app.OverlayKind][]keySpec{
 		keyOf(cfg.ScopeDialog, ActionClose, "").withLabel(describeSettingsClose),
 	},
 	app.OverlayDiagram: {
+		readoutOf(readOverlayNotice),
 		joinPairs(pairOf(cfg.ScopeList, ActionCursorUp, ActionCursorDown, "", ""),
 			pairOf(cfg.ScopeDialog, ActionScrollLeft, ActionScrollRight, "", ""), "pan"),
+		takesKey(cfg.ScopeDialog, ActionPreviousTable),
 		keyOf(cfg.ScopeDialog, ActionNextTable, "next table"),
 		keyOf(cfg.ScopeList, ActionChooseRow, "open"),
-		keyOf(cfg.ScopeDialog, ActionClose, "").withLabel(describeSettingsClose),
+		keyOf(cfg.ScopeDialog, ActionFollowTable, "follow"),
+		keyOf(cfg.ScopeDialog, ActionCopyValue, "copy"),
+		keyOf(cfg.ScopeDialog, ActionClose, "").withLabel(describeDiagramClose),
 	},
 	app.OverlayCell: {
 		readoutOf(readOverlayNotice),
@@ -811,6 +815,14 @@ func describePromptAnswer(scene keyScene) string {
 		return label
 	}
 	return "save"
+}
+
+// describeDiagramClose returns "back" while the diagram has followed a table.
+func describeDiagramClose(scene keyScene) string {
+	if len(scene.overlay.Trail) > 0 {
+		return "back"
+	}
+	return "close"
 }
 
 func describeSettingsClose(scene keyScene) string {

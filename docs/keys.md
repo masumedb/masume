@@ -79,6 +79,7 @@ Each card uses only its own actions, so two rows in this table can share a key w
 | `filter-connections` | `/` |
 | `fold-row` | `left` |
 | `follow-foreign-key` | `g` |
+| `follow-table` | `g` |
 | `insert-ai-sql` | `ctrl+j` |
 | `keep-all-values` | `a` |
 | `keep-only-value` | `o` |
@@ -97,6 +98,7 @@ Each card uses only its own actions, so two rows in this table can share a key w
 | `prettify-json` | `ctrl+f` |
 | `previous-field` | `up` |
 | `previous-row` | `left` |
+| `previous-table` | `shift+tab` |
 | `previous-turn` | `ctrl+p` |
 | `previous-value` | `left` |
 | `replace-in-statement` | `ctrl+r` |

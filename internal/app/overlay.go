@@ -135,6 +135,14 @@ type ListState struct {
 	Term string
 }
 
+// DiagramStep is a diagram the card showed, with its title, its focus and its scroll.
+type DiagramStep struct {
+	Title   string
+	Diagram present.ErDiagram
+	Field   int
+	List    ListState
+}
+
 // RowWindow is the rows already read, which the row viewer steps through.
 type RowWindow struct {
 	Columns []db.ResultColumn
@@ -301,6 +309,10 @@ type Overlay struct {
 	Changes   []db.Change
 	Lines     []string
 	Diagram   present.ErDiagram
+	// The diagrams the card showed before it followed a table, the last one on top.
+	Trail []DiagramStep
+	// The table the diagram reads to follow it, or empty.
+	Following string
 
 	// The last reading of the server, and the state of the card the reader set.
 	Server ServerReading

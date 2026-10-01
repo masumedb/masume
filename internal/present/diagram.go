@@ -1,6 +1,7 @@
 package present
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/masumedb/masume/internal/db"
@@ -26,9 +27,10 @@ type DiagramTable struct {
 	ForeignKeys []query.ForeignKey
 }
 
-// The spacing of the boxes, the number of columns a box shows, and the narrowest box.
+// The narrowest gap between two lanes of boxes, the rows over the first column of a box, the
+// columns a box of a related table shows, and the narrowest box.
 const (
-	diagramGap         = 8
+	diagramGapLeast    = 8
 	diagramHeaderLines = 3
 	diagramMaxColumns  = 10
 	diagramBoxLeast    = 24
@@ -36,25 +38,10 @@ const (
 	diagramRowChrome = 7
 )
 
-// diagramSizes are the widths every box of one diagram shares: the box, the name column and
+// diagramSizes are the widths every box of one lane shares: the box, the name column and
 // the type column.
 type diagramSizes struct {
 	box, name, kind int
-}
-
-// measureDiagramSizes returns the widths that hold the longest title, name and type of the
-// tables.
-func measureDiagramSizes(tables []DiagramTable) diagramSizes {
-	title, name, kind := 0, 0, 0
-	for _, table := range tables {
-		title = max(title, len([]rune(QualifyDiagramTable(table.Schema, table.Name))))
-		for _, column := range listShownDiagramColumns(table) {
-			name = max(name, len([]rune(column.Name)))
-			kind = max(kind, len([]rune(column.Type)))
-		}
-	}
-	box := max(name+kind+diagramRowChrome, title+3, diagramBoxLeast)
-	return diagramSizes{box: box, name: box - diagramRowChrome - kind, kind: kind}
 }
 
 // DiagramMarks are the glyphs of a primary key column and of a foreign key column.
@@ -68,6 +55,7 @@ type DiagramSpanKind string
 
 // The parts of a box drawn in a colour of their own.
 const (
+	DiagramSpanTitle   DiagramSpanKind = "title"
 	DiagramSpanPrimary DiagramSpanKind = "primary"
 	DiagramSpanForeign DiagramSpanKind = "foreign"
 	DiagramSpanType    DiagramSpanKind = "type"
@@ -91,13 +79,29 @@ type DiagramBox struct {
 	Height int
 }
 
-// ErDiagram is the drawn diagram: its lines, its boxes left to right and top to bottom, and
-// the parts drawn in a colour of their own. Root is the index of the root box.
+// DiagramCell is one cell of the diagram.
+type DiagramCell struct {
+	X int
+	Y int
+}
+
+// DiagramLink is one foreign key of the diagram: the box of the referencing column, the box
+// of the referenced column, and the cells of its line.
+type DiagramLink struct {
+	From  int
+	To    int
+	Cells []DiagramCell
+}
+
+// ErDiagram is the drawn diagram: its lines, its boxes left to right and top to bottom, the
+// parts drawn in a colour of their own, and the foreign keys. Root is the index of the root
+// box.
 type ErDiagram struct {
 	Lines []string
 	Width int
 	Boxes []DiagramBox
 	Spans []DiagramSpan
+	Links []DiagramLink
 	Root  int
 }
 
@@ -163,18 +167,81 @@ func padDiagramCell(text string, width int) string {
 	return PadText(text, width)
 }
 
+// diagramNode is one table of the diagram, with the columns its box shows and the corner of
+// the box.
+type diagramNode struct {
+	table DiagramTable
+	shown []DiagramColumn
+	sizes diagramSizes
+	x, y  int
+	box   int
+}
+
+// countHeight returns the rows the box takes.
+func (node *diagramNode) countHeight() int {
+	height := diagramHeaderLines + len(node.shown) + 1
+	if len(node.table.Columns) > len(node.shown) {
+		height++
+	}
+	return height
+}
+
+// findColumnOffset returns the row of the box that shows that column, counted from the top
+// border.
+func (node *diagramNode) findColumnOffset(name string) (int, bool) {
+	for index, column := range node.shown {
+		if strings.EqualFold(column.Name, name) {
+			return diagramHeaderLines + index, true
+		}
+	}
+	return 0, false
+}
+
+// findColumnRow returns the row of the diagram that shows that column.
+func (node *diagramNode) findColumnRow(name string) (int, bool) {
+	offset, found := node.findColumnOffset(name)
+	return node.y + offset, found
+}
+
+// listShownDiagramColumns returns the columns a box draws: the first ones, and every column
+// in keep.
+func listShownDiagramColumns(table DiagramTable, keep map[string]bool) []DiagramColumn {
+	shown := []DiagramColumn{}
+	for index, column := range table.Columns {
+		if index < diagramMaxColumns || keep[strings.ToLower(column.Name)] {
+			shown = append(shown, column)
+		}
+	}
+	return shown
+}
+
+// measureDiagramSizes returns the widths that hold the longest title, name and type of the
+// boxes.
+func measureDiagramSizes(nodes []*diagramNode) diagramSizes {
+	title, name, kind := 0, 0, 0
+	for _, node := range nodes {
+		title = max(title, len([]rune(QualifyDiagramTable(node.table.Schema, node.table.Name))))
+		for _, column := range node.shown {
+			name = max(name, len([]rune(column.Name)))
+			kind = max(kind, len([]rune(column.Type)))
+		}
+	}
+	box := max(name+kind+diagramRowChrome, title+3, diagramBoxLeast)
+	return diagramSizes{box: box, name: box - diagramRowChrome - kind, kind: kind}
+}
+
 // buildDiagramBox returns the box of one table: the name, and then the columns with the mark
 // and the type of each one.
-func buildDiagramBox(table DiagramTable, marks DiagramMarks, sizes diagramSizes) []string {
+func buildDiagramBox(node *diagramNode, marks DiagramMarks) []string {
+	sizes := node.sizes
 	inner := sizes.box - 2
-	shown := listShownDiagramColumns(table)
 	lines := []string{
 		"╭" + strings.Repeat("─", inner) + "╮",
 		"│" + padDiagramCell(" "+
-			QualifyDiagramTable(table.Schema, table.Name), inner) + "│",
+			QualifyDiagramTable(node.table.Schema, node.table.Name), inner) + "│",
 		"├" + strings.Repeat("─", inner) + "┤",
 	}
-	for _, column := range shown {
+	for _, column := range node.shown {
 		mark := " "
 		switch {
 		case column.Primary:
@@ -185,19 +252,11 @@ func buildDiagramBox(table DiagramTable, marks DiagramMarks, sizes diagramSizes)
 		lines = append(lines, "│ "+mark+" "+padDiagramCell(column.Name, sizes.name)+" "+
 			padDiagramCell(column.Type, sizes.kind)+" │")
 	}
-	if len(table.Columns) > len(shown) {
+	if hidden := len(node.table.Columns) - len(node.shown); hidden > 0 {
 		lines = append(lines, "│"+padDiagramCell(
-			" … "+FormatCount(int64(len(table.Columns)-len(shown)))+" more", inner)+"│")
+			" … "+FormatCount(int64(hidden))+" more", inner)+"│")
 	}
 	return append(lines, "╰"+strings.Repeat("─", inner)+"╯")
-}
-
-// listShownDiagramColumns returns the columns a box draws.
-func listShownDiagramColumns(table DiagramTable) []DiagramColumn {
-	if len(table.Columns) > diagramMaxColumns {
-		return table.Columns[:diagramMaxColumns]
-	}
-	return table.Columns
 }
 
 // fitDiagramMark returns a glyph one cell wide, or a blank for a glyph of another width.
@@ -208,10 +267,14 @@ func fitDiagramMark(glyph string) string {
 	return glyph
 }
 
-// listDiagramSpans returns the marks and the types of a box drawn at that corner.
-func listDiagramSpans(table DiagramTable, x, y int, sizes diagramSizes) []DiagramSpan {
-	spans := []DiagramSpan{}
-	for index, column := range listShownDiagramColumns(table) {
+// listDiagramSpans returns the title, the marks and the types of a box.
+func listDiagramSpans(node *diagramNode) []DiagramSpan {
+	x, y, sizes := node.x, node.y, node.sizes
+	title := len([]rune(QualifyDiagramTable(node.table.Schema, node.table.Name)))
+	spans := []DiagramSpan{{
+		Kind: DiagramSpanTitle, X: x + 2, Y: y + 1, Width: min(title, sizes.box-3),
+	}}
+	for index, column := range node.shown {
 		row := y + diagramHeaderLines + index
 		switch {
 		case column.Primary:
@@ -229,38 +292,427 @@ func listDiagramSpans(table DiagramTable, x, y int, sizes diagramSizes) []Diagra
 	return spans
 }
 
-// findDiagramColumnRow returns the row of a box that holds that column.
-func findDiagramColumnRow(table DiagramTable, columnName string) (int, bool) {
-	for index, column := range listShownDiagramColumns(table) {
-		if strings.EqualFold(column.Name, columnName) {
-			return diagramHeaderLines + index, true
+// diagramKey is one foreign key the diagram draws, from the referencing column to the
+// referenced one.
+type diagramKey struct {
+	from, to             *diagramNode
+	fromColumn, toColumn string
+}
+
+// RenderErDiagram draws the table and its neighbours and connects every foreign key column
+// to the column it refers to. A table the root refers to is on the right, and every other
+// table is on the left.
+func RenderErDiagram(root DiagramTable, related []DiagramTable, marks DiagramMarks) ErDiagram {
+	rootName := QualifyDiagramTable(root.Schema, root.Name)
+	rootNode := &diagramNode{table: root}
+	nodes := map[string]*diagramNode{rootName: rootNode}
+	neighbours := []*diagramNode{}
+	for _, table := range related {
+		name := QualifyDiagramTable(table.Schema, table.Name)
+		if _, seen := nodes[name]; seen {
+			continue
+		}
+		node := &diagramNode{table: table}
+		nodes[name] = node
+		neighbours = append(neighbours, node)
+	}
+
+	keys := []diagramKey{}
+	for _, key := range root.ForeignKeys {
+		target, found := nodes[QualifyDiagramTable(key.TargetSchema, key.TargetTable)]
+		if found {
+			keys = append(keys, diagramKey{
+				from: rootNode, to: target,
+				fromColumn: firstOf(key.Columns), toColumn: firstOf(key.TargetColumns),
+			})
 		}
 	}
-	return 0, false
-}
-
-// diagramPlacement is the position and the height of one box.
-type diagramPlacement struct {
-	table  DiagramTable
-	x      int
-	y      int
-	height int
-}
-
-func placeDiagramBox(
-	canvas *diagramCanvas, drawn *ErDiagram, table DiagramTable, marks DiagramMarks,
-	sizes diagramSizes, x, y int,
-) diagramPlacement {
-	lines := buildDiagramBox(table, marks, sizes)
-	for index, line := range lines {
-		canvas.set(x, y+index, line)
+	for _, node := range neighbours {
+		for _, key := range node.table.ForeignKeys {
+			if QualifyDiagramTable(key.TargetSchema, key.TargetTable) == rootName {
+				keys = append(keys, diagramKey{
+					from: node, to: rootNode,
+					fromColumn: firstOf(key.Columns), toColumn: firstOf(key.TargetColumns),
+				})
+			}
+		}
 	}
-	drawn.Boxes = append(drawn.Boxes, DiagramBox{
-		Schema: table.Schema, Name: table.Name,
-		X: x, Y: y, Width: sizes.box, Height: len(lines),
+
+	keep := map[*diagramNode]map[string]bool{}
+	keepColumn := func(node *diagramNode, column string) {
+		if keep[node] == nil {
+			keep[node] = map[string]bool{}
+		}
+		keep[node][strings.ToLower(column)] = true
+	}
+	for _, key := range keys {
+		keepColumn(key.from, key.fromColumn)
+		keepColumn(key.to, key.toColumn)
+	}
+	rootNode.shown = root.Columns
+	for _, node := range neighbours {
+		node.shown = listShownDiagramColumns(node.table, keep[node])
+	}
+
+	left, right := splitDiagramLanes(rootNode, neighbours, keys)
+	rootNode.sizes = measureDiagramSizes([]*diagramNode{rootNode})
+	for _, lane := range [][]*diagramNode{left, right} {
+		sizes := measureDiagramSizes(lane)
+		for _, node := range lane {
+			node.sizes = sizes
+		}
+	}
+	placeDiagramLane(rootNode, left, keys)
+	placeDiagramLane(rootNode, right, keys)
+
+	drawn := ErDiagram{}
+	boxes := append(append(append([]*diagramNode{}, left...), rootNode), right...)
+	for index, node := range boxes {
+		node.box = index
+	}
+	drawn.Root = rootNode.box
+
+	leftLinks, rightLinks := []gapLink{}, []gapLink{}
+	for index, key := range keys {
+		fromRow, hasFrom := key.from.findColumnRow(key.fromColumn)
+		toRow, hasTo := key.to.findColumnRow(key.toColumn)
+		drawn.Links = append(drawn.Links, DiagramLink{From: key.from.box, To: key.to.box})
+		if !hasFrom || !hasTo {
+			continue
+		}
+		link := gapLink{link: index, fromRow: fromRow, toRow: toRow}
+		switch {
+		case key.from == rootNode && key.to == rootNode:
+			if fromRow == toRow {
+				continue
+			}
+			link.fromLeft, link.toLeft = true, true
+			rightLinks = append(rightLinks, link)
+		case key.from == rootNode:
+			link.fromLeft = true
+			rightLinks = append(rightLinks, link)
+		case slices.Contains(right, key.from):
+			link.toLeft = true
+			rightLinks = append(rightLinks, link)
+		default:
+			link.fromLeft = true
+			leftLinks = append(leftLinks, link)
+		}
+	}
+
+	leftNets, rightNets := groupGapNets(leftLinks), groupGapNets(rightLinks)
+	if len(left) > 0 {
+		rootNode.x = left[0].sizes.box + measureGap(leftNets)
+	}
+	rightX := rootNode.x + rootNode.sizes.box + measureGap(rightNets)
+	for _, node := range right {
+		node.x = rightX
+	}
+
+	canvas := &diagramCanvas{}
+	for _, node := range boxes {
+		for index, line := range buildDiagramBox(node, marks) {
+			canvas.set(node.x, node.y+index, line)
+		}
+		drawn.Boxes = append(drawn.Boxes, DiagramBox{
+			Schema: node.table.Schema, Name: node.table.Name,
+			X: node.x, Y: node.y, Width: node.sizes.box, Height: node.countHeight(),
+		})
+		drawn.Spans = append(drawn.Spans, listDiagramSpans(node)...)
+	}
+
+	strokes := &diagramStrokes{masks: map[DiagramCell]uint8{}, arrows: map[DiagramCell]rune{}}
+	if len(left) > 0 {
+		routeGap(strokes, drawn.Links, leftNets, left[0].sizes.box, rootNode.x-1)
+	}
+	rightEdge := rootNode.x + rootNode.sizes.box
+	routeGap(strokes, drawn.Links, rightNets, rightEdge, rightX-1)
+	strokes.drawInto(canvas)
+
+	drawn.Lines = canvas.toLines()
+	drawn.Width = measureDiagramWidth(drawn.Lines)
+	return drawn
+}
+
+// splitDiagramLanes returns the tables on the left and on the right of the root. A table the
+// root refers to is on the right. Each lane is ordered by the first root row it links to.
+func splitDiagramLanes(
+	root *diagramNode, neighbours []*diagramNode, keys []diagramKey,
+) (left, right []*diagramNode) {
+	for _, node := range neighbours {
+		referred := slices.ContainsFunc(keys, func(key diagramKey) bool {
+			return key.from == root && key.to == node
+		})
+		if referred {
+			right = append(right, node)
+			continue
+		}
+		left = append(left, node)
+	}
+	for _, lane := range [][]*diagramNode{left, right} {
+		slices.SortStableFunc(lane, func(first, second *diagramNode) int {
+			return findRootAnchor(root, first, keys) - findRootAnchor(root, second, keys)
+		})
+	}
+	return left, right
+}
+
+// findRootAnchor returns the first root column a key between the root and that table joins.
+func findRootAnchor(root, node *diagramNode, keys []diagramKey) int {
+	anchor := len(root.table.Columns)
+	for _, key := range keys {
+		switch {
+		case key.from == root && key.to == node:
+			anchor = min(anchor, findColumnIndex(root.table.Columns, key.fromColumn))
+		case key.from == node && key.to == root:
+			anchor = min(anchor, findColumnIndex(root.table.Columns, key.toColumn))
+		}
+	}
+	return anchor
+}
+
+// findColumnIndex returns the position of the column, or the column count where it is absent.
+func findColumnIndex(columns []DiagramColumn, name string) int {
+	for index, column := range columns {
+		if strings.EqualFold(column.Name, name) {
+			return index
+		}
+	}
+	return len(columns)
+}
+
+// placeDiagramLane stacks the boxes of one lane from the top. Each box moves down to put its
+// linked column on the row of the root column it links to, when the boxes above leave room.
+func placeDiagramLane(root *diagramNode, lane []*diagramNode, keys []diagramKey) {
+	next := 0
+	for _, node := range lane {
+		node.y = next
+		for _, key := range keys {
+			rootColumn, nodeColumn := "", ""
+			switch {
+			case key.from == root && key.to == node:
+				rootColumn, nodeColumn = key.fromColumn, key.toColumn
+			case key.from == node && key.to == root:
+				rootColumn, nodeColumn = key.toColumn, key.fromColumn
+			default:
+				continue
+			}
+			rootRow, hasRoot := root.findColumnRow(rootColumn)
+			offset, hasNode := node.findColumnOffset(nodeColumn)
+			if hasRoot && hasNode {
+				node.y = max(next, rootRow-offset)
+			}
+			break
+		}
+		next = node.y + node.countHeight() + 1
+	}
+}
+
+func firstOf(names []string) string {
+	if len(names) == 0 {
+		return ""
+	}
+	return names[0]
+}
+
+// gapLink is one foreign key line through the gap between two lanes. Each end stands on the
+// left or on the right edge of the gap, and the arrow is at the referenced end.
+type gapLink struct {
+	link             int
+	fromRow, toRow   int
+	fromLeft, toLeft bool
+}
+
+// gapNet is the lines that end at one arrow. They share one channel of the gap.
+type gapNet struct {
+	links               []gapLink
+	leftRows, rightRows []int
+	top, bottom         int
+}
+
+// groupGapNets returns the links grouped by the arrow they end at.
+func groupGapNets(links []gapLink) []*gapNet {
+	type arrow struct {
+		left bool
+		row  int
+	}
+	found := map[arrow]*gapNet{}
+	nets := []*gapNet{}
+	for _, link := range links {
+		key := arrow{left: link.toLeft, row: link.toRow}
+		net := found[key]
+		if net == nil {
+			net = &gapNet{top: link.toRow, bottom: link.toRow}
+			found[key] = net
+			nets = append(nets, net)
+		}
+		net.links = append(net.links, link)
+		for _, end := range []struct {
+			row  int
+			left bool
+		}{{link.fromRow, link.fromLeft}, {link.toRow, link.toLeft}} {
+			if end.left {
+				net.leftRows = append(net.leftRows, end.row)
+			} else {
+				net.rightRows = append(net.rightRows, end.row)
+			}
+			net.top, net.bottom = min(net.top, end.row), max(net.bottom, end.row)
+		}
+	}
+	orderGapNets(nets)
+	return nets
+}
+
+// orderGapNets orders the channels from the left edge of the gap outwards, with the fewest
+// lines crossing.
+func orderGapNets(nets []*gapNet) {
+	slices.SortStableFunc(nets, func(first, second *gapNet) int {
+		if first.top != second.top {
+			return first.top - second.top
+		}
+		return first.bottom - second.bottom
 	})
-	drawn.Spans = append(drawn.Spans, listDiagramSpans(table, x, y, sizes)...)
-	return diagramPlacement{table: table, x: x, y: y, height: len(lines)}
+	for swapped := true; swapped; {
+		swapped = false
+		for at := 0; at+1 < len(nets); at++ {
+			if countGapCrossings(nets[at+1], nets[at]) < countGapCrossings(nets[at], nets[at+1]) {
+				nets[at], nets[at+1] = nets[at+1], nets[at]
+				swapped = true
+			}
+		}
+	}
+}
+
+// countGapCrossings returns how often the lines of two nets cross, with inner on the channel
+// nearer the left edge.
+func countGapCrossings(inner, outer *gapNet) int {
+	crossings := 0
+	for _, row := range outer.leftRows {
+		if row >= inner.top && row <= inner.bottom {
+			crossings++
+		}
+	}
+	for _, row := range inner.rightRows {
+		if row >= outer.top && row <= outer.bottom {
+			crossings++
+		}
+	}
+	return crossings
+}
+
+// measureGap returns the columns between two lanes: a lead, one channel per net with a blank
+// column between two channels, and the arrow.
+func measureGap(nets []*gapNet) int {
+	return max(diagramGapLeast, 2*len(nets)+3)
+}
+
+// The four arms a line cell joins.
+const (
+	lineUp uint8 = 1 << iota
+	lineDown
+	lineLeft
+	lineRight
+)
+
+// diagramStrokes is the lines of a diagram: the arms each cell joins, and the arrowheads.
+type diagramStrokes struct {
+	masks  map[DiagramCell]uint8
+	arrows map[DiagramCell]rune
+}
+
+// joinCell adds arms to one cell and records the cell on the link.
+func (strokes *diagramStrokes) joinCell(link *DiagramLink, x, y int, mask uint8) {
+	cell := DiagramCell{X: x, Y: y}
+	strokes.masks[cell] |= mask
+	if !slices.Contains(link.Cells, cell) {
+		link.Cells = append(link.Cells, cell)
+	}
+}
+
+// runRow draws a line along one row from the edge of the gap to the cell before the channel.
+func (strokes *diagramStrokes) runRow(link *DiagramLink, y, edge, channel int) {
+	for x := min(edge, channel); x <= max(edge, channel); x++ {
+		if x != channel {
+			strokes.joinCell(link, x, y, lineLeft|lineRight)
+		}
+	}
+}
+
+// runColumn draws a line along one column between two rows, both ends excluded.
+func (strokes *diagramStrokes) runColumn(link *DiagramLink, x, from, to int) {
+	for y := min(from, to) + 1; y < max(from, to); y++ {
+		strokes.joinCell(link, x, y, lineUp|lineDown)
+	}
+}
+
+// routeGap draws the nets of one gap. Each net takes its own channel, and each line runs from
+// its edge to the channel, along the channel, and on to its other edge.
+func routeGap(strokes *diagramStrokes, links []DiagramLink, nets []*gapNet, leftEdge, rightEdge int) {
+	for index, net := range nets {
+		channel := leftEdge + 2 + 2*index
+		for _, held := range net.links {
+			link := &links[held.link]
+			for _, end := range []struct {
+				row  int
+				left bool
+			}{{held.fromRow, held.fromLeft}, {held.toRow, held.toLeft}} {
+				edge, arm := rightEdge, lineRight
+				if end.left {
+					edge, arm = leftEdge, lineLeft
+				}
+				strokes.runRow(link, end.row, edge, channel)
+				strokes.joinCell(link, channel, end.row, arm)
+			}
+			if held.fromRow != held.toRow {
+				strokes.runColumn(link, channel, held.fromRow, held.toRow)
+				top, bottom := min(held.fromRow, held.toRow), max(held.fromRow, held.toRow)
+				strokes.joinCell(link, channel, top, lineDown)
+				strokes.joinCell(link, channel, bottom, lineUp)
+			}
+			if held.toLeft {
+				strokes.arrows[DiagramCell{X: leftEdge, Y: held.toRow}] = '◀'
+				continue
+			}
+			strokes.arrows[DiagramCell{X: rightEdge, Y: held.toRow}] = '▶'
+		}
+	}
+}
+
+// drawInto writes every line cell and every arrowhead into the canvas.
+func (strokes *diagramStrokes) drawInto(canvas *diagramCanvas) {
+	for cell, mask := range strokes.masks {
+		canvas.set(cell.X, cell.Y, string(pickLineGlyph(mask)))
+	}
+	for cell, arrow := range strokes.arrows {
+		canvas.set(cell.X, cell.Y, string(arrow))
+	}
+}
+
+// pickLineGlyph returns the box character that joins these arms.
+func pickLineGlyph(mask uint8) rune {
+	switch mask {
+	case lineLeft, lineRight, lineLeft | lineRight:
+		return '─'
+	case lineUp, lineDown, lineUp | lineDown:
+		return '│'
+	case lineDown | lineRight:
+		return '╭'
+	case lineDown | lineLeft:
+		return '╮'
+	case lineUp | lineRight:
+		return '╰'
+	case lineUp | lineLeft:
+		return '╯'
+	case lineUp | lineDown | lineRight:
+		return '├'
+	case lineUp | lineDown | lineLeft:
+		return '┤'
+	case lineLeft | lineRight | lineDown:
+		return '┬'
+	case lineLeft | lineRight | lineUp:
+		return '┴'
+	}
+	return '┼'
 }
 
 // connectDiagram draws an arrow from one row to another through a vertical channel.
@@ -295,107 +747,6 @@ func connectDiagram(canvas *diagramCanvas, fromX, fromY, toX, toY int) {
 		canvas.setSoft(x, toY, '─')
 	}
 	canvas.set(toX-1, toY, "▶")
-}
-
-// RenderErDiagram draws the table and its neighbours and connects every foreign key column
-// to the column it refers to.
-func RenderErDiagram(root DiagramTable, related []DiagramTable, marks DiagramMarks) ErDiagram {
-	canvas := &diagramCanvas{}
-	drawn := ErDiagram{}
-	rootName := QualifyDiagramTable(root.Schema, root.Name)
-	sizes := measureDiagramSizes(append([]DiagramTable{root}, related...))
-	boxWidth := sizes.box
-
-	findRelated := func(schema, name string) (DiagramTable, bool) {
-		for _, table := range related {
-			if QualifyDiagramTable(table.Schema, table.Name) ==
-				QualifyDiagramTable(schema, name) {
-				return table, true
-			}
-		}
-		return DiagramTable{}, false
-	}
-
-	outgoing := []query.ForeignKey{}
-	for _, key := range root.ForeignKeys {
-		if _, found := findRelated(key.TargetSchema, key.TargetTable); found {
-			outgoing = append(outgoing, key)
-		}
-	}
-
-	type incomingKey struct {
-		table DiagramTable
-		key   query.ForeignKey
-	}
-	incoming := []incomingKey{}
-	for _, table := range related {
-		for _, key := range table.ForeignKeys {
-			if QualifyDiagramTable(key.TargetSchema, key.TargetTable) == rootName {
-				incoming = append(incoming, incomingKey{table: table, key: key})
-			}
-		}
-	}
-
-	leftX := 0
-	middleX := 0
-	if len(incoming) > 0 {
-		middleX = boxWidth + diagramGap
-	}
-	rightX := middleX + boxWidth + diagramGap
-
-	leftY := 0
-	leftPlacements := make([]diagramPlacement, 0, len(incoming))
-	for _, held := range incoming {
-		placed := placeDiagramBox(canvas, &drawn, held.table, marks, sizes, leftX, leftY)
-		leftY += placed.height + 1
-		leftPlacements = append(leftPlacements, placed)
-	}
-
-	drawn.Root = len(drawn.Boxes)
-	rootPlacement := placeDiagramBox(canvas, &drawn, root, marks, sizes, middleX, 0)
-
-	rightY := 0
-	for _, key := range outgoing {
-		target, found := findRelated(key.TargetSchema, key.TargetTable)
-		if !found {
-			continue
-		}
-		placed := placeDiagramBox(canvas, &drawn, target, marks, sizes, rightX, rightY)
-		rightY += placed.height + 1
-
-		fromRow, hasFrom := findDiagramColumnRow(root, firstOf(key.Columns))
-		toRow, hasTo := findDiagramColumnRow(placed.table, firstOf(key.TargetColumns))
-		if !hasFrom || !hasTo {
-			continue
-		}
-		connectDiagram(canvas,
-			middleX+boxWidth, rootPlacement.y+fromRow, placed.x, placed.y+toRow)
-	}
-
-	for index, held := range incoming {
-		if index >= len(leftPlacements) {
-			continue
-		}
-		placed := leftPlacements[index]
-		fromRow, hasFrom := findDiagramColumnRow(placed.table, firstOf(held.key.Columns))
-		toRow, hasTo := findDiagramColumnRow(root, firstOf(held.key.TargetColumns))
-		if !hasFrom || !hasTo {
-			continue
-		}
-		connectDiagram(canvas,
-			leftX+boxWidth, placed.y+fromRow, middleX, rootPlacement.y+toRow)
-	}
-
-	drawn.Lines = canvas.toLines()
-	drawn.Width = measureDiagramWidth(drawn.Lines)
-	return drawn
-}
-
-func firstOf(names []string) string {
-	if len(names) == 0 {
-		return ""
-	}
-	return names[0]
 }
 
 // CollectDiagramNeighbours returns the names of the tables at both ends of a foreign key of

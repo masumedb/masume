@@ -755,7 +755,13 @@ func (model *Model) rollOverlay(connection *app.Connection, step int) (tea.Model
 		overlay.List.Offset = overlay.List.Cursor
 		return model, nil
 	case app.OverlayDiagram:
-		overlay.List.Cursor = clamp(overlay.List.Cursor+step, len(overlay.Diagram.Lines))
+		action := ActionCursorDown
+		if step < 0 {
+			action = ActionCursorUp
+		}
+		for range max(step, -step) {
+			model.scrollDiagram(overlay, Match{Action: action})
+		}
 		return model, nil
 	}
 	overlay.List.Offset, overlay.List.Rolled = overlay.List.Offset+step, true
@@ -1199,6 +1205,9 @@ func (model *Model) pressOverlay(
 	if model.pressExportChoice(connection, overlay, mouse) {
 		return model, nil
 	}
+	if overlay.Kind == app.OverlayDiagram {
+		return model.pressDiagram(connection, overlay, mouse)
+	}
 	// A card with a form or a list of returns marks the row the press landed on.
 	if row, onRow := model.layout.formRows.holds(mouse.X, mouse.Y); onRow {
 		return model.pressOverlayFormRow(connection, tab, overlay, row)
@@ -1221,6 +1230,31 @@ func (model *Model) pressOverlay(
 		return model, nil
 	}
 	return model.chooseOverlayRow(connection, tab, overlay, chooseInSameTab)
+}
+
+// pressDiagram returns a press on a diagram: one press focuses the box under the pointer,
+// and two open its table.
+func (model *Model) pressDiagram(
+	connection *app.Connection, overlay *app.Overlay, mouse tea.Mouse,
+) (tea.Model, tea.Cmd) {
+	layout := model.layout
+	column, row := mouse.X-layout.cardBodyLeft, mouse.Y-layout.cardBodyTop
+	if column < 0 || column >= layout.cardRoom || row < 0 || row >= layout.cardBody {
+		return model, nil
+	}
+	x := column + overlay.List.Offset
+	y := row + clampOffset(overlay.List.Cursor, layout.cardBody, len(overlay.Diagram.Lines))
+	for index, box := range overlay.Diagram.Boxes {
+		if x < box.X || x >= box.X+box.Width || y < box.Y || y >= box.Y+box.Height {
+			continue
+		}
+		overlay.Field = index
+		if model.clicks.count("diagram-"+strconv.Itoa(index), time.Now()) < 2 {
+			return model, nil
+		}
+		return model.openDiagramBox(connection, overlay)
+	}
+	return model, nil
 }
 
 // pressEditor returns a press on the statement: one press puts the caret where the pointer
@@ -1303,6 +1337,13 @@ func (model *Model) rollWheelSideways(mouse tea.Mouse, step int) (tea.Model, tea
 		return model, command
 	}
 	connection := model.Active()
+	if model.screen == ScreenWorking && connection != nil &&
+		connection.Overlay.Kind == app.OverlayDiagram {
+		overlay := &connection.Overlay
+		widest := max(overlay.Diagram.Width-model.layout.cardRoom, 0)
+		overlay.List.Offset = min(max(overlay.List.Offset+step*wheelColumns, 0), widest)
+		return model, nil
+	}
 	if model.screen != ScreenWorking || connection == nil || connection.Overlay.IsOpen() {
 		return model, nil
 	}

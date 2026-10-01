@@ -1,6 +1,7 @@
 package present
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -101,6 +102,148 @@ func TestRenderErDiagramBlanksAMarkOfAnotherWidth(t *testing.T) {
 	drawn := RenderErDiagram(root, nil, DiagramMarks{Primary: "PK"})
 	if !strings.Contains(strings.Join(drawn.Lines, "\n"), "│   AlbumId") {
 		t.Errorf("the mark is not blank:\n%s", strings.Join(drawn.Lines, "\n"))
+	}
+}
+
+// buildDiagramKey returns a foreign key of one column to the id of a table of main.
+func buildDiagramKey(column, target string) query.ForeignKey {
+	return query.ForeignKey{
+		Columns: []string{column}, TargetSchema: "main", TargetTable: target,
+		TargetColumns: []string{"id"},
+	}
+}
+
+// Two keys to one table draw one box, and their lines join into one arrow.
+func TestRenderErDiagramDrawsATableReferencedTwiceOnce(t *testing.T) {
+	root := DiagramTable{
+		Schema: "main", Name: "orders",
+		Columns: []DiagramColumn{
+			{Name: "id", Primary: true},
+			{Name: "billing_id", Foreign: true},
+			{Name: "shipping_id", Foreign: true},
+		},
+		ForeignKeys: []query.ForeignKey{
+			buildDiagramKey("billing_id", "addresses"), buildDiagramKey("shipping_id", "addresses"),
+		},
+	}
+	related := []DiagramTable{{
+		Schema: "main", Name: "addresses", Columns: []DiagramColumn{{Name: "id", Primary: true}},
+	}}
+
+	drawn := RenderErDiagram(root, related, DiagramMarks{})
+	text := strings.Join(drawn.Lines, "\n")
+	if len(drawn.Boxes) != 2 || strings.Count(text, "main.addresses") != 1 {
+		t.Errorf("the diagram draws %d boxes:\n%s", len(drawn.Boxes), text)
+	}
+	if len(drawn.Links) != 2 || strings.Count(text, "▶") != 1 {
+		t.Errorf("the diagram draws %d links and %d arrows:\n%s",
+			len(drawn.Links), strings.Count(text, "▶"), text)
+	}
+}
+
+// A key of a table to itself draws a loop on the right of the box, back to the box.
+func TestRenderErDiagramDrawsASelfReference(t *testing.T) {
+	root := DiagramTable{
+		Schema: "main", Name: "employees",
+		Columns: []DiagramColumn{
+			{Name: "id", Primary: true}, {Name: "name"}, {Name: "manager_id", Foreign: true},
+		},
+		ForeignKeys: []query.ForeignKey{buildDiagramKey("manager_id", "employees")},
+	}
+
+	drawn := RenderErDiagram(root, nil, DiagramMarks{})
+	text := strings.Join(drawn.Lines, "\n")
+	if len(drawn.Boxes) != 1 || len(drawn.Links) != 1 {
+		t.Fatalf("the diagram draws %d boxes and %d links", len(drawn.Boxes), len(drawn.Links))
+	}
+	box := drawn.Boxes[0]
+	arrow := []rune(drawn.Lines[box.Y+diagramHeaderLines])[box.X+box.Width]
+	if arrow != '◀' {
+		t.Errorf("the id row ends in %q, wanted the arrow back into the box:\n%s", arrow, text)
+	}
+	loop := []rune(drawn.Lines[box.Y+diagramHeaderLines+2])[box.X+box.Width]
+	if loop != '─' {
+		t.Errorf("the manager_id row ends in %q, wanted the line of the loop:\n%s", loop, text)
+	}
+}
+
+// A related table shows the column its key joins, even past the columns a box shows.
+func TestRenderErDiagramShowsTheJoinedColumnOfAWideTable(t *testing.T) {
+	root := DiagramTable{
+		Schema: "main", Name: "customers", Columns: []DiagramColumn{{Name: "id", Primary: true}},
+	}
+	columns := []DiagramColumn{}
+	for _, name := range []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l"} {
+		columns = append(columns, DiagramColumn{Name: name})
+	}
+	columns = append(columns, DiagramColumn{Name: "customer_id", Foreign: true})
+	related := []DiagramTable{{
+		Schema: "main", Name: "orders", Columns: columns,
+		ForeignKeys: []query.ForeignKey{buildDiagramKey("customer_id", "customers")},
+	}}
+
+	drawn := RenderErDiagram(root, related, DiagramMarks{})
+	text := strings.Join(drawn.Lines, "\n")
+	for _, wanted := range []string{"customer_id", "… 2 more", "▶"} {
+		if !strings.Contains(text, wanted) {
+			t.Errorf("the diagram has no %q:\n%s", wanted, text)
+		}
+	}
+	if len(drawn.Links) != 1 || len(drawn.Links[0].Cells) == 0 {
+		t.Errorf("the key has no line: %+v", drawn.Links)
+	}
+}
+
+// Keys to two tables run in channels of their own, so no two lines share a cell.
+func TestRenderErDiagramKeepsTheLinesApart(t *testing.T) {
+	root := DiagramTable{
+		Schema: "main", Name: "orders",
+		Columns: []DiagramColumn{
+			{Name: "id", Primary: true}, {Name: "note"},
+			{Name: "customer_id", Foreign: true}, {Name: "shop_id", Foreign: true},
+		},
+		ForeignKeys: []query.ForeignKey{
+			buildDiagramKey("customer_id", "customers"), buildDiagramKey("shop_id", "shops"),
+		},
+	}
+	related := []DiagramTable{
+		{Schema: "main", Name: "customers", Columns: []DiagramColumn{{Name: "id", Primary: true}}},
+		{Schema: "main", Name: "shops", Columns: []DiagramColumn{{Name: "id", Primary: true}}},
+	}
+
+	drawn := RenderErDiagram(root, related, DiagramMarks{})
+	if len(drawn.Links) != 2 {
+		t.Fatalf("the diagram draws %d links", len(drawn.Links))
+	}
+	for _, cell := range drawn.Links[0].Cells {
+		if slices.Contains(drawn.Links[1].Cells, cell) {
+			t.Errorf("both lines cross %+v:\n%s", cell, strings.Join(drawn.Lines, "\n"))
+		}
+	}
+}
+
+// A table that refers to the root and is referred to by it stands once, on the right.
+func TestRenderErDiagramDrawsATableOfBothSidesOnce(t *testing.T) {
+	root := DiagramTable{
+		Schema: "main", Name: "customers",
+		Columns: []DiagramColumn{
+			{Name: "id", Primary: true}, {Name: "last_order_id", Foreign: true},
+		},
+		ForeignKeys: []query.ForeignKey{buildDiagramKey("last_order_id", "orders")},
+	}
+	related := []DiagramTable{{
+		Schema: "main", Name: "orders",
+		Columns:     []DiagramColumn{{Name: "id", Primary: true}, {Name: "customer_id", Foreign: true}},
+		ForeignKeys: []query.ForeignKey{buildDiagramKey("customer_id", "customers")},
+	}}
+
+	drawn := RenderErDiagram(root, related, DiagramMarks{})
+	text := strings.Join(drawn.Lines, "\n")
+	if len(drawn.Boxes) != 2 || drawn.Root != 0 {
+		t.Fatalf("the diagram draws the boxes %+v with the root %d", drawn.Boxes, drawn.Root)
+	}
+	if !strings.Contains(text, "▶") || !strings.Contains(text, "◀") {
+		t.Errorf("the diagram has no arrow each way:\n%s", text)
 	}
 }
 

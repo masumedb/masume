@@ -316,6 +316,14 @@ Dump and restore need an engine that reports object definitions. See [engine sup
 
 In Plan, `r` toggles the raw server plan. `y` copies the raw plan. `i` asks AI to analyze the plan when AI is enabled. See [engine support](engines.md) and [AI chat](ai.md).
 
+## ER diagram
+
+`m` on a table opens the object menu, and `ER diagram` draws the table with its foreign keys. The tables the table refers to are on the right. The tables that refer to it are on the left. A table that refers to itself has a loop on its right side. An arrow points at the referenced column. The lines of keys that end at the same column join into one arrow.
+
+A box shows every column of the table in the middle. A box of a related table shows its first 10 columns and every column a key joins. `…` counts the rest.
+
+`Tab` and `Shift+Tab` focus the next and the previous table. The lines of a focused neighbour are drawn in the accent colour. `Enter` opens the focused table in a tab. `g` draws the diagram of the focused table, and `Esc` goes back to the diagram before it. `y` copies the diagram as text. The arrow keys pan the diagram. A click focuses a box, and a double click opens its table.
+
 ## Tabs and history
 
 `Alt+Up` and `Alt+Down` switch tabs. `Alt+1` through `Alt+9` select a tab directly. `Alt+T` names a query tab with a first-line comment, and sets the title of a notebook tab. Table and object tabs keep their object names.
@@ -445,6 +453,7 @@ A change rewrites only the table of its row. Every line outside that table stays
 - Drag over other text on screen to select it. `Ctrl+C` copies the selected text.
 - Right-click an object, a cell, a header, a tab, a connection, or the editor for a context menu.
 - Middle-click a tab or click its close mark to close the tab. The usual close confirmation applies.
+- In an ER diagram, click a box to focus it. Double-click it to open the table. The wheel scrolls the diagram, and `Shift` with the wheel pans it sideways.
 - Click a key hint or a menu entry to run its action.
 
 ## Troubleshooting

@@ -1247,31 +1247,49 @@ func (model *Model) buildScrollingCardKeys(
 // renderDiagram draws the lines of an ER diagram. A line keeps its own shape and is never
 // wrapped, because a box drawn over two rows would come apart.
 func (model *Model) renderDiagram(overlay app.Overlay, width int) string {
+	theme := model.styles.Theme
 	drawn := overlay.Diagram
 	keys := model.buildCardKeys(app.OverlayDiagram, keyScene{overlay: overlay})
 	text := keys.buildText()
-	widest := 0
-	for _, line := range drawn.Lines {
-		widest = max(widest, present.MeasureText(line))
-	}
-	width = fitCardWidth(width, widest, text, overlay.Title, "")
+	width = fitCardWidth(width, drawn.Width, text, overlay.Title, "")
 	room := max(width-present.CardChrome, 1)
 	height := model.resolveOverlayHeight(
 		overlay.Kind, len(drawn.Lines), countHintRows(text, width))
-	model.layout.cardBody = countCardBodyRows(height, countHintLines(text, room))
-	model.layout.cardRoom = room
+	body := countCardBodyRows(height, countHintLines(text, room))
+	model.recordCardBody()
 
-	lines := make([]string, 0, len(drawn.Lines))
-	for at := max(overlay.List.Cursor, 0); at < len(drawn.Lines); at++ {
-		lines = append(lines, model.paintDiagramRow(overlay, at, room))
+	count := len(drawn.Lines)
+	top := clampOffset(overlay.List.Cursor, body, count)
+	thumb := buildScrollThumb(top, body, count)
+	model.recordCardScrollbar(thumb, cardBodyColumn+room-1, cardBodyRow,
+		min(body, len(thumb)), top, count, scrollDiagramToRow)
+	shown := room
+	if len(thumb) > 0 {
+		shown--
 	}
-	return model.renderTextCard(overlay.Kind, overlay.Title, width, lines, keys,
-		len(drawn.Lines), plainCard)
+	model.layout.cardBody, model.layout.cardRoom = body, shown
+
+	lines := make([]string, 0, body)
+	for at := top; at < count && len(lines) < body; at++ {
+		line := padStyledOn(model.paintDiagramRow(overlay, at, shown), room, theme.Panel)
+		if len(lines) < len(thumb) {
+			line = model.styles.paintThumbColumn(line, thumb[len(lines)], room-1, theme.Panel)
+		}
+		lines = append(lines, line)
+	}
+	return model.renderTextCard(overlay.Kind, overlay.Title, width, lines, keys, count,
+		plainCard)
 }
 
-// paintDiagramRow draws one row of a diagram from the column the card is panned to: the
-// border of the focused box in the accent, each key mark in the colour of its icon in the
-// tree, and each type muted.
+// scrollDiagramToRow moves a diagram to the row a drag of its bar reached.
+func scrollDiagramToRow(overlay *app.Overlay, row int) {
+	overlay.List.Cursor = max(row, 0)
+}
+
+// paintDiagramRow draws one row of a diagram from the column the card is panned to. The
+// borders and the lines are muted, each key mark has the colour of its icon in the tree, and
+// each type is muted. The focused box, and the lines of a focused neighbour, are in the
+// accent.
 func (model *Model) paintDiagramRow(overlay app.Overlay, row, room int) string {
 	theme := model.styles.Theme
 	drawn := overlay.Diagram
@@ -1280,6 +1298,7 @@ func (model *Model) paintDiagramRow(overlay app.Overlay, row, room int) string {
 	to := min(from+room, len(runes))
 
 	inks := make([]color.Color, len(runes))
+	bold := make([]bool, len(runes))
 	for at := range inks {
 		inks[at] = theme.Text
 	}
@@ -1288,11 +1307,46 @@ func (model *Model) paintDiagramRow(overlay app.Overlay, row, room int) string {
 			inks[at] = ink
 		}
 	}
+	paintBorder := func(box present.DiagramBox, ink color.Color) {
+		switch {
+		case row == box.Y || row == box.Y+2 || row == box.Y+box.Height-1:
+			paint(box.X, box.Width, ink)
+		case row > box.Y && row < box.Y+box.Height-1:
+			paint(box.X, 1, ink)
+			paint(box.X+box.Width-1, 1, ink)
+		}
+	}
+	for _, box := range drawn.Boxes {
+		paintBorder(box, theme.Faint)
+	}
+	focused := overlay.Field >= 0 && overlay.Field < len(drawn.Boxes)
+	for _, lit := range []bool{false, true} {
+		for _, link := range drawn.Links {
+			touches := focused && overlay.Field != drawn.Root &&
+				(link.From == overlay.Field || link.To == overlay.Field)
+			if touches != lit {
+				continue
+			}
+			ink := theme.Muted
+			if lit {
+				ink = theme.Accent
+			}
+			for _, cell := range link.Cells {
+				if cell.Y == row {
+					paint(cell.X, 1, ink)
+				}
+			}
+		}
+	}
 	for _, span := range drawn.Spans {
 		if span.Y != row {
 			continue
 		}
 		switch span.Kind {
+		case present.DiagramSpanTitle:
+			for at := max(span.X, 0); at < min(span.X+span.Width, len(bold)); at++ {
+				bold[at] = true
+			}
 		case present.DiagramSpanPrimary:
 			paint(span.X, span.Width, model.styles.IconColor(cfg.IconPrimaryKey))
 		case present.DiagramSpanForeign:
@@ -1301,24 +1355,25 @@ func (model *Model) paintDiagramRow(overlay app.Overlay, row, room int) string {
 			paint(span.X, span.Width, theme.Muted)
 		}
 	}
-	if overlay.Field >= 0 && overlay.Field < len(drawn.Boxes) {
+	if focused {
 		box := drawn.Boxes[overlay.Field]
-		switch {
-		case row == box.Y || row == box.Y+box.Height-1:
-			paint(box.X, box.Width, theme.Accent)
-		case row > box.Y && row < box.Y+box.Height-1:
-			paint(box.X, 1, theme.Accent)
-			paint(box.X+box.Width-1, 1, theme.Accent)
+		paintBorder(box, theme.Accent)
+		if row == box.Y+1 {
+			paint(box.X+2, box.Width-3, theme.Accent)
 		}
 	}
 
 	written := strings.Builder{}
 	for start := from; start < to; {
 		end := start + 1
-		for end < to && inks[end] == inks[start] {
+		for end < to && inks[end] == inks[start] && bold[end] == bold[start] {
 			end++
 		}
-		writeTextOn(&written, inks[start], theme.Panel, string(runes[start:end]))
+		opening := resolveOpening(inks[start], theme.Panel)
+		if bold[start] {
+			opening = resolveBoldOpening(inks[start], theme.Panel)
+		}
+		writeOpenedText(&written, opening, string(runes[start:end]))
 		start = end
 	}
 	return written.String()
