@@ -17,7 +17,7 @@ func buildFormProfile() cfg.Profile {
 		Name: "shop", Engine: core.EnginePostgres, Host: "db.example.com", Port: 6543,
 		Database: "shop", User: "reader", Auth: cfg.AuthPassword,
 		Environment: cfg.EnvironmentTest, AccessMode: cfg.AccessReadOnly,
-		SSLMode: core.SSLVerifyFull, PageSize: 250,
+		SSLMode: core.SSLVerifyFull, PageSize: 250, Group: "work/shop",
 	}
 }
 
@@ -50,6 +50,7 @@ func TestBuildProfileFromFieldsRoundTripsAProfile(t *testing.T) {
 		{"access", held.AccessMode, source.AccessMode},
 		{"ssl mode", held.SSLMode, source.SSLMode},
 		{"page size", held.PageSize, source.PageSize},
+		{"group", held.Group, source.Group},
 	} {
 		if one.got != one.want {
 			t.Errorf("the %s reads %v, wanted %v", one.field, one.got, one.want)

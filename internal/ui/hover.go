@@ -110,7 +110,7 @@ func (model *Model) resolveHover(x, y int) hoverTarget {
 	}
 	switch model.screen {
 	case ScreenPickingProfile:
-		return resolveRowHover(model.layout.pickerRows, len(model.shownProfiles()),
+		return resolveRowHover(model.layout.pickerRows, len(model.shownPickerRows()),
 			model.picker.cursor, x, y)
 	case ScreenEditingConnection:
 		return resolveRowHover(

@@ -209,11 +209,7 @@ func (model *Model) secretStoreNames() []string {
 // OpenAtStart names the profile the client connects to as it opens.
 func (model *Model) OpenAtStart(profile cfg.Profile) {
 	model.startProfile = &profile
-	for index, held := range model.profiles {
-		if held.Name == profile.Name {
-			model.picker.focus(index, len(model.profiles))
-		}
-	}
+	model.focusProfile(profile.Name)
 }
 
 // OpenNotebookAtStart opens this notebook file once the connection is open.

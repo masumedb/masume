@@ -589,3 +589,17 @@ func TestRemovingATableLeavesTheFileTidy(t *testing.T) {
 		})
 	}
 }
+
+func TestSaveProfileToFileWritesAndClearsTheGroup(t *testing.T) {
+	profile := buildStoredProfile()
+	profile.Group = "work/shop"
+	written := saveProfile(t, "", profile)
+	if !strings.Contains(written, `group = "work/shop"`) {
+		t.Errorf("the group was not written:\n%s", written)
+	}
+
+	profile.Group = ""
+	if cleared := saveProfile(t, written, profile); strings.Contains(cleared, "group") {
+		t.Errorf("the group was not removed:\n%s", cleared)
+	}
+}

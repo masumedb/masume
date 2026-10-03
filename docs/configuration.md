@@ -102,6 +102,7 @@ mode     = "write"
 | `wait_for_port` | | TCP port on `host` checked before connecting. Without it, masume connects right after starting `command` |
 | `command_timeout` | `10` | Seconds to wait for `wait_for_port`. Must be above zero |
 | `mcp` | the `[mcp]` level | MCP access limit for the profile: `off`, `read-only`, `read-write` or `full`. The global limit and the profile `mode` still apply. See [mcp.md](mcp.md) |
+| `group` | | Group in the connection picker. `/` separates levels, for example `work/shop` |
 | `description` | | Free text, edited in the connection form. Not shown in the picker |
 | `ai_instructions` | | Database context sent to the AI model with each chat request on this connection |
 

@@ -448,7 +448,7 @@ func (model *Model) askDeleteProfile(profile cfg.Profile) (tea.Model, tea.Cmd) {
 			}
 			model.profiles = dropProfile(model.profiles, profile.Name)
 			model.unsaved = dropProfile(model.unsaved, profile.Name)
-			model.picker.focus(model.picker.cursor, len(model.shownProfiles()))
+			model.picker.focus(model.picker.cursor, len(model.shownPickerRows()))
 			return nil
 		},
 	}

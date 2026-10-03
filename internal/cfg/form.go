@@ -239,6 +239,7 @@ func BuildFormFields(profile Profile, editing bool, secretStoreNames []string) [
 			Key: "confirmWrites", Label: "confirm", Value: describeConfirmValue(source),
 			Choices: listModeNames(ConfirmModes),
 		},
+		{Key: "group", Label: "group", Value: source.Group},
 		{Key: "description", Label: "description", Value: source.Description},
 		{Key: "aiInstructions", Label: "ai instructions", Value: source.AiInstructions},
 	}
@@ -334,6 +335,7 @@ func BuildProfileFromFields(fields []FormField, source Profile, editing bool) (P
 	built.PasswordCommand = read("passwordCommand")
 	built.Secret = read("secret")
 	built.SecretRef = read("secretRef")
+	built.Group = NormalizeGroup(read("group"))
 	built.Description = read("description")
 	built.AiInstructions = read("aiInstructions")
 	built.DirectConnection = isMongoEngine(engine) && read(directKey) == toggleOn

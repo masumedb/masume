@@ -50,20 +50,18 @@ func TestThePickerStaysPutOnAnEmptyList(t *testing.T) {
 	if picker.cursor != 0 {
 		t.Errorf("a focus on no rows left the cursor on %d", picker.cursor)
 	}
-	if _, found := picker.pick(nil); found {
-		t.Error("an empty list picked a profile")
-	}
 }
 
 func TestThePickerPicksTheProfileTheCursorStandsOn(t *testing.T) {
-	profiles := []cfg.Profile{{Name: "alpha"}, {Name: "beta"}}
-	picker := pickerState{cursor: 1}
-	held, found := picker.pick(profiles)
+	model := NewModel(loadedConfigForTest("tokyonight"), nil, nil, nil)
+	model.profiles = []cfg.Profile{{Name: "alpha"}, {Name: "beta"}}
+	model.picker.cursor = 1
+	held, found := model.pickedProfile()
 	if !found || held.Name != "beta" {
 		t.Errorf("the cursor on 1 picked %+v, found=%v", held, found)
 	}
-	picker.cursor = 2
-	if _, found := picker.pick(profiles); found {
+	model.picker.cursor = 2
+	if _, found := model.pickedProfile(); found {
 		t.Error("a cursor off the list picked a profile")
 	}
 }
@@ -322,5 +320,118 @@ func TestADragOverThePickerCopiesNoBorder(t *testing.T) {
 	copied, copies := model.readTextToCopy()
 	if !copies || strings.Contains(copied, "│") || !strings.HasPrefix(copied, "cannot connect") {
 		t.Errorf("the drag copied %q", copied)
+	}
+}
+
+// buildGroupedProfiles returns profiles at the top level, in a group and in a subgroup.
+func buildGroupedProfiles() []cfg.Profile {
+	return []cfg.Profile{
+		{Name: "shop-prod", Group: "work/shop"},
+		{Name: "local"},
+		{Name: "ci", Group: "work"},
+		{Name: "blog", Group: "Personal"},
+	}
+}
+
+// describePickerRows returns each row as its depth and its group path or profile name.
+func describePickerRows(rows []pickerRow) []string {
+	described := []string{}
+	for _, row := range rows {
+		label := row.profile.Name
+		if row.isGroup() {
+			label = row.group + "/"
+		}
+		described = append(described, strings.Repeat(".", row.depth)+label)
+	}
+	return described
+}
+
+func TestThePickerListsProfilesBeforeGroupsOnEveryLevel(t *testing.T) {
+	rows := buildPickerRows(buildGroupedProfiles(), nil)
+	want := []string{"local", "Personal/", ".blog", "work/", ".ci", ".work/shop/", "..shop-prod"}
+	if got := describePickerRows(rows); !slices.Equal(got, want) {
+		t.Errorf("the rows are %v, wanted %v", got, want)
+	}
+	if rows[3].count != 2 {
+		t.Errorf("the work group counts %d profiles", rows[3].count)
+	}
+}
+
+func TestThePickerFoldsAndUnfoldsAGroup(t *testing.T) {
+	model := NewModel(loadedConfigForTest("tokyonight"), nil, nil, nil)
+	model.screen = ScreenPickingProfile
+	model.profiles = buildGroupedProfiles()
+
+	model.picker.cursor = 3
+	model.runPickerAction(Match{Action: ActionFoldRow})
+	want := []string{"local", "Personal/", ".blog", "work/"}
+	if got := describePickerRows(model.shownPickerRows()); !slices.Equal(got, want) {
+		t.Errorf("fold left the rows %v, wanted %v", got, want)
+	}
+	model.runPickerAction(Match{Action: ActionChooseRow})
+	if len(model.shownPickerRows()) != 7 {
+		t.Errorf("enter left the rows %v", describePickerRows(model.shownPickerRows()))
+	}
+	model.runPickerAction(Match{Action: ActionChooseRow})
+	model.runPickerAction(Match{Action: ActionUnfoldRow})
+	if len(model.shownPickerRows()) != 7 {
+		t.Errorf("right left the rows %v", describePickerRows(model.shownPickerRows()))
+	}
+	if model.screen != ScreenPickingProfile {
+		t.Errorf("a group row left the screen on %q", model.screen)
+	}
+}
+
+func TestLeftOnAProfileMovesToItsGroup(t *testing.T) {
+	model := NewModel(loadedConfigForTest("tokyonight"), nil, nil, nil)
+	model.profiles = buildGroupedProfiles()
+
+	model.picker.cursor = 6
+	model.runPickerAction(Match{Action: ActionFoldRow})
+	if model.picker.cursor != 5 {
+		t.Errorf("left on a profile left the cursor on %d", model.picker.cursor)
+	}
+	model.runPickerAction(Match{Action: ActionFoldRow})
+	model.runPickerAction(Match{Action: ActionFoldRow})
+	if model.picker.cursor != 3 {
+		t.Errorf("left on a folded group left the cursor on %d", model.picker.cursor)
+	}
+}
+
+func TestThePickerFilterMatchesTheGroupAndUnfoldsIt(t *testing.T) {
+	model := NewModel(loadedConfigForTest("tokyonight"), nil, nil, nil)
+	model.profiles = buildGroupedProfiles()
+	model.picker.setFolded("work", true)
+
+	model.picker.filter.SetText("shop")
+	want := []string{"work/", ".work/shop/", "..shop-prod"}
+	if got := describePickerRows(model.shownPickerRows()); !slices.Equal(got, want) {
+		t.Errorf("the filter left the rows %v, wanted %v", got, want)
+	}
+}
+
+func TestFocusProfileUnfoldsItsGroups(t *testing.T) {
+	model := NewModel(loadedConfigForTest("tokyonight"), nil, nil, nil)
+	model.profiles = buildGroupedProfiles()
+	model.picker.setFolded("work", true)
+	model.picker.setFolded("work/shop", true)
+
+	model.focusProfile("shop-prod")
+	if profile, found := model.pickedProfile(); !found || profile.Name != "shop-prod" {
+		t.Errorf("the cursor stands on %+v, found=%v", profile, found)
+	}
+}
+
+func TestThePickerDrawsGroupHeaders(t *testing.T) {
+	model := buildOfflineModel(t, 120, 30)
+	model.screen = ScreenPickingProfile
+	model.profiles = buildGroupedProfiles()
+	model.picker.setFolded("Personal", true)
+
+	drawn := stripEscapes(model.renderPicker())
+	for _, line := range []string{"▸ Personal 1", "▾ work", "  ▾ shop", "      shop-prod"} {
+		if !strings.Contains(drawn, line) {
+			t.Errorf("the card does not draw %q:\n%s", line, drawn)
+		}
 	}
 }

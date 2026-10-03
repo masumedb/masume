@@ -3,6 +3,7 @@ package ui
 import (
 	"image/color"
 	"slices"
+	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -53,7 +54,7 @@ var pickerListActions = collectScopeActions(cfg.ScopeList)
 // `answer-no` as well as to `new-connection`, so the screen names the ones it takes.
 var pickerActions = append(slices.Clone(pickerListActions),
 	ActionClose, ActionNewConnection, ActionEditConnection, ActionDeleteConnection,
-	ActionFilterConnections)
+	ActionFilterConnections, ActionFoldRow, ActionUnfoldRow)
 
 // readPickerKey returns what one press does in the profile picker.
 func (model *Model) readPickerKey(key tea.Key) (tea.Model, tea.Cmd) {
@@ -111,7 +112,7 @@ func (model *Model) readPickerFilterKey(key tea.Key) (tea.Model, tea.Cmd) {
 // runPickerAction runs one action of the connection picker, whether a key or a press asked
 // for it.
 func (model *Model) runPickerAction(match Match) (tea.Model, tea.Cmd) {
-	count := len(model.shownProfiles())
+	count := len(model.shownPickerRows())
 	switch match.Action {
 	case ActionCursorUp:
 		model.picker.step(-1, count)
@@ -126,9 +127,15 @@ func (model *Model) runPickerAction(match Match) (tea.Model, tea.Cmd) {
 	case ActionCursorLastRow:
 		model.picker.focus(count-1, count)
 	case ActionChooseRow:
-		if profile, found := model.pickedProfile(); found {
+		if row, found := model.pickedRow(); found && row.isGroup() {
+			model.foldPickedGroup(!model.picker.folded[row.group])
+		} else if profile, found := model.pickedProfile(); found {
 			return model.chooseProfile(profile)
 		}
+	case ActionFoldRow:
+		model.foldPickedRow()
+	case ActionUnfoldRow:
+		model.foldPickedGroup(false)
 	case ActionFilterConnections:
 		model.picker.startFilter()
 	case ActionNewConnection:
@@ -204,21 +211,89 @@ func (model *Model) isProfileOpen(name string) bool {
 	return false
 }
 
-// pickedProfile returns the profile the cursor stands on.
-func (model *Model) pickedProfile() (cfg.Profile, bool) {
-	return model.picker.pick(model.shownProfiles())
+// pickedRow returns the row under the cursor.
+func (model *Model) pickedRow() (pickerRow, bool) {
+	rows := model.shownPickerRows()
+	if model.picker.cursor < 0 || model.picker.cursor >= len(rows) {
+		return pickerRow{}, false
+	}
+	return rows[model.picker.cursor], true
 }
 
-// shownProfiles returns the profiles the list draws after the filter.
+// pickedProfile returns the profile under the cursor. A group header has none.
+func (model *Model) pickedProfile() (cfg.Profile, bool) {
+	row, found := model.pickedRow()
+	if !found || row.isGroup() {
+		return cfg.Profile{}, false
+	}
+	return row.profile, true
+}
+
+// shownProfiles returns the profiles that match the filter.
 func (model *Model) shownProfiles() []cfg.Profile {
 	return model.picker.keepFilteredProfiles(model.profiles)
 }
 
-// focusProfile selects the profile of that name. An unlisted name selects the first row.
+// shownPickerRows returns the rows the list draws. A filter unfolds every group.
+func (model *Model) shownPickerRows() []pickerRow {
+	folded := model.picker.folded
+	if model.picker.readFilterTerm() != "" {
+		folded = nil
+	}
+	return buildPickerRows(model.shownProfiles(), folded)
+}
+
+// foldPickedGroup folds or unfolds the group under the cursor. Under a filter it does nothing.
+func (model *Model) foldPickedGroup(folded bool) {
+	row, found := model.pickedRow()
+	if !found || !row.isGroup() || model.picker.readFilterTerm() != "" {
+		return
+	}
+	model.picker.setFolded(row.group, folded)
+}
+
+// foldPickedRow folds the group under the cursor. On a profile or a folded group, the
+// cursor moves to the parent group.
+func (model *Model) foldPickedRow() {
+	row, found := model.pickedRow()
+	if !found {
+		return
+	}
+	if row.isGroup() && !model.picker.folded[row.group] && model.picker.readFilterTerm() == "" {
+		model.picker.setFolded(row.group, true)
+		return
+	}
+	parent := row.profile.Group
+	if row.isGroup() {
+		parent = findParentGroup(row.group)
+	}
+	if parent == "" {
+		return
+	}
+	rows := model.shownPickerRows()
+	for at, held := range rows {
+		if held.group == parent {
+			model.picker.focus(at, len(rows))
+			return
+		}
+	}
+}
+
+// focusProfile selects the profile of that name and unfolds its groups. An unlisted name
+// selects the first row.
 func (model *Model) focusProfile(name string) {
-	shown := model.shownProfiles()
-	at, _ := findProfileIndex(shown, name)
-	model.picker.focus(at, len(shown))
+	if at, found := findProfileIndex(model.profiles, name); found {
+		model.picker.unfoldPath(model.profiles[at].Group)
+	}
+	rows := model.shownPickerRows()
+	index := 0
+	for at, row := range rows {
+		if !row.isGroup() && row.profile.Name == name {
+			index = at
+			break
+		}
+	}
+	model.picker.focus(index, len(rows))
 }
 
 // renderPicker draws the connections of the config file and of the project file, one row
@@ -252,6 +327,7 @@ func (model *Model) renderPickerFilter(cardWidth, count int) string {
 func (model *Model) renderPicker() string {
 	theme := model.styles.Theme
 	profiles := model.shownProfiles()
+	rows := model.shownPickerRows()
 	// The source column stands empty where no connection comes from a project file, so a
 	// user without one loses no room to it.
 	sourceWidth := 0
@@ -264,7 +340,8 @@ func (model *Model) renderPicker() string {
 	// column moves while the filter changes.
 	nameWidth, targetWidest, descriptionWidest := narrowestPickerName, 0, 0
 	for _, profile := range model.profiles {
-		nameWidth = max(nameWidth, present.MeasureText(profile.Name))
+		nameWidth = max(nameWidth,
+			pickerIndentWidth*countGroupLevels(profile.Group)+present.MeasureText(profile.Name))
 		targetWidest = max(targetWidest, present.MeasureText(cfg.DescribeProfileTarget(profile)))
 		descriptionWidest = max(descriptionWidest, present.MeasureText(profile.Description))
 	}
@@ -313,7 +390,7 @@ func (model *Model) renderPicker() string {
 	for _, problem := range describePickerProblems(model.problems) {
 		problemLines = append(problemLines, present.WrapWords(problem, cardWidth-4)...)
 	}
-	cardRows := len(profiles) + len(lines) + pickerCardChrome + len(problemLines)
+	cardRows := len(rows) + len(lines) + pickerCardChrome + len(problemLines)
 	if model.connections.count() > 0 {
 		cardRows++
 	}
@@ -325,13 +402,19 @@ func (model *Model) renderPicker() string {
 	cardTop := titleBarRows + halfRoundedUp(model.height-2-cardRows)
 	model.layout.pickerRows = rowsHit{
 		top:   cardTop + cardBodyRow + len(lines),
-		count: len(profiles),
+		count: len(rows),
 		from:  left + 1, to: left + cardWidth - 2,
 	}
 
-	for index, profile := range profiles {
+	for index, pickerRow := range rows {
 		selected := index == model.picker.cursor
-		name := present.FitText(profile.Name, nameWidth)
+		if pickerRow.isGroup() {
+			lines = append(lines, model.renderPickerGroup(pickerRow, selected, cardWidth))
+			continue
+		}
+		profile := pickerRow.profile
+		indent := strings.Repeat(" ", pickerIndentWidth*pickerRow.depth)
+		name := present.FitText(indent+profile.Name, nameWidth)
 		environment := present.FitText(string(profile.Environment), pickerEnvWidth)
 		mode := "  "
 		if profile.AccessMode == cfg.AccessReadOnly {
@@ -416,6 +499,40 @@ func (model *Model) renderPicker() string {
 	}
 
 	return model.renderCard(" connections ", cardWidth, lines, plainCard)
+}
+
+const pickerIndentWidth = 2
+
+func countGroupLevels(group string) int {
+	if group == "" {
+		return 0
+	}
+	return strings.Count(group, "/") + 1
+}
+
+// renderPickerGroup draws a group header: the fold mark, the last level of the path, and the
+// profile count of a folded group.
+func (model *Model) renderPickerGroup(row pickerRow, selected bool, cardWidth int) string {
+	theme := model.styles.Theme
+	ground, ink, faint := theme.Panel, theme.Text, theme.Muted
+	if selected {
+		ground, ink, faint = theme.Accent, theme.OnAccent, theme.OnAccent
+	}
+	folded := model.picker.folded[row.group] && model.picker.readFilterTerm() == ""
+	mark := cfg.IconFoldOpen
+	count := ""
+	if folded {
+		mark = cfg.IconFoldClosed
+		count = " " + strconv.Itoa(row.count)
+	}
+	name := row.group[strings.LastIndex(row.group, "/")+1:]
+	indent := strings.Repeat(" ", pickerIndentWidth*row.depth)
+	room := cardWidth - 2 - present.MeasureText(model.buildRowGutter(selected))
+	head := present.TruncateText(
+		indent+model.icons.Icon(mark)+" "+name, room-present.MeasureText(count))
+	return lipgloss.NewStyle().Background(ground).Width(cardWidth - 2).Render(
+		paintText(ink, ground, model.buildRowGutter(selected)+head) +
+			paintText(faint, ground, count))
 }
 
 // renderCard draws a card with its title on the top border.

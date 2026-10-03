@@ -196,3 +196,18 @@ func TestLoadConfigReportsTomlItCannotRead(t *testing.T) {
 		t.Errorf("the reason reads %v, wanted it to name the TOML", loaded.Problems)
 	}
 }
+
+func TestLoadConfigReadsTheGroup(t *testing.T) {
+	path := writeConfig(t, `
+[profile.shop]
+host = "127.0.0.1"
+database = "shop"
+user = "reader"
+group = " work / / shop "
+`)
+
+	profile := findProfile(t, cfg.LoadConfig(path), "shop")
+	if profile.Group != "work/shop" {
+		t.Errorf("the group reads %q", profile.Group)
+	}
+}

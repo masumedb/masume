@@ -483,10 +483,11 @@ var (
 var (
 	pickerKeySpecs = []keySpec{
 		takesKey(cfg.ScopeDialog, ActionClose),
-		keyOf(cfg.ScopeList, ActionChooseRow, "connect"),
+		keyOf(cfg.ScopeList, ActionChooseRow, "").withLabel(describePickerChoice).
+			onlyWhen(choosesPickerRow),
 		keyOf(cfg.ScopeDialog, ActionNewConnection, "new").onlyWhen(listsConnections),
-		keyOf(cfg.ScopeDialog, ActionEditConnection, "edit").onlyWhen(listsConnections),
-		keyOf(cfg.ScopeDialog, ActionDeleteConnection, "delete").onlyWhen(listsConnections),
+		keyOf(cfg.ScopeDialog, ActionEditConnection, "edit").onlyWhen(picksConnection),
+		keyOf(cfg.ScopeDialog, ActionDeleteConnection, "delete").onlyWhen(picksConnection),
 		keyOf(cfg.ScopeDialog, ActionFilterConnections, "filter").
 			onlyWhen(listsConnections),
 		keyOf(cfg.ScopeDialog, ActionClose, "clear the filter").
@@ -702,6 +703,31 @@ func describePasswordUse(scene keyScene) string {
 // actions of the card.
 func listsConnections(scene keyScene) bool {
 	return !scene.model.picker.filtersList()
+}
+
+// picksConnection is true while the letter keys run the actions of the card and the cursor
+// is on a profile.
+func picksConnection(scene keyScene) bool {
+	row, found := scene.model.pickedRow()
+	return listsConnections(scene) && (!found || !row.isGroup())
+}
+
+// choosesPickerRow is false on a group header under a filter.
+func choosesPickerRow(scene keyScene) bool {
+	row, found := scene.model.pickedRow()
+	return !found || !row.isGroup() || scene.model.picker.readFilterTerm() == ""
+}
+
+// describePickerChoice returns the Enter label for the row under the cursor.
+func describePickerChoice(scene keyScene) string {
+	row, found := scene.model.pickedRow()
+	if !found || !row.isGroup() {
+		return "connect"
+	}
+	if scene.model.picker.folded[row.group] {
+		return "unfold"
+	}
+	return "fold"
 }
 
 func filtersConnections(scene keyScene) bool {

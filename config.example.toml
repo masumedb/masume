@@ -44,6 +44,7 @@ mode                 = "read-only"
 sslmode              = "verify-full"
 statement_timeout_ms = 30000
 mcp                  = "read-only"
+group                = "work/shop"
 
 # A local server over its unix socket. "socket" reads the default path of the engine.
 [profile.local]
@@ -183,6 +184,7 @@ paths = []
 # wait_for_port        = 5432         # The readiness port on host. The database connection still uses port.
 # autocommit           = true         # false starts a transaction on TUI execution, until commit or rollback.
 # mcp                  = "read-only"  # off read-only read-write full. The default is the global [mcp] access limit.
+# group                = "work/shop"  # group in the picker. / separates levels
 # description          = "one line about this connection"
 # ai_instructions      = "what the model should know about this database"
 # description is stored in the form but absent from the picker.

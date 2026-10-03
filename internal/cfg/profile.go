@@ -182,7 +182,9 @@ type Profile struct {
 	Keepalive time.Duration
 	// The statement time limit. Zero uses the server limit.
 	StatementTimeout time.Duration
-	Description      string
+	// Folder path in the picker, with `/` between levels. Empty for a top-level profile.
+	Group       string
+	Description string
 	// Instructions for the chat on this connection, for example a naming rule.
 	AiInstructions string
 	// The operations an agent can run here over MCP. Unset keeps the `[mcp]` level.
@@ -523,6 +525,7 @@ func buildProfile(name string, source Table) (Profile, error) {
 	secretName, _ := FindString(source, "secret")
 	secretRef, _ := FindString(source, "secret_ref")
 	command, _ := FindString(source, "command")
+	group, _ := FindString(source, "group")
 	description, _ := FindString(source, "description")
 	aiInstructions, _ := FindString(source, "ai_instructions")
 
@@ -539,7 +542,8 @@ func buildProfile(name string, source Table) (Profile, error) {
 		SSHKeyPassphraseEnv: sshKeyPassphraseEnv, SSHPasswordEnv: sshPasswordEnv,
 		SSHKnownHosts: sshKnownHosts,
 		Command:       command, WaitForPort: waitForPort, CommandTimeout: commandTimeout,
-		PageSize: pageSize, Keepalive: keepalive, Description: description,
+		PageSize: pageSize, Keepalive: keepalive, Group: NormalizeGroup(group),
+		Description:      description,
 		StatementTimeout: time.Duration(timeoutMilliseconds) * time.Millisecond,
 		AiInstructions:   aiInstructions, McpAccess: mcpAccess, InConfigFile: true,
 	}, nil
@@ -599,6 +603,17 @@ func nameSecretProblems(problems []ProfileProblem) []ProfileProblem {
 			Name: secretProblemPrefix + problem.Name, Reason: problem.Reason})
 	}
 	return named
+}
+
+// NormalizeGroup trims each level of a group path and drops empty levels.
+func NormalizeGroup(written string) string {
+	levels := []string{}
+	for level := range strings.SplitSeq(written, "/") {
+		if level = strings.TrimSpace(level); level != "" {
+			levels = append(levels, level)
+		}
+	}
+	return strings.Join(levels, "/")
 }
 
 // DescribeProfileTarget returns the database file path or server address.
