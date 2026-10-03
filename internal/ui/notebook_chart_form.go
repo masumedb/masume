@@ -294,7 +294,6 @@ func (model *Model) renderChartForm(tab *app.Tab, overlay app.Overlay, width int
 	lines = append(lines, model.renderButtonRow([]cardButton{
 		apply, model.buildCardButton(cfg.ScopeDialog, ActionClose, "cancel"),
 	}, noButtonFocus, cardBodyRow+len(lines), cardBodyColumn))
-	model.rememberCardKeys(model.buildCardKeys(app.OverlayChart, keyScene{overlay: overlay}))
 	model.layout.formRows = rowsHit{
 		top: model.layout.cardBodyTop, count: len(fields),
 		from: model.layout.cardBodyLeft - 1, to: model.layout.cardBodyLeft + width - 4,

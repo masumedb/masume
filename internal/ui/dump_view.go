@@ -34,7 +34,6 @@ func (model *Model) renderDumpPicker(overlay app.Overlay, width int) string {
 	keys := model.buildCardKeys(app.OverlayDump, keyScene{overlay: overlay})
 	model.recordCardBody()
 	lines = model.appendCardKeyRow(lines, keys, width-4, cardBodyRow, cardBodyColumn)
-	model.rememberCardKeys(keys)
 	return model.renderCard(buildDumpTitle(overlay.Dump), width, lines, plainCard)
 }
 
@@ -89,7 +88,6 @@ func (model *Model) renderDumpForm(overlay app.Overlay, width int) string {
 	keys := model.buildCardKeys(app.OverlayDump, keyScene{overlay: overlay})
 	model.recordCardBody()
 	lines = model.appendCardKeyRow(lines, keys, width-4, cardBodyRow, cardBodyColumn)
-	model.rememberCardKeys(keys)
 	model.layout.formRows = rowsHit{
 		top: model.layout.cardBodyTop, count: len(fields),
 		from: model.layout.cardBodyLeft - 1, to: model.layout.cardBodyLeft + width - 4,

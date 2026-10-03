@@ -43,7 +43,6 @@ func (model *Model) renderWritePlan(overlay app.Overlay, width int) string {
 		cardBodyRow+len(lines), cardBodyColumn))
 	card := model.renderNotedTextCard(overlay.Kind, overlay.Title,
 		badge, "", width, lines, nil, len(lines), destructiveCard)
-	model.rememberCardKeys(model.buildCardKeys(app.OverlayWritePlan, keyScene{overlay: overlay}))
 	return card
 }
 

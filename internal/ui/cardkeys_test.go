@@ -50,36 +50,6 @@ func TestAPressOnAKeyOfACardRunsIt(t *testing.T) {
 	}
 }
 
-// The bar under a card names the keys of the card. Without this it offers the keys of the
-// pane behind it, which neither a press nor a key reaches while the card is open.
-func TestTheStatusBarNamesTheKeysOfTheCardOnShow(t *testing.T) {
-	model, _, _ := buildMenuModel(t)
-	frame := strings.Split(model.render(), "\n")
-
-	bar := stripStyles(frame[model.layout.hintRow])
-	if !strings.Contains(bar, "close") {
-		t.Errorf("the bar under the menu reads %q", strings.TrimSpace(bar))
-	}
-	if strings.Contains(bar, "go to column") {
-		t.Errorf("the bar under the menu still offers the keys of the grid: %q",
-			strings.TrimSpace(bar))
-	}
-}
-
-func TestAPressOnAKeyOfTheStatusBarUnderACardRunsTheCard(t *testing.T) {
-	model, connection, _ := buildMenuModel(t)
-	model.render()
-
-	held, found := findBarButton(model, ActionClose)
-	if !found {
-		t.Fatal("the bar under the card recorded no key that closes it")
-	}
-	clickMouse(model, held.from, held.row)
-	if connection.Overlay.IsOpen() {
-		t.Error("a press on the close key of the bar left the card open")
-	}
-}
-
 // The keys of the title bar are drawn a step back while a card is open, and answer no press,
 // because neither the keyboard nor the pointer reaches them then.
 func TestTheTitleBarKeysAnswerNoPressWhileACardIsOpen(t *testing.T) {
@@ -103,16 +73,6 @@ func TestTheTitleBarKeysAnswerNoPressWhileACardIsOpen(t *testing.T) {
 func findCardButton(model *Model, action ActionID) (buttonHit, bool) {
 	for _, held := range model.layout.buttons {
 		if held.action == action {
-			return held, true
-		}
-	}
-	return buttonHit{}, false
-}
-
-// findBarButton answers the key of an action on the status bar.
-func findBarButton(model *Model, action ActionID) (buttonHit, bool) {
-	for _, held := range model.layout.buttons {
-		if held.action == action && held.row == model.layout.hintRow {
 			return held, true
 		}
 	}

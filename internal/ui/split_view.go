@@ -332,7 +332,6 @@ type paneState struct {
 	faultRow    int
 	cellsOfRows []int
 	builderRows []builderRow
-	cardKeys    *KeyLine
 	sideLabel   string
 }
 
@@ -341,7 +340,7 @@ func (model *Model) keepPaneState() paneState {
 		layout: model.layout, editorLeft: model.editorLeft, paneTop: model.paneTop,
 		caretRow: model.caretRow, caretColumn: model.caretColumn, faultRow: model.faultRow,
 		cellsOfRows: model.cellsOfRows, builderRows: model.builderRows,
-		cardKeys: model.cardKeys, sideLabel: model.sideLabel,
+		sideLabel: model.sideLabel,
 	}
 }
 
@@ -350,7 +349,7 @@ func (model *Model) restorePaneState(state paneState) {
 	model.caretRow, model.caretColumn, model.faultRow =
 		state.caretRow, state.caretColumn, state.faultRow
 	model.cellsOfRows, model.builderRows = state.cellsOfRows, state.builderRows
-	model.cardKeys, model.sideLabel = state.cardKeys, state.sideLabel
+	model.sideLabel = state.sideLabel
 }
 
 // renderAside draws the side without the focus. No pane of it has the focus, and it records no

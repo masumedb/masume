@@ -450,7 +450,6 @@ func (model *Model) renderListCard(card ListCard) string {
 			lines = append(lines, paintOn(model.styles.Theme.Panel, " ")+line)
 		}
 	}
-	model.rememberCardKeys(card.Keys)
 	lines = append(lines, "")
 
 	return model.styles.RenderBox(BoxOptions{
@@ -517,7 +516,6 @@ func (model *Model) renderNotedTextCard(
 		}
 	}
 	written = append(written, "")
-	model.rememberCardKeys(keys)
 
 	return model.styles.RenderBox(BoxOptions{
 		Width: width, Height: height, Title: title, Note: note, BottomNote: bottomNote,
@@ -1161,7 +1159,6 @@ func (model *Model) renderConfirm(overlay app.Overlay, width int) string {
 
 	card := model.renderNotedTextCard(overlay.Kind, overlay.Title,
 		model.renderActiveEnvironmentBadge(), "", width, lines, nil, len(lines), overlay.Destructive)
-	model.rememberCardKeys(model.buildCardKeys(app.OverlayConfirm, keyScene{overlay: overlay}))
 	return card
 }
 
@@ -1691,7 +1688,6 @@ func (model *Model) renderChanges(overlay app.Overlay, width int) string {
 	lines = append(lines, model.renderButtonRow(buttons, noButtonFocus, cardBodyRow+len(lines), cardBodyColumn))
 	card := model.renderTextCard(overlay.Kind, title, width, lines, nil, contentRows,
 		destructiveCard)
-	model.rememberCardKeys(model.buildCardKeys(app.OverlayChanges, scene))
 	return card
 }
 
@@ -2240,7 +2236,6 @@ func (model *Model) renderExport(overlay app.Overlay, width int) string {
 	// The keys are cut rather than wrapped here, because the card keeps one row for them.
 	model.recordCardBody()
 	lines = model.appendCardKeyRow(lines, keys, width-4, cardBodyRow, cardBodyColumn)
-	model.rememberCardKeys(keys)
 	model.layout.formRows = rowsHit{
 		top: model.layout.cardBodyTop, count: len(fields),
 		from: model.layout.cardBodyLeft - 1, to: model.layout.cardBodyLeft + width - 4,
@@ -2435,7 +2430,6 @@ func (model *Model) renderPrompt(overlay app.Overlay, width int) string {
 		model.styles.Muted().Render(present.TruncateText(overlay.Hint, inner)),
 	}
 	lines = model.appendCardKeyRow(lines, keys, inner, cardBodyRow, cardBodyColumn)
-	model.rememberCardKeys(keys)
 	return model.renderCard(" "+overlay.Title+" ", width, lines, plainCard)
 }
 

@@ -157,16 +157,6 @@ func addCopyOrQuit(keys []Hint, hasSelection bool) []Hint {
 	return append(keys, quitHint)
 }
 
-// BuildPickerHints returns the keys of the profile picker. The list keys come from the
-// registry, so a preset moves the hint too.
-func (model *Model) BuildPickerHints(hasSelection bool) []Hint {
-	keys := hintList{}
-	keys.add(model.buildPairHint(
-		cfg.ScopeList, ActionCursorUp, ActionCursorDown, "select", ""))
-	keys.add(model.buildScreenHint(cfg.ScopeList, ActionChooseRow, "connect"))
-	return addCopyOrQuit(keys.build(), hasSelection)
-}
-
 // BuildConnectingHints returns the keys while the client waits for a server. Escape is
 // written out because the root model reads it off the event, not the registry.
 func (model *Model) BuildConnectingHints(hasSelection bool) []Hint {
@@ -175,19 +165,8 @@ func (model *Model) BuildConnectingHints(hasSelection bool) []Hint {
 	return addCopyOrQuit(keys.build(), hasSelection)
 }
 
-// BuildConfirmHints returns the keys of the bar under an open question.
-func (model *Model) BuildConfirmHints(hasSelection bool) []Hint {
-	keys := hintList{}
-	keys.add(model.buildScreenHint(cfg.ScopeDialog, ActionClose, "cancel"))
-	hints := keys.build()
-	if hasSelection {
-		return append([]Hint{copySelection}, hints...)
-	}
-	return hints
-}
-
-// BuildCardScreenHints returns the keys of a screen whose card names its own keys. The bar
-// shows only the copy or quit key.
+// BuildCardScreenHints returns the keys of the bar under a card, which draws its own buttons:
+// the copy or quit key.
 func (model *Model) BuildCardScreenHints(hasSelection bool) []Hint {
 	return addCopyOrQuit(nil, hasSelection)
 }

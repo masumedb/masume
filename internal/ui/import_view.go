@@ -54,7 +54,6 @@ func (model *Model) renderImportCard(
 	model.recordCardBody()
 	lines = append(lines, "")
 	lines = append(lines, model.renderButtonRow(buttons, noButtonFocus, cardBodyRow+len(lines), cardBodyColumn))
-	model.rememberCardKeys(model.buildCardKeys(app.OverlayImport, keyScene{overlay: overlay}))
 	return model.renderNotedCard(buildImportTitle(overlay.Import),
 		model.renderActiveEnvironmentBadge(), width, lines, plainCard)
 }

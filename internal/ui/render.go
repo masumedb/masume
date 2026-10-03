@@ -26,9 +26,6 @@ func (model *Model) render() string {
 	model.layout.buttons = nil
 	model.layout.scrollbars = nil
 	model.layout.selectionBlocks = nil
-	// The keys of the card on show are learnt while the card is drawn, which is before the
-	// status bar under it is.
-	model.cardKeys = nil
 
 	// The rows the title bar and the status bar take, whatever the screen is.
 	body := max(model.height-2, 1)
@@ -371,7 +368,7 @@ func (model *Model) renderTitleBar() string {
 // renderScreenStatusBar draws the bar under a screen that has no connection.
 func (model *Model) renderScreenStatusBar() string {
 	if model.confirm != nil {
-		return model.renderStatusBar(model.BuildConfirmHints(model.holdsSelection()), "",
+		return model.renderStatusBar(model.BuildCardScreenHints(model.holdsSelection()), "",
 			app.NoticeInfo)
 	}
 	if model.screen == ScreenWorking {
@@ -382,10 +379,8 @@ func (model *Model) renderScreenStatusBar() string {
 	switch model.screen {
 	case ScreenConnecting:
 		hints = model.BuildConnectingHints(model.holdsSelection())
-	case ScreenEditingConnection, ScreenSettings, ScreenPromptingPassword:
-		hints = model.BuildCardScreenHints(model.holdsSelection())
 	default:
-		hints = model.BuildPickerHints(model.holdsSelection())
+		hints = model.BuildCardScreenHints(model.holdsSelection())
 	}
 
 	// A copy the reader just made is reported first, because it returns what they did.
@@ -492,16 +487,14 @@ func (model *Model) renderWorkspaceStatusBar() string {
 	}
 	tab := connection.Active()
 
-	// A card on show returns the keys the bar would name, so the bar names the keys of the
-	// card instead. Without this the bar offers what the pane behind the card returns, and
-	// neither a press nor a key reaches it.
+	// A card draws its own buttons. The bar keeps the copy or quit key.
 	if connection.Overlay.IsOpen() {
 		message, tone := model.describeStatus(connection, tab)
 		if message == "" && connection.Overlay.Kind == app.OverlayAiChat {
 			message = connection.Chat.DescribeUsage()
 		}
 		return model.renderStatusBar(
-			addCopyOrQuit(model.cardKeys.buildHints(), model.holdsSelection()), message, tone)
+			addCopyOrQuit(nil, model.holdsSelection()), message, tone)
 	}
 
 	rows := model.treeRows(connection)

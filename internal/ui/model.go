@@ -139,9 +139,6 @@ type Model struct {
 	// when the machine has no clipboard tool.
 	clipboard string
 	frame     screenFrame
-	// The keys the card on show names at its foot, kept while the frame is drawn so the
-	// status bar under the card names them too and a press on one runs it.
-	cardKeys *KeyLine
 	// The button of the card on show with the keyboard focus.
 	buttonFocus buttonFocus
 	// The pointer shape last sent to the terminal, or nothing before the first.

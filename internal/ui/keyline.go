@@ -393,12 +393,3 @@ func (model *Model) recordKeyPart(line *KeyLine, part keyPart, row, from, width 
 func measureKeyWidth(part keyPart) int {
 	return present.MeasureText(part.chord)
 }
-
-// rememberCardKeys keeps the keys the card on show names, so the status bar under it names
-// the same ones and a press on either runs the card and not the pane behind it.
-func (model *Model) rememberCardKeys(line *KeyLine) {
-	if line.isEmpty() {
-		return
-	}
-	model.cardKeys = line
-}

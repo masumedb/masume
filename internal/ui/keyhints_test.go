@@ -214,19 +214,18 @@ func TestTheKeyHintsModeReachesTheChatCard(t *testing.T) {
 	}
 }
 
-// The bar under a card shows the keys of the card. A key the mode hides on the card is
-// hidden on the bar.
-func TestTheBarUnderACardShowsTheKeysOfTheCard(t *testing.T) {
+// The main mode keeps the main buttons of a card.
+func TestTheMainModeKeepsTheMainButtonsOfACard(t *testing.T) {
 	model, _ := buildHintModeModel(t, cfg.KeyHintsMain)
 	model.Active().Overlay = app.Overlay{Kind: app.OverlayNotebooks, Title: " notebooks "}
-	frame := strings.Split(model.render(), "\n")
+	model.render()
 
-	bar := stripEscapes(frame[model.height-1])
-	if !strings.Contains(bar, "open") {
-		t.Errorf("the status bar under the card drew %q, wanted the key that opens a row", bar)
+	actions := []ActionID{}
+	for _, held := range model.listCardButtons() {
+		actions = append(actions, held.action)
 	}
-	if strings.Contains(bar, "rename") {
-		t.Errorf("the status bar under the card drew %q, wanted the kept keys alone", bar)
+	if !slices.Contains(actions, ActionChooseRow) || slices.Contains(actions, ActionEditConnection) {
+		t.Errorf("the card drew the buttons %v, wanted open and not rename", actions)
 	}
 }
 

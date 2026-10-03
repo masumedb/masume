@@ -60,10 +60,6 @@ func TestTheQuitQuestionKeepsTheWorkspaceDimmed(t *testing.T) {
 			break
 		}
 	}
-	bar := stripEscapes(frame[model.height-1])
-	if !strings.Contains(bar, "cancel") {
-		t.Errorf("the status bar under the question reads %q", bar)
-	}
 	for _, button := range model.layout.buttons {
 		if button.action != ActionAnswerYes && button.action != ActionAnswerNo {
 			t.Errorf("the frame under the question has a live %q button", button.action)
