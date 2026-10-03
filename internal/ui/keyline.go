@@ -2,6 +2,7 @@ package ui
 
 import (
 	"image/color"
+	"slices"
 	"strings"
 
 	"github.com/masumedb/masume/internal/cfg"
@@ -240,71 +241,76 @@ func (line *KeyLine) buildHints() []Hint {
 	return hints
 }
 
-// appendCardKeyRow puts the row of keys at the foot of a card, under a blank row that holds it
-// off the content. The row is appended before it is drawn, because the key line records where
-// each key landed and that needs the row it was drawn on.
+// appendCardKeyRow puts the buttons of a card on one row at its foot, under a blank row that
+// holds it off the content. A button that does not fit the width is left out.
 func (model *Model) appendCardKeyRow(
-	lines []string, keys *KeyLine, text string, top, left int,
+	lines []string, keys *KeyLine, width, top, left int,
 ) []string {
-	if text == "" {
+	if keys.isEmpty() {
 		return lines
 	}
 	lines = append(lines, "", "")
-	lines[len(lines)-1] = model.renderKeyLine(keys, []string{text},
-		top+len(lines)-1, left, model.styles.Theme.Panel)[0]
+	lines[len(lines)-1] = model.renderKeyButtons(keys, width, 1, top+len(lines)-1, left)[0]
 	return lines
 }
 
-// renderKeyLine draws the wrapped lines of a key line and keeps the cells each key covers, so
-// a press on the word runs what the key runs and the key reads as one everywhere it is drawn:
-// the chord in the ink of a key, the glyph in the colour of what it stands for, and what it
-// does in the quiet ink.
-//
-// The parts are drawn in the order they were named, so each one is looked for after the one
-// before it. A part the wrap broke over two rows is drawn quietly and left without a hit box,
-// because half a key is not the key.
-func (model *Model) renderKeyLine(
-	line *KeyLine, wrapped []string, top, left int, ground color.Color,
-) []string {
-	if line == nil || len(wrapped) == 0 {
-		return wrapped
+// The actions a card button runs that submit the card, and the actions that remove or stop
+// something.
+var (
+	submitActions = []ActionID{
+		ActionChooseRow, ActionApplyStep, ActionSaveForm, ActionWriteExport,
+		ActionRunWithValues, ActionSaveCell, ActionApplyChanges, ActionSendQuestion,
 	}
-	theme := model.styles.Theme
-	drawn := make([]string, len(wrapped))
-	written := make([]strings.Builder, len(wrapped))
-	row, at := 0, 0
+	destructiveActions = []ActionID{
+		ActionDeleteConnection, ActionDiscardChanges, ActionListSecondary, ActionStopSession,
+	}
+)
 
+// buildButtons returns the parts of the line as the buttons of a card. The first part that
+// submits the card is the primary button.
+func (line *KeyLine) buildButtons() []cardButton {
+	buttons := []cardButton{}
+	primary := false
 	for _, part := range line.listParts() {
-		text := part.buildText(line.icons)
-		found := -1
-		for row < len(wrapped) {
-			if held := strings.Index(wrapped[row][at:], text); held >= 0 {
-				found = at + held
-				break
-			}
-			writeTextOn(&written[row], theme.Faint, ground, wrapped[row][at:])
-			row, at = row+1, 0
+		button := cardButton{
+			icon: part.icon, chord: part.chord, label: part.label,
+			scope: part.scope, action: part.action, second: part.second,
+			readout:     part.chord == "" && part.action == "",
+			destructive: slices.Contains(destructiveActions, part.action),
 		}
-		if found < 0 {
-			break
+		if !primary && slices.Contains(submitActions, part.action) {
+			button.primary, primary = true, true
 		}
-		writeTextOn(&written[row], theme.Faint, ground, wrapped[row][at:found])
-		from := left + present.MeasureText(wrapped[row][:found])
-		model.writeKeyPart(&written[row], part, ground)
-		if part.action != "" {
-			model.recordKeyPart(line, part, top+row, from, present.MeasureText(text))
-		}
-		at = found + len(text)
+		buttons = append(buttons, button)
 	}
+	return buttons
+}
 
-	for ; row < len(wrapped); row++ {
-		writeTextOn(&written[row], theme.Faint, ground, wrapped[row][at:])
-		at = 0
+// countKeyRows returns the rows the buttons of a line take in this width.
+func (line *KeyLine) countKeyRows(width int) int {
+	if line.isEmpty() {
+		return 0
 	}
-	for index := range wrapped {
-		drawn[index] = written[index].String()
+	return len(layoutButtonRows(line.icons, line.buildButtons(), width))
+}
+
+// measureKeyButtons returns the cells the buttons of a line take on one row.
+func (model *Model) measureKeyButtons(line *KeyLine) int {
+	if line.isEmpty() {
+		return 0
 	}
-	return drawn
+	return model.measureButtonRow(line.buildButtons())
+}
+
+// renderKeyButtons draws the parts of a line as the buttons of a card, in at most rows rows of
+// width cells. A button past the last row is left out.
+func (model *Model) renderKeyButtons(line *KeyLine, width, rows, top, left int) []string {
+	buttons := line.buildButtons()
+	laid := layoutButtonRows(model.icons, buttons, width)
+	if len(laid) > rows {
+		buttons = slices.Concat(laid[:rows]...)
+	}
+	return model.renderButtons(buttons, noButtonFocus, width, top, left)
 }
 
 // writeKeyPart draws one key: the chord, the glyph of what it acts on, and what it does.

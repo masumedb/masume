@@ -183,8 +183,8 @@ const cardTitleChrome = 6
 
 // fitCardWidth returns the width of a card sized to its widest line, its keys and its title.
 // The width the card is given is the maximum, and narrowestOverlayCard is the minimum.
-func fitCardWidth(width, content int, keys, title, note string) int {
-	wanted := max(content+present.CardChrome, present.MeasureText(keys)+present.CardChrome,
+func fitCardWidth(width, content, keys int, title, note string) int {
+	wanted := max(content+present.CardChrome, keys+present.CardChrome,
 		measureStyledWidth(title)+measureStyledWidth(note)+cardTitleChrome)
 	return min(max(wanted, narrowestOverlayCard), width)
 }
@@ -255,19 +255,16 @@ func (model *Model) resolveOverlayHeight(
 }
 
 // countHintRows returns the rows the keys of a card take, with the blank row over them.
-func countHintRows(keys string, width int) int {
-	if keys == "" {
+func countHintRows(keys *KeyLine, width int) int {
+	if keys.isEmpty() {
 		return 0
 	}
-	return 1 + present.CountWrappedRows(keys, width-present.CardChrome)
+	return 1 + keys.countKeyRows(max(width-present.CardChrome, 1))
 }
 
 // countHintLines returns the rows the keys of a card take. A card with no key takes none.
-func countHintLines(keys string, width int) int {
-	if keys == "" {
-		return 0
-	}
-	return len(present.WrapWords(keys, width))
+func countHintLines(keys *KeyLine, width int) int {
+	return keys.countKeyRows(width)
 }
 
 // renderOverlay draws the overlay on top, whichever one is open.
@@ -381,15 +378,11 @@ type ListCard struct {
 func (model *Model) renderListCard(card ListCard) string {
 	content := max(card.Width-4, 1)
 
-	text := card.Keys.buildText()
-	hint := []string{}
-	if text != "" {
-		hint = present.WrapWords(text, content)
-	}
+	hintRows := card.Keys.countKeyRows(content)
 	height := model.resolveOverlayHeight(
-		card.Kind, card.ContentRows, countHintRows(text, card.Width))
+		card.Kind, card.ContentRows, countHintRows(card.Keys, card.Width))
 
-	body := countCardBodyRows(height, len(hint))
+	body := countCardBodyRows(height, hintRows)
 	// The line the list is filtered with stands over the rows, so it takes one of them.
 	if card.Filter != "" {
 		body = max(body-1, 1)
@@ -448,12 +441,12 @@ func (model *Model) renderListCard(card ListCard) string {
 		written++
 	}
 	model.layout.overlayRows.count = written
-	if len(hint) > 0 {
+	if hintRows > 0 {
 		lines = append(lines, "")
 		// The keys land under the list, one blank column inside the border, and the top
 		// border takes the first row of the card.
-		for _, line := range model.renderKeyLine(card.Keys, hint,
-			cardListRow+len(lines), cardBodyColumn, model.styles.Theme.Panel) {
+		for _, line := range model.renderKeyButtons(card.Keys, content, hintRows,
+			cardListRow+len(lines), cardBodyColumn) {
 			lines = append(lines, paintOn(model.styles.Theme.Panel, " ")+line)
 		}
 	}
@@ -488,13 +481,9 @@ func (model *Model) renderNotedTextCard(
 	keys *KeyLine, contentRows int, destructive bool,
 ) string {
 	content := max(width-present.CardChrome, 1)
-	text := keys.buildText()
-	hint := []string{}
-	if text != "" {
-		hint = present.WrapWords(text, content)
-	}
-	height := model.resolveOverlayHeight(kind, contentRows, countHintRows(text, width))
-	body := countCardBodyRows(height, len(hint))
+	hintRows := keys.countKeyRows(content)
+	height := model.resolveOverlayHeight(kind, contentRows, countHintRows(keys, width))
+	body := countCardBodyRows(height, hintRows)
 
 	// A body taller than the card scrolls, with a bar in its last column.
 	if len(lines) > body {
@@ -518,12 +507,12 @@ func (model *Model) renderNotedTextCard(
 		}
 		written = append(written, "")
 	}
-	if len(hint) > 0 {
+	if hintRows > 0 {
 		written = append(written, "")
 		// The keys land under the body, one blank column inside the border, and the top
 		// border takes the first row of the card.
-		for _, line := range model.renderKeyLine(keys, hint,
-			cardListRow+len(written), cardBodyColumn, model.styles.Theme.Panel) {
+		for _, line := range model.renderKeyButtons(keys, content, hintRows,
+			cardListRow+len(written), cardBodyColumn) {
 			written = append(written, paintOn(model.styles.Theme.Panel, " ")+line)
 		}
 	}
@@ -1162,9 +1151,13 @@ func (model *Model) renderConfirm(overlay app.Overlay, width int) string {
 	yes := model.buildCardButton(cfg.ScopeDialog, ActionAnswerYes, describeConfirmYes(keyScene{overlay: overlay}))
 	yes.primary, yes.destructive = true, overlay.Destructive
 	no := model.buildCardButton(cfg.ScopeDialog, ActionAnswerNo, describeConfirmNo(keyScene{overlay: overlay}))
+	start := 0
+	if overlay.Destructive {
+		start = 1
+	}
 	model.recordCardBody()
-	lines = append(lines, model.renderButtonRow(
-		[]cardButton{yes, no}, cardBodyRow+len(lines), cardBodyColumn))
+	lines = append(lines, model.renderButtonRow([]cardButton{yes, no}, start,
+		cardBodyRow+len(lines), cardBodyColumn))
 
 	card := model.renderNotedTextCard(overlay.Kind, overlay.Title,
 		model.renderActiveEnvironmentBadge(), "", width, lines, nil, len(lines), overlay.Destructive)
@@ -1235,9 +1228,8 @@ func (model *Model) buildScrollingCardKeys(
 ) *KeyLine {
 	scene := keyScene{overlay: overlay}
 	keys := model.buildCardKeys(overlay.Kind, scene)
-	text := keys.buildText()
-	height := model.resolveOverlayHeight(overlay.Kind, contentRows, countHintRows(text, width))
-	if len(lines) > countCardBodyRows(height, countHintLines(text, width-present.CardChrome)) {
+	height := model.resolveOverlayHeight(overlay.Kind, contentRows, countHintRows(keys, width))
+	if len(lines) > countCardBodyRows(height, countHintLines(keys, width-present.CardChrome)) {
 		scene.scrolls = true
 		keys = model.buildCardKeys(overlay.Kind, scene)
 	}
@@ -1250,12 +1242,11 @@ func (model *Model) renderDiagram(overlay app.Overlay, width int) string {
 	theme := model.styles.Theme
 	drawn := overlay.Diagram
 	keys := model.buildCardKeys(app.OverlayDiagram, keyScene{overlay: overlay})
-	text := keys.buildText()
-	width = fitCardWidth(width, drawn.Width, text, overlay.Title, "")
+	width = fitCardWidth(width, drawn.Width, model.measureKeyButtons(keys), overlay.Title, "")
 	room := max(width-present.CardChrome, 1)
 	height := model.resolveOverlayHeight(
-		overlay.Kind, len(drawn.Lines), countHintRows(text, width))
-	body := countCardBodyRows(height, countHintLines(text, room))
+		overlay.Kind, len(drawn.Lines), countHintRows(keys, width))
+	body := countCardBodyRows(height, countHintLines(keys, room))
 	model.recordCardBody()
 
 	count := len(drawn.Lines)
@@ -1393,9 +1384,8 @@ func (model *Model) renderCellViewer(overlay app.Overlay, width int) string {
 
 	keys := model.buildCardKeys(app.OverlayCell, keyScene{overlay: overlay})
 
-	text := keys.buildText()
-	height := model.resolveOverlayHeight(overlay.Kind, len(held), countHintRows(text, width))
-	body := countCardBodyRows(height, countHintLines(text, room))
+	height := model.resolveOverlayHeight(overlay.Kind, len(held), countHintRows(keys, width))
+	body := countCardBodyRows(height, countHintLines(keys, room))
 	ink := theme.Text
 	if written == core.NullText {
 		ink = theme.Muted
@@ -1413,11 +1403,10 @@ func (model *Model) renderCellViewer(overlay app.Overlay, width int) string {
 func (model *Model) renderParameters(overlay app.Overlay, width int) string {
 	theme := model.styles.Theme
 	keys := model.buildCardKeys(app.OverlayParameters, keyScene{overlay: overlay})
-	text := keys.buildText()
 	height := model.resolveOverlayHeight(
-		overlay.Kind, overlay.ContentRows, countHintRows(text, width))
+		overlay.Kind, overlay.ContentRows, countHintRows(keys, width))
 	lines := model.renderDraftRows(overlay.Draft, width-present.CardChrome,
-		countCardBodyRows(height, countHintLines(text, width-present.CardChrome)),
+		countCardBodyRows(height, countHintLines(keys, width-present.CardChrome)),
 		FieldLook{Ground: theme.Panel, Ink: theme.Text, Focused: true})
 
 	title := " " + present.FormatCountOf(
@@ -1431,16 +1420,15 @@ func (model *Model) renderParameters(overlay app.Overlay, width int) string {
 func (model *Model) renderCellEditor(overlay app.Overlay, width int) string {
 	theme := model.styles.Theme
 	keys := model.buildCardKeys(app.OverlayCellEdit, keyScene{overlay: overlay})
-	text := keys.buildText()
 	title := model.buildCellEditorTitle(overlay)
 	if overlay.ContentWidth > 0 {
-		width = fitCardWidth(width, overlay.ContentWidth, text, title, "")
+		width = fitCardWidth(width, overlay.ContentWidth, model.measureKeyButtons(keys), title, "")
 	}
 
 	lines := model.renderCellChoices(overlay)
 	height := model.resolveOverlayHeight(
-		overlay.Kind, overlay.ContentRows, countHintRows(text, width))
-	body := countCardBodyRows(height, countHintLines(text, width-present.CardChrome))
+		overlay.Kind, overlay.ContentRows, countHintRows(keys, width))
+	body := countCardBodyRows(height, countHintLines(keys, width-present.CardChrome))
 	if len(overlay.Cell.Choices) == 0 {
 		lines = model.renderDraftRows(overlay.Draft, width-present.CardChrome, body,
 			FieldLook{Ground: theme.Panel, Ink: theme.Text, Focused: true})
@@ -1542,10 +1530,9 @@ func (model *Model) renderRowDetail(overlay app.Overlay, width int) string {
 	model.layout.rowDetailFields = fields
 
 	keys := model.buildCardKeys(app.OverlayRowDetail, keyScene{model: model, overlay: overlay})
-	text := keys.buildText()
 	height := model.resolveOverlayHeight(
-		overlay.Kind, len(overlay.Window.Columns), countHintRows(text, width))
-	body := countCardBodyRows(height, countHintLines(text, inner))
+		overlay.Kind, len(overlay.Window.Columns), countHintRows(keys, width))
+	body := countCardBodyRows(height, countHintLines(keys, inner))
 	offset := overlay.List.Offset
 	if !overlay.List.Rolled && cursor < len(fields) {
 		offset = followLineSpan(fields[cursor], offset, body)
@@ -1683,8 +1670,8 @@ func (model *Model) renderChanges(overlay app.Overlay, width int) string {
 	}
 	title := " staged changes · " + present.FormatCount(int64(len(overlay.Changes))) + " "
 	widest := max(measureCardLines(
-		model.renderChangeLines(overlay, width-present.CardChrome)), measureButtonRow(buttons))
-	width = fitCardWidth(width, widest, "", title, "")
+		model.renderChangeLines(overlay, width-present.CardChrome)), model.measureButtonRow(buttons))
+	width = fitCardWidth(width, widest, 0, title, "")
 	inner := width - present.CardChrome
 	changes := model.renderChangeLines(overlay, inner)
 
@@ -1701,7 +1688,7 @@ func (model *Model) renderChanges(overlay app.Overlay, width int) string {
 	lines = append(lines, "")
 
 	model.recordCardBody()
-	lines = append(lines, model.renderButtonRow(buttons, cardBodyRow+len(lines), cardBodyColumn))
+	lines = append(lines, model.renderButtonRow(buttons, noButtonFocus, cardBodyRow+len(lines), cardBodyColumn))
 	card := model.renderTextCard(overlay.Kind, title, width, lines, nil, contentRows,
 		destructiveCard)
 	model.rememberCardKeys(model.buildCardKeys(app.OverlayChanges, scene))
@@ -2251,9 +2238,8 @@ func (model *Model) renderExport(overlay app.Overlay, width int) string {
 
 	keys := model.buildCardKeys(app.OverlayExport, keyScene{overlay: overlay})
 	// The keys are cut rather than wrapped here, because the card keeps one row for them.
-	text := present.TruncateText(keys.buildText(), width-4)
 	model.recordCardBody()
-	lines = model.appendCardKeyRow(lines, keys, text, cardBodyRow, cardBodyColumn)
+	lines = model.appendCardKeyRow(lines, keys, width-4, cardBodyRow, cardBodyColumn)
 	model.rememberCardKeys(keys)
 	model.layout.formRows = rowsHit{
 		top: model.layout.cardBodyTop, count: len(fields),
@@ -2440,7 +2426,6 @@ func (model *Model) describeWholeWordKey(overlay app.Overlay) string {
 func (model *Model) renderPrompt(overlay app.Overlay, width int) string {
 	inner := width - 4
 	keys := model.buildCardKeys(app.OverlayPrompt, keyScene{overlay: overlay})
-	text := present.TruncateText(keys.buildText(), inner)
 	lines := []string{
 		model.renderField(overlay.Draft, inner, FieldLook{
 			Ground: model.styles.Theme.Header, Ink: model.styles.Theme.Text,
@@ -2449,7 +2434,7 @@ func (model *Model) renderPrompt(overlay app.Overlay, width int) string {
 		}),
 		model.styles.Muted().Render(present.TruncateText(overlay.Hint, inner)),
 	}
-	lines = model.appendCardKeyRow(lines, keys, text, cardBodyRow, cardBodyColumn)
+	lines = model.appendCardKeyRow(lines, keys, inner, cardBodyRow, cardBodyColumn)
 	model.rememberCardKeys(keys)
 	return model.renderCard(" "+overlay.Title+" ", width, lines, plainCard)
 }

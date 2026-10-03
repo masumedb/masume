@@ -110,7 +110,7 @@ func TestAPressOnAnAnswerOfTheSaveQuestionAnswersIt(t *testing.T) {
 	if !found {
 		t.Fatal("the question has no button for no")
 	}
-	model.readMouse(tea.MouseClickMsg{X: button.from, Y: button.row, Button: tea.MouseLeft})
+	clickMouse(model, button.from, button.row)
 	if model.confirm != nil || !model.quitting {
 		t.Error("the press on quit without saving did not answer the question")
 	}
@@ -126,7 +126,7 @@ func TestAPressOnCancelLeavesThePasswordCard(t *testing.T) {
 	if !found {
 		t.Fatal("the password card has no cancel button")
 	}
-	model.readMouse(tea.MouseClickMsg{X: button.from, Y: button.row, Button: tea.MouseLeft})
+	clickMouse(model, button.from, button.row)
 	if model.screen == ScreenPromptingPassword {
 		t.Error("the press on cancel left the password card open")
 	}

@@ -1,8 +1,6 @@
 package ui
 
 import (
-	"regexp"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -21,51 +19,14 @@ import (
 // held to the same floor as any other text on a filled ground.
 const readableContrast = TextContrastFloor
 
-var (
-	inkEscape    = regexp.MustCompile(`38;2;(\d+);(\d+);(\d+)`)
-	groundEscape = regexp.MustCompile(`48;2;(\d+);(\d+);(\d+)`)
-)
-
-// findLastColor answers the colour the escapes of a cell last set, and whether they set one.
-func findLastColor(pattern *regexp.Regexp, sgr string) (float64, float64, float64, bool) {
-	found := pattern.FindAllStringSubmatch(sgr, -1)
-	if len(found) == 0 {
-		return 0, 0, 0, false
-	}
-	held := found[len(found)-1]
-	red, _ := strconv.Atoi(held[1])
-	green, _ := strconv.Atoi(held[2])
-	blue, _ := strconv.Atoi(held[3])
-	return float64(red), float64(green), float64(blue), true
-}
-
-// calculateLuminance answers how bright a colour is, as the web measures it.
-func calculateLuminance(red, green, blue float64) float64 {
-	channel := func(value float64) float64 {
-		value /= 255
-		if value <= 0.03928 {
-			return value / 12.92
-		}
-		held := (value + 0.055) / 1.055
-		return held * held
-	}
-	return 0.2126*channel(red) + 0.7152*channel(green) + 0.0722*channel(blue)
-}
-
 // calculateCellContrast answers the contrast between the ink and the ground of one cell, and
 // whether the cell names both.
 func calculateCellContrast(sgr string) (float64, bool) {
-	inkRed, inkGreen, inkBlue, hasInk := findLastColor(inkEscape, sgr)
-	groundRed, groundGreen, groundBlue, hasGround := findLastColor(groundEscape, sgr)
-	if !hasInk || !hasGround {
+	ink, ground := readCellColors(sgr)
+	if ink == nil || ground == nil {
 		return 0, false
 	}
-	lighter := calculateLuminance(inkRed, inkGreen, inkBlue)
-	darker := calculateLuminance(groundRed, groundGreen, groundBlue)
-	if lighter < darker {
-		lighter, darker = darker, lighter
-	}
-	return (lighter + 0.05) / (darker + 0.05), true
+	return CalculateContrastRatio(ink, ground), true
 }
 
 // findWorstContrast answers the least contrast of the cells a span covers, and the text of the

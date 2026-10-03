@@ -34,12 +34,13 @@ func (model *Model) renderWritePlan(overlay app.Overlay, width int) string {
 	badge := model.renderActiveEnvironmentBadge()
 	widest := max(measureCardLines(
 		model.renderWritePlanBody(plan, max(width-present.CardChrome, 1))),
-		measureButtonRow(buttons))
-	width = fitCardWidth(width, widest, "", overlay.Title, badge)
+		model.measureButtonRow(buttons))
+	width = fitCardWidth(width, widest, 0, overlay.Title, badge)
 	lines := model.renderWritePlanBody(plan, max(width-present.CardChrome, 1))
 
 	model.recordCardBody()
-	lines = append(lines, model.renderButtonRow(buttons, cardBodyRow+len(lines), cardBodyColumn))
+	lines = append(lines, model.renderButtonRow(buttons, resolveWritePlanStart(buttons),
+		cardBodyRow+len(lines), cardBodyColumn))
 	card := model.renderNotedTextCard(overlay.Kind, overlay.Title,
 		badge, "", width, lines, nil, len(lines), destructiveCard)
 	model.rememberCardKeys(model.buildCardKeys(app.OverlayWritePlan, keyScene{overlay: overlay}))
@@ -57,6 +58,15 @@ func (model *Model) renderWritePlanBody(plan writeplan.Plan, inner int) []string
 	lines = append(lines, "")
 	lines = append(lines, model.renderWritePlanLines(plan, inner)...)
 	return append(lines, "")
+}
+
+// resolveWritePlanStart returns the button of the plan with the keyboard focus when it opens:
+// the button that opens the blocking rows, or cancel.
+func resolveWritePlanStart(buttons []cardButton) int {
+	if buttons[0].action == ActionChooseRow {
+		return 0
+	}
+	return len(buttons) - 1
 }
 
 // buildWritePlanButtons returns the buttons of the plan. A blocked write leads with the

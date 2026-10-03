@@ -236,7 +236,7 @@ func (model *Model) renderNotebooks(overlay app.Overlay, width int) string {
 	keys := model.buildCardKeys(app.OverlayNotebooks, keyScene{overlay: overlay})
 	title := " notebooks · " + present.FormatCount(int64(len(overlay.Notebooks))) + " "
 	width = fitCardWidth(width, rowPaddingLeft+notebookLeadWidth+notebookNameWidth+widest+
-		rowScrollbarWidth, keys.buildText(), title, "")
+		rowScrollbarWidth, model.measureKeyButtons(keys), title, "")
 
 	entries := model.filterNotebooks(overlay)
 	rows := make([]string, 0, len(entries))

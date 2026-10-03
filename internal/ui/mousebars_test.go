@@ -73,7 +73,7 @@ func TestAPressOnAKeyOfABarRunsIt(t *testing.T) {
 	model.render()
 
 	held := findButtonOfAction(model, ActionShowPalette)
-	model.readMouse(tea.MouseClickMsg{X: held.from, Y: held.row, Button: tea.MouseLeft})
+	clickMouse(model, held.from, held.row)
 	if connection.Overlay.Kind != app.OverlayPalette {
 		t.Errorf("a press on the palette key opened %q", connection.Overlay.Kind)
 	}

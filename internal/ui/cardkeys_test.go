@@ -6,14 +6,12 @@ import (
 	"strings"
 	"testing"
 
-	tea "charm.land/bubbletea/v2"
-
 	"github.com/masumedb/masume/internal/app"
 	"github.com/masumedb/masume/internal/db"
 )
 
-// A card names its keys at its foot. Each one is a button, so the cells it is recorded at
-// have to be the cells its own text was drawn in.
+// A card names its keys at its foot as buttons, so the cells a button is recorded at have to
+// be the cells its own text and padding were drawn in.
 func TestTheKeysOfACardStandWhereTheyAreDrawn(t *testing.T) {
 	model, _, _ := buildMenuModel(t)
 	frame := strings.Split(model.render(), "\n")
@@ -25,8 +23,10 @@ func TestTheKeysOfACardStandWhereTheyAreDrawn(t *testing.T) {
 			t.Errorf("the key of %q covers %q", held.action, text)
 			continue
 		}
-		if strings.HasPrefix(text, " ") || strings.HasSuffix(text, " ") {
-			t.Errorf("the key of %q covers %q, which is not the key alone", held.action, text)
+		padding := strings.Repeat(" ", cardButtonPadding)
+		inner := strings.TrimPrefix(strings.TrimSuffix(text, padding), padding)
+		if strings.TrimSpace(inner) != inner {
+			t.Errorf("the key of %q covers %q, which is not the button alone", held.action, text)
 		}
 		found++
 	}
@@ -44,7 +44,7 @@ func TestAPressOnAKeyOfACardRunsIt(t *testing.T) {
 	if !found {
 		t.Fatal("the card recorded no key that closes it")
 	}
-	model.readMouse(tea.MouseClickMsg{X: held.from, Y: held.row, Button: tea.MouseLeft})
+	clickMouse(model, held.from, held.row)
 	if connection.Overlay.IsOpen() {
 		t.Error("a press on the close key left the card open")
 	}
@@ -74,7 +74,7 @@ func TestAPressOnAKeyOfTheStatusBarUnderACardRunsTheCard(t *testing.T) {
 	if !found {
 		t.Fatal("the bar under the card recorded no key that closes it")
 	}
-	model.readMouse(tea.MouseClickMsg{X: held.from, Y: held.row, Button: tea.MouseLeft})
+	clickMouse(model, held.from, held.row)
 	if connection.Overlay.IsOpen() {
 		t.Error("a press on the close key of the bar left the card open")
 	}
@@ -120,7 +120,7 @@ func findBarButton(model *Model, action ActionID) (buttonHit, bool) {
 }
 
 // A key of a card is drawn as a key wherever it stands: the chord in the ink of a key and what
-// it does in the quiet ink. A key the field answers itself is still a key, so it is drawn as
+// it does in the text ink. The primary button is filled, and leaves both inks. A key the field answers itself is still a key, so it is drawn as
 // one, and a card whose keys read as a paragraph is a card a reader has to parse.
 func TestEveryKeyOfACardIsDrawnAsAKey(t *testing.T) {
 	for _, held := range []struct {
@@ -139,8 +139,8 @@ func TestEveryKeyOfACardIsDrawnAsAKey(t *testing.T) {
 					Kind: app.OverlayAiChat, Draft: app.NewEditorBuffer("", 0),
 				}
 			},
-			keys:  []string{"↵", "⇧Enter", "^L", "^O"},
-			words: []string{"ask", "newline", "new", "chats"},
+			keys:  []string{"⇧Enter", "^L", "^O"},
+			words: []string{"newline", "new", "chats"},
 		},
 		{
 			name: "the card of a row",
@@ -172,7 +172,7 @@ func TestEveryKeyOfACardIsDrawnAsAKey(t *testing.T) {
 			}
 			for _, word := range held.words {
 				if !strings.Contains(quiet, strings.ReplaceAll(word, " ", "")) {
-					t.Errorf("what the key does, %q, is not drawn in the quiet ink", word)
+					t.Errorf("what the key does, %q, is not drawn in the text ink", word)
 				}
 			}
 		})
@@ -180,10 +180,10 @@ func TestEveryKeyOfACardIsDrawnAsAKey(t *testing.T) {
 }
 
 // readInkedCells answers the cells of the card drawn in the ink of a key, and the cells drawn
-// in the quiet ink, so a key line can be read back off the frame by its colours.
+// in the text ink, so the buttons can be read back off the frame by their colours.
 func readInkedCells(model *Model, frame []string) (string, string) {
 	key := describeInk(model.styles.Theme.Accent)
-	said := describeInk(model.styles.Theme.Muted)
+	said := describeInk(model.styles.Theme.Text)
 	lit, quiet := strings.Builder{}, strings.Builder{}
 	for row, line := range frame {
 		if row == model.layout.hintRow || row == model.layout.titleRow {

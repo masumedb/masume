@@ -142,7 +142,9 @@ type Model struct {
 	// The keys the card on show names at its foot, kept while the frame is drawn so the
 	// status bar under the card names them too and a press on one runs it.
 	cardKeys *KeyLine
-	caches   tabCaches
+	// The button of the card on show with the keyboard focus.
+	buttonFocus buttonFocus
+	caches       tabCaches
 	// The conversation as the chat panel draws it, kept because the scroll bounds, a jump
 	// between turns and the draw itself each read the rows.
 	chatRows chatRowsCache
@@ -424,11 +426,13 @@ func (model *Model) readMessage(message tea.Msg) (tea.Model, tea.Cmd) {
 		return model.readStopBackendAnswer(held)
 
 	case tea.KeyPressMsg:
+		model.frame.pointerIdle = true
 		return model.readKey(held.Key())
 
 	// The terminal reports a paste of its own as one message, whatever key the user pressed
 	// for it, so the whole of the text lands in the buffer in one edit.
 	case tea.PasteMsg:
+		model.frame.pointerIdle = true
 		return model.readPaste(held.Content)
 
 	case connectedMsg:
@@ -640,10 +644,14 @@ func (model *Model) View() tea.View {
 	// The pointer is read against the frame that is on screen, so the mark stands on what
 	// the reader sees rather than on what was there before.
 	marks := viewMarks{
-		hover:     model.resolveHover(model.frame.pointerX, model.frame.pointerY),
 		selection: model.selection,
 		pressed:   model.frame.pressed,
 		lit:       model.frame.isFlashing(),
+		armed:     model.frame.armed,
+		held:      model.frame.isHoldingKey(),
+	}
+	if !model.frame.pointerIdle {
+		marks.hover = model.resolveHover(model.frame.pointerX, model.frame.pointerY)
 	}
 	if drawn || model.frame.needsPaint(marks) {
 		model.frame.keepMarks(marks)

@@ -58,6 +58,9 @@ var pickerActions = append(slices.Clone(pickerListActions),
 
 // readPickerKey returns what one press does in the profile picker.
 func (model *Model) readPickerKey(key tea.Key) (tea.Model, tea.Cmd) {
+	if taken, next, command := model.readButtonKey(key, cardFields{typesText: true}); taken {
+		return next, command
+	}
 	if model.picker.filtersList() {
 		return model.readPickerFilterKey(key)
 	}
@@ -483,9 +486,8 @@ func (model *Model) renderPicker() string {
 
 	keys := model.buildKeyLineOf(pickerKeySpecs, keyScene{})
 	// The keys are cut rather than wrapped, because the card keeps one row for them.
-	text := present.TruncateText(keys.buildText(), cardWidth-4)
 	lines = model.appendCardKeyRow(
-		lines, keys, text, cardTop+cardBodyRow, left+cardBodyColumn)
+		lines, keys, cardWidth-4, cardTop+cardBodyRow, left+cardBodyColumn)
 	if model.project.Path != "" {
 		lines = append(lines, model.styles.Muted().Render(
 			"project file "+present.TruncatePath(model.project.Path, cardWidth-17)))
@@ -599,7 +601,7 @@ func (model *Model) renderPassword() string {
 	cardTop := titleBarRows + halfRoundedUp(model.height-2-cardRows)
 	lines = append(lines, model.renderButtonRow([]cardButton{
 		connect, model.buildCardButton(cfg.ScopeDialog, ActionClose, "cancel"),
-	}, cardTop+cardBodyRow+len(lines), left+cardBodyColumn))
+	}, noButtonFocus, cardTop+cardBodyRow+len(lines), left+cardBodyColumn))
 	return model.renderNotedCard(" password ",
 		model.renderEnvironmentBadge(profile.Environment), cardWidth, lines, plainCard)
 }
@@ -707,6 +709,9 @@ func (model *Model) renderField(
 	buffer *app.EditorBuffer, width int, look FieldLook,
 ) string {
 	theme := model.styles.Theme
+	if model.isButtonFocused() {
+		look.Focused = false
+	}
 	style := lipgloss.NewStyle().Background(look.Ground).Foreground(look.Ink)
 
 	written := buffer.Text
@@ -742,6 +747,19 @@ func (model *Model) renderField(
 
 // readPasswordKey returns what one press does in the password prompt.
 func (model *Model) readPasswordKey(key tea.Key) (tea.Model, tea.Cmd) {
+	picker := &model.picker
+	fields := cardFields{count: 1, typesText: true, step: func(step int) {
+		picker.keyringFocused = picker.offersKeyring() && step != 0 && !picker.keyringFocused
+	}}
+	if picker.offersKeyring() {
+		fields.count = 2
+		if picker.keyringFocused {
+			fields.cursor = 1
+		}
+	}
+	if taken, next, command := model.readButtonKey(key, fields); taken {
+		return next, command
+	}
 	if match, matched := model.keymap.MatchOnly(key, FindDialogActions("password"),
 		cfg.ScopeDialog, cfg.ScopeList); matched {
 		if held, command, ran := model.runPasswordAction(match.Action); ran {
@@ -802,17 +820,6 @@ func (model *Model) runPasswordAction(action ActionID) (tea.Model, tea.Cmd, bool
 		return model, connect(model.adapters, picker.pending, picker.password.Text), true
 	}
 	return model, nil, false
-}
-
-// pressPassword runs the button of the password card a press landed on.
-func (model *Model) pressPassword(mouse tea.Mouse) (tea.Model, tea.Cmd) {
-	_, action, key, pressed := findButton(model.layout.buttons, mouse.X, mouse.Y)
-	if !pressed {
-		return model, nil
-	}
-	model.frame.flashKey(key)
-	held, command, _ := model.runPasswordAction(action)
-	return held, command
 }
 
 // leavePasswordPrompt returns to the screen that asked for the password.

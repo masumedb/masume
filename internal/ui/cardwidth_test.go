@@ -8,18 +8,17 @@ import (
 )
 
 func TestACardIsSizedToItsContent(t *testing.T) {
-	if width := fitCardWidth(140, 30, "", " diagram ", ""); width != narrowestOverlayCard {
+	if width := fitCardWidth(140, 30, 0, " diagram ", ""); width != narrowestOverlayCard {
 		t.Errorf("a card of 30 cells is %d wide, wanted the narrowest %d",
 			width, narrowestOverlayCard)
 	}
-	if width := fitCardWidth(140, 70, "", " diagram ", ""); width != 74 {
+	if width := fitCardWidth(140, 70, 0, " diagram ", ""); width != 74 {
 		t.Errorf("a card of 70 cells is %d wide, wanted 74", width)
 	}
-	if width := fitCardWidth(100, 300, "", " diagram ", ""); width != 100 {
+	if width := fitCardWidth(100, 300, 0, " diagram ", ""); width != 100 {
 		t.Errorf("a card of 300 cells is %d wide, wanted the maximum of 100", width)
 	}
-	keys := "^S stage · ^L NULL · ^E empty · ^D default · Esc cancel"
-	if width := fitCardWidth(140, 6, keys, " total ", ""); width != len([]rune(keys))+4 {
+	if width := fitCardWidth(140, 6, 60, " total ", ""); width != 64 {
 		t.Errorf("a card is %d wide, wanted its keys on one row", width)
 	}
 }

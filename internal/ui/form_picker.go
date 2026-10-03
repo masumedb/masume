@@ -61,6 +61,9 @@ func (model *Model) readFormPickerKey(key tea.Key) (tea.Model, tea.Cmd) {
 		model.closeFormFilePicker()
 		return model, nil
 	}
+	if taken, next, command := model.readButtonKey(key, cardFields{}); taken {
+		return next, command
+	}
 	held := key
 	if match, matched := model.keymap.MatchOnly(key,
 		FindDialogActions(importPickGroup), cfg.ScopeDialog, cfg.ScopeList); matched {
@@ -73,6 +76,20 @@ func (model *Model) readFormPickerKey(key tea.Key) (tea.Model, tea.Cmd) {
 		}
 	}
 	updated, command, _ := model.readFormPickerMessage(tea.KeyPressMsg(held))
+	return updated, command
+}
+
+// runFormPickerButton runs a button of the picker of the form.
+func (model *Model) runFormPickerButton(action ActionID) (tea.Model, tea.Cmd) {
+	if action == ActionClose {
+		model.closeFormFilePicker()
+		return model, nil
+	}
+	code, known := pickerKeyOfAction[action]
+	if !known {
+		return model, nil
+	}
+	updated, command, _ := model.readFormPickerMessage(tea.KeyPressMsg(tea.Key{Code: code}))
 	return updated, command
 }
 
@@ -119,8 +136,11 @@ func (model *Model) renderFormPicker() string {
 	lines := model.buildPickerLines(&held.picker, cardWidth-present.CardChrome)
 
 	keys := model.buildKeyLineOf(importPickKeySpecs, keyScene{})
-	if text := present.TruncateText(keys.buildText(), cardWidth-4); text != "" {
-		lines = append(lines, "", model.styles.Muted().Render(text))
-	}
+	// The card is centred on the screen, with two borders and a blank row inside each.
+	cardRows := len(lines) + 2 + 4
+	left := halfRoundedUp(model.width - cardWidth)
+	cardTop := titleBarRows + halfRoundedUp(model.height-2-cardRows)
+	lines = model.appendCardKeyRow(lines, keys, cardWidth-4, cardTop+cardBodyRow,
+		left+cardBodyColumn)
 	return model.renderCard(" "+held.label+" ", cardWidth, lines, plainCard)
 }

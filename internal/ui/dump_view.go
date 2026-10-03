@@ -32,9 +32,8 @@ func (model *Model) renderDumpPicker(overlay app.Overlay, width int) string {
 	}
 
 	keys := model.buildCardKeys(app.OverlayDump, keyScene{overlay: overlay})
-	text := present.TruncateText(keys.buildText(), width-4)
 	model.recordCardBody()
-	lines = model.appendCardKeyRow(lines, keys, text, cardBodyRow, cardBodyColumn)
+	lines = model.appendCardKeyRow(lines, keys, width-4, cardBodyRow, cardBodyColumn)
 	model.rememberCardKeys(keys)
 	return model.renderCard(buildDumpTitle(overlay.Dump), width, lines, plainCard)
 }
@@ -88,9 +87,8 @@ func (model *Model) renderDumpForm(overlay app.Overlay, width int) string {
 		present.TruncateText(text, width-4)))
 
 	keys := model.buildCardKeys(app.OverlayDump, keyScene{overlay: overlay})
-	keyRow := present.TruncateText(keys.buildText(), width-4)
 	model.recordCardBody()
-	lines = model.appendCardKeyRow(lines, keys, keyRow, cardBodyRow, cardBodyColumn)
+	lines = model.appendCardKeyRow(lines, keys, width-4, cardBodyRow, cardBodyColumn)
 	model.rememberCardKeys(keys)
 	model.layout.formRows = rowsHit{
 		top: model.layout.cardBodyTop, count: len(fields),

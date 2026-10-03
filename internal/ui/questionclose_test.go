@@ -61,9 +61,7 @@ func TestAPressOnAnAnswerReturnsToTheCardUnderIt(t *testing.T) {
 				t.Fatalf("the question has no %s button", held.name)
 			}
 
-			model.readMouse(tea.MouseClickMsg{
-				X: button.from, Y: button.row, Button: tea.MouseLeft,
-			})
+			clickMouse(model, button.from, button.row)
 			if *answered != held.want {
 				t.Errorf("the press on %s answered %v", held.name, *answered)
 			}

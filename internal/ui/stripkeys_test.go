@@ -59,7 +59,7 @@ func TestAPressOnTheNewTabMarkOpensATab(t *testing.T) {
 	if !found {
 		t.Fatal("the tab row recorded no key that opens a tab")
 	}
-	model.readMouse(tea.MouseClickMsg{X: held.from, Y: held.row, Button: tea.MouseLeft})
+	clickMouse(model, held.from, held.row)
 	if len(connection.Tabs) != before+1 {
 		t.Errorf("a press on the new tab mark left %d tabs", len(connection.Tabs))
 	}
@@ -81,7 +81,7 @@ func TestAPressOnTheViewStepKeyStepsTheView(t *testing.T) {
 		t.Fatalf("the other half of the key runs %q", held.second)
 	}
 	before := tab.View
-	model.readMouse(tea.MouseClickMsg{X: held.keyTo, Y: held.row, Button: tea.MouseLeft})
+	clickMouse(model, held.keyTo, held.row)
 	if tab.View == before {
 		t.Errorf("a press on the step key left the view on %q", tab.View)
 	}
@@ -168,7 +168,7 @@ func TestAPressOnTheTreeBorderOpensTheFilter(t *testing.T) {
 	if !found {
 		t.Fatal("the tree border recorded no key that opens the filter")
 	}
-	model.readMouse(tea.MouseClickMsg{X: held.from, Y: held.row, Button: tea.MouseLeft})
+	clickMouse(model, held.from, held.row)
 	if !connection.Tree.Filtering {
 		t.Error("a press on the counts left the filter closed")
 	}
@@ -185,14 +185,14 @@ func TestOpeningTheTreeFilterClearsTheTextOfTheLastSearch(t *testing.T) {
 	if !found {
 		t.Fatal("the tree border recorded no key that opens the filter")
 	}
-	model.readMouse(tea.MouseClickMsg{X: held.from, Y: held.row, Button: tea.MouseLeft})
+	clickMouse(model, held.from, held.row)
 	model.readTreeFilterKey(connection, tea.Key{Code: 't', Text: "table_0001"})
 	model.readTreeFilterKey(connection, tea.Key{Code: tea.KeyEnter})
 	if connection.Tree.Filter != "table_0001" {
 		t.Fatalf("the filter holds %q after Enter", connection.Tree.Filter)
 	}
 
-	model.readMouse(tea.MouseClickMsg{X: held.from, Y: held.row, Button: tea.MouseLeft})
+	clickMouse(model, held.from, held.row)
 	if connection.Tree.Filter != "" {
 		t.Errorf("the second search starts on %q, wanted an empty field",
 			connection.Tree.Filter)
@@ -210,7 +210,7 @@ func TestAPressOnAKeyOfTheConnectionFormRunsIt(t *testing.T) {
 	if !found {
 		t.Fatal("the form recorded no key that cancels it")
 	}
-	model.readMouse(tea.MouseClickMsg{X: held.from, Y: held.row, Button: tea.MouseLeft})
+	clickMouse(model, held.from, held.row)
 	if model.screen != ScreenPickingProfile {
 		t.Errorf("a press on the cancel key left the screen on %q", model.screen)
 	}
@@ -231,7 +231,7 @@ func TestAPressOnAChoiceMarkStepsTheField(t *testing.T) {
 	}
 	mark := model.layout.formChoices[0]
 	before := model.form.Shown()[mark.field].Value
-	model.readMouse(tea.MouseClickMsg{X: mark.on, Y: mark.row, Button: tea.MouseLeft})
+	clickMouse(model, mark.on, mark.row)
 	if after := model.form.Shown()[mark.field].Value; after == before {
 		t.Errorf("a press on the mark left the field on %q", after)
 	}
@@ -249,7 +249,7 @@ func TestAPressOnAKeyOfThePickerRunsIt(t *testing.T) {
 	if !found {
 		t.Fatal("the picker recorded no key that opens a new connection")
 	}
-	model.readMouse(tea.MouseClickMsg{X: held.from, Y: held.row, Button: tea.MouseLeft})
+	clickMouse(model, held.from, held.row)
 	if model.screen != ScreenEditingConnection {
 		t.Errorf("a press on the new key left the screen on %q", model.screen)
 	}

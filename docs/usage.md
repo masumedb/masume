@@ -456,7 +456,8 @@ A change rewrites only the table of its row. Every line outside that table stays
 - Right-click an object, a cell, a header, a tab, a connection, or the editor for a context menu.
 - Middle-click a tab or click its close mark to close the tab. The usual close confirmation applies.
 - In an ER diagram, click a box to focus it. Double-click it to open the table. The wheel scrolls the diagram, and `Shift` with the wheel pans it sideways.
-- Click a key hint or a menu entry to run its action.
+- Click a key hint, a button, or a menu entry to run its action. Release off a button to cancel.
+- A key press hides the hover highlight until the mouse moves.
 
 ## Troubleshooting
 

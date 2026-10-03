@@ -856,9 +856,9 @@ func (model *Model) renderSettings() string {
 		lines = append(lines, "", model.styles.Faint().Render(
 			present.TruncateText(model.describeSettingsDetail(), inner)))
 		keys := model.buildKeyLineOf(settingsKeySpecs, keyScene{})
-		if text := present.TruncateText(keys.buildText(), inner); text != "" {
-			lines = append(lines, model.renderKeyLine(keys, []string{text},
-				cardTop+cardBodyRow+len(lines), left+cardBodyColumn, theme.Panel)[0])
+		if !keys.isEmpty() {
+			lines = append(lines, model.renderKeyButtons(keys, inner, 1,
+				cardTop+cardBodyRow+len(lines), left+cardBodyColumn)[0])
 		}
 	}
 
@@ -1079,16 +1079,6 @@ func (model *Model) pressSettings(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 	if state == nil {
 		return model, nil
 	}
-	if scope, action, key, pressed := findButton(
-		model.layout.buttons, mouse.X, mouse.Y); pressed {
-		model.frame.flashKey(key)
-		if held, command, ran := model.runSettingsAction(
-			Match{Action: action, Scope: scope}); ran {
-			return held, command
-		}
-		return model, nil
-	}
-
 	if row, found := model.layout.settingsSections.holds(mouse.X, mouse.Y); found {
 		state.Pane = paneSections
 		state.stepSection(clamp(row, len(state.Sections)) - state.Section)

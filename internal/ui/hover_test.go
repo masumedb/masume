@@ -3,7 +3,6 @@ package ui
 import (
 	"fmt"
 	"image/color"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -85,8 +84,7 @@ func TestAMoveOfThePointerDrawsNoNewFrame(t *testing.T) {
 	}
 }
 
-// A key the pointer stands on takes a rule under it, which says the word is a key without a
-// border around every key in the client.
+// A key the pointer stands on takes a tint of its own ground.
 func TestThePointerMarksTheKeyItStandsOn(t *testing.T) {
 	model, _, _ := buildEditingModel(t, "select id from orders", 0)
 	model.View()
@@ -95,28 +93,94 @@ func TestThePointerMarksTheKeyItStandsOn(t *testing.T) {
 	if held.row < 0 {
 		t.Fatal("the title bar recorded no key that opens the palette")
 	}
+	before := mapCells(strings.Split(model.frame.shown, "\n")[held.row])[held.from]
 	model = movePointer(model, held.from, held.row)
 	if model.frame.hover.kind != hoverKey {
 		t.Fatalf("the pointer stands on %q", model.frame.hover.kind)
 	}
-	if !strings.Contains(strings.Split(model.frame.shown, "\n")[held.row], underlineSequence) {
-		t.Error("the key the pointer stands on carries no rule under it")
+	after := mapCells(strings.Split(model.frame.shown, "\n")[held.row])[held.from]
+	_, beforeGround := readCellColors(before.sgr)
+	_, afterGround := readCellColors(after.sgr)
+	if afterGround == nil || WriteHex(afterGround) == WriteHex(beforeGround) {
+		t.Errorf("the key under the pointer kept the ground %v", afterGround)
 	}
 }
 
-// A press lights the key it landed on for a moment, so a press that ran something looks
-// different from a press that missed.
-func TestAPressLightsTheKeyItLandedOn(t *testing.T) {
+// clickMouse sends a press and a release of the left button on one cell.
+func clickMouse(model *Model, x, y int) (tea.Model, tea.Cmd) {
+	model.readMouse(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft})
+	return model.readMouseRelease(tea.MouseReleaseMsg{X: x, Y: y, Button: tea.MouseLeft})
+}
+
+// A click lights the key it ran for a moment.
+func TestAClickLightsTheKeyItRan(t *testing.T) {
 	model, _, _ := buildEditingModel(t, "select id from orders", 0)
 	model.View()
 
 	held := findButtonOfAction(model, ActionShowPalette)
-	model.readMouse(tea.MouseClickMsg{X: held.from, Y: held.row, Button: tea.MouseLeft})
+	clickMouse(model, held.from, held.row)
 	if !model.frame.isFlashing() {
-		t.Fatal("a press left the key unlit")
+		t.Fatal("a click left the key unlit")
 	}
 	if model.frame.pressed.action != ActionShowPalette {
-		t.Errorf("the press lit the key of %q", model.frame.pressed.action)
+		t.Errorf("the click lit the key of %q", model.frame.pressed.action)
+	}
+}
+
+// A key runs on the release of the button over it. While the button is down the key is drawn
+// pressed, and a release off the key runs nothing.
+func TestAKeyRunsOnTheReleaseOverIt(t *testing.T) {
+	model, connection, _ := buildEditingModel(t, "select id from orders", 0)
+	model.View()
+
+	held := findButtonOfAction(model, ActionShowPalette)
+	model.Update(tea.MouseClickMsg{X: held.from, Y: held.row, Button: tea.MouseLeft})
+	model.View()
+	if connection.Overlay.IsOpen() {
+		t.Fatal("the press ran the key before the release")
+	}
+	if !model.frame.isHoldingKey() {
+		t.Fatal("the key under the pressed button is not drawn pressed")
+	}
+
+	model.Update(tea.MouseMotionMsg{X: held.to + 3, Y: held.row + 2, Button: tea.MouseLeft})
+	model.View()
+	if model.frame.isHoldingKey() {
+		t.Error("the key is drawn pressed after the pointer left it")
+	}
+	model.Update(tea.MouseReleaseMsg{X: held.to + 3, Y: held.row + 2, Button: tea.MouseLeft})
+	if connection.Overlay.IsOpen() {
+		t.Error("a release off the key ran it")
+	}
+
+	model.Update(tea.MouseClickMsg{X: held.from, Y: held.row, Button: tea.MouseLeft})
+	model.Update(tea.MouseReleaseMsg{X: held.from, Y: held.row, Button: tea.MouseLeft})
+	if connection.Overlay.Kind != app.OverlayPalette {
+		t.Errorf("a release over the key opened %q", connection.Overlay.Kind)
+	}
+}
+
+// A key press takes the mark off what the pointer stands on, and the next move of the pointer
+// puts it back.
+func TestAKeyPressHidesTheMarkOfThePointer(t *testing.T) {
+	model := buildLoadedModel(t, 2, 5, 20, 4)
+	connection := model.Active()
+	connection.Tree.Expanded[core.BuildSchemaID("schema_00")] = true
+	model.View()
+
+	block := model.layout.treeRows
+	model = movePointer(model, block.from+6, block.top+2)
+	if !model.frame.hover.isSomething() {
+		t.Fatal("a resting pointer marked nothing")
+	}
+	model.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	model.View()
+	if model.frame.hover.isSomething() {
+		t.Error("the mark of the pointer stayed after a key press")
+	}
+	model = movePointer(model, block.from+6, block.top+3)
+	if !model.frame.hover.isSomething() {
+		t.Error("a move after the key press marked nothing")
 	}
 }
 
@@ -157,9 +221,9 @@ func holdsGround(sgr string, ground color.Color) bool {
 	return strings.Contains(sgr, fmt.Sprintf("48;2;%d;%d;%d", red>>8, green>>8, blue>>8))
 }
 
-// The pointer marks a row the way the keyboard does: the same ground, the same ink, so a row
-// reads the same whichever of the two reached it and every part of it keeps its weight.
-func TestThePointerMarksARowTheWayTheKeyboardDoes(t *testing.T) {
+// The pointer marks a row with a tint of its ground and keeps its ink. The mark never takes
+// the colours of the cursor.
+func TestThePointerMarkIsNotTheCursor(t *testing.T) {
 	model := buildLoadedModel(t, 2, 5, 20, 4)
 	connection := model.Active()
 	tab := connection.Active()
@@ -168,49 +232,32 @@ func TestThePointerMarksARowTheWayTheKeyboardDoes(t *testing.T) {
 
 	block := model.layout.treeRows
 	cursor := block.top + connection.Tree.Cursor - block.offset
-	filled := mapCells(strings.Split(model.frame.shown, "\n")[cursor])
-
-	// A row that is not the cursor takes the mark of the pointer.
 	marked := cursor + 1
 	if marked >= block.top+block.count {
 		marked = cursor - 1
 	}
+	before := mapCells(strings.Split(model.frame.shown, "\n")[marked])
 	model = movePointer(model, block.from+6, marked)
 	pointed := mapCells(strings.Split(model.frame.shown, "\n")[marked])
 
-	// A blank carries no ink, so the two are compared by the colours they set and not by
-	// the escapes that set them.
+	accent := WriteHex(model.styles.Theme.Accent)
 	for at := block.from + 1; at <= block.to-1 && at < len(pointed); at++ {
-		if strings.TrimSpace(pointed[at].text) == "" {
-			continue
+		_, ground := readCellColors(pointed[at].sgr)
+		if ground == nil || WriteHex(ground) == accent {
+			t.Fatalf("cell %d of the row under the pointer is drawn on %v", at, ground)
 		}
-		if !sameColors(pointed[at].sgr, filled[at].sgr) {
-			t.Fatalf("cell %d of the row under the pointer is drawn %q, and the row "+
-				"under the cursor is drawn %q", at, pointed[at].sgr, filled[at].sgr)
+		beforeInk, _ := readCellColors(before[at].sgr)
+		pointedInk, _ := readCellColors(pointed[at].sgr)
+		if strings.TrimSpace(pointed[at].text) != "" && beforeInk != nil &&
+			WriteHex(beforeInk) == WriteHex(model.styles.Theme.Text) &&
+			WriteHex(pointedInk) != WriteHex(beforeInk) {
+			t.Errorf("cell %d changed its ink from %s to %s", at,
+				WriteHex(beforeInk), WriteHex(pointedInk))
 		}
 	}
 }
 
-// sameColors is true where two cells were drawn in the same ink on the same ground.
-func sameColors(one, other string) bool {
-	oneInk, oneHasInk := findColorText(inkEscape, one)
-	otherInk, otherHasInk := findColorText(inkEscape, other)
-	oneGround, oneHasGround := findColorText(groundEscape, one)
-	otherGround, otherHasGround := findColorText(groundEscape, other)
-	return oneInk == otherInk && oneHasInk == otherHasInk &&
-		oneGround == otherGround && oneHasGround == otherHasGround
-}
-
-// findColorText answers the colour the escapes of a cell last set, as it was written.
-func findColorText(pattern *regexp.Regexp, sgr string) (string, bool) {
-	found := pattern.FindAllString(sgr, -1)
-	if len(found) == 0 {
-		return "", false
-	}
-	return found[len(found)-1], true
-}
-
-// A press that lit a key asks for a frame at the moment the light runs out. Without it the
+// A click that lit a key asks for a frame at the moment the light runs out. Without it the
 // light waits for the next turn of the wheel, which rests a whole second, and a press that
 // answered at once reads as one that stuck.
 func TestAPressAsksForTheFrameThatPutsTheKeyOut(t *testing.T) {
@@ -218,9 +265,7 @@ func TestAPressAsksForTheFrameThatPutsTheKeyOut(t *testing.T) {
 	model.View()
 
 	held := findButtonOfAction(model, ActionShowPalette)
-	_, command := model.readMouse(tea.MouseClickMsg{
-		X: held.from, Y: held.row, Button: tea.MouseLeft,
-	})
+	_, command := clickMouse(model, held.from, held.row)
 	if command == nil {
 		t.Fatal("a press that lit a key asked for no frame to put it out")
 	}
@@ -281,7 +326,7 @@ func TestTheLightIsDroppedWhereTheKeyIsGone(t *testing.T) {
 	if !found {
 		t.Fatal("the card recorded no key that closes it")
 	}
-	model.readMouse(tea.MouseClickMsg{X: held.from, Y: held.row, Button: tea.MouseLeft})
+	clickMouse(model, held.from, held.row)
 	if connection.Overlay.IsOpen() {
 		t.Fatal("the press left the card open")
 	}
@@ -303,7 +348,7 @@ func TestTheLightStaysWhereTheKeyDoes(t *testing.T) {
 	if held.row < 0 {
 		t.Skip("the bar named no key that stays where it is")
 	}
-	model.readMouse(tea.MouseClickMsg{X: held.from, Y: held.row, Button: tea.MouseLeft})
+	clickMouse(model, held.from, held.row)
 	model.View()
 	if !strings.Contains(model.frame.shown, buildSgr(
 		model.styles.Theme.OnAccent, model.styles.Theme.Accent)) {

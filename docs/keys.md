@@ -60,6 +60,8 @@ Every registered action has a default binding. Some palette operations have no r
 
 Each card uses only its own actions, so two rows in this table can share a key without a conflict.
 
+`Tab` from the last field of a form, or from a list, moves to the card buttons. `Tab`, `Shift+Tab`, Left and Right move between buttons, and `Enter` or `Space` runs the focused one. A destructive question opens with the focus on cancel.
+
 | Action | Key |
 | --- | --- |
 | `accept-completion` | `tab` |

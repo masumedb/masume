@@ -4,8 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	tea "charm.land/bubbletea/v2"
-
 	"github.com/masumedb/masume/internal/app"
 	"github.com/masumedb/masume/internal/cfg"
 )
@@ -104,7 +102,7 @@ func TestAPressOnTheEditorAiKeyRunsIt(t *testing.T) {
 	if !found {
 		t.Fatal("the editor offered no key")
 	}
-	model.readMouse(tea.MouseClickMsg{X: held.from, Y: held.row, Button: tea.MouseLeft})
+	clickMouse(model, held.from, held.row)
 	if connection.Overlay.Kind != app.OverlayAiChat {
 		t.Errorf("a press on the key opened %q", connection.Overlay.Kind)
 	}

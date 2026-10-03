@@ -114,10 +114,10 @@ func (model *Model) renderChatTokens(chat *app.Chat) string {
 func (model *Model) resolveChatBodyRows(
 	connection *app.Connection, width, content int,
 ) int {
-	text := model.describeChatKeys(connection.Chat).buildText()
+	keys := model.describeChatKeys(connection.Chat)
 	height := model.resolveOverlayHeight(
-		app.OverlayAiChat, 0, countHintRows(text, width))
-	return max(height-present.CardChrome-countHintLines(text, content)-1, 1)
+		app.OverlayAiChat, 0, countHintRows(keys, width))
+	return max(height-present.CardChrome-countHintLines(keys, content)-1, 1)
 }
 
 // chatViewRows returns how many rows of the conversation the panel shows. The panel is drawn

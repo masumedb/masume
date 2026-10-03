@@ -139,6 +139,11 @@ func (model *Model) readFormKey(key tea.Key) (tea.Model, tea.Cmd) {
 	if model.formPicker != nil {
 		return model.readFormPickerKey(key)
 	}
+	if taken, next, command := model.readButtonKey(key, cardFields{
+		cursor: form.Cursor, count: len(form.Shown()), step: form.StepField, typesText: true,
+	}); taken {
+		return next, command
+	}
 
 	// Escape belongs to no action. It closes the form.
 	if key.Code == tea.KeyEscape {
@@ -584,7 +589,7 @@ func (model *Model) renderForm() string {
 		save,
 		model.buildCardButton(cfg.ScopeDialog, ActionTestConnection, "test"),
 		model.buildCardButton(cfg.ScopeDialog, ActionClose, "cancel"),
-	}, cardTop+cardBodyRow+len(lines), left+cardBodyColumn))
+	}, noButtonFocus, cardTop+cardBodyRow+len(lines), left+cardBodyColumn))
 
 	// Where the rows of the fields land on the screen, so a press marks the row it looks
 	// like.
@@ -662,6 +667,9 @@ func (model *Model) readConfirmKey(key tea.Key) (tea.Model, tea.Cmd) {
 		model.confirm = nil
 		return model, nil
 	}
+	if taken, next, command := model.readButtonKey(key, cardFields{}); taken {
+		return next, command
+	}
 
 	if model.confirm.Commit != nil {
 		if match, matched := model.keymap.MatchOnly(key,
@@ -669,13 +677,15 @@ func (model *Model) readConfirmKey(key tea.Key) (tea.Model, tea.Cmd) {
 			return model.runConfirmAction(match.Action)
 		}
 	}
-	match, matched := model.keymap.MatchFirst(key,
-		FindDialogActions("form"), cfg.ScopeDialog)
+	match, matched := model.keymap.MatchOnly(key, confirmActions, cfg.ScopeDialog, cfg.ScopeList)
 	if !matched {
 		return model, nil
 	}
 	return model.runConfirmAction(match.Action)
 }
+
+// confirmActions are the actions a question of the client reads.
+var confirmActions = []ActionID{ActionAnswerYes, ActionAnswerNo, ActionClose}
 
 // runConfirmAction answers the question a screen without a connection asked.
 func (model *Model) runConfirmAction(action ActionID) (tea.Model, tea.Cmd) {

@@ -2,6 +2,7 @@ package ui
 
 import (
 	"image/color"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,8 +20,7 @@ const (
 	// hoverRow marks a whole row a press would take: a tab, a row of a list, a row of the
 	// grid, a chip of a strip.
 	hoverRow hoverKind = "row"
-	// hoverKey marks a word a press would run, which keeps its own colours and takes a
-	// rule under it.
+	// hoverKey marks a key or a button a press would run.
 	hoverKey hoverKind = "key"
 )
 
@@ -51,43 +51,127 @@ func (target hoverTarget) isSomething() bool {
 	return target.kind != hoverNothing && target.to >= target.from
 }
 
-// underlineSequence draws a rule under a cell, which is what marks a word a press would run.
-const underlineSequence = "\x1b[4m"
+// Tint weights toward the text colour: hoverTint under the pointer, pressedTint on a key under
+// the held left button.
+const (
+	hoverTint   = 0.14
+	pressedTint = 0.3
+)
 
-// paintHover marks what the pointer stands on. A row takes the ground of the header, and a
-// word a press would run takes a rule under it, which is the smallest mark that says the
-// word is a key without printing a border around every key in the client. Only the ground of
-// a cell is laid, so a row keeps the colours of its own parts.
+// raisedContrast is the contrast an ink is raised to under a tint, a step over the floor.
+const raisedContrast = TextContrastFloor + 0.1
+
+// paintHover marks what the pointer stands on with a tint of each cell's own ground.
 func (model *Model) paintHover(frame string) string {
 	target := model.frame.hover
 	if !target.isSomething() {
 		return frame
 	}
+	return model.tintCells(frame, target.row, target.from, target.to, hoverTint,
+		target.glyph, target.glyphAt)
+}
+
+// tintCells mixes the ground of a run of cells of one row toward the text colour. An ink that
+// the new ground leaves below the text contrast floor is raised to it. A glyph, where one is
+// given, is drawn in the cell at glyphAt.
+func (model *Model) tintCells(
+	frame string, row, from, to int, weight float64, glyph string, glyphAt int,
+) string {
 	rows := strings.Split(frame, "\n")
-	if target.row < 0 || target.row >= len(rows) {
+	if row < 0 || row >= len(rows) || to < from {
 		return frame
 	}
-	cells := mapCells(rows[target.row])
-	if target.kind == hoverKey {
-		// A key keeps its own colours and takes a rule under it, which is the smallest
-		// mark that says the word is a key.
-		for at := max(target.from, 0); at <= target.to && at < len(cells); at++ {
-			cells[at].sgr += underlineSequence
+	theme := model.styles.Theme
+	cells := mapCells(rows[row])
+	for at := max(from, 0); at <= to && at < len(cells); at++ {
+		ink, ground := readCellColors(cells[at].sgr)
+		if ground == nil {
+			ground = theme.Panel
 		}
-		rows[target.row] = writeCells(cells)
-		return strings.Join(rows, "\n")
+		ground = MixColors(ground, theme.Text, weight)
+		cells[at].sgr += writeColorSequence("48", ground)
+		if ink != nil && CalculateContrastRatio(ink, ground) < TextContrastFloor {
+			cells[at].sgr += writeColorSequence("38", ResolveColorAtContrast(
+				PickInkFor(ground, theme.Background, theme.Text, raisedContrast), ink, ground,
+				raisedContrast))
+		}
 	}
-
-	ground, ink := model.styles.resolveHoverColors()
-	mark := buildSgr(ink, ground)
-	for at := max(target.from, 0); at <= target.to && at < len(cells); at++ {
-		cells[at].sgr = mark
+	if glyph != "" && glyphAt >= 0 && glyphAt < len(cells) {
+		cells[glyphAt].text = glyph
 	}
-	if target.glyph != "" && target.glyphAt >= 0 && target.glyphAt < len(cells) {
-		cells[target.glyphAt].text = target.glyph
-	}
-	rows[target.row] = writeCells(cells)
+	rows[row] = writeCells(cells)
 	return strings.Join(rows, "\n")
+}
+
+// readCellColors returns the last true colour ink and ground the escapes of a cell set. A
+// colour the escapes do not set is nil.
+func readCellColors(sgr string) (color.Color, color.Color) {
+	var ink, ground color.Color
+	for sequence := range strings.SplitSeq(sgr, "\x1b[") {
+		sequence = strings.TrimSuffix(sequence, "m")
+		if sequence == "" {
+			continue
+		}
+		fields := strings.Split(sequence, ";")
+		for at := 0; at < len(fields); at++ {
+			switch fields[at] {
+			case "", "0":
+				ink, ground = nil, nil
+			case "39":
+				ink = nil
+			case "49":
+				ground = nil
+			case "38":
+				ink = parseTrueColor(fields[at+1:])
+				at += skipColorFields(fields[at+1:])
+			case "48":
+				ground = parseTrueColor(fields[at+1:])
+				at += skipColorFields(fields[at+1:])
+			case "58":
+				at += skipColorFields(fields[at+1:])
+			}
+		}
+	}
+	return ink, ground
+}
+
+// parseTrueColor returns the colour of the fields "2;r;g;b" after a colour code, and nil for
+// any other form.
+func parseTrueColor(fields []string) color.Color {
+	if len(fields) < 4 || fields[0] != "2" {
+		return nil
+	}
+	channels := [3]uint8{}
+	for at := range channels {
+		value, err := strconv.Atoi(fields[at+1])
+		if err != nil || value < 0 || value > 255 {
+			return nil
+		}
+		channels[at] = uint8(value)
+	}
+	return color.RGBA{R: channels[0], G: channels[1], B: channels[2], A: 0xff}
+}
+
+// skipColorFields returns how many fields after a colour code belong to that colour.
+func skipColorFields(fields []string) int {
+	if len(fields) == 0 {
+		return 0
+	}
+	switch fields[0] {
+	case "2":
+		return min(4, len(fields))
+	case "5":
+		return min(2, len(fields))
+	}
+	return 0
+}
+
+// writeColorSequence returns the escape that sets this true colour: code 38 for the ink, 48
+// for the ground.
+func writeColorSequence(code string, held color.Color) string {
+	red, green, blue := readChannels(held)
+	return "\x1b[" + code + ";2;" + strconv.Itoa(red) + ";" + strconv.Itoa(green) + ";" +
+		strconv.Itoa(blue) + "m"
 }
 
 // resolveHover returns what the pointer stands on. The parts of the frame are read in the
@@ -99,7 +183,7 @@ func (model *Model) resolveHover(x, y int) hoverTarget {
 	// A drag belongs to what it began on, so nothing is marked while one runs. The mark
 	// would follow the pointer over the cells the drag covers and read as a second thing
 	// happening at once.
-	if model.isDragging() {
+	if model.isDragging() || model.frame.isArmed {
 		return hoverTarget{}
 	}
 	// Every key a renderer drew as a word is drawn over the rows, so it is read first.
@@ -315,42 +399,22 @@ func (model *Model) isDragging() bool {
 // is long enough to be seen and short enough that it never looks like a state of its own.
 const keyFlashWait = 120 * time.Millisecond
 
-// paintPressedKey lights the key a press landed on. A key that ran something and gave nothing
-// back reads as a key that was never pressed, so the press itself is answered.
+// paintPressedKey draws the pressed look on the key the left button is down on, and for a
+// moment on the key a click ran.
 func (model *Model) paintPressedKey(frame string) string {
-	if !model.frame.isFlashing() {
-		return frame
+	held := model.frame.armed
+	if !model.frame.isHoldingKey() {
+		if !model.frame.isFlashing() {
+			return frame
+		}
+		held = model.frame.pressed
 	}
-	held := model.frame.pressed
 	// A key that ran something may have taken its own row off the frame, and the cells it
-	// covered belong to whatever was drawn there instead. The light is dropped then: the
-	// frame that answered the press is the answer the reader wanted.
+	// covered belong to whatever was drawn there instead.
 	if !model.holdsKeyStill(held) {
 		return frame
 	}
-	rows := strings.Split(frame, "\n")
-	if held.row < 0 || held.row >= len(rows) || held.to < held.from {
-		return frame
-	}
-	theme := model.styles.Theme
-	sgr := buildSgr(theme.OnAccent, theme.Accent)
-
-	cells := mapCells(rows[held.row])
-	for at := held.from; at <= held.to && at < len(cells); at++ {
-		if at >= 0 {
-			cells[at].sgr = sgr
-		}
-	}
-	rows[held.row] = writeCells(cells)
-	return strings.Join(rows, "\n")
-}
-
-// resolveHoverColors returns the ground and the ink a marked row takes: the same pair the row
-// under the cursor is drawn in. The pointer and the keyboard mark a row the same way, so a row
-// reads the same whichever of the two reached it, and every part of the row keeps the weight
-// and the colour it has under the cursor.
-func (styles *Styles) resolveHoverColors() (color.Color, color.Color) {
-	return styles.Theme.Accent, styles.Theme.OnAccent
+	return model.tintCells(frame, held.row, held.from, held.to, pressedTint, "", 0)
 }
 
 // holdsKeyStill is true where the frame still draws this key in the cells it was pressed in.

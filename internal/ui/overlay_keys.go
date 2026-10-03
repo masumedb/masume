@@ -27,6 +27,14 @@ func (model *Model) readOverlayKey(
 	overlay := &connection.Overlay
 	tab := connection.Active()
 
+	if overlay.Kind != app.OverlayAiChat {
+		fields := model.resolveOverlayFields(connection, tab, overlay)
+		fields.bindsTab = model.bindsTabOfItsOwn(*overlay, key)
+		if taken, next, command := model.readButtonKey(key, fields); taken {
+			return next, command
+		}
+	}
+
 	// The picker of a card reads every key of its own stage, so its own list keys work as
 	// they do everywhere else it is used.
 	if picksFile(*overlay) && key.Code != tea.KeyEscape {

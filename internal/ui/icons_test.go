@@ -4,8 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	tea "charm.land/bubbletea/v2"
-
 	"github.com/masumedb/masume/internal/app"
 	"github.com/masumedb/masume/internal/cfg"
 	"github.com/masumedb/masume/internal/core"
@@ -198,9 +196,7 @@ func TestAPressOnTheStopKeyStopsTheRead(t *testing.T) {
 	model.render()
 
 	held, _ := findWaitButton(model, ActionCancelQuery, model.layout.hintRow)
-	if _, command := model.readMouse(tea.MouseClickMsg{
-		X: held.from, Y: held.row, Button: tea.MouseLeft,
-	}); command == nil {
+	if _, command := clickMouse(model, held.from, held.row); command == nil {
 		t.Error("a press on the stop key asked the server for nothing")
 	}
 }

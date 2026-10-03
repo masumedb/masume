@@ -54,7 +54,7 @@ func (model *Model) render() string {
 		model.layout.buttons = nil
 		model.layout.scrollbars = nil
 		cardWidth := present.ResolveCardWidth(64, 36, model.width)
-		buttons := measureButtonRow(model.buildConfirmButtons(model.confirm)) + 4
+		buttons := model.measureButtonRow(model.buildConfirmButtons(model.confirm)) + 4
 		cardWidth = max(cardWidth, min(buttons, model.width))
 		card := model.drawCard(func() string {
 			return model.renderCard(model.confirm.Title, cardWidth,
@@ -155,7 +155,8 @@ func (model *Model) buildConfirmLines(held *confirmState, cardWidth int) []strin
 		}
 	}
 	lines = model.fitCardLines(append(lines, "", ""), inner)
-	lines[len(lines)-1] = model.renderButtonRow(model.buildConfirmButtons(held),
+	buttons := model.buildConfirmButtons(held)
+	lines[len(lines)-1] = model.renderButtonRow(buttons, resolveConfirmStart(held, len(buttons)),
 		cardBodyRow+len(lines)-1, cardBodyColumn)
 	return lines
 }
@@ -171,13 +172,23 @@ func (model *Model) buildConfirmButtons(held *confirmState) []cardButton {
 	}
 	yesButton := model.buildCardButton(cfg.ScopeDialog, ActionAnswerYes, yes)
 	noButton := model.buildCardButton(cfg.ScopeDialog, ActionAnswerNo, no)
+	yesButton.destructive = held.Destructive
 	if held.Commit != nil {
 		commit := model.buildCardButton(cfg.ScopeGlobal, ActionCommitTransaction, "commit and quit")
-		commit.primary, yesButton.destructive = true, held.Destructive
+		commit.primary = true
 		return []cardButton{commit, yesButton, noButton}
 	}
-	yesButton.primary, yesButton.destructive = true, held.Destructive
+	yesButton.primary = true
 	return []cardButton{yesButton, noButton}
+}
+
+// resolveConfirmStart returns the button of a question with the keyboard focus when it opens:
+// the last answer for a destructive question, the first for any other.
+func resolveConfirmStart(held *confirmState, count int) int {
+	if held.Destructive {
+		return count - 1
+	}
+	return 0
 }
 
 // confirmCardChrome is the rows a question takes beside its body: the title bar, the status

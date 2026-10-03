@@ -12,6 +12,8 @@ type viewMarks struct {
 	selection screenSelection
 	pressed   buttonHit
 	lit       bool
+	armed     buttonHit
+	held      bool
 }
 
 type screenFrame struct {
@@ -29,13 +31,33 @@ type screenFrame struct {
 	// Where the pointer stands, and what it stands on, so the frame marks it.
 	hover              hoverTarget
 	pointerX, pointerY int
+	// True from a key press until the pointer moves again.
+	pointerIdle bool
+	// The key the left button went down on. It runs on the release over the same key.
+	armed   buttonHit
+	isArmed bool
 	// The key a press last landed on, and when, so the press is answered on the frame.
 	pressed   buttonHit
 	pressedAt time.Time
 }
 
 func (frame *screenFrame) followPointer(x, y int) {
-	frame.pointerX, frame.pointerY = x, y
+	frame.pointerX, frame.pointerY, frame.pointerIdle = x, y, false
+}
+
+func (frame *screenFrame) armKey(held buttonHit) {
+	frame.armed, frame.isArmed = held, true
+}
+
+func (frame *screenFrame) disarmKey() {
+	frame.armed, frame.isArmed = buttonHit{}, false
+}
+
+// isHoldingKey is true while the left button is down on a key and the pointer is still on it.
+func (frame *screenFrame) isHoldingKey() bool {
+	held := frame.armed
+	return frame.isArmed && frame.pointerY == held.row &&
+		frame.pointerX >= held.from && frame.pointerX <= held.to
 }
 
 func (frame *screenFrame) flashKey(held buttonHit) {

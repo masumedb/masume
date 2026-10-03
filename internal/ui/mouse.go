@@ -192,6 +192,8 @@ type frameLayout struct {
 	// reports a fault, and the marks of the banner. A press on one runs the action the key
 	// itself runs.
 	buttons []buttonHit
+	// The focus start of the buttons at the foot of the card on show.
+	cardButtonStart int
 }
 
 // scrollHit is where one scroll bar was drawn: the column it stands in, the rows of its
@@ -234,6 +236,9 @@ type buttonHit struct {
 	scope  cfg.KeyScope
 	action ActionID
 	second ActionID
+	// slot is the place of a button at the foot of a card, counted from one. Zero for every
+	// other key.
+	slot int
 }
 
 // recordButton keeps the cells one key covers, so a press on the word runs the action the
@@ -316,20 +321,10 @@ func findChip(chips []chipHit, x, y int) (int, bool) {
 	return 0, false
 }
 
-// readMouse returns what one press of a button does. A press that lit a key asks for a frame
-// at the moment the light runs out, so the light lasts as long as it says and not until the
-// next turn of the wheel.
+// readMouse returns what one press of a button does.
 func (model *Model) readMouse(press tea.MouseClickMsg) (tea.Model, tea.Cmd) {
-	next, command := model.readPress(press)
-	if model.frame.isFlashing() {
-		return next, tea.Batch(command, wake(keyFlashWait))
-	}
-	return next, command
-}
-
-// readPress returns what one press does, before the light of a key is taken into account.
-func (model *Model) readPress(press tea.MouseClickMsg) (tea.Model, tea.Cmd) {
 	mouse := press.Mouse()
+	model.frame.followPointer(mouse.X, mouse.Y)
 	switch mouse.Button {
 	case tea.MouseLeft, tea.MouseRight:
 	case tea.MouseMiddle:
@@ -352,6 +347,7 @@ func (model *Model) readPress(press tea.MouseClickMsg) (tea.Model, tea.Cmd) {
 		// A terminal that lost a release leaves the last drag open, and this press ends it
 		// whether it began on the statement or on a bar.
 		model.drag.stop()
+		model.frame.disarmKey()
 	}
 
 	// The bar of a view is drawn over the rows of the view, so a press reaches it before
@@ -362,20 +358,19 @@ func (model *Model) readPress(press tea.MouseClickMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	if model.confirm != nil {
-		if _, action, _, pressed := findButton(
-			model.layout.buttons, mouse.X, mouse.Y); pressed && mouse.Button == tea.MouseLeft {
-			return model.runConfirmAction(action)
+	// A key runs on the release of the left button over it, and a release off the key runs
+	// nothing.
+	if mouse.Button == tea.MouseLeft {
+		if _, _, held, pressed := findButton(
+			model.layout.buttons, mouse.X, mouse.Y); pressed {
+			model.selection = screenSelection{}
+			model.frame.armKey(held)
+			return model, nil
 		}
-		return model, nil
 	}
 
-	// Every key a renderer drew as a word is a button, on the workspace, where each one
-	// names an action the workspace or the card on show returns.
-	if model.screen == ScreenWorking && mouse.Button == tea.MouseLeft {
-		if next, command, pressed := model.pressKey(mouse); pressed {
-			return next, command
-		}
+	if model.confirm != nil {
+		return model, nil
 	}
 
 	switch model.screen {
@@ -383,8 +378,6 @@ func (model *Model) readPress(press tea.MouseClickMsg) (tea.Model, tea.Cmd) {
 		return model.pressPicker(mouse)
 	case ScreenEditingConnection:
 		return model.pressForm(mouse)
-	case ScreenPromptingPassword:
-		return model.pressPassword(mouse)
 	case ScreenSettings:
 		return model.pressSettings(mouse)
 	case ScreenWorking:
@@ -497,34 +490,59 @@ func (model *Model) pressMiddleButton(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 	return model, nil
 }
 
-// pressKey returns a press on a key a renderer drew as a word: on the two bars, on a strip
-// of a pane, or at the foot of the card on show. It reports whether the press landed on one.
-func (model *Model) pressKey(mouse tea.Mouse) (tea.Model, tea.Cmd, bool) {
+// runButton runs the action of a key the left button was released on.
+func (model *Model) runButton(held buttonHit, scope cfg.KeyScope, action ActionID) (tea.Model, tea.Cmd) {
+	model.frame.flashKey(held)
+	if model.confirm != nil {
+		return model.runConfirmAction(action)
+	}
+	match := Match{Action: action, Scope: scope}
+	switch model.screen {
+	case ScreenPickingProfile:
+		return model.runPickerAction(match)
+	case ScreenEditingConnection:
+		if model.formPicker != nil {
+			return model.runFormPickerButton(action)
+		}
+		if model.form == nil {
+			return model, nil
+		}
+		if next, command, ran := model.runFormAction(match); ran {
+			return next, command
+		}
+	case ScreenPromptingPassword:
+		next, command, _ := model.runPasswordAction(action)
+		return next, command
+	case ScreenSettings:
+		if model.settingsForm == nil {
+			return model, nil
+		}
+		if next, command, ran := model.runSettingsAction(match); ran {
+			return next, command
+		}
+	case ScreenWorking:
+		return model.runWorkspaceButton(match)
+	}
+	return model, nil
+}
+
+// runWorkspaceButton runs a key of the workspace: on the two bars, on a strip of a pane, or at
+// the foot of the card on show.
+func (model *Model) runWorkspaceButton(match Match) (tea.Model, tea.Cmd) {
 	connection := model.Active()
 	if connection == nil {
-		return model, nil, false
+		return model, nil
 	}
-	scope, action, held, pressed := findButton(model.layout.buttons, mouse.X, mouse.Y)
-	if !pressed {
-		return model, nil, false
-	}
-	model.frame.flashKey(held)
-	// A press lets the last drag go, as a press anywhere else does.
-	model.selection = screenSelection{}
-
 	// A card on show returns the keys itself, because the keys the frame drew are its own.
 	if connection.Overlay.IsOpen() {
-		overlay := &connection.Overlay
-		handled, held, command := model.runOverlayAction(connection, connection.Active(),
-			overlay, Match{Action: action, Scope: scope})
+		handled, next, command := model.runOverlayAction(connection, connection.Active(),
+			&connection.Overlay, match)
 		if !handled {
-			return model, nil, true
+			return model, nil
 		}
-		return held, command, true
+		return next, command
 	}
-	next, command := model.runAction(
-		connection, connection.Active(), Match{Action: action, Scope: scope})
-	return next, command, true
+	return model.runAction(connection, connection.Active(), match)
 }
 
 // pressForm returns a press on the connection form: a press on a mark of a picked field steps
@@ -534,17 +552,6 @@ func (model *Model) pressForm(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 	// The file picker covers the rows of the form, so a press belongs to the picker and
 	// never to what it hides.
 	if model.form == nil || model.formPicker != nil {
-		return model, nil
-	}
-	// Every key the form names is a button, and it is drawn over the rows, so it is read
-	// before them.
-	if scope, action, key, pressed := findButton(
-		model.layout.buttons, mouse.X, mouse.Y); pressed {
-		model.frame.flashKey(key)
-		if held, command, ran := model.runFormAction(
-			Match{Action: action, Scope: scope}); ran {
-			return held, command
-		}
 		return model, nil
 	}
 	if field, step, onMark := findChoiceMark(
@@ -581,6 +588,7 @@ const (
 // shows, and leaves the cursor where it stands.
 func (model *Model) readMouseWheel(turned tea.MouseWheelMsg) (tea.Model, tea.Cmd) {
 	mouse := turned.Mouse()
+	model.frame.followPointer(mouse.X, mouse.Y)
 	// Shift with the wheel turns it sideways. A pointer that scrolls sideways of its own,
 	// such as a trackpad, sends the two buttons below instead.
 	sideways := mouse.Mod.Contains(uv.ModShift)
@@ -617,6 +625,10 @@ func (model *Model) readMouseMotion(moved tea.MouseMotionMsg) (tea.Model, tea.Cm
 		return model, nil
 	}
 	model.frame.followPointer(mouse.X, mouse.Y)
+	if model.frame.isArmed {
+		model.frame.held = true
+		return model, nil
+	}
 	// A drag belongs to whatever the press took hold of, and to no other button than the
 	// one that took it.
 	if model.drag.running() {
@@ -655,6 +667,17 @@ func (model *Model) readMouseMotion(moved tea.MouseMotionMsg) (tea.Model, tea.Cm
 
 // readMouseRelease keeps what the drag covered, so the copy that follows reads it.
 func (model *Model) readMouseRelease(released tea.MouseReleaseMsg) (tea.Model, tea.Cmd) {
+	if model.frame.isArmed {
+		mouse := released.Mouse()
+		armed := model.frame.armed
+		model.frame.disarmKey()
+		scope, action, held, onKey := findButton(model.layout.buttons, mouse.X, mouse.Y)
+		if !onKey || held != armed {
+			return model, nil
+		}
+		next, command := model.runButton(held, scope, action)
+		return next, tea.Batch(command, wake(keyFlashWait))
+	}
 	if held := model.drag; held.running() {
 		model.drag.stop()
 		if held.moved {
@@ -768,14 +791,8 @@ func (model *Model) rollOverlay(connection *app.Connection, step int) (tea.Model
 	return model, nil
 }
 
-// pressPicker returns a press on the connection picker: one press marks a row, two open it,
-// and a press on a key the card names runs it.
+// pressPicker returns a press on the connection picker: one press marks a row, two open it.
 func (model *Model) pressPicker(mouse tea.Mouse) (tea.Model, tea.Cmd) {
-	if scope, action, key, pressed := findButton(
-		model.layout.buttons, mouse.X, mouse.Y); pressed {
-		model.frame.flashKey(key)
-		return model.runPickerAction(Match{Action: action, Scope: scope})
-	}
 	rows := model.shownPickerRows()
 	row, found := model.layout.pickerRows.holds(mouse.X, mouse.Y)
 	if !found || row >= len(rows) {
