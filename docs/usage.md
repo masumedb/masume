@@ -458,6 +458,7 @@ A change rewrites only the table of its row. Every line outside that table stays
 - In an ER diagram, click a box to focus it. Double-click it to open the table. The wheel scrolls the diagram, and `Shift` with the wheel pans it sideways.
 - Click a key hint, a button, or a menu entry to run its action. Release off a button to cancel.
 - A key press hides the hover highlight until the mouse moves.
+- In kitty, foot or Ghostty the pointer is a hand over buttons, a text cursor over the editor, and resize arrows over dividers. tmux needs `set -g allow-passthrough on`.
 
 ## Troubleshooting
 

@@ -147,5 +147,6 @@ func runApp(held invocation) error {
 		model.OpenNotebookAtStart(held.notebookPath)
 	}
 	_, runErr := tea.NewProgram(model).Run()
+	_, _ = fmt.Fprint(os.Stdout, ui.ResetPointerShape())
 	return runErr
 }

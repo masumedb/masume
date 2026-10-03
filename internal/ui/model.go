@@ -144,6 +144,8 @@ type Model struct {
 	cardKeys *KeyLine
 	// The button of the card on show with the keyboard focus.
 	buttonFocus buttonFocus
+	// The pointer shape last sent to the terminal, or nothing before the first.
+	pointerShape string
 	caches       tabCaches
 	// The conversation as the chat panel draws it, kept because the scroll bounds, a jump
 	// between turns and the draw itself each read the rows.
@@ -331,6 +333,12 @@ func (model *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	model.settleSplitView()
 	if read := model.readShownSides(); read != nil {
 		command = tea.Batch(command, read)
+	}
+	switch message.(type) {
+	case tea.MouseMotionMsg, tea.MouseClickMsg, tea.MouseReleaseMsg, tea.MouseWheelMsg:
+		if shape := model.followPointerShape(); shape != nil {
+			command = tea.Batch(command, shape)
+		}
 	}
 	return next, command
 }
