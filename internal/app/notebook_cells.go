@@ -72,6 +72,24 @@ func (book *Notebook) MoveCell(step int) bool {
 	return true
 }
 
+// MoveCellTo moves the focused cell to a position, and the focus goes with it. A move that
+// starts a drag takes a step of the undo, and the steps after it in the same drag take none.
+func (book *Notebook) MoveCellTo(to int, startsUndo bool) bool {
+	at := core.ClampIndex(book.Focused, len(book.Cells))
+	if to < 0 || to >= len(book.Cells) || to == at {
+		return false
+	}
+	if startsUndo {
+		book.rememberCells()
+	}
+	moved := book.Cells[at]
+	book.Cells = slices.Delete(book.Cells, at, at+1)
+	book.Cells = slices.Insert(book.Cells, to, moved)
+	book.FocusCell(to)
+	book.Dirty = true
+	return true
+}
+
 // SetCellKind changes what the focused cell holds.
 func (book *Notebook) SetCellKind(kind notebook.CellKind) {
 	cell := book.GetFocusedCell()

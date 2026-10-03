@@ -681,6 +681,8 @@ func (model *Model) readMouseMotion(moved tea.MouseMotionMsg) (tea.Model, tea.Cm
 			return model.dragTab(mouse)
 		case dragColumnHeader:
 			return model.dragColumnHeader(mouse)
+		case dragCell:
+			return model.dragCell(mouse)
 		}
 		return model, nil
 	}

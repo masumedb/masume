@@ -36,7 +36,7 @@ func (model *Model) resolvePointerShape(x, y int) string {
 		return pointerText
 	case dragScrollbar:
 		return pointerDefault
-	case dragTab:
+	case dragTab, dragCell:
 		return pointerGrabbing
 	case dragColumnHeader:
 		if model.drag.moved {

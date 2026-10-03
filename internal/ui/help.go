@@ -174,6 +174,7 @@ var HelpSections = []HelpSection{
 			{Scope: cfg.ScopeNotebook, Actions: []ActionID{ActionDeleteCell}},
 			{Scope: cfg.ScopeNotebook, Actions: []ActionID{ActionUndoCellChange, ActionRedoCellChange}, Text: "undo or redo a cell change"},
 			{Scope: cfg.ScopeNotebook, Actions: []ActionID{ActionMoveCellUp, ActionMoveCellDown}, Text: "move the focused cell"},
+			{Keys: "drag a cell", Text: "move the cell"},
 			{Scope: cfg.ScopeNotebook, Actions: []ActionID{ActionCopyCell, ActionCutCell}, Text: "copy or cut the focused cell"},
 			{Scope: cfg.ScopeNotebook, Actions: []ActionID{ActionPasteCell}},
 			{Scope: cfg.ScopeNotebook, Actions: []ActionID{ActionToggleCellOutput, ActionToggleEveryOutput}, Text: "fold one cell, or every cell"},

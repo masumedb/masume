@@ -14,6 +14,7 @@ const (
 	dragSideDivider
 	dragTab
 	dragColumnHeader
+	dragCell
 )
 
 type pointerDrag struct {
@@ -91,6 +92,10 @@ func (drag *pointerDrag) takeTab(dragged, previous tabKey, hasPrevious bool, bef
 
 func (drag *pointerDrag) takeColumnHeader(column int, addsSort bool) {
 	*drag = pointerDrag{kind: dragColumnHeader, column: column, addsSort: addsSort}
+}
+
+func (drag *pointerDrag) takeCell() {
+	*drag = pointerDrag{kind: dragCell}
 }
 
 func (drag *pointerDrag) stop() { *drag = pointerDrag{} }

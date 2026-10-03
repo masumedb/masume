@@ -22,7 +22,7 @@ Up and Down move between cells. `Enter` puts the caret in the focused cell. `Esc
 
 The result pane shows the result of the focused cell. It has the views, sort, filters, and row editing of a query tab. Sort and filters are kept per cell. `o` folds one cell. `O` folds every cell.
 
-The mouse wheel scrolls the list, and so does dragging the scroll bar on its right. The list keeps its scroll position until the focus moves. A click on a row selects that cell. A second click on the same cell opens it.
+The mouse wheel scrolls the list, and so does dragging the scroll bar on its right. The list keeps its scroll position until the focus moves. A click on a row selects that cell. A second click on the same cell opens it. A drag of a cell moves it among the cells, and a drag past either end of the list scrolls it. One undo puts the cell back.
 
 `b` adds a cell below. `a` adds a cell above. Both ask for the kind first, then open the cell. `c` changes the kind of an existing cell. `t` names the cell by writing a comment on its first line. `d d` deletes the cell. `u` undoes a list change. `K` and `J` move the focused cell up and down. `y`, `x`, and `p` copy, cut, and paste a cell.
 

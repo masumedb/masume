@@ -673,8 +673,8 @@ func (model *Model) View() tea.View {
 	}
 	if drawn || model.frame.needsPaint(marks) {
 		model.frame.keepMarks(marks)
-		model.frame.shown = model.paintPressedKey(model.paintHover(
-			model.paintDropZone(model.paintSelection(model.frame.text))))
+		model.frame.shown = model.paintPressedKey(model.paintHover(model.paintDraggedCell(
+			model.paintDropZone(model.paintSelection(model.frame.text)))))
 	}
 	view := tea.NewView(model.frame.shown)
 	view.AltScreen = true
