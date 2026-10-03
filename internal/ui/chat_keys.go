@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/masumedb/masume/internal/app"
 	"github.com/masumedb/masume/internal/core"
 	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/hist"
 	"github.com/masumedb/masume/internal/present"
 )
 
@@ -416,8 +418,10 @@ func (model *Model) dropConversation(
 	if chat.OpenID == id {
 		chat.Messages, chat.OpenID = nil, 0
 	}
-	connection.Overlay.List.Cursor = 0
-	model.readConversations(connection)
+	chat.Conversations = slices.DeleteFunc(slices.Clone(chat.Conversations),
+		func(conversation hist.ChatConversation) bool { return conversation.ID == id })
+	shown := model.filterConversations(connection.Overlay, chat)
+	connection.Overlay.List.Cursor = clamp(connection.Overlay.List.Cursor, len(shown))
 	return model, dropped
 }
 

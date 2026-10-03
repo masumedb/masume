@@ -10,6 +10,7 @@ import (
 
 	"github.com/masumedb/masume/internal/app"
 	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/hist"
 	"github.com/masumedb/masume/internal/notebook"
 )
 
@@ -200,5 +201,24 @@ func TestRenamingANotebookReturnsToTheList(t *testing.T) {
 
 	if connection.Overlay.Kind != app.OverlayNotebooks {
 		t.Errorf("the rename left %q, wanted the list", connection.Overlay.Kind)
+	}
+}
+
+// One press of the delete key takes the conversation off the list.
+func TestOnePressRemovesAConversation(t *testing.T) {
+	model := buildOfflineModel(t, 120, 40)
+	connection := model.Active()
+	connection.Chat.Conversations = []hist.ChatConversation{
+		{ID: 1, Title: "first"}, {ID: 2, Title: "second"},
+	}
+	connection.Open(app.Overlay{Kind: app.OverlayAiChats, Draft: app.NewEditorBuffer("", 0)})
+	connection.Overlay.List.Cursor = 1
+
+	model.readKey(tea.Key{Code: 'd', Mod: uv.ModCtrl})
+	if len(connection.Chat.Conversations) != 1 || connection.Chat.Conversations[0].ID != 1 {
+		t.Errorf("one press left %v", connection.Chat.Conversations)
+	}
+	if connection.Overlay.List.Cursor != 0 {
+		t.Errorf("the cursor stands on row %d of one", connection.Overlay.List.Cursor)
 	}
 }
