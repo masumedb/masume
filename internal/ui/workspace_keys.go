@@ -840,9 +840,13 @@ func (model *Model) stepEditorAction(
 	case ActionCaretRight:
 		buffer.MoveCaret(1, selecting)
 	case ActionCaretUp:
-		buffer.MoveLine(-1, selecting)
+		if !model.moveCaretByRow(tab, -1, selecting) {
+			buffer.MoveLine(-1, selecting)
+		}
 	case ActionCaretDown:
-		buffer.MoveLine(1, selecting)
+		if !model.moveCaretByRow(tab, 1, selecting) {
+			buffer.MoveLine(1, selecting)
+		}
 	case ActionCaretWordLeft:
 		buffer.MoveWord(-1, selecting)
 	case ActionCaretWordRight:

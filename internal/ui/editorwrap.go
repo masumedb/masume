@@ -162,3 +162,37 @@ func (model *Model) renderWrappedLines(
 	}
 	return written
 }
+
+// moveCaretByRow moves the caret one wrapped row up or down while long lines wrap. It reports
+// whether long lines wrap.
+func (model *Model) moveCaretByRow(tab *app.Tab, step int, selecting bool) bool {
+	width := model.layout.editorTextWidth
+	if !model.settings.WrapLines || width < 1 {
+		return false
+	}
+	lines := tab.Editor.Lines()
+	rows := buildWrapRows(lines, width)
+	line, column := tab.Editor.CaretPosition()
+	at := findWrapRow(rows, line, column)
+	cell := present.MeasureText(lines[line][:column]) - rows[at].startCell
+	if tab.WrapGoalCaret == tab.Editor.Caret {
+		cell = tab.WrapGoal
+	}
+
+	offset := 0
+	switch target := at + step; {
+	case target < 0:
+	case target >= len(rows):
+		offset = len(tab.Editor.Text)
+	default:
+		row := rows[target]
+		cells := present.MeasureText(lines[row.line][row.from:row.to])
+		if !row.last {
+			cells = max(cells-1, 0)
+		}
+		offset = tab.Editor.FindOffsetAt(row.line, row.startCell+min(cell, cells))
+	}
+	tab.Editor.PlaceCaret(offset, selecting)
+	tab.WrapGoal, tab.WrapGoalCaret = cell, tab.Editor.Caret
+	return true
+}

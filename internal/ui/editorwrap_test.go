@@ -61,3 +61,20 @@ func TestTheWrapKeyTurnsWrapOnAndOff(t *testing.T) {
 		t.Error("the second alt+l left wrap on")
 	}
 }
+
+func TestUpAndDownMoveByWrappedRowsWhileWrapIsOn(t *testing.T) {
+	text := "select " + strings.Repeat("column_name, ", 20) + "id from orders"
+	model, _, tab := buildEditingModel(t, text, 3)
+	model.settings.WrapLines = true
+	model.render()
+	rows := model.layout.editorWrapRows
+
+	model.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	if caret := tab.Editor.Caret; caret != rows[1].from+3 {
+		t.Errorf("down from the first row put the caret at %d, wanted %d", caret, rows[1].from+3)
+	}
+	model.Update(tea.KeyPressMsg{Code: tea.KeyUp})
+	if caret := tab.Editor.Caret; caret != 3 {
+		t.Errorf("up from the second row put the caret at %d, wanted 3", caret)
+	}
+}

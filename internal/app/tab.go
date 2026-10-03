@@ -118,6 +118,10 @@ type Tab struct {
 	undone []core.PendingChanges
 	redone []core.PendingChanges
 	Target EditTarget
+	// The cell in its row the caret keeps while Up and Down move it through wrapped rows. It
+	// holds while the caret stands at WrapGoalCaret.
+	WrapGoal      int
+	WrapGoalCaret int
 	// The cursor of the grid and its scroll position.
 	GridRow          int
 	GridColumn       int
