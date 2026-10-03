@@ -107,6 +107,7 @@ theme               = "ayu-dark"
 hide_system_schemas = true
 key_hints           = "full"
 timezone            = "server"
+wrap_lines          = false
 notify_after        = 10
 
 [keys]
@@ -201,6 +202,7 @@ paths = []
 # hide_system_schemas = true      # false lists pg_catalog and other system schemas in the tree
 # key_hints           = "full"    # full main off. main names the primary keys only, off names none
 # timezone            = "server"  # server utc local. the zone of a timestamp with a time zone in the grid
+# wrap_lines          = false     # true wraps a long editor line. alt+l turns it on or off for the session
 # notify_after        = 10        # seconds. a longer run that ends while the window is not focused posts a desktop notification. 0 is off
 
 # Example glyph overrides by row kind. An empty string hides that glyph.

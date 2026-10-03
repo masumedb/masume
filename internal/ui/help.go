@@ -223,6 +223,7 @@ var HelpSections = []HelpSection{
 			{Scope: cfg.ScopeEditor, Actions: []ActionID{ActionRedoEdit}},
 			{Scope: cfg.ScopeEditor, Actions: []ActionID{ActionPasteText}},
 			{Scope: cfg.ScopeEditor, Actions: []ActionID{ActionFormatSQL}},
+			{Scope: cfg.ScopeEditor, Actions: []ActionID{ActionToggleWrap}},
 			{Scope: cfg.ScopeEditor, Actions: []ActionID{ActionCommentLines}},
 			{Scope: cfg.ScopeEditor, Actions: []ActionID{ActionIndentLines, ActionOutdentLines}, Text: "indent or outdent the lines"},
 			{Scope: cfg.ScopeDialog, Actions: []ActionID{ActionAcceptCompletion}},

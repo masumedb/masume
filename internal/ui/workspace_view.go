@@ -864,7 +864,7 @@ func (model *Model) renderEditor(
 
 	lines := tab.Editor.Lines()
 	placeholder := tab.Editor.Text == ""
-	caretLine, caretColumn := tab.Editor.CaretPosition()
+	caretLine, _ := tab.Editor.CaretPosition()
 
 	// The fault on screen takes a row of its own under the statement, so the message and
 	// the key that fixes it are read where the fault is.
@@ -878,103 +878,23 @@ func (model *Model) renderEditor(
 			body = 1
 		}
 	}
-	// The pane follows the caret unless the wheel moved it, so a statement longer than the
-	// pane can be read without the caret coming along.
-	offset := tab.EditorRowOffset
-	if !tab.EditorRolled {
-		offset = scrollTo(caretLine, tab.EditorRowOffset, body, len(lines))
-	}
-	offset = clampOffset(offset, body, len(lines))
-	tab.EditorRowOffset = offset
-
 	// The gutter numbers each line, so a fault can be pointed at.
 	gutterWidth := max(present.MeasureText(strconv.Itoa(len(lines)))+1, 4)
 
 	// The statement keeps a blank column on its right, so a line as wide as the pane still
 	// shows where it ends.
 	textWidth := max(inner-gutterWidth-1, 1)
-	// A line wider than the pane is moved left, and only as far as it must be, so the text
-	// before the caret stays in view while the caret walks along a long line. The offset
-	// counts cells of the screen, and the caret is read in cells for it, because a byte of
-	// the buffer is not a cell.
-	caretCell := tab.Editor.MeasureCellsBefore(tab.Editor.Caret)
-	columnOffset := scrollFrom(caretCell, tab.EditorColumnOffset, textWidth,
-		measureWidestLine(lines, offset, offset+body)+1, tab.EditorRolled)
-	tab.EditorColumnOffset = columnOffset
-
-	// The cell of the caret on the screen, which the completion popup is placed from.
-	model.caretRow = model.paneTop + (caretLine - offset)
-	model.caretColumn = model.editorLeft + 1 + gutterWidth + caretCell - columnOffset
-
-	// Where the text of the statement is drawn, so a press of the pointer can be read as an
-	// offset in the buffer.
-	model.layout.editorTextLeft = model.editorLeft + 1 + gutterWidth
-	model.layout.editorTextTop = model.paneTop + 1
-	model.layout.editorTextWidth = textWidth
-	model.layout.editorTextRows = body
-	model.layout.editorFirstLine = offset
-	model.layout.editorColumnOffset = columnOffset
-
-	// The selection is drawn as a ground under the colours of the tokens, so what Shift and
-	// the arrows took is read on the screen and not only by the keys that copy it.
-	selectFrom, selectTo := tab.Editor.SelectionRange()
-	selects := tab.Editor.HasSelection()
-	lineFrom := 0
-	for at := 0; at < offset && at < len(lines); at++ {
-		lineFrom += len(lines[at]) + 1
-	}
-
-	highlights := model.buildEditorHighlights(
-		connection, tab, lines, faults, offset, offset+body)
-	// A line with a fault is marked in the gutter, so a long statement says where it
-	// is wrong without reading the border.
-	faulty := findFaultyLines(tab, faults)
-	written := make([]string, 0, body)
-	for at := offset; at < len(lines) && len(written) < body; at++ {
-		// The gutter of the line the caret is on takes a ground of its own.
-		gutterGround := theme.Panel
-		if at == caretLine && focused {
-			gutterGround = theme.Zebra
-		}
-		// A line moved left shows a mark where its start is hidden, and a line cut at the
-		// right shows one at its end.
-		cells := present.MeasureText(lines[at])
-		sign := paintOn(gutterGround, " ")
-		switch {
-		case faulty[at]:
-			sign = paintText(theme.Error, gutterGround, model.describeProblemSign())
-		case columnOffset > 0 && cells > 0:
-			sign = paintText(theme.Muted, gutterGround,
-				present.FitText(model.icons.Icon(cfg.IconStepBack), 1))
-		}
-		end := paintOn(gutterGround, " ")
-		if cells-columnOffset > textWidth {
-			end = paintText(theme.Muted, gutterGround,
-				present.FitText(model.icons.Icon(cfg.IconStepOn), 1))
-		}
-		// The number of the line the caret is on is drawn in the accent, as the number of
-		// the row the cursor is on is drawn in the grid.
-		numberInk := theme.Faint
-		if at == caretLine && focused {
-			numberInk = theme.Accent
-		}
-		number := sign + paintText(numberInk, gutterGround, buildGutterText(strconv.Itoa(at+1), gutterWidth-1))
-
-		drawn := codeLine{
-			text: lines[at], spans: highlights[at], width: textWidth,
-			columnOffset: columnOffset, caretColumn: caretColumn,
-			showCaret: at == caretLine && focused,
-		}
-		if selects {
-			drawn.selectFrom, drawn.selectTo = resolveLineSelection(
-				selectFrom-lineFrom, selectTo-lineFrom, len(lines[at]))
-		}
-		text := model.renderCodeLine(drawn)
-		if placeholder && at == 0 {
-			text = model.renderEditorPlaceholder(connection, tab, textWidth, focused)
-		}
-		written = append(written, number+text+end)
-		lineFrom += len(lines[at]) + 1
+	var written []string
+	if model.settings.WrapLines && !placeholder {
+		written = model.renderWrappedLines(connection, tab, wrappedEditor{
+			lines: lines, faults: faults, body: body, gutterWidth: gutterWidth,
+			textWidth: textWidth, focused: focused,
+		})
+	} else {
+		written = model.renderScrolledLines(connection, tab, scrolledEditor{
+			lines: lines, faults: faults, body: body, gutterWidth: gutterWidth,
+			textWidth: textWidth, focused: focused, placeholder: placeholder,
+		})
 	}
 	for len(written) < body {
 		written = append(written, "")
@@ -1677,4 +1597,118 @@ func (model *Model) renderCodeLineOn(ground color.Color, drawn codeLine) string 
 		writeOpenedText(&written, picked[0], " ")
 	}
 	return padStyledOn(truncateStyled(written.String(), drawn.width), drawn.width, ground)
+}
+
+// scrolledEditor is what the lines of the editor are drawn from.
+type scrolledEditor struct {
+	lines                  []string
+	faults                 []editor.Diagnostic
+	body                   int
+	gutterWidth, textWidth int
+	focused, placeholder   bool
+}
+
+// renderScrolledLines draws one row per line of the statement. A line wider than the pane
+// scrolls sideways.
+func (model *Model) renderScrolledLines(
+	connection *app.Connection, tab *app.Tab, held scrolledEditor,
+) []string {
+	theme := model.styles.Theme
+	lines, faults, body := held.lines, held.faults, held.body
+	gutterWidth, textWidth := held.gutterWidth, held.textWidth
+	focused, placeholder := held.focused, held.placeholder
+	caretLine, caretColumn := tab.Editor.CaretPosition()
+	// The pane follows the caret unless the wheel moved it, so a statement longer than the
+	// pane can be read without the caret coming along.
+	offset := tab.EditorRowOffset
+	if !tab.EditorRolled {
+		offset = scrollTo(caretLine, tab.EditorRowOffset, body, len(lines))
+	}
+	offset = clampOffset(offset, body, len(lines))
+	tab.EditorRowOffset = offset
+
+	// A line wider than the pane is moved left, and only as far as it must be, so the text
+	// before the caret stays in view while the caret walks along a long line. The offset
+	// counts cells of the screen, and the caret is read in cells for it, because a byte of
+	// the buffer is not a cell.
+	caretCell := tab.Editor.MeasureCellsBefore(tab.Editor.Caret)
+	columnOffset := scrollFrom(caretCell, tab.EditorColumnOffset, textWidth,
+		measureWidestLine(lines, offset, offset+body)+1, tab.EditorRolled)
+	tab.EditorColumnOffset = columnOffset
+
+	// The cell of the caret on the screen, which the completion popup is placed from.
+	model.caretRow = model.paneTop + (caretLine - offset)
+	model.caretColumn = model.editorLeft + 1 + gutterWidth + caretCell - columnOffset
+
+	// Where the text of the statement is drawn, so a press of the pointer can be read as an
+	// offset in the buffer.
+	model.layout.editorTextLeft = model.editorLeft + 1 + gutterWidth
+	model.layout.editorTextTop = model.paneTop + 1
+	model.layout.editorTextWidth = textWidth
+	model.layout.editorTextRows = body
+	model.layout.editorFirstLine = offset
+	model.layout.editorColumnOffset = columnOffset
+
+	// The selection is drawn as a ground under the colours of the tokens, so what Shift and
+	// the arrows took is read on the screen and not only by the keys that copy it.
+	selectFrom, selectTo := tab.Editor.SelectionRange()
+	selects := tab.Editor.HasSelection()
+	lineFrom := 0
+	for at := 0; at < offset && at < len(lines); at++ {
+		lineFrom += len(lines[at]) + 1
+	}
+
+	highlights := model.buildEditorHighlights(
+		connection, tab, lines, faults, offset, offset+body)
+	// A line with a fault is marked in the gutter, so a long statement says where it
+	// is wrong without reading the border.
+	faulty := findFaultyLines(tab, faults)
+	written := make([]string, 0, body)
+	for at := offset; at < len(lines) && len(written) < body; at++ {
+		// The gutter of the line the caret is on takes a ground of its own.
+		gutterGround := theme.Panel
+		if at == caretLine && focused {
+			gutterGround = theme.Zebra
+		}
+		// A line moved left shows a mark where its start is hidden, and a line cut at the
+		// right shows one at its end.
+		cells := present.MeasureText(lines[at])
+		sign := paintOn(gutterGround, " ")
+		switch {
+		case faulty[at]:
+			sign = paintText(theme.Error, gutterGround, model.describeProblemSign())
+		case columnOffset > 0 && cells > 0:
+			sign = paintText(theme.Muted, gutterGround,
+				present.FitText(model.icons.Icon(cfg.IconStepBack), 1))
+		}
+		end := paintOn(gutterGround, " ")
+		if cells-columnOffset > textWidth {
+			end = paintText(theme.Muted, gutterGround,
+				present.FitText(model.icons.Icon(cfg.IconStepOn), 1))
+		}
+		// The number of the line the caret is on is drawn in the accent, as the number of
+		// the row the cursor is on is drawn in the grid.
+		numberInk := theme.Faint
+		if at == caretLine && focused {
+			numberInk = theme.Accent
+		}
+		number := sign + paintText(numberInk, gutterGround, buildGutterText(strconv.Itoa(at+1), gutterWidth-1))
+
+		drawn := codeLine{
+			text: lines[at], spans: highlights[at], width: textWidth,
+			columnOffset: columnOffset, caretColumn: caretColumn,
+			showCaret: at == caretLine && focused,
+		}
+		if selects {
+			drawn.selectFrom, drawn.selectTo = resolveLineSelection(
+				selectFrom-lineFrom, selectTo-lineFrom, len(lines[at]))
+		}
+		text := model.renderCodeLine(drawn)
+		if placeholder && at == 0 {
+			text = model.renderEditorPlaceholder(connection, tab, textWidth, focused)
+		}
+		written = append(written, number+text+end)
+		lineFrom += len(lines[at]) + 1
+	}
+	return written
 }

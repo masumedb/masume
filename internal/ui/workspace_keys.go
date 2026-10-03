@@ -907,6 +907,15 @@ func (model *Model) stepEditorAction(
 			written, resolveFormattedCaret(language, buffer.Text, written, buffer.Caret))
 		return model, model.reportEdit(connection, tab)
 
+	case ActionToggleWrap:
+		model.settings.WrapLines = !model.settings.WrapLines
+		if model.settings.WrapLines {
+			connection.Show("long lines wrap")
+		} else {
+			connection.Show("long lines scroll")
+		}
+		return model, nil
+
 	case ActionCommentLines:
 		mark := connection.Session.Language().LineComment()
 		if mark == "" {

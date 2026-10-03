@@ -121,7 +121,7 @@ func TestEveryPageCarriesItsOwnRows(t *testing.T) {
 			}},
 		{"appearance", cfg.SectionAppearance, nil, []string{
 			cfg.ItemTheme, cfg.ItemIcons, cfg.ItemKeyHints, cfg.ItemTimeZone, cfg.ItemHideSystem,
-			cfg.ItemNotifyAfter,
+			cfg.ItemWrapLines, cfg.ItemNotifyAfter,
 		}},
 		{"keys", cfg.SectionKeys, nil, []string{
 			cfg.ItemKeyPreset, string(cfg.ScopeGrid), string(cfg.ScopeTree),

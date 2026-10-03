@@ -124,6 +124,7 @@ const (
 	ItemTimeZone     = "timeZone"
 	ItemHideSystem   = "hideSystemSchemas"
 	ItemNotifyAfter  = "notifyAfter"
+	ItemWrapLines    = "wrapLines"
 	ItemKeyPreset    = "keyPreset"
 	ItemMcpAccess    = "mcp.access"
 	ItemMcpRowLimit  = "mcp.rowLimit"
@@ -464,6 +465,8 @@ func buildAppearanceItems(sources SettingsSources) []SettingItem {
 			Choices: listModeNames(TimeZoneModes)},
 		{Key: ItemHideSystem, Label: "hide system schemas", Kind: SettingToggle,
 			Value: describeToggle(settings.HideSystemSchemas)},
+		{Key: ItemWrapLines, Label: "wrap long lines", Kind: SettingToggle,
+			Value: describeToggle(settings.WrapLines)},
 		{Key: ItemNotifyAfter, Label: "notify after", Kind: SettingText,
 			Detail: "run time for a desktop notification, 0 for none", Unit: "s",
 			Value: strconv.Itoa(int(settings.NotifyAfter / time.Second))},

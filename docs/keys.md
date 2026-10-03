@@ -166,6 +166,7 @@ See [editing SQL](usage.md#editing-sql) for search, replacement, completion, and
 | `replace-match` | `f4` |
 | `select-all` | `ctrl+a` |
 | `show-completion` | `ctrl+space` |
+| `toggle-wrap` | `alt+l` |
 | `undo-edit` | `ctrl+z` |
 
 ## Global

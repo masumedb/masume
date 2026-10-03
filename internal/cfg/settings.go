@@ -178,6 +178,8 @@ type UISettings struct {
 	// A glyph the user selected for one kind, for example a Nerd Font glyph.
 	IconGlyphs        map[IconKind]string
 	HideSystemSchemas bool
+	// True for an editor that wraps a long line onto the rows under it.
+	WrapLines bool
 	// The key hints mode of the bars, the strips, the borders and the cards.
 	KeyHints KeyHintsMode
 	TimeZone TimeZoneMode
@@ -247,6 +249,9 @@ func ParseUISettings(document Table) UISettings {
 
 	if hidden, isFlag := FindBool(ui, "hide_system_schemas"); isFlag {
 		settings.HideSystemSchemas = hidden
+	}
+	if wraps, isFlag := FindBool(ui, "wrap_lines"); isFlag {
+		settings.WrapLines = wraps
 	}
 	if written, named := FindString(ui, "key_hints"); named {
 		if mode, known := FindKeyHintsMode(written); known {

@@ -39,7 +39,8 @@ func ApplySetting(
 		return applyAddedAgent(sources)
 	case ItemRemoveAgent:
 		return applyRemovedAgent(sources, readPage(path, 1))
-	case ItemTheme, ItemIcons, ItemKeyHints, ItemTimeZone, ItemHideSystem, ItemNotifyAfter:
+	case ItemTheme, ItemIcons, ItemKeyHints, ItemTimeZone, ItemHideSystem, ItemWrapLines,
+		ItemNotifyAfter:
 		return applyAppearanceSetting(sources, key, value)
 	case ItemKeyPreset:
 		sources.Keys.Preset = findChoice(PresetIDs, value, PresetDefault)
@@ -323,6 +324,8 @@ func applyAppearanceSetting(
 		settings.TimeZone = findChoice(TimeZoneModes, value, TimeZoneServer)
 	case ItemHideSystem:
 		settings.HideSystemSchemas = value == toggleOn
+	case ItemWrapLines:
+		settings.WrapLines = value == toggleOn
 	case ItemNotifyAfter:
 		seconds, err := strconv.Atoi(strings.TrimSpace(value))
 		if err != nil || seconds < 0 {
@@ -338,7 +341,7 @@ func applyAppearanceSetting(
 	return sources, []TableUpdate{{
 		Header: []string{"ui"},
 		Order: []string{
-			"theme", "icons", "key_hints", "timezone", "hide_system_schemas",
+			"theme", "icons", "key_hints", "timezone", "hide_system_schemas", "wrap_lines",
 			"notify_after",
 		},
 		Values: map[string]any{
@@ -346,6 +349,7 @@ func applyAppearanceSetting(
 			"key_hints":           string(settings.KeyHints),
 			"timezone":            string(settings.TimeZone),
 			"hide_system_schemas": settings.HideSystemSchemas,
+			"wrap_lines":          settings.WrapLines,
 			"notify_after":        int(settings.NotifyAfter / time.Second),
 		},
 	}}, nil

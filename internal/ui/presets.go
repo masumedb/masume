@@ -165,6 +165,7 @@ var defaultChords = map[string][]string{
 	"editor:format-sql": {"ctrl+d"},
 	// The commands of the editor that no other pane has sit on Alt, because Ctrl is full.
 	"editor:comment-lines":     {"alt+c"},
+	"editor:toggle-wrap":       {"alt+l"},
 	"editor:indent-lines":      {"alt+]"},
 	"editor:outdent-lines":     {"alt+["},
 	"editor:find-in-statement": {"alt+f"},

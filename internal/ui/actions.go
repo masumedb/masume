@@ -169,6 +169,7 @@ const (
 	ActionRedoEdit           ActionID = "redo-edit"
 	ActionPasteText          ActionID = "paste-text"
 	ActionFormatSQL          ActionID = "format-sql"
+	ActionToggleWrap         ActionID = "toggle-wrap"
 	ActionCommentLines       ActionID = "comment-lines"
 	ActionIndentLines        ActionID = "indent-lines"
 	ActionOutdentLines       ActionID = "outdent-lines"
@@ -502,6 +503,7 @@ var editorActions = []ActionDefinition{
 	{ID: ActionRedoEdit, Label: "redo the last edit"},
 	{ID: ActionPasteText, Label: "paste from the system clipboard"},
 	{ID: ActionFormatSQL, Label: "format the statement"},
+	{ID: ActionToggleWrap, Label: "wrap long lines or scroll them"},
 	{ID: ActionCommentLines, Label: "comment or uncomment the lines"},
 	{ID: ActionIndentLines}, {ID: ActionOutdentLines},
 	{ID: ActionFindInStatement, Label: "find text in the statement"},

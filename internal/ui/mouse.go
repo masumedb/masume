@@ -131,6 +131,8 @@ type frameLayout struct {
 	editorTextLeft, editorTextTop       int
 	editorTextWidth, editorTextRows     int
 	editorFirstLine, editorColumnOffset int
+	// The rows of the editor on screen while long lines wrap, from the first one drawn.
+	editorWrapRows []wrapRow
 
 	// The grid: the rows, the columns beside the gutter, and the row of names above them.
 	gridRows    rowsHit
@@ -1346,6 +1348,15 @@ func (model *Model) resolveEditorOffset(tab *app.Tab, x, y int) (int, bool) {
 	cell := layout.editorColumnOffset + (x - layout.editorTextLeft)
 	if x < layout.editorTextLeft {
 		cell = 0
+	}
+	if rows := layout.editorWrapRows; len(rows) > 0 {
+		row := rows[min(y-layout.editorTextTop, len(rows)-1)]
+		cell = max(cell, 0) + row.startCell
+		if !row.last {
+			lines := tab.Editor.Lines()
+			cell = min(cell, present.MeasureText(lines[row.line][:row.to])-1)
+		}
+		return tab.Editor.FindOffsetAt(row.line, cell), true
 	}
 	line := layout.editorFirstLine + (y - layout.editorTextTop)
 	return tab.Editor.FindOffsetAt(line, cell), true

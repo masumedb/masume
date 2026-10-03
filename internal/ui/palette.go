@@ -177,6 +177,8 @@ var paletteEntries = []paletteEntry{
 	{id: "count-rows", group: groupResult, scope: cfg.ScopeGrid, action: ActionCountRows, when: countsRows},
 	{id: "format-sql", group: groupQuery, detail: "one clause per line",
 		scope: cfg.ScopeEditor, action: ActionFormatSQL, when: editsStatement},
+	{id: "toggle-wrap", group: groupQuery, scope: cfg.ScopeEditor, action: ActionToggleWrap,
+		when: editsStatement},
 	{id: "show-themes", group: groupClient, detail: "preview the selected theme",
 		scope: cfg.ScopeGlobal, action: ActionShowThemes},
 	{id: "reload-themes", group: groupClient, label: "Reload the theme files"},
