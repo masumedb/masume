@@ -92,9 +92,7 @@ func TestTheLeftButtonOnAColumnNameStillSortsByIt(t *testing.T) {
 	model.render()
 
 	column := model.layout.gridColumns[1]
-	model.readMouse(tea.MouseClickMsg{
-		X: column.from + 1, Y: model.layout.gridHeaderRow, Button: tea.MouseLeft,
-	})
+	clickMouse(model, column.from+1, model.layout.gridHeaderRow)
 	if connection.Overlay.IsOpen() {
 		t.Error("the left button on a name opened a menu")
 	}

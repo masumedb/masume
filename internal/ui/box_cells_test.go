@@ -123,9 +123,10 @@ func TestHiddenColumnCounts(t *testing.T) {
 	tab := &app.Tab{Frozen: map[int]bool{0: true}}
 	plan := present.ColumnPlan{WindowStart: 2, VisibleCount: 2}
 	hidden := countHiddenColumns(tab, plan, 8)
-	// The frozen column is drawn, so it is not one of the two left out on the left.
-	if hidden.left != 1 || hidden.right != 4 {
-		t.Errorf("the counts are %d left and %d right, wanted 1 and 4",
+	// The window counts places among the seven columns it scrolls through. The frozen
+	// column is drawn, so it is in neither count.
+	if hidden.left != 2 || hidden.right != 3 {
+		t.Errorf("the counts are %d left and %d right, wanted 2 and 3",
 			hidden.left, hidden.right)
 	}
 }

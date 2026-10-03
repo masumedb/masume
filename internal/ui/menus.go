@@ -131,6 +131,8 @@ func (model *Model) openColumnMenu(
 			{ActionAddSortColumn, "Add column to sort", "", cfg.IconIndex, sorts},
 			{ActionFilterByValues, "Filter by values…", "choose values to keep", cfg.IconColumn, len(shape.Text) > 0},
 			{ActionFreezeColumns, "Freeze column", "freeze or unfreeze this column", cfg.IconPrimaryKey, true},
+			{ActionHideColumn, "Hide column", "", cfg.IconColumn, len(shape.Columns) > 1},
+			{ActionChooseColumns, "Choose columns…", "show or hide columns", cfg.IconColumn, true},
 			{ActionGoToColumn, "Go to column…", "by name", cfg.IconRecent, true},
 			{ActionSearchColumns, "Search rows", "search loaded rows", cfg.IconRecent, true},
 			{ActionToggleMasking, "Show or hide masked values", "", cfg.IconNote, true},

@@ -343,6 +343,13 @@ var cardKeySpecs = map[app.OverlayKind][]keySpec{
 		keyOf(cfg.ScopeDialog, ActionToggleStatements, "").withLabel(describeStatementsToggle),
 		keyOf(cfg.ScopeDialog, ActionClose, "").withLabel(describeSettingsClose),
 	},
+	app.OverlayColumns: {
+		keyOf(cfg.ScopeDialog, ActionToggleValue, "show"),
+		keyOf(cfg.ScopeDialog, ActionKeepOnlyValue, "only this"),
+		keyOf(cfg.ScopeDialog, ActionKeepAllValues, "all"),
+		keyOf(cfg.ScopeList, ActionChooseRow, "apply"),
+		keyOf(cfg.ScopeDialog, ActionClose, "cancel"),
+	},
 	app.OverlayValueFilter: {
 		keyOf(cfg.ScopeDialog, ActionToggleValue, "pick"),
 		keyOf(cfg.ScopeDialog, ActionKeepOnlyValue, "only this"),

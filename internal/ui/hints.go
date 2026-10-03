@@ -512,6 +512,8 @@ func (model *Model) BuildHints(context HintContext) []Hint {
 	}
 	keys.add(model.buildHint(capabilities, cfg.ScopeGrid, ActionGoToColumn, "go to column"))
 	keys.add(model.buildHint(capabilities, cfg.ScopeGrid, ActionFreezeColumns, "freeze"))
+	keys.add(model.buildHint(capabilities, cfg.ScopeGrid, ActionHideColumn, "hide"))
+	keys.add(model.buildHint(capabilities, cfg.ScopeGrid, ActionChooseColumns, "columns"))
 	if context.CanFetchMore {
 		keys.add(model.buildHint(
 			capabilities, cfg.ScopeGlobal, ActionNextPage, "more rows"))

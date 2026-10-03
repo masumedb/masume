@@ -329,7 +329,7 @@ func (model *Model) overlayRowCount(connection *app.Connection, overlay app.Over
 		return len(model.filterMenu(overlay))
 	case app.OverlayChoice:
 		return len(overlay.Choices)
-	case app.OverlayValueFilter:
+	case app.OverlayValueFilter, app.OverlayColumns:
 		return len(overlay.Values)
 	case app.OverlayActivity:
 		return len(overlay.Sessions)
@@ -719,7 +719,7 @@ func (model *Model) runOverlayAction(
 			return true, model, nil
 		}
 
-	case app.OverlayValueFilter:
+	case app.OverlayValueFilter, app.OverlayColumns:
 		switch match.Action {
 		case ActionToggleValue:
 			if overlay.List.Cursor < len(overlay.Values) {
@@ -937,6 +937,10 @@ func (model *Model) chooseOverlayRow(
 			scope = cfg.ScopeGlobal
 		}
 		return model.runAction(connection, tab, Match{Action: action, Scope: scope})
+
+	case app.OverlayColumns:
+		applyColumns(connection, tab, *overlay)
+		return model, nil
 
 	case app.OverlayValueFilter:
 		kept := overlay.Kept

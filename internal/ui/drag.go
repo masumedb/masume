@@ -13,6 +13,7 @@ const (
 	dragTreeEdge
 	dragSideDivider
 	dragTab
+	dragColumnHeader
 )
 
 type pointerDrag struct {
@@ -34,7 +35,11 @@ type pointerDrag struct {
 	column      int
 	columnWidth int
 	columnFrom  int
-	// True once the pointer moved while it drags a tab, which then draws lifted.
+	// True for a press on a column name with Shift, which adds the column to the sort on a
+	// release that never moved.
+	addsSort bool
+	// True once the pointer moved while it drags a tab or a column name, which then draws
+	// lifted.
 	lifted bool
 }
 
@@ -70,6 +75,10 @@ func (drag *pointerDrag) takeColumnEdge(column, width, from int) {
 
 func (drag *pointerDrag) takeTab() {
 	*drag = pointerDrag{kind: dragTab}
+}
+
+func (drag *pointerDrag) takeColumnHeader(column int, addsSort bool) {
+	*drag = pointerDrag{kind: dragColumnHeader, column: column, addsSort: addsSort}
 }
 
 func (drag *pointerDrag) stop() { *drag = pointerDrag{} }

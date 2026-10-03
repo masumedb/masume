@@ -569,30 +569,41 @@ func (model *Model) recordGridColumns(
 func (model *Model) followColumnCursor(
 	tab *app.Tab, shape GridShape, available int,
 ) present.ColumnPlan {
+	// The window counts places among the columns it scrolls through, in the order they are
+	// drawn. The frozen columns take their room first.
+	window := buildColumnWindow(tab, len(shape.Widths))
+	widths := make([]int, 0, len(window.scrolling))
+	for _, index := range window.scrolling {
+		widths = append(widths, shape.Widths[index])
+	}
+	for _, index := range window.frozen {
+		available -= shape.Widths[index] + columnGap
+	}
 	planColumns := func() present.ColumnPlan {
 		return present.PlanVisibleColumns(present.ColumnPlanInput{
-			Widths: shape.Widths, Frozen: tab.Frozen, ColumnOffset: tab.GridColumnOffset,
+			Widths: widths, ColumnOffset: tab.GridColumnOffset,
 			Available: available, Gap: columnGap,
 		})
 	}
 
 	if tab.GridColumnRolled {
-		tab.GridColumnOffset = clamp(tab.GridColumnOffset, len(shape.Widths))
+		tab.GridColumnOffset = clamp(tab.GridColumnOffset, len(widths))
 		return planColumns()
 	}
 
 	plan := planColumns()
-	if tab.Frozen[tab.GridColumn] {
+	place := slices.Index(window.scrolling, tab.GridColumn)
+	if place < 0 {
 		return plan
 	}
 	// A column wider than the pane can leave the cursor outside the window it was moved to,
 	// so the window is moved again, and never more times than there are columns.
-	for step := 0; step <= len(shape.Widths); step++ {
+	for step := 0; step <= len(widths); step++ {
 		switch {
-		case tab.GridColumn < plan.WindowStart:
-			tab.GridColumnOffset = tab.GridColumn
-		case tab.GridColumn >= plan.WindowStart+plan.VisibleCount:
-			tab.GridColumnOffset = tab.GridColumn - plan.VisibleCount + 1
+		case place < plan.WindowStart:
+			tab.GridColumnOffset = place
+		case place >= plan.WindowStart+plan.VisibleCount:
+			tab.GridColumnOffset = place - plan.VisibleCount + 1
 		default:
 			return plan
 		}
@@ -608,35 +619,25 @@ type hiddenColumns struct {
 	right int
 }
 
-// countHiddenColumns counts the columns the window leaves out. A frozen column is always
-// drawn, so it is never counted.
+// countHiddenColumns counts the columns the window leaves out at each edge. A frozen column is
+// always drawn, so it is never counted.
 func countHiddenColumns(tab *app.Tab, plan present.ColumnPlan, count int) hiddenColumns {
-	countBetween := func(from, to int) int {
-		hidden := 0
-		for index := max(0, from); index < to; index++ {
-			if !tab.Frozen[index] {
-				hidden++
-			}
-		}
-		return hidden
-	}
+	scrolling := len(buildColumnWindow(tab, count).scrolling)
+	start := min(plan.WindowStart, scrolling)
 	return hiddenColumns{
-		left:  countBetween(0, plan.WindowStart),
-		right: countBetween(plan.WindowStart+plan.VisibleCount, count),
+		left:  start,
+		right: scrolling - min(plan.WindowStart+plan.VisibleCount, scrolling),
 	}
 }
 
+// resolveVisibleColumns returns the columns drawn, in order: the frozen ones, then the window.
 func (model *Model) resolveVisibleColumns(
 	tab *app.Tab, plan present.ColumnPlan, count int,
 ) []int {
-	windowEnd := plan.WindowStart + plan.VisibleCount
-	visible := []int{}
-	for _, index := range buildColumnOrder(tab, count) {
-		if tab.Frozen[index] || (index >= plan.WindowStart && index < windowEnd) {
-			visible = append(visible, index)
-		}
-	}
-	return visible
+	window := buildColumnWindow(tab, count)
+	start := min(plan.WindowStart, len(window.scrolling))
+	end := min(plan.WindowStart+plan.VisibleCount, len(window.scrolling))
+	return append(window.frozen, window.scrolling[start:end]...)
 }
 
 // renderGridHeader draws the names of the columns, with the sort mark on the ones
@@ -678,6 +679,9 @@ func (model *Model) renderGridHeader(
 		highlighted := index == tab.GridColumn && focused
 		ink, cell := theme.Accent, ground
 		switch {
+		case model.drag.holds(dragColumnHeader) && model.drag.lifted && index == model.drag.column:
+			cell = theme.AccentAlt
+			ink = model.styles.InkOn(cell)
 		case highlighted:
 			ink, cell = theme.OnAccent, theme.Accent
 		case tab.Frozen[index]:

@@ -135,6 +135,10 @@ type Tab struct {
 	Frozen map[int]bool
 	// User-defined column widths. Missing entries use automatic widths.
 	ColumnWidths map[int]int
+	// The result columns in the order the grid draws them. Empty is the order of the result.
+	ColumnOrder []int
+	// The result columns the grid does not draw.
+	HiddenColumns map[int]bool
 	// True while the values of a masked column are shown.
 	Unmasked bool
 	// The filter over the rows already read. It hides rows and reads none.

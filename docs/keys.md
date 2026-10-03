@@ -242,6 +242,7 @@ See [editing SQL](usage.md#editing-sql) for search, replacement, completion, and
 | Action | Key |
 | --- | --- |
 | `add-sort-column` | `S` |
+| `choose-columns` | `H` |
 | `clear-rewrites` | `c` |
 | `copy-csv` | `C c` |
 | `copy-inserts` | `C i` |
@@ -267,7 +268,10 @@ See [editing SQL](usage.md#editing-sql) for search, replacement, completion, and
 | `follow-foreign-key` | `g` |
 | `freeze-columns` | `z` |
 | `go-to-column` | `a` |
+| `hide-column` | `h` |
 | `insert-row` | `n` |
+| `move-column-left` | `alt+shift+left` |
+| `move-column-right` | `alt+shift+right` |
 | `open-menu` | `m` |
 | `open-row` | `return` |
 | `pop-filter` | `u` |

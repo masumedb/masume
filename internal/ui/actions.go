@@ -98,6 +98,10 @@ const (
 	ActionPreviousTab         ActionID = "previous-tab"
 	ActionNextTab             ActionID = "next-tab"
 	ActionMoveTabLeft         ActionID = "move-tab-left"
+	ActionHideColumn          ActionID = "hide-column"
+	ActionChooseColumns       ActionID = "choose-columns"
+	ActionMoveColumnLeft      ActionID = "move-column-left"
+	ActionMoveColumnRight     ActionID = "move-column-right"
 	ActionMoveTabRight        ActionID = "move-tab-right"
 	ActionPreviousConnection  ActionID = "previous-connection"
 	ActionNextConnection      ActionID = "next-connection"
@@ -436,6 +440,10 @@ var gridActions = []ActionDefinition{
 	{ID: ActionClearRewrites, Label: "clear the sort and the filters"},
 	{ID: ActionPopFilter, Label: "remove the last filter"},
 	{ID: ActionFreezeColumns, Label: "freeze the column under the cursor"},
+	{ID: ActionHideColumn, Label: "hide the column under the cursor"},
+	{ID: ActionChooseColumns, Label: "choose the columns to show"},
+	{ID: ActionMoveColumnLeft, Label: "move the column left"},
+	{ID: ActionMoveColumnRight, Label: "move the column right"},
 	{ID: ActionToggleMasking, Label: "show or hide masked values"},
 	{ID: ActionGoToColumn, Label: "go to a column by name"},
 	{ID: ActionSearchColumns, Label: "search the rows on screen"},

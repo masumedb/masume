@@ -604,6 +604,7 @@ func (model *Model) placeResultCursor(
 		return
 	}
 	tab.GridColumnKey = key
+	tab.ColumnOrder, tab.HiddenColumns = nil, nil
 	tab.GridRow, tab.GridColumn = 0, 0
 	tab.GridRowOffset, tab.GridColumnOffset = 0, 0
 	tab.GridColumnRolled = false

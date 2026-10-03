@@ -136,6 +136,7 @@ var overlayShares = map[app.OverlayKind]int{
 	app.OverlayCellEdit:      80,
 	app.OverlayCell:          80,
 	app.OverlayValueFilter:   60,
+	app.OverlayColumns:       60,
 	app.OverlayBuilderTables: 60,
 	app.OverlayParameters:    60,
 	app.OverlayThemePicker:   52,
@@ -315,6 +316,8 @@ func (model *Model) renderOverlay(
 		return model.renderChanges(overlay, width)
 	case app.OverlayValueFilter:
 		return model.renderValueFilter(overlay, width)
+	case app.OverlayColumns:
+		return model.renderColumnChooser(overlay, width)
 	case app.OverlayThemePicker:
 		return model.renderThemePicker(overlay, width)
 	case app.OverlayActivity:
@@ -1749,6 +1752,31 @@ func (model *Model) renderValueFilter(overlay app.Overlay, width int) string {
 		Kind: app.OverlayValueFilter, Title: overlay.Title, Rows: rows,
 		Cursor: overlay.List.Cursor, Offset: overlay.List.Offset, Rolled: overlay.List.Rolled, Width: width,
 		ContentRows: max(len(overlay.Values), 1), Keys: keys,
+	})
+}
+
+// renderColumnChooser draws every column of the result, with a mark on the ones shown.
+func (model *Model) renderColumnChooser(overlay app.Overlay, width int) string {
+	rows := make([]string, 0, len(overlay.Values))
+	for at, value := range overlay.Values {
+		mark := "☐"
+		if overlay.Kept[value.Value] {
+			mark = "☑"
+		}
+		name := ""
+		if at < len(overlay.Lines) {
+			name = overlay.Lines[at]
+		}
+		rows = append(rows, model.renderListRow(ListRowSpec{
+			Lead: mark, LeadWidth: valueMarkWidth, Label: name, LabelWidth: valueLabelWidth,
+			Selected: at == overlay.List.Cursor, Width: width,
+		}))
+	}
+	keys := model.buildCardKeys(app.OverlayColumns, keyScene{overlay: overlay})
+	return model.renderListCard(ListCard{
+		Kind: app.OverlayColumns, Title: overlay.Title, Note: overlay.Notice, Rows: rows,
+		Cursor: overlay.List.Cursor, Offset: overlay.List.Offset, Rolled: overlay.List.Rolled,
+		Width: width, ContentRows: max(len(overlay.Values), 1), Keys: keys,
 	})
 }
 

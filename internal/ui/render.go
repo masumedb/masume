@@ -544,6 +544,8 @@ func (model *Model) describeStatus(
 		switch model.drag.kind {
 		case dragTab:
 			return "release to drop the tab here", app.NoticeActive
+		case dragColumnHeader:
+			return "release to drop the column here", app.NoticeActive
 		}
 	}
 	if connection.Notice != nil {

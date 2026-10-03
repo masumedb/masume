@@ -38,6 +38,11 @@ func (model *Model) resolvePointerShape(x, y int) string {
 		return pointerDefault
 	case dragTab:
 		return pointerGrabbing
+	case dragColumnHeader:
+		if model.drag.moved {
+			return pointerGrabbing
+		}
+		return pointerHand
 	}
 	if model.frame.isArmed {
 		return pointerHand

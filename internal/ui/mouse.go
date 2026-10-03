@@ -669,6 +669,8 @@ func (model *Model) readMouseMotion(moved tea.MouseMotionMsg) (tea.Model, tea.Cm
 			return model.dragEditor(mouse)
 		case dragTab:
 			return model.dragTab(mouse)
+		case dragColumnHeader:
+			return model.dragColumnHeader(mouse)
 		}
 		return model, nil
 	}
@@ -709,6 +711,13 @@ func (model *Model) readMouseRelease(released tea.MouseReleaseMsg) (tea.Model, t
 			return model, nil
 		}
 		tab := connection.Active()
+		if held.holds(dragColumnHeader) {
+			action := ActionSortColumn
+			if held.addsSort {
+				action = ActionAddSortColumn
+			}
+			return model.runGridAction(connection, tab, Match{Action: action, Scope: cfg.ScopeGrid})
+		}
 		if !held.holds(dragTreeEdge) && !held.holds(dragSplitLine) {
 			return model, nil
 		}
@@ -1180,11 +1189,28 @@ func (model *Model) pressColumnHeader(
 	if mouse.Button == tea.MouseRight {
 		return model.openColumnMenu(connection, tab, model.buildGridShape(connection, tab))
 	}
-	action := ActionSortColumn
-	if mouse.Mod.Contains(tea.ModShift) {
-		action = ActionAddSortColumn
+	// A drag of the name moves the column, and a release that never moved sorts by it.
+	model.selection = screenSelection{}
+	model.drag.takeColumnHeader(column, mouse.Mod.Contains(tea.ModShift))
+	return model, nil
+}
+
+// dragColumnHeader moves the column being dragged to the place of the column under the pointer.
+func (model *Model) dragColumnHeader(mouse tea.Mouse) (tea.Model, tea.Cmd) {
+	connection := model.Active()
+	if connection == nil {
+		return model, nil
 	}
-	return model.runGridAction(connection, tab, Match{Action: action, Scope: cfg.ScopeGrid})
+	tab := connection.Active()
+	model.drag.lifted = true
+	under, over := findColumnUnder(model.layout.gridColumns, mouse.X)
+	if !over || under == model.drag.column {
+		return model, nil
+	}
+	moveColumnTo(tab, len(model.buildGridShape(connection, tab).Columns), model.drag.column, under)
+	tab.GridColumn = model.drag.column
+	model.drag.moved = true
+	return model, nil
 }
 
 // pressColumnEdge returns a press on the border after a column: it takes hold of the border

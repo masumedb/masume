@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -514,6 +515,14 @@ func (model *Model) runGridAction(
 
 	case ActionFreezeColumns:
 		return model.freezeColumns(connection, tab), nil
+	case ActionHideColumn:
+		hideColumn(connection, tab, len(shape.Columns))
+	case ActionChooseColumns:
+		return model.askColumns(connection, tab, shape)
+	case ActionMoveColumnLeft:
+		stepColumn(tab, len(shape.Columns), -1)
+	case ActionMoveColumnRight:
+		stepColumn(tab, len(shape.Columns), 1)
 	case ActionToggleMasking:
 		tab.Unmasked = !tab.Unmasked
 		if tab.Unmasked {
@@ -714,16 +723,144 @@ func (model *Model) findCellUnderCursor(
 // buildColumnOrder returns the order the columns are drawn and walked in: the frozen ones
 // first, then the ones the window scrolls.
 func buildColumnOrder(tab *app.Tab, count int) []int {
-	frozen := []int{}
-	scrolling := []int{}
-	for index := range count {
-		if tab.Frozen[index] {
-			frozen = append(frozen, index)
-			continue
+	window := buildColumnWindow(tab, count)
+	return append(window.frozen, window.scrolling...)
+}
+
+// columnWindow is the columns of the grid in the order they are drawn: the frozen ones, then
+// the ones the window scrolls through. A hidden column is in neither.
+type columnWindow struct {
+	frozen, scrolling []int
+}
+
+// buildColumnWindow returns the columns of the grid in the order they are drawn.
+func buildColumnWindow(tab *app.Tab, count int) columnWindow {
+	window := columnWindow{frozen: []int{}, scrolling: []int{}}
+	for _, index := range resolveColumnOrder(tab, count) {
+		switch {
+		case tab.HiddenColumns[index]:
+		case tab.Frozen[index]:
+			window.frozen = append(window.frozen, index)
+		default:
+			window.scrolling = append(window.scrolling, index)
 		}
-		scrolling = append(scrolling, index)
 	}
-	return append(frozen, scrolling...)
+	return window
+}
+
+// resolveColumnOrder returns every result column, hidden ones too, in the order the user set,
+// or in the order of the result where the order set belongs to other columns.
+func resolveColumnOrder(tab *app.Tab, count int) []int {
+	order := slices.Clone(tab.ColumnOrder)
+	sorted := slices.Sorted(slices.Values(order))
+	for at, index := range sorted {
+		if index != at {
+			order = nil
+			break
+		}
+	}
+	if len(order) != count {
+		order = make([]int, count)
+		for index := range order {
+			order[index] = index
+		}
+	}
+	return order
+}
+
+// moveColumnTo moves a column to the place of another one in the order of the grid.
+func moveColumnTo(tab *app.Tab, count, column, target int) {
+	order := resolveColumnOrder(tab, count)
+	from, to := slices.Index(order, column), slices.Index(order, target)
+	if from < 0 || to < 0 || from == to {
+		return
+	}
+	order = slices.Delete(order, from, from+1)
+	tab.ColumnOrder = slices.Insert(order, to, column)
+}
+
+// stepColumn moves the column under the cursor one place left or right among the columns the
+// grid draws.
+func stepColumn(tab *app.Tab, count, step int) {
+	order := buildColumnOrder(tab, count)
+	place := slices.Index(order, tab.GridColumn)
+	if place < 0 || place+step < 0 || place+step >= len(order) {
+		return
+	}
+	moveColumnTo(tab, count, tab.GridColumn, order[place+step])
+	tab.GridColumnRolled = false
+}
+
+// hideColumn hides the column under the cursor and moves the cursor to the next column drawn.
+// The last column drawn stays.
+func hideColumn(connection *app.Connection, tab *app.Tab, count int) {
+	order := buildColumnOrder(tab, count)
+	if len(order) < 2 {
+		connection.Show("the last column stays on screen")
+		return
+	}
+	place := slices.Index(order, tab.GridColumn)
+	if place < 0 {
+		return
+	}
+	if tab.HiddenColumns == nil {
+		tab.HiddenColumns = map[int]bool{}
+	}
+	tab.HiddenColumns[tab.GridColumn] = true
+	order = slices.Delete(order, place, place+1)
+	tab.GridColumn = order[min(place, len(order)-1)]
+	tab.GridColumnRolled = false
+}
+
+// askColumns opens the column list of the grid.
+func (model *Model) askColumns(
+	connection *app.Connection, tab *app.Tab, shape GridShape,
+) (tea.Model, tea.Cmd) {
+	if len(shape.Columns) == 0 {
+		return model, nil
+	}
+	values := []present.ValueCount{}
+	names := []string{}
+	kept := map[string]bool{}
+	for _, index := range resolveColumnOrder(tab, len(shape.Columns)) {
+		key := strconv.Itoa(index)
+		values = append(values, present.ValueCount{Value: key, Count: index})
+		names = append(names, shape.Columns[index].Name)
+		if !tab.HiddenColumns[index] {
+			kept[key] = true
+		}
+	}
+	connection.Open(app.Overlay{
+		Kind: app.OverlayColumns, Title: " columns ", Values: values, Kept: kept,
+		Lines: names,
+	})
+	return model, nil
+}
+
+// applyColumns hides every column the card left unchecked. At least one column stays.
+func applyColumns(connection *app.Connection, tab *app.Tab, overlay app.Overlay) {
+	if len(overlay.Kept) == 0 {
+		overlay.Notice = "keep one column at least"
+		connection.Overlay.Notice = overlay.Notice
+		return
+	}
+	hidden := map[int]bool{}
+	for _, value := range overlay.Values {
+		if !overlay.Kept[value.Value] {
+			hidden[value.Count] = true
+		}
+	}
+	connection.CloseEveryOverlay()
+	tab.HiddenColumns = hidden
+	if hidden[tab.GridColumn] {
+		for _, value := range overlay.Values {
+			if !hidden[value.Count] {
+				tab.GridColumn = value.Count
+				break
+			}
+		}
+	}
+	tab.GridColumnRolled = false
 }
 
 // moveGridColumn steps the cursor through the order the columns are drawn in, so a freeze
@@ -1101,6 +1238,9 @@ func (model *Model) buildGridMenu(
 			ActionAddSortColumn, "Add column to sort", "",
 			capabilities.SortsRead, false,
 		},
+		{ActionFreezeColumns, "Freeze column", "freeze or unfreeze this column", true, false},
+		{ActionHideColumn, "Hide column", "", len(shape.Columns) > 1, false},
+		{ActionChooseColumns, "Choose columns…", "show or hide columns", true, false},
 		{ActionOpenRow, "Open row", "all columns in the row", hasRow, false},
 		{ActionCopyMenu, "Copy", "the cell, row, or result", true, false},
 		{ActionInsertRow, "Insert row", "stage a new row", editable, false},

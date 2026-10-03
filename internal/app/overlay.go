@@ -58,6 +58,8 @@ const (
 	// OverlayDump writes a dump file, or runs one back into the server.
 	OverlayDump   OverlayKind = "dump"
 	OverlayPrompt OverlayKind = "prompt"
+	// OverlayColumns is the list of columns the grid shows or hides.
+	OverlayColumns OverlayKind = "columns"
 )
 
 // WholeRow is the row index a cell editor uses when it holds a whole new row.
