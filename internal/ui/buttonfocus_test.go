@@ -8,6 +8,7 @@ import (
 	uv "github.com/charmbracelet/ultraviolet"
 
 	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/present"
 )
 
 // isButtonFilled is true where the first cell of the button is drawn on the accent or the
@@ -166,5 +167,14 @@ func TestTabReachesTheButtonsOfAList(t *testing.T) {
 	model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	if last == ActionClose && connection.Overlay.IsOpen() {
 		t.Error("enter on close left the card open")
+	}
+}
+
+func TestOpeningATableFromTheTreeFocusesTheGrid(t *testing.T) {
+	model, connection, _ := buildTreeDumpModel(t)
+	standOnNode(t, model, connection, present.NodeTable)
+	pressKey(t, model, tea.KeyPressMsg{Code: tea.KeyEnter})
+	if tab := connection.Active(); tab.Kind != app.TabTable || tab.Focus != app.PaneResult {
+		t.Errorf("enter on a table opened a %q tab with the focus on %q", tab.Kind, tab.Focus)
 	}
 }

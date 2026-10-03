@@ -1321,6 +1321,7 @@ func (model *Model) runTreeAction(
 			preview := connection.Session.Composer().ComposeRelationRead(
 				row.Node.Table, core.ReadRewrite{}).Display
 			tab := connection.OpenTableInNewTab(row.Node.Table, preview)
+			tab.Focus = app.PaneResult
 			return model.runTabRead(connection, tab)
 		}
 	case ActionDescribeTable:
@@ -1396,9 +1397,11 @@ func (model *Model) openTreeNode(
 		preview := connection.Session.Composer().ComposeRelationRead(
 			row.Node.Table, core.ReadRewrite{}).Display
 		tab := connection.OpenTable(row.Node.Table, preview)
+		tab.Focus = app.PaneResult
 		return model.runTabRead(connection, tab)
 	case present.NodeObject:
 		tab := connection.OpenObject(row.Node.Object)
+		tab.Focus = app.PaneResult
 		return model, readObjectDDL(
 			model.ActiveID(), tab.ID, connection.Session, row.Node.Object)
 	case present.NodeColumn:

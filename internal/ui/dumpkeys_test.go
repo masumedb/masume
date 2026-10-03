@@ -41,6 +41,7 @@ func buildTreeDumpModel(t *testing.T) (*Model, *app.Connection, *dumpSession) {
 // standOnNode moves the tree cursor to the first row of that kind.
 func standOnNode(t *testing.T, model *Model, connection *app.Connection, kind present.TreeNodeKind) {
 	t.Helper()
+	connection.Active().Focus = app.PaneSidebar
 	for at, row := range model.treeRows(connection) {
 		if row.Node.Kind == kind {
 			connection.Tree.Cursor = at
