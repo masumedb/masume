@@ -70,6 +70,10 @@ func (model *Model) openTabMenu(connection *app.Connection) (tea.Model, tea.Cmd)
 			},
 			model.buildSplitMenuEntry(),
 			{
+				ActionMoveTabToOtherSide, "Move to the other side", "",
+				cfg.IconColumn, model.split.open,
+			},
+			{
 				ActionReopenTab, "Reopen the last closed tab", "",
 				cfg.IconRecent, connection.HasClosedTab(),
 			},

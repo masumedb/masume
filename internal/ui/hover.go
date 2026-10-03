@@ -81,14 +81,27 @@ func (model *Model) tintCells(
 	if row < 0 || row >= len(rows) || to < from {
 		return frame
 	}
-	theme := model.styles.Theme
 	cells := mapCells(rows[row])
+	model.tintRowCells(cells, from, to, model.styles.Theme.Text, weight)
+	if glyph != "" && glyphAt >= 0 && glyphAt < len(cells) {
+		cells[glyphAt].text = glyph
+	}
+	rows[row] = writeCells(cells)
+	return strings.Join(rows, "\n")
+}
+
+// tintRowCells mixes the ground of a run of cells toward a colour. An ink that the new ground
+// leaves below the text contrast floor is raised to it.
+func (model *Model) tintRowCells(
+	cells []styledCell, from, to int, toward color.Color, weight float64,
+) {
+	theme := model.styles.Theme
 	for at := max(from, 0); at <= to && at < len(cells); at++ {
 		ink, ground := readCellColors(cells[at].sgr)
 		if ground == nil {
 			ground = theme.Panel
 		}
-		ground = MixColors(ground, theme.Text, weight)
+		ground = MixColors(ground, toward, weight)
 		cells[at].sgr += writeColorSequence("48", ground)
 		if ink != nil && CalculateContrastRatio(ink, ground) < TextContrastFloor {
 			cells[at].sgr += writeColorSequence("38", ResolveColorAtContrast(
@@ -96,11 +109,6 @@ func (model *Model) tintCells(
 				raisedContrast))
 		}
 	}
-	if glyph != "" && glyphAt >= 0 && glyphAt < len(cells) {
-		cells[glyphAt].text = glyph
-	}
-	rows[row] = writeCells(cells)
-	return strings.Join(rows, "\n")
 }
 
 // readCellColors returns the last true colour ink and ground the escapes of a cell set. A

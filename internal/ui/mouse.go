@@ -133,6 +133,10 @@ type frameLayout struct {
 	editorFirstLine, editorColumnOffset int
 	// The rows of the editor on screen while long lines wrap, from the first one drawn.
 	editorWrapRows []wrapRow
+	// The cells of the panes, and of each side of the split view with its arrangement.
+	paneArea    sideRect
+	sideRects   [2]sideRect
+	arrangement sideArrangement
 
 	// The grid: the rows, the columns beside the gutter, and the row of names above them.
 	gridRows    rowsHit
@@ -468,6 +472,12 @@ func (model *Model) dragTab(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 		return model, nil
 	}
 	model.drag.lifted = true
+	model.drag.dropping = false
+	// Along the tab row the tab moves among the tabs. Over the panes it lands on a side.
+	if mouse.Y != model.layout.tabRow {
+		model.drag.dropSide, model.drag.dropping = model.findDropSide(mouse.X, mouse.Y)
+		return model, nil
+	}
 	for _, held := range model.layout.tabs {
 		if mouse.X >= held.from && mouse.X <= held.to && held.index != connection.ActiveIndex {
 			connection.MoveTab(connection.ActiveIndex, held.index)
@@ -703,6 +713,10 @@ func (model *Model) readMouseRelease(released tea.MouseReleaseMsg) (tea.Model, t
 	}
 	if held := model.drag; held.running() {
 		model.drag.stop()
+		if held.holds(dragTab) && held.dropping {
+			model.dropTab(held)
+			return model, nil
+		}
 		if held.moved {
 			return model, nil
 		}
@@ -985,6 +999,8 @@ func (model *Model) pressTabRow(
 		if mouse.X < held.from || mouse.X > held.to {
 			continue
 		}
+		previous, hasPrevious := model.findActiveKey()
+		splitBefore := model.split
 		connection.ActivateTab(held.index)
 		if mouse.Button == tea.MouseRight {
 			return model.openTabMenu(connection)
@@ -995,7 +1011,8 @@ func (model *Model) pressTabRow(
 		}
 		if mouse.Button == tea.MouseLeft && len(connection.Tabs) > 1 {
 			model.selection = screenSelection{}
-			model.drag.takeTab()
+			model.drag.takeTab(model.buildTabKey(connection, connection.Active()),
+				previous, hasPrevious, splitBefore)
 		}
 		return model, nil
 	}

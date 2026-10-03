@@ -543,7 +543,7 @@ func (model *Model) describeStatus(
 	if model.drag.lifted {
 		switch model.drag.kind {
 		case dragTab:
-			return "release to drop the tab here", app.NoticeActive
+			return model.describeTabDrop(), app.NoticeActive
 		case dragColumnHeader:
 			return "release to drop the column here", app.NoticeActive
 		}

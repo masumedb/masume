@@ -66,6 +66,8 @@ var HelpSections = []HelpSection{
 			{Scope: cfg.ScopeGlobal, Actions: []ActionID{ActionToggleSplitView}},
 			{Scope: cfg.ScopeGlobal, Actions: []ActionID{ActionFocusOtherSide}},
 			{Scope: cfg.ScopeGlobal, Actions: []ActionID{ActionFlipSplitView}},
+			{Scope: cfg.ScopeGlobal, Actions: []ActionID{ActionMoveTabToOtherSide}},
+			{Keys: "drag a tab onto a side", Text: "show the tab on that side"},
 		},
 	},
 	{

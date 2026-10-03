@@ -64,15 +64,16 @@ var defaultChords = map[string][]string{
 
 	// Two prefixes carry the commands that are asked for rarely, so the single keys stay
 	// free: `alt+p` moves the focus to a pane by name, and `alt+o` opens a card.
-	"global:focus-sidebar":         {"alt+p s"},
-	"global:focus-editor":          {"alt+p e"},
-	"global:focus-result":          {"alt+p r"},
-	"global:focus-other-side":      {"alt+p v"},
-	"global:show-themes":           {"alt+o t"},
-	"global:show-notebooks":        {"alt+o n"},
-	"global:new-builder-tab":       {"alt+j"},
-	"global:notebook-run-policy":   {"alt+o p"},
-	"global:write-notebook-report": {"alt+o r"},
+	"global:focus-sidebar":          {"alt+p s"},
+	"global:focus-editor":           {"alt+p e"},
+	"global:focus-result":           {"alt+p r"},
+	"global:focus-other-side":       {"alt+p v"},
+	"global:move-tab-to-other-side": {"alt+p m"},
+	"global:show-themes":            {"alt+o t"},
+	"global:show-notebooks":         {"alt+o n"},
+	"global:new-builder-tab":        {"alt+j"},
+	"global:notebook-run-policy":    {"alt+o p"},
+	"global:write-notebook-report":  {"alt+o r"},
 
 	// A terminal that drops the Shift of Alt+Shift+N sends Alt+N, which opens a query
 	// tab, so the first chord carries no Shift.

@@ -346,7 +346,7 @@ On the next connect, masume restores each tab with its query text or notebook te
 
 Each side shows one tab of any open connection. The keys, the explorer, the tab row, and the status bar apply to the side with the focus. The tab row marks the tab of the other side, and the titles of the other side are muted. While the two sides show two connections, each side shows its connection name before its title.
 
-`Alt+P V` moves the focus to the other side. `Tab` and `Shift+Tab` step through the explorer, the panes of the left side, and the panes of the right side. Selecting a tab or a connection that the other side shows moves the focus to that side. A new tab opens on the side with the focus.
+`Alt+P V` moves the focus to the other side. `Alt+P M`, or Move to the other side in the tab menu, moves the tab with the focus to the other side; a tab already there swaps places with it. A tab dragged from the tab row onto a side shows on that side. `Tab` and `Shift+Tab` step through the explorer, the panes of the left side, and the panes of the right side. Selecting a tab or a connection that the other side shows moves the focus to that side. A new tab opens on the side with the focus.
 
 The menu of a table in the explorer (`m` or a right-click) starts with Open, Open in new tab, and Open in split view. Open in split view shows the table on the other side and moves the focus there. Where the view is not split, it opens the split with the tab on screen on the left.
 
@@ -457,6 +457,7 @@ A change rewrites only the table of its row. Every line outside that table stays
 - Right-click an object, a cell, a header, a tab, a connection, or the editor for a context menu.
 - Middle-click a tab or click its close mark to close the tab. The usual close confirmation applies.
 - Drag a tab along the tab row to move it. `Alt+Shift+Up` and `Alt+Shift+Down` move the active tab.
+- Drag a tab onto the panes to show it on one side of the split view. The side under the pointer is tinted. With the split view closed, the drop opens it, with the tab on the side it was dropped on. `Alt+P M` moves the active tab to the other side.
 - In an ER diagram, click a box to focus it. Double-click it to open the table. The wheel scrolls the diagram, and `Shift` with the wheel pans it sideways.
 - Click a key hint, a button, or a menu entry to run its action. Release off a button to cancel.
 - A key press hides the hover highlight until the mouse moves.

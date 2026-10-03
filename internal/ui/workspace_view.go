@@ -110,6 +110,10 @@ func (model *Model) renderWorkspace(height int) []string {
 	}
 
 	sides := model.planSides(arrangement, treeWidth, firstPaneRow, paneWidth, paneHeight)
+	model.layout.paneArea = sideRect{
+		left: treeWidth, top: firstPaneRow, width: paneWidth, height: paneHeight,
+	}
+	model.layout.sideRects, model.layout.arrangement = sides, arrangement
 	focusedRect := sides[0]
 	rows := [2][]string{}
 	labels := [2]string{}

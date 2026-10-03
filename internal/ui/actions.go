@@ -145,6 +145,7 @@ const (
 	ActionToggleSplitView     ActionID = "toggle-split-view"
 	ActionFocusOtherSide      ActionID = "focus-other-side"
 	ActionFlipSplitView       ActionID = "flip-split-view"
+	ActionMoveTabToOtherSide  ActionID = "move-tab-to-other-side"
 
 	ActionNewNotebookTab      ActionID = "new-notebook-tab"
 	ActionShowNotebooks       ActionID = "show-notebooks"
@@ -348,6 +349,7 @@ var globalActions = []ActionDefinition{
 	{ID: ActionToggleSplitView, Label: "split view", WhileRunning: true},
 	{ID: ActionFocusOtherSide, Label: "focus the other side of the split", WhileRunning: true},
 	{ID: ActionFlipSplitView, Label: "split view layout", WhileRunning: true},
+	{ID: ActionMoveTabToOtherSide, Label: "move the tab to the other side", WhileRunning: true},
 	{ID: ActionRevealSQL, Label: "edit the query for this result", WhileRunning: true, MainHint: true},
 	{ID: ActionNameTab, Label: "name this tab", WhileRunning: true},
 	{ID: ActionCloseTab, Label: "close the tab", WhileRunning: true},

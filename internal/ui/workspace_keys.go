@@ -291,6 +291,8 @@ func (model *Model) runGlobalAction(
 			return model, nil
 		}
 		model.focusSide(model.split.resolveAside())
+	case ActionMoveTabToOtherSide:
+		model.moveTabToOtherSide(connection)
 	case ActionFlipSplitView:
 		if !model.split.open {
 			connection.Show("no split view")

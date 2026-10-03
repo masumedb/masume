@@ -136,6 +136,8 @@ var paletteEntries = []paletteEntry{
 		action: ActionFocusOtherSide, when: splitsView},
 	{id: "flip-split-view", group: groupLayout, scope: cfg.ScopeGlobal,
 		action: ActionFlipSplitView, when: splitsView, state: describeSplitArrangement},
+	{id: "move-tab-to-other-side", group: groupLayout, scope: cfg.ScopeGlobal,
+		action: ActionMoveTabToOtherSide, when: splitsView},
 	{id: "focus-sidebar", group: groupLayout, scope: cfg.ScopeGlobal, action: ActionFocusSidebar},
 	{id: "focus-editor", group: groupLayout, scope: cfg.ScopeGlobal, action: ActionFocusEditor, when: showsEditor},
 	{id: "focus-result", group: groupLayout, scope: cfg.ScopeGlobal, action: ActionFocusResult},

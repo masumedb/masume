@@ -41,6 +41,15 @@ type pointerDrag struct {
 	// True once the pointer moved while it drags a tab or a column name, which then draws
 	// lifted.
 	lifted bool
+	// The tab being dragged, the tab that had the focus before the press, and the split view
+	// as it stood then. A drop on a side of the panes is read against them.
+	dragged     tabKey
+	previous    tabKey
+	hasPrevious bool
+	splitBefore splitView
+	// True while the pointer stands on a side a dropped tab lands on, and that side.
+	dropping bool
+	dropSide int
 }
 
 func (drag pointerDrag) running() bool { return drag.kind != dragNothing }
@@ -73,8 +82,11 @@ func (drag *pointerDrag) takeColumnEdge(column, width, from int) {
 	}
 }
 
-func (drag *pointerDrag) takeTab() {
-	*drag = pointerDrag{kind: dragTab}
+func (drag *pointerDrag) takeTab(dragged, previous tabKey, hasPrevious bool, before splitView) {
+	*drag = pointerDrag{
+		kind: dragTab, dragged: dragged, previous: previous, hasPrevious: hasPrevious,
+		splitBefore: before,
+	}
 }
 
 func (drag *pointerDrag) takeColumnHeader(column int, addsSort bool) {

@@ -196,6 +196,7 @@ See [editing SQL](usage.md#editing-sql) for search, replacement, completion, and
 | `focus-sidebar` | `alt+p s` |
 | `move-tab-left` | `alt+shift+up` |
 | `move-tab-right` | `alt+shift+down` |
+| `move-tab-to-other-side` | `alt+p m` |
 | `name-tab` | `alt+t` |
 | `new-builder-tab` | `alt+j` |
 | `new-notebook-tab` | `alt+b` or `alt+shift+n` |
