@@ -1,7 +1,7 @@
 package ui
 
 import (
-	"strings"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/masumedb/masume/internal/app"
 )
@@ -84,14 +84,11 @@ func (model *Model) paintDropZone(frame string) string {
 		return frame
 	}
 	zone := zones[model.drag.dropSide]
-	rows := strings.Split(frame, "\n")
-	for row := zone.top; row < zone.top+zone.height && row < len(rows); row++ {
-		cells := mapCells(rows[row])
-		model.tintRowCells(cells, zone.left, zone.left+zone.width-1,
-			model.styles.Theme.Accent, dropTint)
-		rows[row] = writeCells(cells)
+	spans := make([]cellSpan, 0, zone.height)
+	for row := zone.top; row < zone.top+zone.height; row++ {
+		spans = append(spans, cellSpan{row: row, from: zone.left, to: zone.left + zone.width - 1})
 	}
-	return strings.Join(rows, "\n")
+	return model.tintSpans(frame, spans, model.styles.Theme.Accent, model.resolveDropTint())
 }
 
 // placeTabOnSide shows a tab on one side of the split view, which takes the focus. The other
@@ -133,18 +130,30 @@ func (model *Model) findPartnerTab(connection *app.Connection, moved tabKey) tab
 }
 
 // releaseTab ends a press on a tab. A release over a side of the panes places the tab there,
-// and any other release activates it, as a click does.
-func (model *Model) releaseTab(held pointerDrag) {
+// and any other release activates it, as a click does. A tab that moved flashes where it
+// landed.
+func (model *Model) releaseTab(held pointerDrag) tea.Cmd {
 	connection := model.Active()
 	if connection == nil {
-		return
+		return nil
 	}
 	if held.dropping {
 		model.placeTabOnSide(connection, held.dragged, held.dropSide, held.splitBefore,
 			held.previous, held.hasPrevious)
-		return
+		side := held.dropSide
+		return model.startLanding(func() []cellSpan { return model.findSideSpans(side) })
 	}
 	model.activateKey(held.dragged)
+	if !held.lifted {
+		return nil
+	}
+	id := held.dragged.tab
+	return model.startLanding(func() []cellSpan {
+		if connection := model.Active(); connection != nil {
+			return model.findTabSpans(connection, id)
+		}
+		return nil
+	})
 }
 
 // moveTabToOtherSide moves the tab with the focus to the other side of the split view.

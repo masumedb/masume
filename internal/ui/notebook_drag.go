@@ -1,13 +1,8 @@
 package ui
 
 import (
-	"strings"
-
 	tea "charm.land/bubbletea/v2"
 )
-
-// liftTint is the weight a dragged cell mixes its ground toward the second accent with.
-const liftTint = 0.25
 
 // dragCell moves the focused cell of a notebook to the place of the cell under the pointer.
 // The cell moves once the pointer passes the middle of the cell beside it, so a tall cell
@@ -60,28 +55,4 @@ func findCellRows(cellsOfRows []int, cell int) (int, int) {
 		last = row
 	}
 	return first, last
-}
-
-// paintDraggedCell tints the rows of the cell a drag moves.
-func (model *Model) paintDraggedCell(frame string) string {
-	connection := model.Active()
-	if !model.drag.holds(dragCell) || !model.drag.lifted || connection == nil ||
-		connection.Active().Notebook == nil {
-		return frame
-	}
-	focused := connection.Active().Notebook.Focused
-	block := model.layout.cellRows
-	rows := strings.Split(frame, "\n")
-	for at := range block.count {
-		item := block.offset + at
-		row := block.top + at
-		if item >= len(model.cellsOfRows) || model.cellsOfRows[item] != focused ||
-			row >= len(rows) {
-			continue
-		}
-		cells := mapCells(rows[row])
-		model.tintRowCells(cells, block.from, block.to, model.styles.Theme.AccentAlt, liftTint)
-		rows[row] = writeCells(cells)
-	}
-	return strings.Join(rows, "\n")
 }

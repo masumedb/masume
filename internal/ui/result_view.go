@@ -679,9 +679,6 @@ func (model *Model) renderGridHeader(
 		highlighted := index == tab.GridColumn && focused
 		ink, cell := theme.Accent, ground
 		switch {
-		case model.drag.holds(dragColumnHeader) && model.drag.lifted && index == model.drag.column:
-			cell = theme.AccentAlt
-			ink = model.styles.InkOn(cell)
 		case highlighted:
 			ink, cell = theme.OnAccent, theme.Accent
 		case tab.Frozen[index]:

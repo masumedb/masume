@@ -145,6 +145,8 @@ type Model struct {
 	pointerShape string
 	// True while the terminal reports that its window is not focused.
 	terminalBlurred bool
+	// The effect of a drag that runs between frames.
+	animation animationState
 	// The caret cell of the where field: in its row, and in the frame.
 	promptCaretCell                   int
 	promptCaretRow, promptCaretColumn int
@@ -402,7 +404,7 @@ func (model *Model) readMessage(message tea.Msg) (tea.Model, tea.Cmd) {
 	// A wake carries no work: it is asked for so a mark that has run out is taken off the
 	// frame at the moment it runs out, and not at the next turn of the wheel.
 	case wakeMsg:
-		return model, nil
+		return model, model.continueAnimation()
 
 	case tea.FocusMsg:
 		model.terminalBlurred = false
@@ -673,8 +675,9 @@ func (model *Model) View() tea.View {
 	}
 	if drawn || model.frame.needsPaint(marks) {
 		model.frame.keepMarks(marks)
-		model.frame.shown = model.paintPressedKey(model.paintHover(model.paintDraggedCell(
-			model.paintDropZone(model.paintSelection(model.frame.text)))))
+		model.frame.shown = model.paintDragGhost(model.paintPressedKey(model.paintHover(
+			model.paintLanding(model.paintDragPlaceholder(
+				model.paintDropZone(model.paintSelection(model.frame.text)))))))
 	}
 	view := tea.NewView(model.frame.shown)
 	view.AltScreen = true

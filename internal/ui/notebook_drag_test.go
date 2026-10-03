@@ -67,3 +67,22 @@ func TestAClickOnACellMovesNoCell(t *testing.T) {
 		t.Errorf("a click left the cells as %q", ids)
 	}
 }
+
+func TestADraggedCellShowsAGhostAndFlashesWhereItLands(t *testing.T) {
+	model, tab := buildNotebookModel(t, threeCells)
+	model.render()
+	x := model.layout.cellRows.from + 4
+	model.Update(tea.MouseClickMsg{X: x, Y: model.layout.cellRows.top, Button: tea.MouseLeft})
+	model.render()
+	y := findCellRow(t, model, 1)
+	model.Update(tea.MouseMotionMsg{X: x, Y: y, Button: tea.MouseLeft})
+	model.View()
+	title := tab.Notebook.GetFocusedCell().BuildTitle()
+	if ghost := stripEscapes(strings.Split(model.frame.shown, "\n")[model.frame.pointerY+1]); !strings.Contains(ghost, title) {
+		t.Errorf("the row under the pointer reads %q, wanted the ghost of %q", ghost, title)
+	}
+	model.Update(tea.MouseReleaseMsg{X: x, Y: y, Button: tea.MouseLeft})
+	if model.animation.landing == nil {
+		t.Error("the dropped cell does not flash")
+	}
+}

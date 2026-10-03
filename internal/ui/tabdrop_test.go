@@ -15,7 +15,8 @@ func dragTabTo(model *Model, index, x, y int) []string {
 	row := model.layout.tabRow
 	model.Update(tea.MouseClickMsg{X: held.from + 1, Y: row, Button: tea.MouseLeft})
 	model.Update(tea.MouseMotionMsg{X: x, Y: y, Button: tea.MouseLeft})
-	return strings.Split(model.render(), "\n")
+	model.View()
+	return strings.Split(model.frame.shown, "\n")
 }
 
 // releaseAt releases the left button on that cell.
@@ -46,9 +47,14 @@ func TestDroppingATabOnTheRightHalfOpensTheSplit(t *testing.T) {
 	if bar := stripEscapes(frame[model.layout.hintRow]); !strings.Contains(bar, "release to split, with the tab on the right") {
 		t.Errorf("the bar during the drag reads %q", bar)
 	}
-	cell := mapCells(frame[y])[x]
-	if _, ground := readCellColors(cell.sgr); ground == nil {
-		t.Error("the drop zone draws no ground")
+	model.drag.dropSince = model.drag.dropSince.Add(-dropFadeIn)
+	model.View()
+	frame = strings.Split(model.frame.shown, "\n")
+	other, _ := centreOf(zones[0])
+	_, inside := readCellColors(mapCells(frame[y])[x].sgr)
+	_, outside := readCellColors(mapCells(frame[y])[other].sgr)
+	if inside == nil || outside == nil || WriteHex(inside) == WriteHex(outside) {
+		t.Errorf("the drop zone is drawn on %v, and the other half on %v", inside, outside)
 	}
 	releaseAt(model, x, y)
 

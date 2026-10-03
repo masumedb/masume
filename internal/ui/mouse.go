@@ -475,12 +475,16 @@ func (model *Model) dragTab(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 		return model, nil
 	}
 	model.drag.lifted = true
-	model.drag.dropping = false
 	// Along the tab row the tab moves among the tabs. Over the panes it lands on a side.
 	if mouse.Y != model.layout.tabRow {
-		model.drag.dropSide, model.drag.dropping = model.findDropSide(mouse.X, mouse.Y)
-		return model, nil
+		side, dropping := model.findDropSide(mouse.X, mouse.Y)
+		if dropping && (!model.drag.dropping || side != model.drag.dropSide) {
+			model.drag.dropSince = time.Now()
+		}
+		model.drag.dropSide, model.drag.dropping = side, dropping
+		return model, model.scheduleAnimation()
 	}
+	model.drag.dropping = false
 	from := connection.IndexOfTab(model.drag.dragged.tab)
 	for _, held := range model.layout.tabs {
 		if mouse.X >= held.from && mouse.X <= held.to && held.index != from && from >= 0 {
@@ -720,8 +724,21 @@ func (model *Model) readMouseRelease(released tea.MouseReleaseMsg) (tea.Model, t
 	if held := model.drag; held.running() {
 		model.drag.stop()
 		if held.holds(dragTab) {
-			model.releaseTab(held)
-			return model, nil
+			return model, model.releaseTab(held)
+		}
+		if held.holds(dragColumnHeader) && held.moved {
+			column := held.column
+			return model, model.startLanding(func() []cellSpan {
+				return model.findColumnSpans(column)
+			})
+		}
+		if held.holds(dragCell) && held.moved {
+			return model, model.startLanding(func() []cellSpan {
+				if book := model.Active().Active().Notebook; book != nil {
+					return model.findCellSpans(book.Focused)
+				}
+				return nil
+			})
 		}
 		if held.moved {
 			return model, nil

@@ -1,6 +1,10 @@
 package ui
 
-import "github.com/masumedb/masume/internal/app"
+import (
+	"time"
+
+	"github.com/masumedb/masume/internal/app"
+)
 
 type dragKind int
 
@@ -48,9 +52,11 @@ type pointerDrag struct {
 	previous    tabKey
 	hasPrevious bool
 	splitBefore splitView
-	// True while the pointer stands on a side a dropped tab lands on, and that side.
-	dropping bool
-	dropSide int
+	// True while the pointer stands on a side a dropped tab lands on, that side, and when the
+	// pointer reached it, which its fade-in counts from.
+	dropping  bool
+	dropSide  int
+	dropSince time.Time
 }
 
 func (drag pointerDrag) running() bool { return drag.kind != dragNothing }
