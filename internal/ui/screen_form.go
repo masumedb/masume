@@ -582,7 +582,7 @@ func (model *Model) renderForm() string {
 	}
 
 	lines = append(lines, model.styles.Faint().Render(
-		present.TruncateText(model.describeFormHint(), cardWidth-4)))
+		present.TruncateText(model.describeFormHint(), cardWidth-4)), "")
 	save := model.buildCardButton(cfg.ScopeDialog, ActionSaveForm, "save")
 	save.primary = true
 	lines = append(lines, model.renderButtonRow([]cardButton{
@@ -606,9 +606,9 @@ func (model *Model) renderForm() string {
 const fieldMarkerWidth = 2
 
 // formCardChrome is the rows the card keeps besides its fields: the blank row, the row that
-// reports the test, the row of the hint, the row of buttons, the two borders and the blank
-// row inside each one.
-const formCardChrome = 8
+// reports the test, the row of the hint, the blank row over the buttons, the row of buttons,
+// the two borders and the blank row inside each one.
+const formCardChrome = 9
 
 // describeFormHint returns the faint line under the fields: the password source of the auth
 // field, or the paste hint of the form.
