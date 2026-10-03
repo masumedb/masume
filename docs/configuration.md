@@ -103,7 +103,7 @@ mode     = "write"
 | `command_timeout` | `10` | Seconds to wait for `wait_for_port`. Must be above zero |
 | `mcp` | the `[mcp]` level | MCP access limit for the profile: `off`, `read-only`, `read-write` or `full`. The global limit and the profile `mode` still apply. See [mcp.md](mcp.md) |
 | `group` | | Group in the connection picker. `/` separates levels, for example `work/shop` |
-| `description` | | Free text, edited in the connection form. Not shown in the picker |
+| `description` | | Free text, shown in the picker after the target |
 | `ai_instructions` | | Database context sent to the AI model with each chat request on this connection |
 
 A profile with a missing required key is skipped and reported. The other profiles still load.

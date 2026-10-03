@@ -187,7 +187,6 @@ paths = []
 # group                = "work/shop"  # group in the picker. / separates levels
 # description          = "one line about this connection"
 # ai_instructions      = "what the model should know about this database"
-# description is stored in the form but absent from the picker.
 # Environment defaults apply to absent file settings. Changing env in the form does not change confirmation.
 # Undo covers eligible single updates, deletes and truncates. Captured target rows exclude cascades and trigger effects.
 # A later undo can overwrite newer values. Grid changes and imports retain no undo. See docs/configuration.md for eligibility and failures.
