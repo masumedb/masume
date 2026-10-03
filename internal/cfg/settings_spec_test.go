@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/masumedb/masume/internal/cfg"
 )
@@ -368,5 +369,18 @@ func TestParseUiSettingsReportsAGlyphOfTheWrongType(t *testing.T) {
 	}
 	if _, held := held.IconGlyphs[cfg.IconKind("table")]; held {
 		t.Error("the glyph of the wrong type was kept")
+	}
+}
+
+func TestNotifyAfterReadsSecondsAndReportsANegativeValue(t *testing.T) {
+	if held := readSettings(t, "[ui]\nnotify_after = 30\n"); held.NotifyAfter != 30*time.Second {
+		t.Errorf("notify_after = 30 read %v", held.NotifyAfter)
+	}
+	if held := readSettings(t, "[ui]\nnotify_after = 0\n"); held.NotifyAfter != 0 {
+		t.Errorf("notify_after = 0 read %v", held.NotifyAfter)
+	}
+	held := readSettings(t, "[ui]\nnotify_after = -5\n")
+	if held.NotifyAfter != cfg.DefaultNotifyAfter || len(held.Problems) != 1 {
+		t.Errorf("notify_after = -5 read %v with the problems %v", held.NotifyAfter, held.Problems)
 	}
 }

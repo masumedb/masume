@@ -448,6 +448,7 @@ theme               = "tokyonight"
 hide_system_schemas = true
 key_hints           = "full"
 timezone            = "server"
+notify_after        = 10
 ```
 
 | Key | Type | Default | Meaning |
@@ -457,6 +458,7 @@ timezone            = "server"
 | `hide_system_schemas` | boolean | `true` | `false` displays system schemas, including `pg_catalog` and `information_schema`. `h` in the tree toggles them for the session |
 | `key_hints` | `full`, `main` or `off` | `full` | Key hint level for the status bar, title bar, tab row, pane strips and pane borders. An unknown mode is reported and falls back to `full`. See [Key hint modes](#key-hint-modes) |
 | `timezone` | `server`, `utc` or `local` | `server` | Display zone for timestamps with a time zone in the grid. `server` is the zone the server returns, `local` the zone of this computer. An unknown zone is reported and falls back to `server`. See [Time zones](#time-zones) |
+| `notify_after` | integer, seconds | `10` | A run that takes at least this long and ends while the terminal window is not focused posts a desktop notification: OSC 99 in kitty, OSC 777 in other terminals. Inside tmux this needs `set -g allow-passthrough on` and `set -g focus-events on`. `0` turns it off |
 
 ### Time zones
 

@@ -504,13 +504,14 @@ func (model *Model) readQueryAnswer(answered queryRanMsg) (tea.Model, tea.Cmd) {
 		tab.Results.SkipRest(answered.Index+1, "not run: an earlier statement failed")
 		model.stopBatch(answered.ConnectionID, answered.TabID)
 		model.reportFailedCell(connection, tab, answered.Index)
-		return model, nil
+		return model, model.notifyRunEnd(connection, tab, runFailed)
 	}
 	commit := tea.Cmd(nil)
 	if answered.Last {
 		model.stopBatch(answered.ConnectionID, answered.TabID)
 		// The one transaction of a notebook is committed after its last cell.
-		commit = model.closeNotebookRun(connection, tab)
+		commit = tea.Batch(model.closeNotebookRun(connection, tab),
+			model.notifyRunEnd(connection, tab, runSucceeded))
 	}
 
 	tab.Results.Succeed(answered.Index, answered.Read, answered.Result)

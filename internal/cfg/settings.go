@@ -1,6 +1,7 @@
 package cfg
 
 import (
+	"strconv"
 	"strings"
 	"time"
 
@@ -180,6 +181,9 @@ type UISettings struct {
 	// The key hints mode of the bars, the strips, the borders and the cards.
 	KeyHints KeyHintsMode
 	TimeZone TimeZoneMode
+	// The run time after which a finished run posts a desktop notification while the
+	// terminal is not focused. Zero is off.
+	NotifyAfter time.Duration
 	// The name of the colour theme, or empty for the default theme.
 	Theme string
 	// Colours set here and not in a theme file. They are applied over the selected theme.
@@ -190,6 +194,9 @@ type UISettings struct {
 	Problems []string
 }
 
+// DefaultNotifyAfter is the run time after which a finished run posts a notification.
+const DefaultNotifyAfter = 10 * time.Second
+
 // DefaultUISettings returns the default interface settings.
 func DefaultUISettings() UISettings {
 	return UISettings{
@@ -198,6 +205,7 @@ func DefaultUISettings() UISettings {
 		HideSystemSchemas: true,
 		KeyHints:          KeyHintsFull,
 		TimeZone:          TimeZoneServer,
+		NotifyAfter:       DefaultNotifyAfter,
 		Colors:            NewThemeTables(),
 	}
 }
@@ -256,6 +264,15 @@ func ParseUISettings(document Table) UISettings {
 			settings.Problems = append(settings.Problems,
 				"timezone: unsupported zone \""+written+"\". Using "+
 					string(settings.TimeZone)+". "+DescribeTimeZoneModes())
+		}
+	}
+	if seconds, named := FindInteger(ui, "notify_after"); named {
+		if seconds >= 0 {
+			settings.NotifyAfter = time.Duration(seconds) * time.Second
+		} else {
+			settings.Problems = append(settings.Problems,
+				"notify_after: "+strconv.Itoa(seconds)+" is below zero. Using "+
+					strconv.Itoa(int(settings.NotifyAfter/time.Second))+".")
 		}
 	}
 	settings.Theme, _ = FindString(ui, "theme")

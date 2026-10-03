@@ -144,6 +144,8 @@ type Model struct {
 	// The pointer shape last sent to the terminal, or nothing before the first.
 	pointerShape string
 	caches       tabCaches
+	// True while the terminal reports that its window is not focused.
+	terminalBlurred bool
 	// The conversation as the chat panel draws it, kept because the scroll bounds, a jump
 	// between turns and the draw itself each read the rows.
 	chatRows chatRowsCache
@@ -397,6 +399,14 @@ func (model *Model) readMessage(message tea.Msg) (tea.Model, tea.Cmd) {
 	// A wake carries no work: it is asked for so a mark that has run out is taken off the
 	// frame at the moment it runs out, and not at the next turn of the wheel.
 	case wakeMsg:
+		return model, nil
+
+	case tea.FocusMsg:
+		model.terminalBlurred = false
+		return model, nil
+
+	case tea.BlurMsg:
+		model.terminalBlurred = true
 		return model, nil
 
 	case tickMsg:
@@ -668,6 +678,7 @@ func (model *Model) View() tea.View {
 	// Every move is reported, not only a drag, so the frame marks what the pointer stands
 	// on. A move that changes nothing is answered with the frame already on screen.
 	view.MouseMode = tea.MouseModeAllMotion
+	view.ReportFocus = true
 	view.WindowTitle = model.windowTitle()
 	return view
 }

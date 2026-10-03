@@ -39,7 +39,7 @@ func ApplySetting(
 		return applyAddedAgent(sources)
 	case ItemRemoveAgent:
 		return applyRemovedAgent(sources, readPage(path, 1))
-	case ItemTheme, ItemIcons, ItemKeyHints, ItemTimeZone, ItemHideSystem:
+	case ItemTheme, ItemIcons, ItemKeyHints, ItemTimeZone, ItemHideSystem, ItemNotifyAfter:
 		return applyAppearanceSetting(sources, key, value)
 	case ItemKeyPreset:
 		sources.Keys.Preset = findChoice(PresetIDs, value, PresetDefault)
@@ -323,17 +323,30 @@ func applyAppearanceSetting(
 		settings.TimeZone = findChoice(TimeZoneModes, value, TimeZoneServer)
 	case ItemHideSystem:
 		settings.HideSystemSchemas = value == toggleOn
+	case ItemNotifyAfter:
+		seconds, err := strconv.Atoi(strings.TrimSpace(value))
+		if err != nil || seconds < 0 {
+			return sources, nil, FormError{
+				Reason: "notify after reads " + strings.TrimSpace(value) +
+					", wanted zero or a number above it",
+			}
+		}
+		settings.NotifyAfter = time.Duration(seconds) * time.Second
 	}
 	sources.UI = settings
 
 	return sources, []TableUpdate{{
 		Header: []string{"ui"},
-		Order:  []string{"theme", "icons", "key_hints", "timezone", "hide_system_schemas"},
+		Order: []string{
+			"theme", "icons", "key_hints", "timezone", "hide_system_schemas",
+			"notify_after",
+		},
 		Values: map[string]any{
 			"theme": settings.Theme, "icons": string(settings.IconSet),
 			"key_hints":           string(settings.KeyHints),
 			"timezone":            string(settings.TimeZone),
 			"hide_system_schemas": settings.HideSystemSchemas,
+			"notify_after":        int(settings.NotifyAfter / time.Second),
 		},
 	}}, nil
 }
