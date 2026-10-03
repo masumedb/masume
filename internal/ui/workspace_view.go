@@ -1359,7 +1359,8 @@ func (model *Model) buildSchemaKnowledge(
 	byQualifier := map[string][]string{}
 	// Every statement of the buffer is checked, so every relation any of them reads is
 	// known here.
-	for qualifier, columns := range model.buildCompletionColumns(connection, tab.Editor.Text) {
+	known, _ := buildCompletionColumns(model.findCompletionRelations(connection, tab.Editor.Text))
+	for qualifier, columns := range known {
 		names := make([]string, 0, len(columns))
 		for _, column := range columns {
 			names = append(names, column.Name)

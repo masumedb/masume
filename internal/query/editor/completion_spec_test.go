@@ -195,3 +195,33 @@ func TestBuildCompletionsOffersNothingForTwoLettersNothingOpensWith(t *testing.T
 		t.Errorf("answered %v, wanted nothing", found)
 	}
 }
+
+var joinSources = editor.CompletionSources{
+	References: []editor.CompletionReference{
+		{Qualifier: "c", Columns: []editor.CompletionColumn{{Name: "id"}, {Name: "name"}}},
+		{Qualifier: "o", Columns: []editor.CompletionColumn{{Name: "id"}, {Name: "customer_id"}}},
+	},
+	JoinConditions: []string{"o.customer_id = c.id"},
+}
+
+func TestAStatementOfTwoRelationsOffersQualifiedColumns(t *testing.T) {
+	offers := []string{}
+	for _, offer := range editor.BuildCompletions("cust", joinSources, editor.CompletionContext{
+		AllowQualified: true, NamePosition: editor.PositionColumn,
+	}) {
+		offers = append(offers, offer.Text)
+	}
+	if len(offers) == 0 || offers[0] != "o.customer_id" {
+		t.Errorf("cust offered %v, wanted o.customer_id first", offers)
+	}
+}
+
+func TestTheOnOfAJoinOffersTheJoinConditionFirst(t *testing.T) {
+	offers := editor.BuildCompletions("", joinSources, editor.CompletionContext{
+		AllowQualified: true, NamePosition: editor.PositionColumn, JoinCondition: true,
+	})
+	if len(offers) == 0 || offers[0].Text != "o.customer_id = c.id" ||
+		offers[0].Kind != editor.CompleteJoin {
+		t.Errorf("the ON of a join offered %v first", offers)
+	}
+}

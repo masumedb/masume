@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/masumedb/masume/internal/query/syntax"
@@ -173,4 +174,26 @@ func ResolveNamePosition(sql string, offset int) NamePosition {
 		return PositionColumn
 	}
 	return PositionNone
+}
+
+// joinTarget matches the end of a JOIN clause up to its ON: the relation name, and the alias
+// where one is written.
+var joinTarget = regexp.MustCompile(
+	"(?i)\\bjoin\\s+(" + identifierPattern + "(?:\\." + identifierPattern + ")?)" +
+		"(?:\\s+(?:as\\s+)?([A-Za-z_][A-Za-z0-9_$]*))?\\s+on\\s+$")
+
+// identifierPattern matches one plain or quoted identifier.
+const identifierPattern = "(?:\"[^\"]+\"|`[^`]+`|\\[[^\\]]+\\]|[A-Za-z_][A-Za-z0-9_$]*)"
+
+// ReadJoinTarget returns the relation a JOIN joins and its alias, where the text before the
+// offset ends at the ON of that join.
+func ReadJoinTarget(text string, offset int) (string, string, bool) {
+	if offset > len(text) {
+		offset = len(text)
+	}
+	found := joinTarget.FindStringSubmatch(text[:offset])
+	if found == nil || strings.EqualFold(found[2], "on") {
+		return "", "", false
+	}
+	return found[1], found[2], true
 }

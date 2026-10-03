@@ -209,3 +209,21 @@ func TestResolveNamePositionOffersARelationAfterTheWordsThatNameOne(t *testing.T
 		})
 	}
 }
+
+func TestReadJoinTargetFindsTheRelationBeforeOn(t *testing.T) {
+	for _, held := range []struct {
+		text, name, alias string
+		found             bool
+	}{
+		{"select * from customers c join orders o on ", "orders", "o", true},
+		{"select * from customers c join public.orders as o on ", "public.orders", "o", true},
+		{"select * from customers c join orders on ", "orders", "", true},
+		{"select * from customers c join orders o on o.id = c.id and ", "", "", false},
+		{"select * from customers c where ", "", "", false},
+	} {
+		name, alias, found := editor.ReadJoinTarget(held.text, len(held.text))
+		if name != held.name || alias != held.alias || found != held.found {
+			t.Errorf("%q read %q %q %v", held.text, name, alias, found)
+		}
+	}
+}

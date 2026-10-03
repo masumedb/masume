@@ -20,6 +20,7 @@ const (
 	CompleteTable    CompletionKind = "table"
 	CompleteColumn   CompletionKind = "column"
 	CompleteFunction CompletionKind = "function"
+	CompleteJoin     CompletionKind = "join"
 )
 
 // Completion is one suggestion in the completion list.
@@ -46,6 +47,17 @@ type CompletionSources struct {
 	Columns []CompletionColumn
 	// Keyed in lower case, under the table name and any alias of the statement.
 	ColumnsByQualifier map[string][]CompletionColumn
+	// The relations of the statement in order, each under its alias or its name.
+	References []CompletionReference
+	// The join conditions the foreign keys offer after the ON of a join.
+	JoinConditions []string
+}
+
+// CompletionReference is one relation of a statement: the qualifier its columns take, and the
+// columns.
+type CompletionReference struct {
+	Qualifier string
+	Columns   []CompletionColumn
 }
 
 // CompletionContext is the syntax context at the caret.
@@ -54,6 +66,8 @@ type CompletionContext struct {
 	AllowQualified bool
 	// The kind of name the statement expects where there is no word to complete.
 	NamePosition NamePosition
+	// True right after the ON of a join.
+	JoinCondition bool
 }
 
 var completionKeywords = []string{
@@ -198,8 +212,16 @@ func (kept *collector) add(text string, kind CompletionKind, detail string) {
 
 // addAgainst ranks a candidate against an explicit prefix, including the suffix after a dot.
 func (kept *collector) addAgainst(text string, kind CompletionKind, against, detail string) {
+	kept.addRankedOn(text, text, kind, against, detail)
+}
+
+// addRankedOn ranks a candidate by the text rankText, such as the column name of a qualified
+// column.
+func (kept *collector) addRankedOn(
+	text, rankText string, kind CompletionKind, against, detail string,
+) {
 	lowered := strings.ToLower(text)
-	rank := rankCandidate(lowered, against)
+	rank := rankCandidate(strings.ToLower(rankText), against)
 	if rank >= rankNoMatch {
 		return
 	}
@@ -236,14 +258,35 @@ func sortedQualifiers(byQualifier map[string][]CompletionColumn) []string {
 	return names
 }
 
+// addReferenceColumns adds the columns of every relation of a statement. A statement of more
+// than one relation offers each column under its qualifier. It reports whether it added any.
+func addReferenceColumns(
+	sources CompletionSources, context CompletionContext, kept *collector,
+) bool {
+	if !context.AllowQualified || len(sources.References) < 2 {
+		return false
+	}
+	for _, reference := range sources.References {
+		for _, column := range reference.Columns {
+			kept.addRankedOn(reference.Qualifier+"."+column.Name, column.Name,
+				CompleteColumn, kept.needle, column.Detail)
+		}
+	}
+	return true
+}
+
 // buildPositionCompletions returns suggestions for a syntax position without a prefix.
-func buildPositionCompletions(sources CompletionSources, position NamePosition) []Completion {
+func buildPositionCompletions(
+	sources CompletionSources, context CompletionContext, position NamePosition,
+) []Completion {
 	kept := newCollector("")
 
 	if position == PositionColumn {
-		for _, qualifier := range sortedQualifiers(sources.ColumnsByQualifier) {
-			for _, column := range sources.ColumnsByQualifier[qualifier] {
-				kept.add(column.Name, CompleteColumn, column.Detail)
+		if !addReferenceColumns(sources, context, kept) {
+			for _, qualifier := range sortedQualifiers(sources.ColumnsByQualifier) {
+				for _, column := range sources.ColumnsByQualifier[qualifier] {
+					kept.add(column.Name, CompleteColumn, column.Detail)
+				}
 			}
 		}
 		for _, column := range sources.Columns {
@@ -272,6 +315,9 @@ func collectColumnCandidates(
 	qualifier, partial, qualified := splitQualifier(prefix)
 
 	if !qualified {
+		if addReferenceColumns(sources, context, kept) {
+			return
+		}
 		// Unqualified prefixes include columns from every known table reference.
 		for _, name := range sortedQualifiers(sources.ColumnsByQualifier) {
 			for _, column := range sources.ColumnsByQualifier[name] {
@@ -298,8 +344,31 @@ func collectColumnCandidates(
 	}
 }
 
-// BuildCompletions sorts suggestions by match rank, syntax category, then name length.
+// BuildCompletions sorts suggestions by match rank, syntax category, then name length. After
+// the ON of a join, the join conditions come first.
 func BuildCompletions(
+	prefix string, sources CompletionSources, context CompletionContext,
+) []Completion {
+	found := buildNameCompletions(prefix, sources, context)
+	if !context.JoinCondition || len(sources.JoinConditions) == 0 {
+		return found
+	}
+	joins := newCollector(strings.ToLower(prefix))
+	for _, condition := range sources.JoinConditions {
+		if prefix == "" {
+			joins.kept = append(joins.kept, rankedCompletion{completion: Completion{
+				Text: condition, Kind: CompleteJoin, Detail: "foreign key",
+			}})
+			continue
+		}
+		joins.add(condition, CompleteJoin, "foreign key")
+	}
+	joined := append(joins.take(maxCompletions), found...)
+	return joined[:min(len(joined), maxCompletions)]
+}
+
+// buildNameCompletions returns the suggestions of names and keywords for the prefix.
+func buildNameCompletions(
 	prefix string, sources CompletionSources, context CompletionContext,
 ) []Completion {
 	position := context.NamePosition
@@ -307,7 +376,7 @@ func BuildCompletions(
 		position = PositionNone
 	}
 	if len(prefix) < 1 {
-		return buildPositionCompletions(sources, position)
+		return buildPositionCompletions(sources, context, position)
 	}
 
 	kept := newCollector(strings.ToLower(prefix))
@@ -351,7 +420,7 @@ func BuildCompletions(
 
 // buildInsertText quotes each identifier part when needed and adds parentheses for functions.
 func buildInsertText(completion Completion, dialect *query.Dialect) string {
-	if completion.Kind == CompleteKeyword {
+	if completion.Kind == CompleteKeyword || completion.Kind == CompleteJoin {
 		return completion.Text
 	}
 	parts := strings.Split(completion.Text, ".")

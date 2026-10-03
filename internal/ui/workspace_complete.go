@@ -8,19 +8,32 @@ import (
 
 	"github.com/masumedb/masume/internal/app"
 	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db"
 	"github.com/masumedb/masume/internal/present"
 	"github.com/masumedb/masume/internal/query/editor"
 	"github.com/masumedb/masume/internal/query/statement"
 )
 
-// buildCompletionColumns returns the columns of the relations that text reads, keyed in lower
-// case under the name of each relation and under any alias it takes.
-func (model *Model) buildCompletionColumns(
-	connection *app.Connection, text string,
-) map[string][]editor.CompletionColumn {
-	byQualifier := map[string][]editor.CompletionColumn{}
-	flavour := connection.Session.Dialect().Syntax
+// completionRelation is one relation of the statement at the caret, with its catalog detail.
+type completionRelation struct {
+	reference statement.TableReference
+	detail    db.TableDetail
+}
 
+// qualifier returns the name the columns of the relation take: its alias, or its name.
+func (relation completionRelation) qualifier() string {
+	if relation.reference.HasAlias {
+		return relation.reference.Alias
+	}
+	return relation.reference.Name
+}
+
+// findCompletionRelations returns the relations that text reads whose detail the catalog holds.
+func (model *Model) findCompletionRelations(
+	connection *app.Connection, text string,
+) []completionRelation {
+	relations := []completionRelation{}
+	flavour := connection.Session.Dialect().Syntax
 	for _, reference := range statement.FindTableReferences(text, flavour) {
 		table, found := model.findTableByName(connection, reference.SelectSource)
 		if !found {
@@ -30,8 +43,22 @@ func (model *Model) buildCompletionColumns(
 		if !read || state.Kind != present.DetailReady {
 			continue
 		}
-		columns := make([]editor.CompletionColumn, 0, len(state.Detail.Columns))
-		for _, column := range state.Detail.Columns {
+		relations = append(relations, completionRelation{reference: reference, detail: state.Detail})
+	}
+	return relations
+}
+
+// buildCompletionColumns returns the columns of the relations, keyed in lower case under the
+// name of each relation and under any alias it takes, and the relations in order.
+func buildCompletionColumns(
+	relations []completionRelation,
+) (map[string][]editor.CompletionColumn, []editor.CompletionReference) {
+	byQualifier := map[string][]editor.CompletionColumn{}
+	references := []editor.CompletionReference{}
+	for _, relation := range relations {
+		reference, state := relation.reference, relation
+		columns := make([]editor.CompletionColumn, 0, len(state.detail.Columns))
+		for _, column := range state.detail.Columns {
 			// A key column says so, because the name alone does not.
 			detail := column.DataType
 			if column.IsPrimaryKey {
@@ -45,8 +72,66 @@ func (model *Model) buildCompletionColumns(
 		if reference.HasAlias {
 			byQualifier[strings.ToLower(reference.Alias)] = columns
 		}
+		references = append(references, editor.CompletionReference{
+			Qualifier: relation.qualifier(), Columns: columns,
+		})
 	}
-	return byQualifier
+	return byQualifier, references
+}
+
+// buildJoinConditions returns the conditions the foreign keys between the joined relation and
+// the relations before it offer, such as "o.customer_id = c.id".
+func buildJoinConditions(relations []completionRelation, name, alias string) []string {
+	joined := -1
+	for at, relation := range relations {
+		reference := relation.reference
+		if (alias != "" && strings.EqualFold(reference.Alias, alias)) ||
+			(alias == "" && !reference.HasAlias && strings.EqualFold(
+				lastNamePart(name), reference.Name)) {
+			joined = at
+		}
+	}
+	if joined < 0 {
+		return nil
+	}
+	target := relations[joined]
+	conditions := []string{}
+	for at, other := range relations {
+		if at == joined {
+			continue
+		}
+		conditions = append(conditions, buildForeignKeyConditions(target, other)...)
+		conditions = append(conditions, buildForeignKeyConditions(other, target)...)
+	}
+	return conditions
+}
+
+// buildForeignKeyConditions returns one condition per foreign key of from that points at to.
+func buildForeignKeyConditions(from, to completionRelation) []string {
+	conditions := []string{}
+	for _, key := range from.detail.ForeignKeys {
+		if !strings.EqualFold(key.TargetTable, to.detail.Table.Name) ||
+			(key.TargetSchema != "" && to.detail.Table.Schema != "" &&
+				!strings.EqualFold(key.TargetSchema, to.detail.Table.Schema)) ||
+			len(key.Columns) != len(key.TargetColumns) {
+			continue
+		}
+		pairs := make([]string, 0, len(key.Columns))
+		for at, column := range key.Columns {
+			pairs = append(pairs, from.qualifier()+"."+column+" = "+
+				to.qualifier()+"."+key.TargetColumns[at])
+		}
+		conditions = append(conditions, strings.Join(pairs, " and "))
+	}
+	return conditions
+}
+
+// lastNamePart returns the name after the last dot of a qualified name, without quotes.
+func lastNamePart(name string) string {
+	if dot := strings.LastIndex(name, "."); dot >= 0 {
+		name = name[dot+1:]
+	}
+	return strings.Trim(name, "\"`[]")
 }
 
 // buildCompletionSources returns everything the catalog and the result offer the caret.
@@ -66,11 +151,18 @@ func (model *Model) buildCompletionSources(
 
 	// The relations of the statement at the caret, not of every statement in the buffer,
 	// so a name of another statement is never offered here.
-	return editor.CompletionSources{
+	relations := model.findCompletionRelations(
+		connection, tab.Editor.ReadStatementAtCaret(connection.Session.Language()))
+	byQualifier, references := buildCompletionColumns(relations)
+	sources := editor.CompletionSources{
 		Schemas: schemas, Tables: tables, Functions: functions, Columns: columns,
-		ColumnsByQualifier: model.buildCompletionColumns(
-			connection, tab.Editor.ReadStatementAtCaret(connection.Session.Language())),
+		ColumnsByQualifier: byQualifier, References: references,
 	}
+	offset := tab.Editor.Caret - len(editor.ReadPrefix(tab.Editor.Text, tab.Editor.Caret))
+	if name, alias, joins := editor.ReadJoinTarget(tab.Editor.Text, offset); joins {
+		sources.JoinConditions = buildJoinConditions(relations, name, alias)
+	}
+	return sources
 }
 
 // refreshCompletion builds the list for the caret.
@@ -94,7 +186,8 @@ func (model *Model) refreshCompletion(connection *app.Connection, tab *app.Tab) 
 			AllowQualified: !editor.IsUpdateSetTarget(text, offset),
 			// Read from the start of the word, because the text before it decides
 			// what may follow.
-			NamePosition: editor.ResolveNamePosition(text, offset-len(prefix)),
+			NamePosition:  editor.ResolveNamePosition(text, offset-len(prefix)),
+			JoinCondition: hasJoinTarget(text, offset-len(prefix)),
 		})
 
 	if len(found) == 0 {
@@ -103,6 +196,12 @@ func (model *Model) refreshCompletion(connection *app.Connection, tab *app.Tab) 
 	}
 	list.Candidates = found
 	list.Selected = 0
+}
+
+// hasJoinTarget is true where the text before the offset ends at the ON of a join.
+func hasJoinTarget(text string, offset int) bool {
+	_, _, joins := editor.ReadJoinTarget(text, offset)
+	return joins
 }
 
 // acceptCompletion writes the marked candidate in place of the word under the caret.
