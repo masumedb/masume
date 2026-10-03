@@ -455,6 +455,7 @@ A change rewrites only the table of its row. Every line outside that table stays
 - Drag over other text on screen to select it. `Ctrl+C` copies the selected text.
 - Right-click an object, a cell, a header, a tab, a connection, or the editor for a context menu.
 - Middle-click a tab or click its close mark to close the tab. The usual close confirmation applies.
+- Drag a tab along the tab row to move it. `Alt+Shift+Up` and `Alt+Shift+Down` move the active tab.
 - In an ER diagram, click a box to focus it. Double-click it to open the table. The wheel scrolls the diagram, and `Shift` with the wheel pans it sideways.
 - Click a key hint, a button, or a menu entry to run its action. Release off a button to cancel.
 - A key press hides the hover highlight until the mouse moves.

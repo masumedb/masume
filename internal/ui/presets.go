@@ -32,6 +32,8 @@ var defaultChords = map[string][]string{
 	"global:reopen-tab":          {"alt+shift+w"},
 	"global:previous-tab":        {"[", "alt+up"},
 	"global:next-tab":            {"]", "alt+down"},
+	"global:move-tab-left":       {"alt+shift+up"},
+	"global:move-tab-right":      {"alt+shift+down"},
 	"global:previous-connection": {"{", "alt+left"},
 	"global:next-connection":     {"}", "alt+right"},
 

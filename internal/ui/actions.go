@@ -97,6 +97,8 @@ const (
 	ActionReopenTab           ActionID = "reopen-tab"
 	ActionPreviousTab         ActionID = "previous-tab"
 	ActionNextTab             ActionID = "next-tab"
+	ActionMoveTabLeft         ActionID = "move-tab-left"
+	ActionMoveTabRight        ActionID = "move-tab-right"
 	ActionPreviousConnection  ActionID = "previous-connection"
 	ActionNextConnection      ActionID = "next-connection"
 	ActionActivateTab         ActionID = "activate-tab"
@@ -348,6 +350,8 @@ var globalActions = []ActionDefinition{
 	{ID: ActionReopenTab, Label: "reopen the last closed tab", WhileRunning: true},
 	{ID: ActionPreviousTab, WhileRunning: true},
 	{ID: ActionNextTab, Label: "next tab", WhileRunning: true},
+	{ID: ActionMoveTabLeft, Label: "move the tab left", WhileRunning: true},
+	{ID: ActionMoveTabRight, Label: "move the tab right", WhileRunning: true},
 	{ID: ActionPreviousConnection, WhileRunning: true},
 	{ID: ActionNextConnection, WhileRunning: true},
 	{ID: ActionActivateTab, Label: "go to a tab by its number", WhileRunning: true},

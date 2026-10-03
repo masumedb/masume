@@ -40,6 +40,8 @@ var HelpSections = []HelpSection{
 			{Scope: cfg.ScopeGlobal, Actions: []ActionID{ActionNewQueryTab}},
 			{Scope: cfg.ScopeGlobal, Actions: []ActionID{ActionActivateTab}},
 			{Scope: cfg.ScopeGlobal, Actions: []ActionID{ActionPreviousTab, ActionNextTab}, Text: "previous or next tab"},
+			{Scope: cfg.ScopeGlobal, Actions: []ActionID{ActionMoveTabLeft}},
+			{Scope: cfg.ScopeGlobal, Actions: []ActionID{ActionMoveTabRight}},
 			{Scope: cfg.ScopeGlobal, Actions: []ActionID{ActionNameTab}},
 			{Scope: cfg.ScopeGlobal, Actions: []ActionID{ActionCloseTab}},
 			{Scope: cfg.ScopeGlobal, Actions: []ActionID{ActionReopenTab}},

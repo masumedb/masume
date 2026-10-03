@@ -490,6 +490,19 @@ func (connection *Connection) ActivateTab(index int) {
 	connection.ActiveIndex = core.ClampIndex(index, len(connection.Tabs))
 }
 
+// MoveTab moves the tab at from to the position to. The active tab stays active.
+func (connection *Connection) MoveTab(from, to int) {
+	count := len(connection.Tabs)
+	if from < 0 || from >= count || to < 0 || to >= count || from == to {
+		return
+	}
+	active := connection.Tabs[connection.ActiveIndex]
+	moved := connection.Tabs[from]
+	connection.Tabs = slices.Delete(connection.Tabs, from, from+1)
+	connection.Tabs = slices.Insert(connection.Tabs, to, moved)
+	connection.ActiveIndex = slices.Index(connection.Tabs, active)
+}
+
 // StepTab moves to the tab before or after the one on screen, and wraps at the ends.
 func (connection *Connection) StepTab(step int) {
 	connection.ActiveIndex = core.WrapIndex(connection.ActiveIndex+step, len(connection.Tabs))

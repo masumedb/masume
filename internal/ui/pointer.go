@@ -15,6 +15,7 @@ const (
 	pointerColumns  = "ew-resize"
 	pointerRows     = "ns-resize"
 	pointerResizing = "col-resize"
+	pointerGrabbing = "grabbing"
 )
 
 // resolvePointerShape returns the pointer shape for the cell under the pointer.
@@ -35,6 +36,8 @@ func (model *Model) resolvePointerShape(x, y int) string {
 		return pointerText
 	case dragScrollbar:
 		return pointerDefault
+	case dragTab:
+		return pointerGrabbing
 	}
 	if model.frame.isArmed {
 		return pointerHand

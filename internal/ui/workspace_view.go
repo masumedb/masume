@@ -304,7 +304,8 @@ func (model *Model) renderTabRow(connection *app.Connection, active *app.Tab) st
 			break
 		}
 		drawn := model.renderTab(connection.Tabs[index], index,
-			resolveTabMark(connection, index, asideTab, hasAside), closable)
+			model.resolveDraggedTab(resolveTabMark(connection, index, asideTab, hasAside)),
+			closable)
 		written = append(written, drawn)
 		// The close mark is the two cells before the padding and the gap, so a press on
 		// it closes the tab rather than opening it.
@@ -399,6 +400,7 @@ const (
 	tabPlain tabMark = iota
 	tabActive
 	tabAside
+	tabLifted
 )
 
 // resolveTabMark returns the style of the tab at that position.
@@ -412,6 +414,14 @@ func resolveTabMark(connection *app.Connection, index, asideTab int, hasAside bo
 	return tabPlain
 }
 
+// resolveDraggedTab returns the lifted mark for the active tab while a drag moves it.
+func (model *Model) resolveDraggedTab(drawnAs tabMark) tabMark {
+	if drawnAs == tabActive && model.drag.holds(dragTab) && model.drag.lifted {
+		return tabLifted
+	}
+	return drawnAs
+}
+
 // renderTab draws one tab of the row.
 func (model *Model) renderTab(tab *app.Tab, index int, drawnAs tabMark, closable bool) string {
 	theme := model.styles.Theme
@@ -421,14 +431,20 @@ func (model *Model) renderTab(tab *app.Tab, index int, drawnAs tabMark, closable
 		ground = theme.Accent
 	case tabAside:
 		ground = theme.Selection
+	case tabLifted:
+		ground = theme.AccentAlt
 	}
 
 	icon := resolveTabIcon(tab)
 	numberInk, iconInk := theme.Muted, model.styles.IconColor(icon)
 	labelInk, stagedInk := theme.Text, theme.Warning
-	if drawnAs == tabActive {
+	switch drawnAs {
+	case tabActive:
 		numberInk, iconInk, labelInk, stagedInk =
 			theme.OnAccent, theme.OnAccent, theme.OnAccent, theme.OnAccent
+	case tabLifted:
+		ink := model.styles.InkOn(ground)
+		numberInk, iconInk, labelInk, stagedInk = ink, ink, ink, ink
 	}
 
 	// The staged mark keeps its cell even when it is empty, and that cell is left out of the

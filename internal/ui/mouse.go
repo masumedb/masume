@@ -461,6 +461,23 @@ func (model *Model) dragTreeEdge(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 	return model, nil
 }
 
+// dragTab moves the active tab to the place of the tab under the pointer.
+func (model *Model) dragTab(mouse tea.Mouse) (tea.Model, tea.Cmd) {
+	connection := model.Active()
+	if connection == nil {
+		return model, nil
+	}
+	model.drag.lifted = true
+	for _, held := range model.layout.tabs {
+		if mouse.X >= held.from && mouse.X <= held.to && held.index != connection.ActiveIndex {
+			connection.MoveTab(connection.ActiveIndex, held.index)
+			model.drag.moved = true
+			return model, nil
+		}
+	}
+	return model, nil
+}
+
 // dragScrollbar moves the view of the bar being dragged to where the pointer stands. The
 // pointer may wander off the track and the drag holds, which is what a scroll bar does.
 func (model *Model) dragScrollbar(mouse tea.Mouse) (tea.Model, tea.Cmd) {
@@ -650,6 +667,8 @@ func (model *Model) readMouseMotion(moved tea.MouseMotionMsg) (tea.Model, tea.Cm
 			return model.dragScrollbar(mouse)
 		case dragEditorText:
 			return model.dragEditor(mouse)
+		case dragTab:
+			return model.dragTab(mouse)
 		}
 		return model, nil
 	}
@@ -964,6 +983,10 @@ func (model *Model) pressTabRow(
 		if held.closeTo >= held.closeFrom &&
 			mouse.X >= held.closeFrom && mouse.X <= held.closeTo {
 			return model.requestCloseTab(connection)
+		}
+		if mouse.Button == tea.MouseLeft && len(connection.Tabs) > 1 {
+			model.selection = screenSelection{}
+			model.drag.takeTab()
 		}
 		return model, nil
 	}

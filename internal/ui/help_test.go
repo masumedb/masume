@@ -84,9 +84,9 @@ func TestTheHelpSizesTheKeyColumnToTheWidestKey(t *testing.T) {
 		}
 		found = true
 		gap := strings.Index(line, "new query tab") - strings.Index(line, "Alt+N")
-		if gap != len("Alt+Shift+W")+helpColumnGap {
+		if gap != len("Alt+Shift+Down")+helpColumnGap {
 			t.Errorf("the label stands %d cells after the key in %q, wanted %d",
-				gap, line, len("Alt+Shift+W")+helpColumnGap)
+				gap, line, len("Alt+Shift+Down")+helpColumnGap)
 		}
 	}
 	if !found {

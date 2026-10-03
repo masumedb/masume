@@ -159,6 +159,8 @@ var paletteEntries = []paletteEntry{
 	{id: "edit-cell-source", group: groupNotebook, detail: "a chart cell opens its form",
 		scope: cfg.ScopeNotebook, action: ActionEditCellSource, when: editsNotebook},
 	{id: "next-tab", group: groupTabs, scope: cfg.ScopeGlobal, action: ActionNextTab, when: showsManyTabs},
+	{id: "move-tab-left", group: groupTabs, scope: cfg.ScopeGlobal, action: ActionMoveTabLeft, when: showsManyTabs},
+	{id: "move-tab-right", group: groupTabs, scope: cfg.ScopeGlobal, action: ActionMoveTabRight, when: showsManyTabs},
 	{id: "close-tab", group: groupTabs,
 		scope: cfg.ScopeGlobal, action: ActionCloseTab},
 	{id: "name-tab", group: groupTabs, scope: cfg.ScopeGlobal, action: ActionNameTab, when: namesTab},

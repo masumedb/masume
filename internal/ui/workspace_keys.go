@@ -326,6 +326,10 @@ func (model *Model) runGlobalAction(
 		connection.StepTab(-1)
 	case ActionNextTab:
 		connection.StepTab(1)
+	case ActionMoveTabLeft:
+		connection.MoveTab(connection.ActiveIndex, connection.ActiveIndex-1)
+	case ActionMoveTabRight:
+		connection.MoveTab(connection.ActiveIndex, connection.ActiveIndex+1)
 	case ActionActivateTab:
 		if match.Digit > 0 {
 			connection.ActivateTab(match.Digit - 1)

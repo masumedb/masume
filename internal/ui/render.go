@@ -540,6 +540,12 @@ func (model *Model) describeStatus(
 	// A report that has to be acted on carries its mark, so what the bar says is read by
 	// its shape before it is read as words.
 	warning := model.icons.Prefix(cfg.IconNote)
+	if model.drag.lifted {
+		switch model.drag.kind {
+		case dragTab:
+			return "release to drop the tab here", app.NoticeActive
+		}
+	}
 	if connection.Notice != nil {
 		written := present.SafeText(connection.Notice.Text)
 		if connection.Notice.Tone == app.NoticeError {
