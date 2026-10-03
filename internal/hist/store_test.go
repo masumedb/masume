@@ -3,6 +3,7 @@ package hist
 import (
 	"encoding/json"
 	"os"
+	"slices"
 	"testing"
 	"time"
 
@@ -575,5 +576,21 @@ func TestOpenReadsAFileWrittenByAnEarlierRun(t *testing.T) {
 	}
 	if len(held) != 1 {
 		t.Errorf("the file holds %d entries after opening again, wanted 1", len(held))
+	}
+}
+
+func TestUseCommandListsTheLastCommandFirst(t *testing.T) {
+	store := openTestStore(t)
+	for _, id := range []string{"show-help", "format-sql", "show-help"} {
+		if err := store.UseCommand(id); err != nil {
+			t.Fatalf("the use answered %v", err)
+		}
+	}
+	held, err := store.ListRecentCommands(5)
+	if err != nil {
+		t.Fatalf("the list answered %v", err)
+	}
+	if !slices.Equal(held, []string{"show-help", "format-sql"}) {
+		t.Errorf("the recent commands read %v", held)
 	}
 }

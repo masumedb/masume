@@ -396,7 +396,7 @@ MongoDB lists operations instead of SQL sessions. Both stop actions use `killOp`
 
 ## Palette operations
 
-`Ctrl+K` opens the command palette. Type to search, select a command, and press Enter. A command needs its target, such as a result to copy.
+`Ctrl+K` opens the command palette. Type to search, select a command, and press Enter. A command needs its target, such as a result to copy. The recent group lists the last five commands, kept in the history file across sessions.
 
 Palette-only operations are Reload the theme files, Settings, AI provider selection, AI agent selection, Ask AI: explain this query, Ask AI: optimize this query, and Ask AI: build a notebook. Config problems appears when the configuration has reports. None of these has a default key.
 

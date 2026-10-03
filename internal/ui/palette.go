@@ -12,6 +12,7 @@ import (
 	"github.com/masumedb/masume/internal/cfg"
 	"github.com/masumedb/masume/internal/core"
 	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/hist"
 	"github.com/masumedb/masume/internal/present"
 )
 
@@ -475,8 +476,9 @@ func (model *Model) orderPaletteActions(actions []app.PaletteAction) []app.Palet
 	return append(recent, actions...)
 }
 
-// rememberPaletteRow puts a row the palette ran at the top of the recent group.
-func (model *Model) rememberPaletteRow(id string) {
+// rememberPaletteRow puts a row the palette ran at the top of the recent group, and writes it
+// to the history file.
+func (model *Model) rememberPaletteRow(id string) tea.Cmd {
 	kept := []string{id}
 	for _, held := range model.paletteRecent {
 		if held != id && len(kept) < paletteRecentLimit {
@@ -484,6 +486,20 @@ func (model *Model) rememberPaletteRow(id string) {
 		}
 	}
 	model.paletteRecent = kept
+	log := model.log
+	return writeHistory(model.ActiveID(), "cannot save the recent command", func() error {
+		return log.UseCommand(id)
+	})
+}
+
+// readRecentCommands returns the commands the palette ran last in earlier sessions. A history
+// file that cannot be read gives none.
+func readRecentCommands(log *hist.Store) []string {
+	commands, err := log.ListRecentCommands(paletteRecentLimit)
+	if err != nil {
+		return nil
+	}
+	return commands
 }
 
 // paletteViews name the view each `tab-` row of the palette moves to.
@@ -499,8 +515,15 @@ func (model *Model) runPaletteAction(
 	connection *app.Connection, id string,
 ) (tea.Model, tea.Cmd) {
 	connection.CloseEveryOverlay()
+	next, command := model.runPaletteRow(connection, id)
+	return next, tea.Batch(command, model.rememberPaletteRow(id))
+}
+
+// runPaletteRow runs one row of the command palette.
+func (model *Model) runPaletteRow(
+	connection *app.Connection, id string,
+) (tea.Model, tea.Cmd) {
 	tab := connection.Active()
-	model.rememberPaletteRow(id)
 
 	for _, view := range paletteViews {
 		if id != "tab-"+string(view) {

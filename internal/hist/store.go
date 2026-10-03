@@ -194,6 +194,13 @@ const schema = `
     PRIMARY KEY (profile_name, schema_name)
   );
 
+  -- The commands the palette ran, for every profile. The sequence keeps the order of use.
+  CREATE TABLE IF NOT EXISTS recent_command (
+    command_id TEXT    PRIMARY KEY,
+    used_at    INTEGER NOT NULL,
+    use_seq    INTEGER NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS chat_conversation (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     profile_name TEXT    NOT NULL,
@@ -673,6 +680,44 @@ func (store *Store) ListRecentSchemas(profileName string, limit int) ([]core.Rec
 			core.RecentSchema{Schema: schema, VisitedAt: time.UnixMilli(visitedAt)})
 	}
 	return recent, rows.Err()
+}
+
+// ListRecentCommands returns the commands the palette ran last, newest first.
+func (store *Store) ListRecentCommands(limit int) ([]string, error) {
+	if store == nil {
+		return nil, nil
+	}
+	rows, err := store.file.Query(
+		`SELECT command_id FROM recent_command ORDER BY use_seq DESC LIMIT ?`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	commands := []string{}
+	for rows.Next() {
+		var id string
+		if scanErr := rows.Scan(&id); scanErr != nil {
+			return nil, scanErr
+		}
+		commands = append(commands, id)
+	}
+	return commands, rows.Err()
+}
+
+// UseCommand records that the palette ran a command.
+func (store *Store) UseCommand(id string) error {
+	if store == nil {
+		return nil
+	}
+	_, err := store.file.Exec(
+		`INSERT INTO recent_command (command_id, used_at, use_seq)
+		 VALUES (?, ?, (SELECT COALESCE(MAX(use_seq), 0) + 1 FROM recent_command))
+		 ON CONFLICT (command_id) DO UPDATE SET
+		   used_at = excluded.used_at,
+		   use_seq = excluded.use_seq`,
+		id, time.Now().UnixMilli())
+	return err
 }
 
 // VisitSchema records that the user opened a schema.

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -8,6 +9,7 @@ import (
 	"github.com/masumedb/masume/internal/app"
 	"github.com/masumedb/masume/internal/cfg"
 	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/hist"
 	"github.com/masumedb/masume/internal/notebook"
 )
 
@@ -372,5 +374,20 @@ func TestThePaletteSearchKeepsAGroupTogether(t *testing.T) {
 	}
 	if len(groups) != 2 || groups[0] != "AI" {
 		t.Errorf("the groups are listed as %v, wanted AI then query", groups)
+	}
+}
+
+func TestThePaletteListsTheCommandsOfAnEarlierSession(t *testing.T) {
+	store, err := hist.Open(filepath.Join(t.TempDir(), "history.sqlite"))
+	if err != nil {
+		t.Fatalf("the history file did not open: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	if err := store.UseCommand("show-help"); err != nil {
+		t.Fatalf("the use answered %v", err)
+	}
+	model := NewModel(loadedConfigForTest("tokyonight"), nil, store, nil)
+	if !slices.Equal(model.paletteRecent, []string{"show-help"}) {
+		t.Errorf("the new session starts with the recent commands %v", model.paletteRecent)
 	}
 }
