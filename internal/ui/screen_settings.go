@@ -856,7 +856,7 @@ func (model *Model) renderSettings() string {
 		lines = append(lines, "", model.styles.Faint().Render(
 			present.TruncateText(model.describeSettingsDetail(), inner)))
 		keys := model.buildKeyLineOf(settingsKeySpecs, keyScene{})
-		if !keys.isEmpty() {
+		if keys.hasButtons() {
 			lines = append(lines, model.renderKeyButtons(keys, inner, 1,
 				cardTop+cardBodyRow+len(lines), left+cardBodyColumn)[0])
 		}

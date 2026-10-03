@@ -257,7 +257,7 @@ func (model *Model) resolveOverlayHeight(
 
 // countHintRows returns the rows the keys of a card take, with the blank row over them.
 func countHintRows(keys *KeyLine, width int) int {
-	if keys.isEmpty() {
+	if !keys.hasButtons() {
 		return 0
 	}
 	return 1 + keys.countKeyRows(max(width-present.CardChrome, 1))

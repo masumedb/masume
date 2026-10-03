@@ -246,7 +246,7 @@ func (line *KeyLine) buildHints() []Hint {
 func (model *Model) appendCardKeyRow(
 	lines []string, keys *KeyLine, width, top, left int,
 ) []string {
-	if keys.isEmpty() {
+	if !keys.hasButtons() {
 		return lines
 	}
 	lines = append(lines, "", "")
@@ -266,12 +266,32 @@ var (
 	}
 )
 
+// listButtonParts returns the parts a card draws as buttons: every part but a key drawn as
+// bare arrow keys. The key hints mode applies to the bars, not to the buttons of a card.
+func (line *KeyLine) listButtonParts() []keyPart {
+	if line == nil {
+		return nil
+	}
+	drawn := make([]keyPart, 0, len(line.parts))
+	for _, part := range line.parts {
+		if !isArrowKeyText(part.chord) {
+			drawn = append(drawn, part)
+		}
+	}
+	return drawn
+}
+
+// hasButtons is true for a line that draws at least one button on a card.
+func (line *KeyLine) hasButtons() bool {
+	return len(line.listButtonParts()) > 0
+}
+
 // buildButtons returns the parts of the line as the buttons of a card. The first part that
 // submits the card is the primary button.
 func (line *KeyLine) buildButtons() []cardButton {
 	buttons := []cardButton{}
 	primary := false
-	for _, part := range line.listParts() {
+	for _, part := range line.listButtonParts() {
 		button := cardButton{
 			icon: part.icon, chord: part.chord, label: part.label,
 			scope: part.scope, action: part.action, second: part.second,
@@ -288,7 +308,7 @@ func (line *KeyLine) buildButtons() []cardButton {
 
 // countKeyRows returns the rows the buttons of a line take in this width.
 func (line *KeyLine) countKeyRows(width int) int {
-	if line.isEmpty() {
+	if !line.hasButtons() {
 		return 0
 	}
 	return len(layoutButtonRows(line.icons, line.buildButtons(), width))
@@ -296,7 +316,7 @@ func (line *KeyLine) countKeyRows(width int) int {
 
 // measureKeyButtons returns the cells the buttons of a line take on one row.
 func (model *Model) measureKeyButtons(line *KeyLine) int {
-	if line.isEmpty() {
+	if !line.hasButtons() {
 		return 0
 	}
 	return model.measureButtonRow(line.buildButtons())

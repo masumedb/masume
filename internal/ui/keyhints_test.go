@@ -214,9 +214,9 @@ func TestTheKeyHintsModeReachesTheChatCard(t *testing.T) {
 	}
 }
 
-// The main mode keeps the main buttons of a card.
-func TestTheMainModeKeepsTheMainButtonsOfACard(t *testing.T) {
-	model, _ := buildHintModeModel(t, cfg.KeyHintsMain)
+// A card draws every button whatever the key hints mode is.
+func TestACardDrawsEveryButtonWhateverTheMode(t *testing.T) {
+	model, _ := buildHintModeModel(t, cfg.KeyHintsOff)
 	model.Active().Overlay = app.Overlay{Kind: app.OverlayNotebooks, Title: " notebooks "}
 	model.render()
 
@@ -224,8 +224,8 @@ func TestTheMainModeKeepsTheMainButtonsOfACard(t *testing.T) {
 	for _, held := range model.listCardButtons() {
 		actions = append(actions, held.action)
 	}
-	if !slices.Contains(actions, ActionChooseRow) || slices.Contains(actions, ActionEditConnection) {
-		t.Errorf("the card drew the buttons %v, wanted open and not rename", actions)
+	if !slices.Contains(actions, ActionChooseRow) || !slices.Contains(actions, ActionEditConnection) {
+		t.Errorf("the card drew the buttons %v, wanted open and rename", actions)
 	}
 }
 
