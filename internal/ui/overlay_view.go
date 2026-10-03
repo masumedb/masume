@@ -2290,13 +2290,12 @@ func fitFieldLabel(written string, width int) string {
 var promptHints = map[app.PromptKind]string{
 	app.PromptBuilderFilter: "one condition of the where clause",
 	app.PromptSearch:        "filters loaded rows · no server query",
-	app.PromptWhere: "the server filters, then the statement limit applies · " +
-		"the editor query stays unchanged",
-	app.PromptGoToColumn: "goes to the first column whose name matches",
-	app.PromptTabName:    "written as a comment on the first line of the query",
-	app.PromptFind:       "marks every match",
-	app.PromptReplace:    "replaces every match, in one step",
-	app.PromptCellName:   "written as a comment on the first line of the cell",
+	app.PromptWhere:         "filters on the server",
+	app.PromptGoToColumn:    "goes to the first column whose name matches",
+	app.PromptTabName:       "written as a comment on the first line of the query",
+	app.PromptFind:          "marks every match",
+	app.PromptReplace:       "replaces every match, in one step",
+	app.PromptCellName:      "written as a comment on the first line of the cell",
 }
 
 // promptCards are the prompts that open a card of their own. A prompt that belongs to no
