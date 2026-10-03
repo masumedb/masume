@@ -27,6 +27,10 @@ func (model *Model) readOverlayKey(
 	overlay := &connection.Overlay
 	tab := connection.Active()
 
+	if overlay.Prompt == app.PromptWhere && overlay.Draft != nil &&
+		model.readWhereCompletionKey(connection, tab, overlay.Draft, key) {
+		return model, nil
+	}
 	if overlay.Kind != app.OverlayAiChat {
 		fields := model.resolveOverlayFields(connection, tab, overlay)
 		fields.bindsTab = model.bindsTabOfItsOwn(*overlay, key)
@@ -81,6 +85,12 @@ func (model *Model) readOverlayKey(
 	if overlay.Draft != nil {
 		held, command := model.readOverlayField(connection, tab, overlay, key)
 		model.previewTheme(connection)
+		if connection.Overlay.Prompt == app.PromptWhere && connection.Overlay.Draft != nil {
+			tab.Completion.Dismissed = false
+			model.refreshWhereCompletion(connection, tab, connection.Overlay.Draft)
+		} else {
+			tab.Completion.Close()
+		}
 		return held, command
 	}
 	return model, nil

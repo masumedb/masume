@@ -40,7 +40,12 @@ func (model *Model) readWorkspaceKey(key tea.Key) (next tea.Model, command tea.C
 	}()
 
 	if connection.Overlay.IsOpen() {
-		return model.readOverlayKey(connection, key)
+		next, command := model.readOverlayKey(connection, key)
+		// The list of the where field closes with the field.
+		if connection.Overlay.Prompt != app.PromptWhere {
+			connection.Active().Completion.Close()
+		}
+		return next, command
 	}
 	connection.DropInfoNotice()
 	if connection.Tree.Filtering {

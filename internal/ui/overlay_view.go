@@ -2321,9 +2321,16 @@ func (model *Model) renderPromptBar(overlay app.Overlay, width int) []string {
 	theme := model.styles.Theme
 	label := paintText(theme.Accent, theme.Header, overlay.Title+" ")
 	room := max(width-1-measureStyledWidth(label), 1)
-	field := model.renderField(overlay.Draft, room, FieldLook{
-		Ground: theme.Header, Ink: theme.Text, Focused: true,
-	})
+	field := ""
+	if overlay.Prompt == app.PromptWhere {
+		field = model.renderSQLField(overlay.Draft, room)
+		model.promptCaretCell = 1 + measureStyledWidth(label) +
+			min(present.MeasureText(overlay.Draft.Text[:overlay.Draft.Caret]), room-1)
+	} else {
+		field = model.renderField(overlay.Draft, room, FieldLook{
+			Ground: theme.Header, Ink: theme.Text, Focused: true,
+		})
+	}
 
 	// The hint is cut where the pane ends, with nothing to mark the cut, because the keys it
 	// names are on the bar below as well.
@@ -2362,6 +2369,15 @@ func (model *Model) renderPromptBar(overlay app.Overlay, width int) []string {
 		paintOn(theme.Header, " ") + label + field,
 		" " + model.styles.Muted().Render(truncateCells(hint, width-1)),
 	}
+}
+
+// renderSQLField draws a one-line field of SQL in the colours of the editor, with the caret.
+func (model *Model) renderSQLField(buffer *app.EditorBuffer, width int) string {
+	caret := present.MeasureText(buffer.Text[:min(buffer.Caret, len(buffer.Text))])
+	return model.renderCodeLineOn(model.styles.Theme.Header, codeLine{
+		text: buffer.Text, spans: buildSQLLineHighlights(buffer.Text)[0], width: width,
+		columnOffset: max(caret-width+1, 0), caretColumn: caret, showCaret: true,
+	})
 }
 
 // describeMatchCount counts what the term in the find field matches in the statement, so the

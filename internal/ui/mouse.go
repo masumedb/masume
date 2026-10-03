@@ -812,10 +812,18 @@ func (model *Model) pressWorkspace(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 	if connection == nil {
 		return model, nil
 	}
+	tab := connection.Active()
+	if row, onList := model.layout.completionRows.holds(mouse.X, mouse.Y); onList &&
+		connection.Overlay.Prompt == app.PromptWhere && connection.Overlay.Draft != nil {
+		if row < len(tab.Completion.Candidates) {
+			tab.Completion.Selected = row
+			acceptWhereCompletion(connection, tab, connection.Overlay.Draft)
+		}
+		return model, nil
+	}
 	if connection.Overlay.IsOpen() {
 		return model.pressOverlay(connection, mouse)
 	}
-	tab := connection.Active()
 
 	// The list over the statement is drawn last, so a press reaches it before the pane it
 	// stands on.

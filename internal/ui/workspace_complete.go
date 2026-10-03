@@ -4,9 +4,11 @@ import (
 	"strconv"
 	"strings"
 
+	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
 	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/cfg"
 	"github.com/masumedb/masume/internal/core"
 	"github.com/masumedb/masume/internal/db"
 	"github.com/masumedb/masume/internal/present"
@@ -198,6 +200,74 @@ func (model *Model) refreshCompletion(connection *app.Connection, tab *app.Tab) 
 	list.Selected = 0
 }
 
+// refreshWhereCompletion builds the list for the caret of the where field: the columns of the
+// result and the keywords.
+func (model *Model) refreshWhereCompletion(
+	connection *app.Connection, tab *app.Tab, buffer *app.EditorBuffer,
+) {
+	list := &tab.Completion
+	prefix := editor.ReadPrefix(buffer.Text, buffer.Caret)
+	if prefix == "" || list.Dismissed {
+		list.Close()
+		return
+	}
+	columns := []editor.CompletionColumn{}
+	if held := tab.Results.Active(); held != nil && held.State.Kind == app.QuerySucceeded {
+		for _, column := range held.State.Result.Columns {
+			columns = append(columns, editor.CompletionColumn{
+				Name: column.Name, Detail: column.DescribeType(),
+			})
+		}
+	}
+	found := connection.Session.Language().BuildCompletions(prefix,
+		editor.CompletionSources{Columns: columns},
+		editor.CompletionContext{AllowQualified: true, NamePosition: editor.PositionColumn})
+	if len(found) == 0 {
+		list.Close()
+		return
+	}
+	list.Candidates, list.Selected = found, 0
+	list.Placed, list.Above = true, true
+}
+
+// readWhereCompletionKey takes a key while the list of the where field is open. It reports
+// whether it took the key.
+func (model *Model) readWhereCompletionKey(
+	connection *app.Connection, tab *app.Tab, buffer *app.EditorBuffer, key tea.Key,
+) bool {
+	list := &tab.Completion
+	if !list.IsListing() {
+		return false
+	}
+	if model.keymap.BindsKey(key, cfg.ScopeDialog, ActionAcceptCompletion) {
+		acceptWhereCompletion(connection, tab, buffer)
+		return true
+	}
+	switch key.Code {
+	case tea.KeyEscape:
+		list.Dismiss()
+		return true
+	case tea.KeyUp:
+		list.Step(-1)
+		return true
+	case tea.KeyDown:
+		list.Step(1)
+		return true
+	}
+	return false
+}
+
+// acceptWhereCompletion writes the marked candidate in place of the word under the caret of the
+// where field.
+func acceptWhereCompletion(connection *app.Connection, tab *app.Tab, buffer *app.EditorBuffer) {
+	if chosen, found := tab.Completion.Chosen(); found {
+		written, caret := editor.ApplyCompletion(
+			buffer.Text, buffer.Caret, chosen, connection.Session.Dialect())
+		buffer.SetTextWithCaret(written, caret)
+	}
+	tab.Completion.Close()
+}
+
 // hasJoinTarget is true where the text before the offset ends at the ON of a join.
 func hasJoinTarget(text string, offset int) bool {
 	_, _, joins := editor.ReadJoinTarget(text, offset)
@@ -246,12 +316,17 @@ func (model *Model) renderCompletionPopup(tab *app.Tab, height int) (string, int
 	// Below the caret where there is room, and above it where there is not. A popup
 	// past the bottom of the screen would show one row only. The fault row under the
 	// statement stays in view. Above the caret, the popup stays inside the editor pane.
+	caretRow, caretColumn, paneTop := model.caretRow, model.caretColumn, model.paneTop
+	if connection := model.Active(); connection != nil &&
+		connection.Overlay.Prompt == app.PromptWhere && drawsPromptBar(connection.Overlay) {
+		caretRow, caretColumn, paneTop = model.promptCaretRow, model.promptCaretColumn, 0
+	}
 	limit := height
 	if model.faultRow > 0 {
 		limit = model.faultRow
 	}
-	roomBelow := limit - model.caretRow - 1
-	roomAbove := model.caretRow - model.paneTop
+	roomBelow := limit - caretRow - 1
+	roomAbove := caretRow - paneTop
 	if !list.Placed {
 		list.Placed = true
 		list.Above = popupHeight > roomBelow &&
@@ -267,9 +342,9 @@ func (model *Model) renderCompletionPopup(tab *app.Tab, height int) (string, int
 		shownRows = room - completionChrome
 		popupHeight = room
 	}
-	top := model.caretRow + 1
+	top := caretRow + 1
 	if list.Above {
-		top = model.caretRow - popupHeight
+		top = caretRow - popupHeight
 	}
 
 	// The window follows the marked row, because the list is longer than the popup.
@@ -284,7 +359,7 @@ func (model *Model) renderCompletionPopup(tab *app.Tab, height int) (string, int
 			list.Candidates[at], at == list.Selected, width-completionChrome))
 	}
 
-	left := core.ClampWithin(model.caretColumn, model.width-width)
+	left := core.ClampWithin(caretColumn, model.width-width)
 
 	// The rows of the popup, so a press takes the candidate it lands on. The box is placed
 	// on the frame of the workspace and the title bar is put over it afterwards, so a row of

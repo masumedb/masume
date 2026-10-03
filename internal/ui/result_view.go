@@ -132,6 +132,10 @@ func (model *Model) renderResultPane(
 				paintText(theme.Muted, theme.Background, where)))
 		}
 	}
+	if asking {
+		model.promptCaretRow = model.layout.resultTop + 1 + len(lines) - titleBarRows
+		model.promptCaretColumn = model.layout.paneFrom + 1 + model.promptCaretCell
+	}
 	lines = append(lines, promptRows...)
 
 	return model.styles.RenderBoxRows(BoxOptions{

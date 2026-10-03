@@ -143,9 +143,12 @@ type Model struct {
 	buttonFocus buttonFocus
 	// The pointer shape last sent to the terminal, or nothing before the first.
 	pointerShape string
-	caches       tabCaches
 	// True while the terminal reports that its window is not focused.
 	terminalBlurred bool
+	// The caret cell of the where field: in its row, and in the frame.
+	promptCaretCell                   int
+	promptCaretRow, promptCaretColumn int
+	caches                            tabCaches
 	// The conversation as the chat panel draws it, kept because the scroll bounds, a jump
 	// between turns and the draw itself each read the rows.
 	chatRows chatRowsCache
