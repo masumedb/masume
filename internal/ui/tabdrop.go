@@ -132,14 +132,19 @@ func (model *Model) findPartnerTab(connection *app.Connection, moved tabKey) tab
 	return model.buildTabKey(connection, opened)
 }
 
-// dropTab places the dragged tab on the side it was released over.
-func (model *Model) dropTab(held pointerDrag) {
+// releaseTab ends a press on a tab. A release over a side of the panes places the tab there,
+// and any other release activates it, as a click does.
+func (model *Model) releaseTab(held pointerDrag) {
 	connection := model.Active()
 	if connection == nil {
 		return
 	}
-	model.placeTabOnSide(connection, held.dragged, held.dropSide, held.splitBefore,
-		held.previous, held.hasPrevious)
+	if held.dropping {
+		model.placeTabOnSide(connection, held.dragged, held.dropSide, held.splitBefore,
+			held.previous, held.hasPrevious)
+		return
+	}
+	model.activateKey(held.dragged)
 }
 
 // moveTabToOtherSide moves the tab with the focus to the other side of the split view.

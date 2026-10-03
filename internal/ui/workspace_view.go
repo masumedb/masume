@@ -308,7 +308,7 @@ func (model *Model) renderTabRow(connection *app.Connection, active *app.Tab) st
 			break
 		}
 		drawn := model.renderTab(connection.Tabs[index], index,
-			model.resolveDraggedTab(resolveTabMark(connection, index, asideTab, hasAside)),
+			model.resolveDraggedTab(connection.Tabs[index], resolveTabMark(connection, index, asideTab, hasAside)),
 			closable)
 		written = append(written, drawn)
 		// The close mark is the two cells before the padding and the gap, so a press on
@@ -418,9 +418,9 @@ func resolveTabMark(connection *app.Connection, index, asideTab int, hasAside bo
 	return tabPlain
 }
 
-// resolveDraggedTab returns the lifted mark for the active tab while a drag moves it.
-func (model *Model) resolveDraggedTab(drawnAs tabMark) tabMark {
-	if drawnAs == tabActive && model.drag.holds(dragTab) && model.drag.lifted {
+// resolveDraggedTab returns the lifted mark for the tab a drag moves.
+func (model *Model) resolveDraggedTab(tab *app.Tab, drawnAs tabMark) tabMark {
+	if model.drag.holds(dragTab) && model.drag.lifted && tab.ID == model.drag.dragged.tab {
 		return tabLifted
 	}
 	return drawnAs

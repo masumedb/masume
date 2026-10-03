@@ -68,3 +68,33 @@ func TestADraggedTabIsDrawnLifted(t *testing.T) {
 		t.Errorf("the bar during the drag reads %q", bar)
 	}
 }
+
+func TestAClickOnATabActivatesItOnTheRelease(t *testing.T) {
+	model := buildOfflineModel(t, 120, 40)
+	connection := model.Active()
+	connection.OpenQueryTab("select 1")
+	second := connection.OpenQueryTab("select 2")
+	connection.ActivateTab(0)
+	model.render()
+
+	held := model.layout.tabs[1]
+	clickMouse(model, held.from+1, model.layout.tabRow)
+	if connection.Active() != second {
+		t.Error("a click on the tab left it inactive")
+	}
+}
+
+func TestAPressOnATabLeavesTheSplitAsItIs(t *testing.T) {
+	model, connection := buildSplitModel(t)
+	left, right := findSideTab(t, model, 0), findSideTab(t, model, 1)
+	third := connection.OpenQueryTab("select 3")
+	connection.ActivateTab(connection.IndexOfTab(right.ID))
+	model.render()
+
+	held := model.layout.tabs[connection.IndexOfTab(third.ID)]
+	model.Update(tea.MouseClickMsg{X: held.from + 1, Y: model.layout.tabRow, Button: tea.MouseLeft})
+	model.render()
+	if findSideTab(t, model, 0) != left || findSideTab(t, model, 1) != right {
+		t.Error("the press on a tab changed the sides of the split view")
+	}
+}

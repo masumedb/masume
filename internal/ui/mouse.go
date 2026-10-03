@@ -481,9 +481,10 @@ func (model *Model) dragTab(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 		model.drag.dropSide, model.drag.dropping = model.findDropSide(mouse.X, mouse.Y)
 		return model, nil
 	}
+	from := connection.IndexOfTab(model.drag.dragged.tab)
 	for _, held := range model.layout.tabs {
-		if mouse.X >= held.from && mouse.X <= held.to && held.index != connection.ActiveIndex {
-			connection.MoveTab(connection.ActiveIndex, held.index)
+		if mouse.X >= held.from && mouse.X <= held.to && held.index != from && from >= 0 {
+			connection.MoveTab(from, held.index)
 			model.drag.moved = true
 			return model, nil
 		}
@@ -718,8 +719,8 @@ func (model *Model) readMouseRelease(released tea.MouseReleaseMsg) (tea.Model, t
 	}
 	if held := model.drag; held.running() {
 		model.drag.stop()
-		if held.holds(dragTab) && held.dropping {
-			model.dropTab(held)
+		if held.holds(dragTab) {
+			model.releaseTab(held)
 			return model, nil
 		}
 		if held.moved {
@@ -1004,8 +1005,16 @@ func (model *Model) pressTabRow(
 		if mouse.X < held.from || mouse.X > held.to {
 			continue
 		}
-		previous, hasPrevious := model.findActiveKey()
-		splitBefore := model.split
+		// The left button activates a tab on its release, so a drag of the tab leaves the
+		// tab on screen and the sides of the split view as they are until it drops.
+		if mouse.Button == tea.MouseLeft && len(connection.Tabs) > 1 &&
+			(held.closeTo < held.closeFrom || mouse.X < held.closeFrom || mouse.X > held.closeTo) {
+			previous, hasPrevious := model.findActiveKey()
+			model.selection = screenSelection{}
+			model.drag.takeTab(model.buildTabKey(connection, connection.Tabs[held.index]),
+				previous, hasPrevious, model.split)
+			return model, nil
+		}
 		connection.ActivateTab(held.index)
 		if mouse.Button == tea.MouseRight {
 			return model.openTabMenu(connection)
@@ -1013,11 +1022,6 @@ func (model *Model) pressTabRow(
 		if held.closeTo >= held.closeFrom &&
 			mouse.X >= held.closeFrom && mouse.X <= held.closeTo {
 			return model.requestCloseTab(connection)
-		}
-		if mouse.Button == tea.MouseLeft && len(connection.Tabs) > 1 {
-			model.selection = screenSelection{}
-			model.drag.takeTab(model.buildTabKey(connection, connection.Active()),
-				previous, hasPrevious, splitBefore)
 		}
 		return model, nil
 	}
