@@ -299,6 +299,9 @@ var defaultChords = map[string][]string{
 	"dialog:open-in-new-tab":      {"alt+return"},
 	"dialog:list-secondary":       {"ctrl+d"},
 	"dialog:stop-session":         {"x"},
+	"dialog:sort-sessions":        {"s"},
+	"dialog:reverse-session-sort": {"S"},
+	"dialog:toggle-idle-sessions": {"i"},
 	// The keys that fold a schema in the tree, so a panel of a card folds the same way.
 	"dialog:fold-row":          {"left"},
 	"dialog:unfold-row":        {"right"},

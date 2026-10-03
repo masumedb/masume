@@ -332,7 +332,7 @@ func (model *Model) overlayRowCount(connection *app.Connection, overlay app.Over
 	case app.OverlayValueFilter, app.OverlayColumns:
 		return len(overlay.Values)
 	case app.OverlayActivity:
-		return len(overlay.Sessions)
+		return len(app.ListShownSessions(overlay.Sessions, overlay.View))
 	case app.OverlayThemePicker:
 		return len(model.filterThemes(overlay))
 	case app.OverlayHelp:
@@ -791,10 +791,28 @@ func (model *Model) runOverlayAction(
 			}
 			return true, model, nil
 		}
-		if overlay.List.Cursor >= len(overlay.Sessions) {
+		switch match.Action {
+		case ActionSortSessions:
+			changeSessionView(overlay, func(view *app.DashboardView) { view.StepSessionSort() })
+			return true, model, nil
+		case ActionReverseSort:
+			changeSessionView(overlay, func(view *app.DashboardView) {
+				if view.SortBy != app.ActivityByServer {
+					view.Descending = !view.Descending
+				}
+			})
+			return true, model, nil
+		case ActionToggleIdle:
+			changeSessionView(overlay, func(view *app.DashboardView) {
+				view.HidesIdle = !view.HidesIdle
+			})
+			return true, model, nil
+		}
+		sessions := app.ListShownSessions(overlay.Sessions, overlay.View)
+		if overlay.List.Cursor >= len(sessions) {
 			return false, model, nil
 		}
-		session := overlay.Sessions[overlay.List.Cursor]
+		session := sessions[overlay.List.Cursor]
 		switch match.Action {
 		case ActionStopSession:
 			held, command := model.askStopBackend(connection, session, stopStatement)
@@ -805,6 +823,30 @@ func (model *Model) runOverlayAction(
 		}
 	}
 	return false, model, nil
+}
+
+// changeSessionView changes how the server activity card lists its sessions, and keeps the
+// cursor on the session it stood on where that session is still listed.
+func changeSessionView(overlay *app.Overlay, change func(*app.DashboardView)) {
+	before := app.ListShownSessions(overlay.Sessions, overlay.View)
+	change(&overlay.View)
+	overlay.List.Cursor = followSessionCursor(before, overlay.List.Cursor,
+		app.ListShownSessions(overlay.Sessions, overlay.View))
+	overlay.List.Rolled = false
+}
+
+// followSessionCursor returns the place in the sessions after a change of the session the
+// cursor stood on before it, or the same place where that session is gone.
+func followSessionCursor(before []db.Activity, cursor int, after []db.Activity) int {
+	if cursor >= 0 && cursor < len(before) {
+		pid := before[cursor].PID
+		for at, session := range after {
+			if session.PID == pid {
+				return at
+			}
+		}
+	}
+	return clamp(cursor, len(after))
 }
 
 // The two places a row of a list opens in.
@@ -961,10 +1003,11 @@ func (model *Model) chooseOverlayRow(
 		return model.keepTheme(connection, name)
 
 	case app.OverlayActivity:
-		if overlay.List.Cursor >= len(overlay.Sessions) {
+		sessions := app.ListShownSessions(overlay.Sessions, overlay.View)
+		if overlay.List.Cursor >= len(sessions) {
 			return model, nil
 		}
-		statement := overlay.Sessions[overlay.List.Cursor].Query
+		statement := sessions[overlay.List.Cursor].Query
 		if strings.TrimSpace(statement) == "" {
 			connection.Show("no statement is available for this session")
 			return model, nil

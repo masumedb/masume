@@ -384,6 +384,8 @@ The builder writes one flat select. For a subquery, a union, a window function, 
 
 Panels depend on engine support and server permissions. MySQL load values need access to `performance_schema`. MySQL has no blocking or slow-statement panel. The PostgreSQL slow-statement panel needs a working `pg_stat_statements` extension, checked at connection time. Slow statements are ordered by mean execution time, highest first, within the current database. Unsupported and failed optional panels are hidden.
 
+The session list keeps the order the server returns. `s` sorts it by the next column: pid, state, time, user@app, statement, then the order of the server again. `S` reverses the sort, and a click on a column name sorts by that column, or reverses it on a second click. Time sorts the longest first. `i` hides the idle sessions, and the summary counts them. A session idle inside a transaction stays listed. The selection stays on its session through every refresh.
+
 Up and Down select a session. Enter replaces the current query text with the SQL of that session. `Alt+Enter` opens the SQL in a new query tab. Neither key runs the SQL. On a non-query tab, Enter also opens a query tab.
 
 `x` cancels the statement of the selected session. `Ctrl+D` terminates the session and its connection. Both ask for confirmation first. Left collapses the optional panels, and Right expands them.

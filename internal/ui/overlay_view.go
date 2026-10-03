@@ -98,10 +98,12 @@ func (model *Model) placeCardHits(left, top, placedBars, placedKeys int) {
 		layout.buttons[at].to += left
 		layout.buttons[at].keyTo += left
 	}
-	for at := range layout.overlayChips {
-		layout.overlayChips[at].row += top
-		layout.overlayChips[at].from += left
-		layout.overlayChips[at].to += left
+	for _, chips := range [][]chipHit{layout.overlayChips, layout.activityHeadings} {
+		for at := range chips {
+			chips[at].row += top
+			chips[at].from += left
+			chips[at].to += left
+		}
 	}
 	for at := range layout.formChoices {
 		layout.formChoices[at].row += top
@@ -1824,9 +1826,11 @@ const (
 func (model *Model) renderActivity(
 	connection *app.Connection, overlay app.Overlay, width int,
 ) string {
-	columns := measureActivityColumns(overlay.Sessions)
-	rows := make([]string, 0, len(overlay.Sessions))
-	for at, session := range overlay.Sessions {
+	sessions := app.ListShownSessions(overlay.Sessions, overlay.View)
+	labels := model.buildActivityHeadings(overlay.View)
+	columns := measureActivityColumns(sessions, labels)
+	rows := make([]string, 0, len(sessions))
+	for at, session := range sessions {
 		rows = append(rows, model.renderListRow(ListRowSpec{
 			Label: present.FitTextRight(strconv.FormatInt(session.PID, 10), columns.pid) + "  " +
 				present.FitText(session.State, columns.state),
@@ -1842,15 +1846,10 @@ func (model *Model) renderActivity(
 	profile := connection.Profile()
 	keys := model.buildCardKeys(app.OverlayActivity, keyScene{overlay: overlay})
 	header := model.buildDashboardHeader(overlay, width)
-	if len(rows) > 0 {
-		theme := model.styles.Theme
-		heading := strings.Repeat(" ", rowPaddingLeft) +
-			present.FitTextRight("pid", columns.pid) + "  " + present.FitText("state", columns.state) +
-			"  " + present.FitTextRight("time", columns.time) + "  " +
-			present.FitText("user@app", columns.user) + "  statement"
-		pad := paintOn(theme.Panel, " ")
-		header = append(header, pad+padStyledOn(
-			paintText(theme.Muted, theme.Panel, heading), width-4, theme.Panel)+pad+pad)
+	model.layout.activityHeadings = nil
+	if len(overlay.Sessions) > 0 {
+		header = append(header, model.renderActivityHeading(
+			overlay.View, labels, columns, width, cardListRow+1+len(header)))
 	}
 
 	return model.renderListCard(ListCard{
@@ -1861,7 +1860,7 @@ func (model *Model) renderActivity(
 		Rows:   rows,
 		Cursor: overlay.List.Cursor, Offset: overlay.List.Offset,
 		Rolled: overlay.List.Rolled, Width: width,
-		EmptyReport: "no other sessions",
+		EmptyReport: describeEmptySessions(overlay),
 		Keys:        keys,
 		// A floor under the rows, so the card does not resize on every refresh while
 		// the sessions of a quiet server come and go.
@@ -1874,10 +1873,82 @@ type activityColumns struct {
 	pid, state, time, user int
 }
 
+// buildActivityHeadings returns the heading of each column of the session list, the sorted
+// one with the mark of its direction.
+func (model *Model) buildActivityHeadings(view app.DashboardView) map[app.ActivityColumn]string {
+	labels := map[app.ActivityColumn]string{
+		app.ActivityByPID: "pid", app.ActivityByState: "state", app.ActivityByTime: "time",
+		app.ActivityByUser: "user@app", app.ActivityByStatement: "statement",
+	}
+	if view.SortBy != app.ActivityByServer {
+		mark := model.icons.Icon(cfg.IconSortUp)
+		if view.Descending {
+			mark = model.icons.Icon(cfg.IconSortDown)
+		}
+		labels[view.SortBy] += " " + mark
+	}
+	return labels
+}
+
+// renderActivityHeading draws the row of column names over the session list, and records
+// where each name is drawn, so a press on one sorts by it. The row is counted from the card.
+func (model *Model) renderActivityHeading(
+	view app.DashboardView, labels map[app.ActivityColumn]string, columns activityColumns,
+	width, row int,
+) string {
+	theme := model.styles.Theme
+	parts := []struct {
+		column app.ActivityColumn
+		text   string
+	}{
+		{app.ActivityByPID, present.FitTextRight(labels[app.ActivityByPID], columns.pid)},
+		{app.ActivityByState, present.FitText(labels[app.ActivityByState], columns.state)},
+		{app.ActivityByTime, present.FitTextRight(labels[app.ActivityByTime], columns.time)},
+		{app.ActivityByUser, present.FitText(labels[app.ActivityByUser], columns.user)},
+		{app.ActivityByStatement, labels[app.ActivityByStatement]},
+	}
+	pad := paintOn(theme.Panel, " ")
+	written := pad + paintOn(theme.Panel, strings.Repeat(" ", rowPaddingLeft))
+	at := cardBodyColumn + rowPaddingLeft
+	for index, part := range parts {
+		if index > 0 {
+			written += paintOn(theme.Panel, "  ")
+			at += 2
+		}
+		ink := theme.Muted
+		if part.column == view.SortBy {
+			ink = theme.Accent
+		}
+		written += paintText(ink, theme.Panel, part.text)
+		size := present.MeasureText(part.text)
+		model.layout.activityHeadings = append(model.layout.activityHeadings, chipHit{
+			index: slices.Index(app.ActivityColumns, part.column), row: row,
+			from: at, to: at + size - 1,
+		})
+		at += size
+	}
+	return padStyledOn(written, width-2, theme.Panel) + pad
+}
+
+// describeEmptySessions returns what the session list says while it shows no session.
+func describeEmptySessions(overlay app.Overlay) string {
+	if overlay.View.HidesIdle && len(overlay.Sessions) > 0 {
+		return "every other session is idle"
+	}
+	return "no other sessions"
+}
+
 // measureActivityColumns returns the widths that hold the widest value and heading of each
 // column of the session list.
-func measureActivityColumns(sessions []db.Activity) activityColumns {
-	columns := activityColumns{pid: 3, state: 5, time: 4, user: 8}
+func measureActivityColumns(
+	sessions []db.Activity, labels map[app.ActivityColumn]string,
+) activityColumns {
+	columns := activityColumns{
+		pid:   present.MeasureText(labels[app.ActivityByPID]),
+		state: present.MeasureText(labels[app.ActivityByState]),
+		time:  present.MeasureText(labels[app.ActivityByTime]),
+		user:  present.MeasureText(labels[app.ActivityByUser]),
+	}
 	for _, session := range sessions {
 		columns.pid = max(columns.pid, len(strconv.FormatInt(session.PID, 10)))
 		columns.state = max(columns.state, present.MeasureText(session.State))
@@ -1957,6 +2028,9 @@ func (model *Model) buildDashboardSummary(overlay app.Overlay, width int) string
 
 	text += paintText(theme.Muted, theme.Panel, "other sessions ")
 	text += paintText(theme.Text, theme.Panel, strconv.Itoa(len(overlay.Sessions)))
+	if idle := app.CountIdleSessions(overlay.Sessions); overlay.View.HidesIdle && idle > 0 {
+		text += paintText(theme.Muted, theme.Panel, " · "+strconv.Itoa(idle)+" idle hidden")
+	}
 
 	if reading.HasLocks {
 		waiting := app.CountBlockedSessions(reading.Locks)

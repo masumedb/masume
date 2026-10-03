@@ -183,6 +183,9 @@ type frameLayout struct {
 	rowDetailFields []lineSpan
 	// The chips a card draws as returns, such as the two of a question.
 	overlayChips []chipHit
+	// The column names over the session list of the server activity card. The index of a
+	// chip is its place in app.ActivityColumns.
+	activityHeadings []chipHit
 
 	// The blocks a drag can select inside, the one on top first.
 	selectionBlocks []blockRect
@@ -1302,6 +1305,13 @@ func (model *Model) pressOverlay(
 	}
 	if overlay.Kind == app.OverlayDiagram {
 		return model.pressDiagram(connection, overlay, mouse)
+	}
+	if at, onHeading := findChip(model.layout.activityHeadings, mouse.X, mouse.Y); onHeading &&
+		overlay.Kind == app.OverlayActivity {
+		changeSessionView(overlay, func(view *app.DashboardView) {
+			view.SortSessionsBy(app.ActivityColumns[at])
+		})
+		return model, nil
 	}
 	// A card with a form or a list of returns marks the row the press landed on.
 	if row, onRow := model.layout.formRows.holds(mouse.X, mouse.Y); onRow {

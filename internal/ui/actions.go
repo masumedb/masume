@@ -304,6 +304,9 @@ const (
 	ActionCopyValue        ActionID = "copy-value"
 	ActionListSecondary    ActionID = "list-secondary"
 	ActionStopSession      ActionID = "stop-session"
+	ActionSortSessions     ActionID = "sort-sessions"
+	ActionReverseSort      ActionID = "reverse-session-sort"
+	ActionToggleIdle       ActionID = "toggle-idle-sessions"
 	ActionToggleValue      ActionID = "toggle-value"
 	ActionKeepAllValues    ActionID = "keep-all-values"
 	ActionKeepOnlyValue    ActionID = "keep-only-value"
@@ -601,6 +604,9 @@ var dialogActions = []ActionDefinition{
 	{ID: ActionOpenInNewTab, Label: "open a history query in a new tab"},
 	{ID: ActionListSecondary, Label: "delete the entry, or end the session"},
 	{ID: ActionStopSession, Label: "stop the selected session's statement", MainHint: true},
+	{ID: ActionSortSessions, Label: "sort the sessions by the next column"},
+	{ID: ActionReverseSort, Label: "reverse the sort of the sessions"},
+	{ID: ActionToggleIdle, Label: "hide or show the idle sessions"},
 	// A card with panels of its own folds them, with the keys that fold a schema.
 	{ID: ActionFoldRow}, {ID: ActionUnfoldRow},
 	{ID: ActionToggleValue, Label: "keep or drop a value, in the picker", MainHint: true},

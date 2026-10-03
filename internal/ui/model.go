@@ -1461,7 +1461,10 @@ func (model *Model) readActivityAnswer(answered activityReadMsg) (tea.Model, tea
 		}
 	}
 	drawn.View.Reading = false
-	drawn.List.Cursor = clamp(drawn.List.Cursor, len(drawn.Sessions))
+	// The sessions come back in a new order on every refresh, so the cursor follows the
+	// session it stood on.
+	drawn.List.Cursor = followSessionCursor(app.ListShownSessions(held.Sessions, held.View),
+		held.List.Cursor, app.ListShownSessions(drawn.Sessions, drawn.View))
 	connection.Overlay = drawn
 	return model, nil
 }

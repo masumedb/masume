@@ -104,6 +104,7 @@ Each card uses only its own actions, so two rows in this table can share a key w
 | `previous-turn` | `ctrl+p` |
 | `previous-value` | `left` |
 | `replace-in-statement` | `ctrl+r` |
+| `reverse-session-sort` | `S` |
 | `run-with-values` | `ctrl+r` |
 | `save-cell` | `ctrl+s` |
 | `save-form` | `ctrl+s` |
@@ -116,10 +117,12 @@ Each card uses only its own actions, so two rows in this table can share a key w
 | `set-empty` | `ctrl+e` |
 | `set-null` | `ctrl+l` |
 | `show-ai-chats` | `ctrl+o` |
+| `sort-sessions` | `s` |
 | `step-back` | `escape` |
 | `stop-ai-reply` | `ctrl+x` |
 | `stop-session` | `x` |
 | `test-connection` | `ctrl+t` |
+| `toggle-idle-sessions` | `i` |
 | `toggle-statements` | `s` |
 | `toggle-value` | `space` |
 | `toggle-whole-word` | `alt+w` |

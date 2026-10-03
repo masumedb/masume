@@ -366,6 +366,9 @@ var cardKeySpecs = map[app.OverlayKind][]keySpec{
 		keyOf(cfg.ScopeList, ActionChooseRow, "open statement"),
 		keyOf(cfg.ScopeDialog, ActionStopSession, "stop statement"),
 		keyOf(cfg.ScopeDialog, ActionListSecondary, "end session"),
+		keyOf(cfg.ScopeDialog, ActionSortSessions, "sort"),
+		keyOf(cfg.ScopeDialog, ActionReverseSort, "reverse").onlyWhen(sortsSessions),
+		keyOf(cfg.ScopeDialog, ActionToggleIdle, "").withLabel(describeIdleToggle),
 		keyOf(cfg.ScopeDialog, ActionFoldRow, "fold").onlyWhen(showsLocks),
 		keyOf(cfg.ScopeDialog, ActionUnfoldRow, "unfold").onlyWhen(showsLocks),
 		keyOf(cfg.ScopeDialog, ActionClose, "").withLabel(describeSettingsClose),
@@ -960,6 +963,19 @@ var (
 			withLabel(func(scene keyScene) string { return describeResultToggle(scene.resultVisible) }),
 	}
 )
+
+// sortsSessions is true while the session list of the server activity card is sorted.
+func sortsSessions(scene keyScene) bool {
+	return scene.overlay.View.SortBy != app.ActivityByServer
+}
+
+// describeIdleToggle returns the label of the key that hides or shows the idle sessions.
+func describeIdleToggle(scene keyScene) string {
+	if scene.overlay.View.HidesIdle {
+		return "show idle"
+	}
+	return "hide idle"
+}
 
 func describeCellEdit(scene keyScene) string {
 	if scene.cellKind == notebook.CellChart {

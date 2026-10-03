@@ -392,6 +392,12 @@ type DashboardView struct {
 	Previous    db.ServerLoad
 	PreviousAt  time.Time
 	HasPrevious bool
+	// The column the session list is sorted by, and the direction. The first value keeps
+	// the order of the server.
+	SortBy     ActivityColumn
+	Descending bool
+	// True while idle sessions are hidden.
+	HidesIdle bool
 }
 
 // ResolveCounterRate returns the increase per second, or false for nonpositive duration or a decreasing counter.
