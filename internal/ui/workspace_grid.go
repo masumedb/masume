@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -54,10 +55,9 @@ func (model *Model) buildGridShape(connection *app.Connection, tab *app.Tab) Gri
 		DataTypes: head.dataTypes, Masked: head.masked, Zoned: head.zoned,
 		Zone: model.settings.TimeZone.ResolveLocation(),
 	})
-	text, indexes, widths := model.resolveGridShape(
-		key, tab, formatted, answered.Rows, head.labels)
+	text, indexes, widths, fractions := model.resolveGridShape(
+		key, tab, formatted, answered.Rows, head.labels, head.numeric)
 
-	fractions, widths := measureDecimalColumns(text, head.numeric, widths)
 	return GridShape{
 		Columns: answered.Columns, Rows: answered.Rows, Text: text, RowIndexes: indexes,
 		Masked: head.masked, Numeric: head.numeric, Labels: head.labels,
@@ -65,16 +65,12 @@ func (model *Model) buildGridShape(connection *app.Connection, tab *app.Tab) Gri
 	}
 }
 
-// measureDecimalColumns returns the most digits after the point in each column of numbers,
-// and the widths with room for the numbers once their points line up.
-func measureDecimalColumns(
-	text [][]string, numeric map[int]bool, widths []int,
-) (map[int]int, []int) {
-	fractions := map[int]int{}
+// measureDecimalColumns raises wholes and fractions to the most digits before and after the
+// point in each column of numbers of the rows.
+func measureDecimalColumns(text [][]string, numeric map[int]bool, wholes, fractions map[int]int) {
 	if len(numeric) == 0 {
-		return fractions, widths
+		return
 	}
-	wholes := map[int]int{}
 	for _, row := range text {
 		for index := range numeric {
 			if index >= len(row) {
@@ -86,14 +82,18 @@ func measureDecimalColumns(
 			}
 		}
 	}
-	// The widths belong to the cache of the frame, so the wider ones are written to a copy.
+}
+
+// widenDecimalColumns returns a copy of the widths with room for the numbers once their points
+// line up.
+func widenDecimalColumns(widths []int, wholes, fractions map[int]int) []int {
 	widened := append([]int{}, widths...)
 	for index, fraction := range fractions {
 		if fraction > 0 && index < len(widened) {
 			widened[index] = max(widened[index], wholes[index]+1+fraction)
 		}
 	}
-	return fractions, widened
+	return widened
 }
 
 // The widths a column is held between while its border is dragged: wide enough for a mark of
@@ -229,7 +229,8 @@ func buildSortKey(sort []core.SortState) string {
 // than the whole of the rest of it.
 func (model *Model) resolveGridShape(
 	key tabKey, tab *app.Tab, formatted [][]string, values [][]any, labels []string,
-) ([][]string, []int, []int) {
+	numeric map[int]bool,
+) ([][]string, []int, []int, map[int]int) {
 	screen := tab.Screen.Fingerprint()
 	written := strings.Join(labels, "\x00")
 
@@ -237,7 +238,7 @@ func (model *Model) resolveGridShape(
 	shapeHolds := found && held.shaped && held.screen == screen && held.labels == written &&
 		held.shapedRows <= len(formatted)
 	if shapeHolds && held.shapedRows == len(formatted) {
-		return held.shown, held.indexes, held.widths
+		return held.shown, held.indexes, held.decimalWidths, held.fractions
 	}
 
 	// A page that went on the end of rows already shaped leaves those rows shown and as
@@ -246,12 +247,15 @@ func (model *Model) resolveGridShape(
 	text, indexes := held.shown, held.indexes
 	// The label carries the sort mark, so a sorted column keeps room for it.
 	widths := held.widths
+	wholes, fractions := map[int]int{}, map[int]int{}
 	if !shapeHolds {
 		text = make([][]string, 0, len(formatted))
 		indexes = make([]int, 0, len(formatted))
 		widths = present.CalculateColumnWidths(labels, nil)
 	} else {
 		from = held.shapedRows
+		maps.Copy(wholes, held.wholes)
+		maps.Copy(fractions, held.fractions)
 	}
 
 	shownBefore := len(text)
@@ -263,14 +267,17 @@ func (model *Model) resolveGridShape(
 		indexes = append(indexes, at)
 	}
 	widths = present.WidenColumns(widths, text[shownBefore:])
+	measureDecimalColumns(text[shownBefore:], numeric, wholes, fractions)
+	decimalWidths := widenDecimalColumns(widths, wholes, fractions)
 
 	if found {
 		held.shaped, held.screen, held.labels = true, screen, written
 		held.shown, held.indexes, held.widths = text, indexes, widths
+		held.wholes, held.fractions, held.decimalWidths = wholes, fractions, decimalWidths
 		held.shapedRows = len(formatted)
 		model.caches.keepText(key, held)
 	}
-	return text, indexes, widths
+	return text, indexes, decimalWidths, fractions
 }
 
 // readRowValues returns the row as the server sent it, for a screen filter that reads past
@@ -308,6 +315,11 @@ type gridText struct {
 	shown   [][]string
 	indexes []int
 	widths  []int
+	// The most digits before and after the point in each column of numbers, and the widths
+	// with room for both.
+	wholes        map[int]int
+	fractions     map[int]int
+	decimalWidths []int
 	// How many of the written rows the shape was built from, so a page added to the end
 	// is folded into it rather than measured beside all the ones before it.
 	shapedRows int
