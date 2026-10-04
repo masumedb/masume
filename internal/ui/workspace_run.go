@@ -489,6 +489,7 @@ func (model *Model) readQueryAnswer(answered queryRanMsg) (tea.Model, tea.Cmd) {
 	if _, belongs := model.findBatch(answered.ConnectionID, answered.TabID, answered.RunID); !belongs {
 		return model, nil
 	}
+	model.reportHistoryFailure(connection, answered.HistoryProblem)
 
 	if answered.Problem != "" {
 		tab.Results.Fail(answered.Index, answered.Problem)
@@ -544,6 +545,15 @@ func (model *Model) readQueryAnswer(answered queryRanMsg) (tea.Model, tea.Cmd) {
 			readCatalog(answered.ConnectionID, connection.Session, quietCatalogRead))
 	}
 	return model, tea.Batch(readColumns, topUp, next, commit)
+}
+
+// reportHistoryFailure shows the first failed history write of the session in the bar.
+func (model *Model) reportHistoryFailure(connection *app.Connection, problem string) {
+	if problem == "" || model.historyFailed {
+		return
+	}
+	model.historyFailed = true
+	connection.ShowError("query history not saved: " + problem)
 }
 
 // askNextStatement asks the server for the statement after the one that just answered, and

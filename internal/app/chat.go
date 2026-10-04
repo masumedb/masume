@@ -89,6 +89,8 @@ const (
 	ChatTableRead ChatEventKind = "table-read"
 	// ChatUndoKept hands over the undo of a write that ran.
 	ChatUndoKept ChatEventKind = "undo-kept"
+	// ChatHistoryFailed reports a failed history write.
+	ChatHistoryFailed ChatEventKind = "history-failed"
 	// ChatEnded is the final event with usage and error details.
 	ChatEnded ChatEventKind = "ended"
 )

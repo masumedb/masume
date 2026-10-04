@@ -529,6 +529,8 @@ func (model *Model) applyChatEvent(connection *app.Connection, event app.ChatEve
 	case app.ChatUndoKept:
 		connection.KeepUndo(event.Undo, event.Text, time.Now())
 		chat.Notice = model.describeWriteOutcome(event.Undo)
+	case app.ChatHistoryFailed:
+		model.reportHistoryFailure(connection, event.Problem)
 	case app.ChatEnded:
 		chat.Usage = chat.Usage.Add(event.Usage)
 		if event.Problem != "" {

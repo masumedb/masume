@@ -51,6 +51,8 @@ type Model struct {
 	adapters engines.Adapters
 	log      *hist.Store
 	settings cfg.UISettings
+	// True once a failed history write was shown.
+	historyFailed bool
 	// The chat settings the config file carried, and the provider the palette chose.
 	ai         cfg.AiConfig
 	aiProvider cfg.AiProviderID

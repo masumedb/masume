@@ -71,6 +71,8 @@ type queryRanMsg struct {
 	Last bool
 	// The undo of a planned write, read inside the transaction of that write.
 	Undo writeplan.Undo
+	// The error of the history write, or empty.
+	HistoryProblem string
 }
 
 // pageReadMsg returns the next page of rows.
@@ -474,15 +476,23 @@ func runOneStatement(deps runOneStatementDeps) tea.Cmd {
 		if err != nil {
 			answered.Problem = db.DescribeError(err)
 			entry.ErrorMessage = answered.Problem
-			_ = log.Record(entry)
+			answered.HistoryProblem = describeHistoryError(log.Record(entry))
 			return answered
 		}
 		answered.Result = result
 		entry.Elapsed = result.Elapsed
 		entry.RowCount, entry.HasRowCount = result.CountReportedRows(), true
-		_ = log.Record(entry)
+		answered.HistoryProblem = describeHistoryError(log.Record(entry))
 		return answered
 	}
+}
+
+// describeHistoryError returns the error text of a history write, or empty.
+func describeHistoryError(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
 }
 
 // readNextPage asks the server for the rows after the ones already drawn.

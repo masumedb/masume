@@ -247,11 +247,16 @@ func (model *Model) buildChatToolDeps(
 					}
 				}
 				held.undo, held.kept = writeplan.UndoPlan{}, writeplan.Undo{}
-				_ = log.Record(hist.HistoryEntry{
+				err := log.Record(hist.HistoryEntry{
 					ProfileName: profileName, SQL: report.SQL, RanAt: report.RanAt,
 					Elapsed: report.Elapsed, RowCount: report.RowCount,
 					HasRowCount: report.HasRowCount, ErrorMessage: report.ErrorMessage,
 				})
+				if err != nil {
+					events <- app.ChatEvent{
+						Run: run, Kind: app.ChatHistoryFailed, Problem: err.Error(),
+					}
+				}
 			},
 		},
 	}

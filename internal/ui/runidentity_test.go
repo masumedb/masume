@@ -102,3 +102,30 @@ func TestReadQueryAnswerStopsTheRunOfAClosedTab(t *testing.T) {
 		t.Error("the run of the open tab was stopped with the run of the closed one")
 	}
 }
+
+func TestReadQueryAnswerShowsTheFirstFailedHistoryWrite(t *testing.T) {
+	model := buildOfflineModel(t, 160, 48)
+	connection := model.Active()
+	tab := connection.Active()
+	id := model.ActiveID()
+
+	for _, text := range []string{"select 1", "select 2"} {
+		tab.Results.Start([]string{text}, 200)
+		run := model.startBatch(connection, tab, []db.ComposedRead{{Text: text}}, 200, writeplan.UndoPlan{})
+		answer := buildAnswer(id, tab.ID, run, text)
+		answer.HistoryProblem = "database or disk is full"
+		model.readQueryAnswer(answer)
+
+		if text == "select 1" {
+			if connection.Notice == nil || connection.Notice.Tone != app.NoticeError ||
+				connection.Notice.Text != "query history not saved: database or disk is full" {
+				t.Fatalf("the notice is %+v, wanted the history error", connection.Notice)
+			}
+			connection.Notice = nil
+			continue
+		}
+		if connection.Notice != nil && connection.Notice.Tone == app.NoticeError {
+			t.Errorf("the history error was shown again: %q", connection.Notice.Text)
+		}
+	}
+}
