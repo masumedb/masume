@@ -603,3 +603,39 @@ func TestSaveProfileToFileWritesAndClearsTheGroup(t *testing.T) {
 		t.Errorf("the group was not removed:\n%s", cleared)
 	}
 }
+
+func TestSaveProfileToFileRoundTripsControlCharacters(t *testing.T) {
+	profile := buildStoredProfile()
+	profile.Description = "bell\a tab\t quote\" slash\\ nul\x00 del\x7f vtab\v"
+	written := saveProfile(t, "", profile)
+
+	document, err := cfg.DecodeDocument(written)
+	if err != nil {
+		t.Fatalf("the file is not valid TOML: %v\n%s", err, written)
+	}
+	profiles, _ := cfg.FindSection(document, "profile")
+	shop, _ := cfg.FindSection(profiles, "shop")
+	description, _ := cfg.FindString(shop, "description")
+	if description != profile.Description {
+		t.Errorf("the description reads %q, wanted %q", description, profile.Description)
+	}
+}
+
+func TestSaveTablesRefusesAnUnsupportedValueType(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	body := "[ui]\ntheme = \"ayu-dark\"\n"
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	err := cfg.SaveTables(path, []cfg.TableUpdate{{
+		Header: []string{"ai"}, Order: []string{"ratio"},
+		Values: map[string]any{"ratio": 0.5},
+	}})
+	if err == nil || !strings.Contains(err.Error(), "ratio") {
+		t.Errorf("the error is %v, wanted one for the key ratio", err)
+	}
+	written, _ := os.ReadFile(path)
+	if string(written) != body {
+		t.Errorf("the file reads:\n%s\nwanted:\n%s", written, body)
+	}
+}

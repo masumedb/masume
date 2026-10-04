@@ -64,23 +64,64 @@ func readAssignmentKey(line string) (string, bool) {
 	return strings.Trim(key, `"`), key != ""
 }
 
-// writeTomlValue serializes strings, integers, and booleans as TOML. Other types cause a panic.
-func writeTomlValue(value any) string {
+// writeTomlValue serializes strings, integers, booleans, and string lists as TOML.
+func writeTomlValue(value any) (string, error) {
 	switch held := value.(type) {
 	case string:
-		return strconv.Quote(held)
+		return quoteTomlString(held), nil
 	case int:
-		return strconv.Itoa(held)
+		return strconv.Itoa(held), nil
 	case bool:
-		return strconv.FormatBool(held)
+		return strconv.FormatBool(held), nil
 	case []string:
 		written := make([]string, 0, len(held))
 		for _, entry := range held {
-			written = append(written, strconv.Quote(entry))
+			written = append(written, quoteTomlString(entry))
 		}
-		return "[" + strings.Join(written, ", ") + "]"
+		return "[" + strings.Join(written, ", ") + "]", nil
 	}
-	panic(fmt.Sprintf("unsupported profile value type %T", value))
+	return "", fmt.Errorf("unsupported config value type %T", value)
+}
+
+// writeTomlAssignment returns one `key = value` line.
+func writeTomlAssignment(key string, value any) (string, error) {
+	written, err := writeTomlValue(value)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", key, err)
+	}
+	return key + " = " + written, nil
+}
+
+// quoteTomlString returns the text as a TOML basic string.
+func quoteTomlString(text string) string {
+	var written strings.Builder
+	written.WriteByte('"')
+	for _, character := range text {
+		switch character {
+		case '"':
+			written.WriteString(`\"`)
+		case '\\':
+			written.WriteString(`\\`)
+		case '\b':
+			written.WriteString(`\b`)
+		case '\t':
+			written.WriteString(`\t`)
+		case '\n':
+			written.WriteString(`\n`)
+		case '\f':
+			written.WriteString(`\f`)
+		case '\r':
+			written.WriteString(`\r`)
+		default:
+			if character < 0x20 || character == 0x7f {
+				fmt.Fprintf(&written, `\u%04X`, character)
+				continue
+			}
+			written.WriteRune(character)
+		}
+	}
+	written.WriteByte('"')
+	return written.String()
 }
 
 // buildProfileKeys returns ordered keys, non-empty values, and managed keys. File engines omit host, port, and user.
@@ -194,7 +235,7 @@ func matchesPath(left, right []string) bool {
 
 // writeProfileBlock writes the profile into the text and keeps every line outside its block
 // unchanged.
-func writeProfileBlock(text string, profile Profile) string {
+func writeProfileBlock(text string, profile Profile) (string, error) {
 	order, values, managed := buildProfileKeys(profile)
 
 	lines := strings.Split(text, "\n")
@@ -225,7 +266,11 @@ func writeProfileBlock(text string, profile Profile) string {
 
 	written := make([]string, 0, len(order))
 	for _, key := range order {
-		written = append(written, key+" = "+writeTomlValue(values[key]))
+		line, err := writeTomlAssignment(key, values[key])
+		if err != nil {
+			return "", err
+		}
+		written = append(written, line)
 	}
 
 	if start == -1 {
@@ -233,13 +278,13 @@ func writeProfileBlock(text string, profile Profile) string {
 		header := "[profile." + quoteHeaderName(profile.Name) + "]"
 		block := append([]string{header}, written...)
 		if strings.TrimSpace(text) == "" {
-			return strings.Join(block, "\n") + "\n"
+			return strings.Join(block, "\n") + "\n", nil
 		}
 		tail := text
 		if !strings.HasSuffix(tail, "\n") {
 			tail += "\n"
 		}
-		return tail + "\n" + strings.Join(block, "\n") + "\n"
+		return tail + "\n" + strings.Join(block, "\n") + "\n", nil
 	}
 
 	end := findWrittenEnd(lines, findBlockEnd(lines, start+1), start+1)
@@ -270,18 +315,26 @@ func writeProfileBlock(text string, profile Profile) string {
 			continue
 		}
 		delete(pending, key)
-		kept = append(kept, key+" = "+writeTomlValue(values[key]))
+		line, err := writeTomlAssignment(key, values[key])
+		if err != nil {
+			return "", err
+		}
+		kept = append(kept, line)
 	}
 	for _, key := range order {
 		if pending[key] {
-			kept = append(kept, key+" = "+writeTomlValue(values[key]))
+			line, err := writeTomlAssignment(key, values[key])
+			if err != nil {
+				return "", err
+			}
+			kept = append(kept, line)
 		}
 	}
 
 	rebuilt := append([]string{}, lines[:start+1]...)
 	rebuilt = append(rebuilt, kept...)
 	rebuilt = append(rebuilt, lines[end:]...)
-	return strings.Join(rebuilt, "\n")
+	return strings.Join(rebuilt, "\n"), nil
 }
 
 // findProfileHeaderLine returns the header line of the block of this profile, and -1 if the
@@ -339,7 +392,7 @@ func quoteHeaderName(name string) string {
 			(character >= 'A' && character <= 'Z') ||
 			(character >= '0' && character <= '9')
 		if !isPlain {
-			return strconv.Quote(name)
+			return quoteTomlString(name)
 		}
 	}
 	return name
@@ -386,7 +439,10 @@ func SaveProfileToFile(profile Profile, replacing, path string) error {
 			text = removeProfileBlock(text, replacing)
 		}
 	}
-	written := writeProfileBlock(text, profile)
+	written, err := writeProfileBlock(text, profile)
+	if err != nil {
+		return err
+	}
 	if _, decodeErr := DecodeDocument(written); decodeErr != nil {
 		return ConfigFileError{Reason: fmt.Sprintf(
 			"the generated profile is invalid TOML; %s is unchanged", path)}
@@ -421,7 +477,7 @@ func SaveTheme(name, path string) error {
 		}
 	}
 
-	written := "theme = " + strconv.Quote(name)
+	written := "theme = " + quoteTomlString(name)
 	if start == -1 {
 		tail := text
 		if strings.TrimSpace(tail) == "" {
@@ -488,11 +544,15 @@ func findTableHeaderLine(lines []string, path []string) int {
 
 // writeTableBlock writes one table into the text and keeps every line outside that table
 // unchanged.
-func writeTableBlock(text string, update TableUpdate) string {
+func writeTableBlock(text string, update TableUpdate) (string, error) {
 	written := make([]string, 0, len(update.Order))
 	for _, key := range update.Order {
 		if value, held := update.Values[key]; held {
-			written = append(written, key+" = "+writeTomlValue(value))
+			line, err := writeTomlAssignment(key, value)
+			if err != nil {
+				return "", err
+			}
+			written = append(written, line)
 		}
 	}
 
@@ -501,13 +561,13 @@ func writeTableBlock(text string, update TableUpdate) string {
 	if start == -1 {
 		block := append([]string{buildTableHeader(update.Header)}, written...)
 		if strings.TrimSpace(text) == "" {
-			return strings.Join(block, "\n") + "\n"
+			return strings.Join(block, "\n") + "\n", nil
 		}
 		tail := text
 		if !strings.HasSuffix(tail, "\n") {
 			tail += "\n"
 		}
-		return tail + "\n" + strings.Join(block, "\n") + "\n"
+		return tail + "\n" + strings.Join(block, "\n") + "\n", nil
 	}
 
 	managed := map[string]bool{}
@@ -533,18 +593,26 @@ func writeTableBlock(text string, update TableUpdate) string {
 			continue
 		}
 		delete(pending, key)
-		kept = append(kept, key+" = "+writeTomlValue(update.Values[key]))
+		line, err := writeTomlAssignment(key, update.Values[key])
+		if err != nil {
+			return "", err
+		}
+		kept = append(kept, line)
 	}
 	for _, key := range update.Order {
 		if pending[key] {
-			kept = append(kept, key+" = "+writeTomlValue(update.Values[key]))
+			line, err := writeTomlAssignment(key, update.Values[key])
+			if err != nil {
+				return "", err
+			}
+			kept = append(kept, line)
 		}
 	}
 
 	rebuilt := append([]string{}, lines[:start+1]...)
 	rebuilt = append(rebuilt, kept...)
 	rebuilt = append(rebuilt, lines[end:]...)
-	return strings.Join(rebuilt, "\n")
+	return strings.Join(rebuilt, "\n"), nil
 }
 
 // SaveTables writes these tables into the config file in one pass and keeps every line
@@ -559,7 +627,10 @@ func SaveTables(path string, updates []TableUpdate) error {
 			text = removeTableBlock(text, update.Header)
 			continue
 		}
-		text = writeTableBlock(text, update)
+		text, err = writeTableBlock(text, update)
+		if err != nil {
+			return err
+		}
 	}
 	if _, decodeErr := DecodeDocument(text); decodeErr != nil {
 		return ConfigFileError{Reason: fmt.Sprintf(
