@@ -208,7 +208,12 @@ func (model *Model) resolveChatRows(
 	if model.chatRows.drawn && model.chatRows.key == key {
 		return model.chatRows.rows, model.chatRows.starts
 	}
+	if model.chatRowsBefore.drawn && model.chatRowsBefore.key == key {
+		model.chatRows, model.chatRowsBefore = model.chatRowsBefore, model.chatRows
+		return model.chatRows.rows, model.chatRows.starts
+	}
 	rows, starts := model.renderChatTurns(chat, content)
+	model.chatRowsBefore = model.chatRows
 	model.chatRows = chatRowsCache{drawn: true, key: key, rows: rows, starts: starts}
 	return rows, starts
 }

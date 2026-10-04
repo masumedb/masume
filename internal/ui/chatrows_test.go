@@ -413,3 +413,26 @@ func TestTheChatShowsTokensOnItsBorder(t *testing.T) {
 		t.Errorf("the status bar reads %q", frame[len(frame)-1])
 	}
 }
+
+func TestChatRowsAreKeptForBothPanelGrounds(t *testing.T) {
+	model, _ := buildChatModel(t)
+	connection := model.Active()
+	plain := model.styles.Theme.Panel
+	lifted := model.styles.Theme.Header
+	if WriteHex(plain) == WriteHex(lifted) {
+		t.Fatal("the theme draws the panel and the header on one ground")
+	}
+
+	readChatRows(model, connection)
+	model.styles.Theme.Panel = lifted
+	readChatRows(model, connection)
+	markKeptChatRows(model)
+
+	model.styles.Theme.Panel = plain
+	readChatRows(model, connection)
+	model.styles.Theme.Panel = lifted
+	readChatRows(model, connection)
+	if !holdsMarkedChatRows(model) {
+		t.Error("the conversation was drawn again for a ground it was already drawn on")
+	}
+}
