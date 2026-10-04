@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"regexp"
 	"slices"
 	"sort"
@@ -983,10 +984,26 @@ func NewAdapter(support db.EngineSupport) db.Adapter {
 
 // BuildClientOptions returns the options the driver opens the profile with.
 func BuildClientOptions(profile cfg.Profile, password string) (*options.ClientOptions, error) {
-	dialHost, dialPort := profile.DialAddress()
-	held := options.Client().
-		SetHosts([]string{fmt.Sprintf("%s:%d", dialHost, dialPort)}).
-		SetAppName(applicationName).
+	held := options.Client()
+	if profile.SRV {
+		if profile.OpensTunnel() {
+			return nil, db.NewDatabaseError("srv cannot be used with an ssh tunnel")
+		}
+		if profile.DirectConnection {
+			return nil, db.NewDatabaseError("srv cannot be used with direct_connection")
+		}
+		// The driver reads the hosts from the SRV record, and authSource and replicaSet
+		// from the TXT record. It keeps the TXT authSource only for a URI with a user.
+		written := url.URL{Scheme: srvScheme, Host: profile.Host, Path: "/"}
+		if profile.User != "" {
+			written.User = url.User(profile.User)
+		}
+		held.ApplyURI(written.String())
+	} else {
+		dialHost, dialPort := profile.DialAddress()
+		held.SetHosts([]string{fmt.Sprintf("%s:%d", dialHost, dialPort)})
+	}
+	held.SetAppName(applicationName).
 		SetConnectTimeout(connectTimeout).
 		SetServerSelectionTimeout(connectTimeout)
 
@@ -995,20 +1012,38 @@ func BuildClientOptions(profile cfg.Profile, password string) (*options.ClientOp
 	if profile.OpensTunnel() || profile.DirectConnection {
 		held.SetDirect(true)
 	}
+	if profile.ReplicaSet != "" {
+		held.SetReplicaSet(profile.ReplicaSet)
+	}
 
 	if profile.User != "" {
-		held.SetAuth(options.Credential{Username: profile.User, Password: password})
+		credential := options.Credential{
+			Username: profile.User, Password: password, AuthSource: profile.AuthSource,
+		}
+		if credential.AuthSource == "" && held.Auth != nil {
+			credential.AuthSource = held.Auth.AuthSource
+		}
+		held.SetAuth(credential)
+	} else {
+		held.Auth = nil
 	}
 	config, err := db.BuildPolicyTLS(
 		core.ResolveSSLPolicy(profile.SSLMode), profile.Host, profile.BuildSSLFiles())
 	if err != nil {
 		return nil, err
 	}
-	if config != nil {
+	if config != nil && profile.SRV {
+		// The driver sets the server name of each host when the config has none.
+		config.ServerName = ""
+	}
+	if config != nil || profile.SSLMode == core.SSLDisable {
 		held.SetTLSConfig(config)
 	}
 	return held, nil
 }
+
+// srvScheme is the URL scheme of a host that is an SRV record name.
+const srvScheme = "mongodb+srv"
 
 // authenticationCodes are the server authentication and authorization error codes.
 var authenticationCodes = []int{

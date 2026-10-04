@@ -522,3 +522,52 @@ func TestSaveProfileToFileWritesDirectConnection(t *testing.T) {
 		t.Errorf("the file keeps direct_connection:\n%s", written)
 	}
 }
+
+func TestSaveProfileToFileWritesTheMongoOptions(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	source := cfg.Profile{
+		Name: "shop", Engine: core.EngineMongo, Host: "cluster0.abc.mongodb.net", Port: 27017,
+		Database: "shop", SRV: true, AuthSource: "users", ReplicaSet: "rs0",
+	}
+	if err := cfg.SaveProfileToFile(source, "", path); err != nil {
+		t.Fatalf("the profile was not written: %v", err)
+	}
+	held := findProfile(t, cfg.LoadConfig(path), "shop")
+	if !held.SRV || held.AuthSource != "users" || held.ReplicaSet != "rs0" {
+		t.Errorf("the profile reads srv %v, auth source %q, replica set %q",
+			held.SRV, held.AuthSource, held.ReplicaSet)
+	}
+}
+
+func TestApplyConnectionUrlFillsTheMongoOptionsAndHidesThePort(t *testing.T) {
+	held, is := cfg.ParseConnectionURL(
+		"mongodb+srv://ada@cluster0.abc.mongodb.net/shop?authSource=users&replicaSet=rs0")
+	if !is {
+		t.Fatal("the URL was not read")
+	}
+	fields := cfg.ApplyConnectionURL(cfg.BuildFormFields(cfg.Profile{}, false, nil), held)
+	for _, field := range cfg.FindShownFields(fields) {
+		if field.Key == "port" {
+			t.Error("the form shows a port for an SRV record")
+		}
+	}
+	built, err := cfg.BuildProfileFromFields(fields, cfg.Profile{}, false)
+	if err != nil {
+		t.Fatalf("the form does not build a profile: %v", err)
+	}
+	if !built.SRV || built.AuthSource != "users" || built.ReplicaSet != "rs0" {
+		t.Errorf("the profile reads srv %v, auth source %q, replica set %q",
+			built.SRV, built.AuthSource, built.ReplicaSet)
+	}
+}
+
+func TestFindShownFieldsShowsTheMongoOptionsOnlyForMongo(t *testing.T) {
+	for _, engine := range []core.Engine{core.EnginePostgres, core.EngineSqlite} {
+		fields := cfg.BuildFormFields(cfg.Profile{Engine: engine}, true, nil)
+		for _, field := range cfg.FindShownFields(fields) {
+			if field.Key == "srv" || field.Key == "authSource" || field.Key == "replicaSet" {
+				t.Errorf("%s shows %s", engine, field.Key)
+			}
+		}
+	}
+}

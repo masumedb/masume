@@ -505,7 +505,7 @@ var engineRegistry = map[Engine]EngineInfo{
 		// A username enables authentication and password lookup. Profiles without a user omit authentication.
 		NeedsPassword: true, NeedsDatabase: true,
 		DefaultPort:   27017,
-		URLSchemes:    []string{"mongodb"},
+		URLSchemes:    []string{"mongodb", "mongodb+srv"},
 		SystemSchemas: []string{"admin", "config", "local"},
 	},
 }

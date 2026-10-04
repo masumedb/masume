@@ -501,3 +501,24 @@ func TestBuildProfileFromTargetReadsDirectConnectionOfAMongoURL(t *testing.T) {
 		t.Errorf("a postgres URL reads %v, %v", postgres.DirectConnection, err)
 	}
 }
+
+func TestBuildProfileFromTargetReadsAMongoSRVURL(t *testing.T) {
+	built, err := cfg.BuildProfileFromTarget(
+		"mongodb+srv://ada@cluster0.abc.mongodb.net/shop?authSource=users&replicaSet=rs0")
+	if err != nil {
+		t.Fatalf("the URL does not read: %v", err)
+	}
+	if built.Engine != core.EngineMongo || !built.SRV || built.Host != "cluster0.abc.mongodb.net" {
+		t.Errorf("the profile reads %s, srv %v, host %q", built.Engine, built.SRV, built.Host)
+	}
+	if built.AuthSource != "users" || built.ReplicaSet != "rs0" {
+		t.Errorf("the profile reads auth source %q, replica set %q", built.AuthSource, built.ReplicaSet)
+	}
+	if built.SSLMode != core.SSLVerifyFull {
+		t.Errorf("the sslmode reads %q, wanted verify-full", built.SSLMode)
+	}
+
+	if _, err = cfg.BuildProfileFromTarget("mongodb+srv://cluster0.abc.mongodb.net:27017/shop"); err == nil {
+		t.Error("a mongodb+srv URL with a port reads without an error")
+	}
+}

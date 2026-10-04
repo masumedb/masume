@@ -162,6 +162,8 @@ func buildProfileKeys(profile Profile) ([]string, map[string]any, map[string]boo
 		"ssh_key_passphrase_env": profile.SSHKeyPassphraseEnv,
 		"ssh_password_env":       profile.SSHPasswordEnv,
 		"ssh_known_hosts":        profile.SSHKnownHosts,
+		"auth_source":            profile.AuthSource,
+		"replica_set":            profile.ReplicaSet,
 	} {
 		managed[key] = true
 		if value != "" {
@@ -171,6 +173,10 @@ func buildProfileKeys(profile Profile) ([]string, map[string]any, map[string]boo
 	managed["direct_connection"] = true
 	if profile.DirectConnection {
 		written["direct_connection"] = true
+	}
+	managed["srv"] = true
+	if profile.SRV {
+		written["srv"] = true
 	}
 	managed["ssh_port"] = true
 	if profile.OpensTunnel() {
@@ -182,7 +188,8 @@ func buildProfileKeys(profile Profile) ([]string, map[string]any, map[string]boo
 		"engine", "host", "port", "database", "user", "auth",
 		"password", "password_env", "password_command", "secret", "secret_ref",
 		"env", "mode", "sslmode", "sslrootcert", "sslcert", "sslkey",
-		"direct_connection", "confirm_writes", "group", "description", "ai_instructions",
+		"direct_connection", "srv", "auth_source", "replica_set",
+		"confirm_writes", "group", "description", "ai_instructions",
 		"ssh_host", "ssh_port", "ssh_user", "ssh_key", "ssh_key_passphrase_env",
 		"ssh_password_env", "ssh_known_hosts",
 	}

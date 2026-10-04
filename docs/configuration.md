@@ -87,6 +87,9 @@ mode     = "write"
 | `sslcert` | | Client certificate in PEM form, sent when the server asks for one |
 | `sslkey` | | Private key for `sslcert`. Required with `sslcert` |
 | `direct_connection` | `false` | MongoDB and Amazon DocumentDB. `true` connects to `host` only, without replica set discovery |
+| `srv` | `false` | MongoDB. `true` reads the hosts from the SRV record of `host`, and `authSource` and `replicaSet` from its TXT record, as a `mongodb+srv` URL does. `port` is ignored, and TLS is on unless `sslmode` is `disable`. Not allowed with `ssh_host` or `direct_connection` |
+| `auth_source` | `admin`, or the TXT record value with `srv` | MongoDB and Amazon DocumentDB. Database that holds the user |
+| `replica_set` | | MongoDB and Amazon DocumentDB. Replica set name |
 | `statement_timeout_ms` | `0` | Time limit for one statement in milliseconds. `0` means the server default |
 | `keepalive_s` | `30` | Seconds between connection checks. `0` disables the keepalive |
 | `page_size` | `200` | Rows per page, in the grid and in `masume run`. Must be above zero |

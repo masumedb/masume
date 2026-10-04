@@ -187,6 +187,10 @@ func buildProfileFromURL(text string) (Profile, error) {
 	if built.DirectConnection, err = readURLDirectConnection(parsed, engine); err != nil {
 		return Profile{}, err
 	}
+	built.SRV, built.AuthSource, built.ReplicaSet, err = readURLMongoOptions(parsed, engine)
+	if err != nil {
+		return Profile{}, err
+	}
 
 	built.Database = strings.TrimPrefix(parsed.Path, "/")
 	// The database path has one segment.

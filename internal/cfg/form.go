@@ -45,6 +45,7 @@ const (
 	sshToggleKey = "ssh"
 	tlsToggleKey = "tls"
 	directKey    = "directConnection"
+	srvKey       = "srv"
 	toggleOff    = "off"
 	toggleOn     = "on"
 )
@@ -53,6 +54,11 @@ const (
 var sshFields = map[string]bool{
 	"sshHost": true, "sshPort": true, "sshUser": true, "sshKey": true,
 	"sshKeyPassphraseEnv": true, "sshPasswordEnv": true, "sshKnownHosts": true,
+}
+
+// mongoFields are the fields of a MongoDB engine only.
+var mongoFields = map[string]bool{
+	directKey: true, srvKey: true, "authSource": true, "replicaSet": true,
 }
 
 // tlsFields are the certificate fields the tls toggle shows.
@@ -221,6 +227,12 @@ func BuildFormFields(profile Profile, editing bool, secretStoreNames []string) [
 			Choices: []string{toggleOff, toggleOn},
 		},
 		{
+			Key: srvKey, Label: "srv",
+			Value: describeToggle(source.SRV), Choices: []string{toggleOff, toggleOn},
+		},
+		{Key: "authSource", Label: "auth source", Value: source.AuthSource},
+		{Key: "replicaSet", Label: "replica set", Value: source.ReplicaSet},
+		{
 			Key: sshToggleKey, Label: "ssh tunnel",
 			Value:   describeToggle(source.OpensTunnel()),
 			Choices: []string{toggleOff, toggleOn},
@@ -252,7 +264,7 @@ func FindShownFields(fields []FormField) []FormField {
 		kept := make([]FormField, 0, len(fields))
 		for _, field := range fields {
 			if serverFields[field.Key] || sshFields[field.Key] ||
-				field.Key == sshToggleKey || field.Key == directKey {
+				field.Key == sshToggleKey || mongoFields[field.Key] {
 				continue
 			}
 			kept = append(kept, field)
@@ -271,12 +283,16 @@ func FindShownFields(fields []FormField) []FormField {
 	opensTunnel := ReadField(fields, sshToggleKey) == toggleOn
 	sendsFiles := ReadField(fields, tlsToggleKey) == toggleOn
 	speaksMongo := known && isMongoEngine(engine)
+	readsSRV := speaksMongo && ReadField(fields, srvKey) == toggleOn
 	kept := make([]FormField, 0, len(fields))
 	for _, field := range fields {
 		if everyPasswordField[field.Key] && !read[field.Key] {
 			continue
 		}
-		if field.Key == directKey && !speaksMongo {
+		if mongoFields[field.Key] && !speaksMongo {
+			continue
+		}
+		if field.Key == "port" && readsSRV {
 			continue
 		}
 		if sshFields[field.Key] && !opensTunnel {
@@ -339,6 +355,11 @@ func BuildProfileFromFields(fields []FormField, source Profile, editing bool) (P
 	built.Description = read("description")
 	built.AiInstructions = read("aiInstructions")
 	built.DirectConnection = isMongoEngine(engine) && read(directKey) == toggleOn
+	built.SRV = isMongoEngine(engine) && read(srvKey) == toggleOn
+	if isMongoEngine(engine) {
+		built.AuthSource = read("authSource")
+		built.ReplicaSet = read("replicaSet")
+	}
 
 	// A file engine uses no port, so the form does not show one.
 	built.Port = core.ResolveDefaultPort(engine)
@@ -464,6 +485,9 @@ type ConnectionURL struct {
 	SSLMode          string
 	SSLFiles         core.SSLFiles
 	DirectConnection bool
+	SRV              bool
+	AuthSource       string
+	ReplicaSet       string
 }
 
 // urlSchemes are the engines for supported URL schemes and aliases.
@@ -532,7 +556,26 @@ func readURLDirectConnection(parsed *url.URL, engine core.Engine) (bool, error) 
 // tlsSchemes are the schemes that request TLS by their name, with the mode of each one. A
 // Redis client reads `rediss://` as a TLS connection that verifies the certificate, so a
 // URL without a mode must not fall back to an unencrypted connection.
-var tlsSchemes = map[string]core.SSLMode{"rediss": core.SSLVerifyFull}
+var tlsSchemes = map[string]core.SSLMode{
+	"rediss": core.SSLVerifyFull, srvScheme: core.SSLVerifyFull,
+}
+
+// srvScheme is the MongoDB scheme whose host is an SRV record name.
+const srvScheme = "mongodb+srv"
+
+// readURLMongoOptions returns the SRV flag, the auth source and the replica set of a
+// MongoDB URL. A URL of another engine has none.
+func readURLMongoOptions(parsed *url.URL, engine core.Engine) (bool, string, string, error) {
+	if !isMongoEngine(engine) {
+		return false, "", "", nil
+	}
+	srv := strings.EqualFold(parsed.Scheme, srvScheme)
+	if srv && parsed.Port() != "" {
+		return false, "", "", failTarget("a mongodb+srv URL has no port")
+	}
+	query := parsed.Query()
+	return srv, query.Get("authSource"), query.Get("replicaSet"), nil
+}
 
 // ParseConnectionURL requires a supported scheme and host. A database is required only for an
 // engine that connects to one. The returned fields omit the password.
@@ -571,6 +614,10 @@ func ParseConnectionURL(text string) (ConnectionURL, bool) {
 	if directErr != nil {
 		return ConnectionURL{}, false
 	}
+	srv, authSource, replicaSet, mongoErr := readURLMongoOptions(parsed, engine)
+	if mongoErr != nil {
+		return ConnectionURL{}, false
+	}
 
 	sslMode := readURLQuery(parsed, sslKeys)
 	user := ""
@@ -580,7 +627,7 @@ func ParseConnectionURL(text string) (ConnectionURL, bool) {
 	return ConnectionURL{
 		Engine: engine, Host: host, Port: port, Database: database,
 		User: user, SSLMode: sslMode, SSLFiles: readURLSSLFiles(parsed),
-		DirectConnection: direct,
+		DirectConnection: direct, SRV: srv, AuthSource: authSource, ReplicaSet: replicaSet,
 	}, true
 }
 
@@ -614,6 +661,8 @@ func ApplyConnectionURL(fields []FormField, held ConnectionURL) []FormField {
 		{"sslKey", held.SSLFiles.Key},
 		{tlsToggleKey, describeToggle(held.SSLFiles.HasFiles())},
 		{directKey, describeToggle(held.DirectConnection)},
+		{srvKey, describeToggle(held.SRV)},
+		{"authSource", held.AuthSource}, {"replicaSet", held.ReplicaSet},
 	} {
 		filled = writeField(filled, written[0], written[1])
 	}
@@ -747,6 +796,8 @@ var formFieldLines = map[string]string{
 	"sslCert":         "client certificate file, PEM",
 	"sslKey":          "client key file, PEM",
 	directKey:         "connect to this host only; no replica set discovery",
+	srvKey:            "host is an SRV record name, as in mongodb+srv://",
+	"authSource":      "database that holds the user; empty uses admin",
 	sshToggleKey:      "connect through an ssh server",
 	"aiInstructions":  "context sent to the AI chat with every request",
 }

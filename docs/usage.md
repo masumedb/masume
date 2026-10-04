@@ -37,7 +37,7 @@ masume --profile shop-prod
 
 | Form | Accepted values |
 | --- | --- |
-| A URL | Supported schemes: `postgres`, `postgresql`, `mysql`, `mariadb`, `cockroachdb`, `yugabytedb`, `redshift`, `sqlserver`, `mssql`, `clickhouse`, `cassandra`, `scylla`, `libsql`, `redis`, `rediss`, `mongodb` |
+| A URL | Supported schemes: `postgres`, `postgresql`, `mysql`, `mariadb`, `cockroachdb`, `yugabytedb`, `redshift`, `sqlserver`, `mssql`, `clickhouse`, `cassandra`, `scylla`, `libsql`, `redis`, `rediss`, `mongodb`, `mongodb+srv` |
 | A connection string | `key=value` pairs: `engine`, `host`, `hostaddr`, `port`, `dbname`, `database`, `user`, `password`, `sslmode`, `sslrootcert`, `sslcert`, `sslkey`. The default engine is `postgres` |
 | A file path | A SQLite path ending in `.db`, `.db3`, `.sqlite` or `.sqlite3`. A file with another extension must have a SQLite header. `:memory:` is also accepted |
 
@@ -45,7 +45,7 @@ A URL without a database uses the user name on PostgreSQL-family engines, databa
 
 Connection strings accept single-quoted values and backslash escapes inside quotes. `engine` takes the profile engine names. An unknown key is an error.
 
-A URL can carry one host, credentials, a port, a database, `sslmode` (also spelled `ssl-mode` or `sslMode`), the certificate files `sslrootcert`, `sslcert`, and `sslkey`, and on MongoDB `directConnection`. Other URL options, such as `authSource`, `replicaSet`, and `connect_timeout`, are ignored. `mongodb+srv` URLs are rejected.
+A URL can carry one host, credentials, a port, a database, `sslmode` (also spelled `ssl-mode` or `sslMode`), the certificate files `sslrootcert`, `sslcert`, and `sslkey`, and on MongoDB `directConnection`, `authSource`, and `replicaSet`. Other URL options, such as `connect_timeout`, are ignored. A `mongodb+srv` URL sets `srv = true`, takes no port, and defaults to `sslmode = "verify-full"`.
 
 `rediss://` connects with TLS and verifies the certificate. Other settings take the defaults of a new connection, such as `env = "dev"`, `mode = "write"`, and `page_size = 200`.
 

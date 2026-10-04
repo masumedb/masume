@@ -151,9 +151,14 @@ type Profile struct {
 	// MongoDB only: the driver dials Host and does not discover the other replica set
 	// members.
 	DirectConnection bool
-	Autocommit       bool
-	ConfirmWrites    ConfirmWrites
-	WritePlan        WritePlan
+	// MongoDB only: Host is an SRV record name, as in a mongodb+srv URL.
+	SRV bool
+	// MongoDB only: the authentication database, and the replica set name.
+	AuthSource    string
+	ReplicaSet    string
+	Autocommit    bool
+	ConfirmWrites ConfirmWrites
+	WritePlan     WritePlan
 	// The maximum row count for undo.
 	UndoRows int
 	// SSH tunnel. Without SSHHost the driver dials the server directly.
@@ -503,6 +508,9 @@ func buildProfile(name string, source Table) (Profile, error) {
 	}
 
 	directConnection, _ := FindBool(source, "direct_connection")
+	srv, _ := FindBool(source, "srv")
+	authSource, _ := FindString(source, "auth_source")
+	replicaSet, _ := FindString(source, "replica_set")
 
 	sshPort, hasSSHPort, err := readPositiveInteger(source, "ssh_port")
 	if err != nil {
@@ -536,6 +544,7 @@ func buildProfile(name string, source Table) (Profile, error) {
 		Secret: secretName, SecretRef: secretRef,
 		SSLMode: sslMode, SSLRootCert: sslFiles.RootCert, SSLCert: sslFiles.Cert,
 		SSLKey: sslFiles.Key, DirectConnection: directConnection,
+		SRV: srv, AuthSource: authSource, ReplicaSet: replicaSet,
 		Autocommit: autocommit, ConfirmWrites: confirmWrites,
 		WritePlan: writePlan, UndoRows: undoRows,
 		SSHHost: sshHost, SSHPort: sshPort, SSHUser: sshUser, SSHKey: sshKey,
@@ -621,7 +630,7 @@ func DescribeProfileTarget(profile Profile) string {
 	if core.OpensFile(profile.Engine) {
 		return profile.Database
 	}
-	if profile.UsesSocket() {
+	if profile.UsesSocket() || profile.SRV {
 		return fmt.Sprintf("%s@%s", profile.User, profile.Host) +
 			describeDatabaseSuffix(profile.Database)
 	}

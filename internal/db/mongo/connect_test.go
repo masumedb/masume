@@ -2,6 +2,7 @@ package mongo
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 
@@ -93,5 +94,47 @@ func TestBuildClientOptionsConnectsDirectly(t *testing.T) {
 	}
 	if built.Direct == nil || !*built.Direct {
 		t.Error("the options do not connect directly")
+	}
+}
+
+func TestBuildClientOptionsSetsTheAuthSourceAndTheReplicaSet(t *testing.T) {
+	profile := buildProbeProfile("reader")
+	profile.AuthSource, profile.ReplicaSet = "users", "rs0"
+	built, err := BuildClientOptions(profile, "secret")
+	if err != nil {
+		t.Fatalf("the options do not build: %v", err)
+	}
+	if built.Auth == nil || built.Auth.AuthSource != "users" {
+		t.Errorf("the credential reads %+v, wanted the auth source users", built.Auth)
+	}
+	if built.ReplicaSet == nil || *built.ReplicaSet != "rs0" {
+		t.Errorf("the replica set reads %v, wanted rs0", built.ReplicaSet)
+	}
+}
+
+func TestBuildClientOptionsReadsTheHostsOfAnSRVRecord(t *testing.T) {
+	profile := buildProbeProfile("reader")
+	profile.Host, profile.SRV, profile.SSLMode = "cluster.example.invalid", true, core.SSLVerifyFull
+	built, err := BuildClientOptions(profile, "secret")
+	if err != nil {
+		t.Fatalf("the options do not build: %v", err)
+	}
+	if slices.Contains(built.Hosts, "cluster.example.invalid:27017") {
+		t.Errorf("the options dial the record name: %v", built.Hosts)
+	}
+	if built.TLSConfig == nil || built.TLSConfig.ServerName != "" {
+		t.Errorf("the TLS config is %+v, wanted one without a server name", built.TLSConfig)
+	}
+}
+
+func TestBuildClientOptionsRefusesAnSRVRecordThroughATunnel(t *testing.T) {
+	profile := buildProbeProfile("reader")
+	profile.SRV, profile.SSHHost = true, "bastion"
+	if _, err := BuildClientOptions(profile, ""); err == nil {
+		t.Error("an SRV record through a tunnel builds options")
+	}
+	profile.SSHHost, profile.DirectConnection = "", true
+	if _, err := BuildClientOptions(profile, ""); err == nil {
+		t.Error("an SRV record with a direct connection builds options")
 	}
 }
