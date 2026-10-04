@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"slices"
 	"time"
 
@@ -181,6 +182,9 @@ type Connection struct {
 	stopImport func()
 	// stopDump is the way to stop the dump or the restore that runs now.
 	stopDump func()
+	// The context of the statements the user runs, and its cancel function.
+	runs     context.Context
+	stopRuns context.CancelFunc
 
 	// The cached object tree and its input fingerprint.
 	treeAt     treeFingerprint
@@ -295,6 +299,23 @@ func (connection *Connection) StopDump() {
 	}
 	connection.stopDump()
 	connection.stopDump = nil
+}
+
+// RunContext returns the context of the statements the user runs on this connection.
+func (connection *Connection) RunContext() context.Context {
+	if connection.runs == nil {
+		connection.runs, connection.stopRuns = context.WithCancel(context.Background())
+	}
+	return connection.runs
+}
+
+// StopRuns cancels every statement started with RunContext. The next RunContext is a new one.
+func (connection *Connection) StopRuns() {
+	if connection.stopRuns == nil {
+		return
+	}
+	connection.stopRuns()
+	connection.runs, connection.stopRuns = nil, nil
 }
 
 // Show displays an informational notice.

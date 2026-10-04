@@ -110,6 +110,13 @@ func TestCapabilitiesFollowTheFamily(t *testing.T) {
 		// A file has no server sessions to list or to cancel.
 		{EngineSqlite, "has server sessions", ResolveEngineInfo(EngineSqlite).Capabilities.HasServerSessions, false},
 		{EngineSqlite, "cancels a running query", ResolveEngineInfo(EngineSqlite).Capabilities.CancelsRunningQuery, false},
+
+		{EngineSqlite, "cancels by context", ResolveEngineInfo(EngineSqlite).Capabilities.CancelsByContext, true},
+		{EngineSqlserver, "cancels by context", ResolveEngineInfo(EngineSqlserver).Capabilities.CancelsByContext, true},
+		{EngineAzureSQL, "cancels by context", ResolveEngineInfo(EngineAzureSQL).Capabilities.CancelsByContext, true},
+		{EngineTurso, "cancels by context", ResolveEngineInfo(EngineTurso).Capabilities.CancelsByContext, false},
+		{EngineMongo, "cancels by context", ResolveEngineInfo(EngineMongo).Capabilities.CancelsByContext, false},
+		{EnginePostgres, "cancels by context", ResolveEngineInfo(EnginePostgres).Capabilities.CancelsByContext, false},
 	} {
 		if held.got != held.want {
 			t.Errorf("%q %s reads %v, wanted %v", held.engine, held.field, held.got, held.want)

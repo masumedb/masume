@@ -77,7 +77,7 @@ func TestRunStatementsUsesAutocommit(t *testing.T) {
 				offlineSession: offlineSession{capabilities: core.Capabilities{HasTransactions: !test.unsupported}},
 				state:          test.state, beginError: test.beginError, readError: test.readError,
 			}
-			answered := runStatements(1, 2, 3, 0, session,
+			answered := runStatements(context.Background(), 1, 2, 3, 0, session,
 				[]db.ComposedRead{{Text: "select 1", Display: "select 1"}}, 100,
 				writeplan.UndoPlan{}, nil, "test", test.autocommit)().(queryRanMsg)
 			if !reflect.DeepEqual(session.calls, test.wantCalls) || session.state != test.wantState {
@@ -103,6 +103,7 @@ func TestRunStatementsDoesNotBeginTransactionControlSQL(t *testing.T) {
 				capabilities: core.Capabilities{HasTransactions: true},
 			}}
 			answered := runOneStatement(runOneStatementDeps{
+				ctx:     context.Background(),
 				session: session, read: db.ComposedRead{Text: sql}, rowLimit: 100,
 			})().(queryRanMsg)
 			if answered.Problem != "" || !reflect.DeepEqual(session.calls, []string{"read"}) {
@@ -137,6 +138,7 @@ func runTransactionStatement(t *testing.T, session db.Session, sql string, autoc
 	t.Helper()
 	read := session.Composer().ComposeStatementRead(db.BoundText{Text: sql}, core.ReadRewrite{})
 	return runOneStatement(runOneStatementDeps{
+		ctx:     context.Background(),
 		session: session, read: read, rowLimit: 100, autocommit: autocommit,
 	})().(queryRanMsg)
 }
@@ -263,6 +265,7 @@ func TestRunStatementsJoinsManualTransactionForUndo(t *testing.T) {
 			read = "select id from missing"
 		}
 		answered := runOneStatement(runOneStatementDeps{
+			ctx:     context.Background(),
 			session: session, rowLimit: 100,
 			read: db.ComposedRead{Text: "insert into entries values (1)"},
 			undo: writeplan.UndoPlan{Kept: true, Read: read, Limit: 100},
@@ -299,11 +302,11 @@ func TestRunQueryReadPathsBeginManualTransactions(t *testing.T) {
 					// The answer with the columns starts the read of the rows.
 					_, command = model.Update(command())
 				case "page":
-					command = readNextPage(1, 1, 0, 1, connection.Session, read, db.ReadWindow{Limit: 100}, autocommit)
+					command = readNextPage(context.Background(), 1, 1, 0, 1, connection.Session, read, db.ReadWindow{Limit: 100}, autocommit)
 				case "count":
-					command = countRows(1, 1, 0, 1, connection.Session, read, autocommit)
+					command = countRows(context.Background(), 1, 1, 0, 1, connection.Session, read, autocommit)
 				case "plan":
-					command = readPlan(1, 1, 1, connection.Session, read.Text, false, autocommit)
+					command = readPlan(context.Background(), 1, 1, 1, connection.Session, read.Text, false, autocommit)
 				case "grid":
 					command = applyChanges(1, 1, connection.Session, []db.Change{{
 						Payload: query.BoundStatement{SQL: "insert into entries values (1)"},
@@ -385,11 +388,11 @@ func TestRunQueryReadPathsRefuseFailedBegin(t *testing.T) {
 			problem := ""
 			switch path {
 			case "page":
-				problem = readNextPage(1, 1, 0, 1, session, read, db.ReadWindow{Limit: 100}, false)().(pageReadMsg).Problem
+				problem = readNextPage(context.Background(), 1, 1, 0, 1, session, read, db.ReadWindow{Limit: 100}, false)().(pageReadMsg).Problem
 			case "count":
-				problem = countRows(1, 1, 0, 1, session, read, false)().(countedMsg).Problem
+				problem = countRows(context.Background(), 1, 1, 0, 1, session, read, false)().(countedMsg).Problem
 			case "plan":
-				problem = readPlan(1, 1, 1, session, read.Text, false, false)().(planReadMsg).Problem
+				problem = readPlan(context.Background(), 1, 1, 1, session, read.Text, false, false)().(planReadMsg).Problem
 			case "grid":
 				problem = applyChanges(1, 1, session, []db.Change{{}}, false, nil, "")().(changesAppliedMsg).Problem
 			}

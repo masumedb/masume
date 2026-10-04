@@ -682,6 +682,7 @@ func (model *Model) closeActiveConnection() {
 		return
 	}
 	model.runs.stopConnection(id)
+	closed.StopRuns()
 	// A chat still asking the model holds this session and writes into a channel nobody
 	// reads any more. Its goroutine would fill that channel and then wait for ever.
 	closed.Chat.Stopped()
@@ -720,13 +721,23 @@ func (model *Model) cancelQuery(connection *app.Connection) (tea.Model, tea.Cmd)
 	// The cancel reaches whatever the server runs now, and that statement can belong to
 	// any tab of this connection. Every notebook that is running is stopped, and a run
 	// that starts again clears the stop.
+	running := false
 	for _, tab := range connection.Tabs {
-		if tab.Notebook != nil && tab.Results.IsRunning() {
-			tab.Notebook.Stopped = true
+		if tab.Results.IsRunning() {
+			running = true
+			if tab.Notebook != nil {
+				tab.Notebook.Stopped = true
+			}
 		}
 	}
 	session := connection.Session
 	id := model.ActiveID()
+	if session.Capabilities().CancelsByContext {
+		connection.StopRuns()
+		return model, func() tea.Msg {
+			return cancelledMsg{ConnectionID: id, Stopped: running}
+		}
+	}
 	return model, func() tea.Msg {
 		stopped, err := session.CancelRunningQuery(context.Background())
 		return cancelledMsg{

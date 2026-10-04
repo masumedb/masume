@@ -393,6 +393,7 @@ func readBuilderTable(
 // next, so a statement that failed stops the batch: the ones after it were written for a
 // state the server no longer holds.
 func runStatements(
+	ctx context.Context,
 	connectionID, tabID, runID, index int, session db.Session, reads []db.ComposedRead,
 	rowLimit int, undo writeplan.UndoPlan, log *hist.Store, profileName string, autocommit bool,
 ) tea.Cmd {
@@ -400,6 +401,7 @@ func runStatements(
 		return nil
 	}
 	return runOneStatement(runOneStatementDeps{
+		ctx:          ctx,
 		connectionID: connectionID, tabID: tabID, runID: runID, index: index,
 		session: session, read: reads[index], rowLimit: rowLimit, undo: undo,
 		last: index == len(reads)-1, log: log, profileName: profileName,
@@ -409,6 +411,7 @@ func runStatements(
 
 // runOneStatementDeps is what one statement of a run needs.
 type runOneStatementDeps struct {
+	ctx          context.Context
 	connectionID int
 	tabID        int
 	runID        int
@@ -451,8 +454,8 @@ func runOneStatement(deps runOneStatementDeps) tea.Cmd {
 	connectionID, tabID, runID, index := deps.connectionID, deps.tabID, deps.runID, deps.index
 	session, read, rowLimit := deps.session, deps.read, deps.rowLimit
 	log, profileName, last := deps.log, deps.profileName, deps.last
+	ctx := deps.ctx
 	return func() tea.Msg {
-		ctx := context.Background()
 		startedAt := time.Now()
 		answered := queryRanMsg{
 			ConnectionID: connectionID, TabID: tabID, RunID: runID, Index: index,
@@ -474,7 +477,7 @@ func runOneStatement(deps runOneStatementDeps) tea.Cmd {
 			Elapsed: time.Since(startedAt),
 		}
 		if err != nil {
-			answered.Problem = db.DescribeError(err)
+			answered.Problem = describeRunError(ctx, err)
 			entry.ErrorMessage = answered.Problem
 			answered.HistoryProblem = describeHistoryError(log.Record(entry))
 			return answered
@@ -487,6 +490,14 @@ func runOneStatement(deps runOneStatementDeps) tea.Cmd {
 	}
 }
 
+// describeRunError returns the error text of a statement the user ran.
+func describeRunError(ctx context.Context, err error) string {
+	if err != nil && errors.Is(ctx.Err(), context.Canceled) {
+		return "statement cancelled"
+	}
+	return db.DescribeError(err)
+}
+
 // describeHistoryError returns the error text of a history write, or empty.
 func describeHistoryError(err error) string {
 	if err == nil {
@@ -497,21 +508,22 @@ func describeHistoryError(err error) string {
 
 // readNextPage asks the server for the rows after the ones already drawn.
 func readNextPage(
+	ctx context.Context,
 	connectionID, tabID, index, resultID int, session db.Session, read db.ComposedRead,
 	window db.ReadWindow, autocommit bool,
 ) tea.Cmd {
 	return func() tea.Msg {
-		if err := beginManualTransaction(context.Background(), session, autocommit, read.Text); err != nil {
+		if err := beginManualTransaction(ctx, session, autocommit, read.Text); err != nil {
 			return pageReadMsg{
 				ConnectionID: connectionID, TabID: tabID, Index: index, ResultID: resultID,
-				Problem: db.DescribeError(err),
+				Problem: describeRunError(ctx, err),
 			}
 		}
-		result, err := session.ReadPage(context.Background(), read, window)
+		result, err := session.ReadPage(ctx, read, window)
 		if err != nil {
 			return pageReadMsg{
 				ConnectionID: connectionID, TabID: tabID, Index: index, ResultID: resultID,
-				Problem: db.DescribeError(err),
+				Problem: describeRunError(ctx, err),
 			}
 		}
 		return pageReadMsg{
@@ -523,20 +535,21 @@ func readNextPage(
 
 // countRows counts the whole result, once.
 func countRows(
+	ctx context.Context,
 	connectionID, tabID, index, resultID int, session db.Session, read db.ComposedRead, autocommit bool,
 ) tea.Cmd {
 	return func() tea.Msg {
-		if err := beginManualTransaction(context.Background(), session, autocommit, read.Text); err != nil {
+		if err := beginManualTransaction(ctx, session, autocommit, read.Text); err != nil {
 			return countedMsg{
 				ConnectionID: connectionID, TabID: tabID, Index: index, ResultID: resultID,
-				Problem: db.DescribeError(err),
+				Problem: describeRunError(ctx, err),
 			}
 		}
-		total, counted, err := session.CountRead(context.Background(), read)
+		total, counted, err := session.CountRead(ctx, read)
 		if err != nil {
 			return countedMsg{
 				ConnectionID: connectionID, TabID: tabID, Index: index, ResultID: resultID,
-				Problem: db.DescribeError(err),
+				Problem: describeRunError(ctx, err),
 			}
 		}
 		return countedMsg{
@@ -548,20 +561,21 @@ func countRows(
 
 // readPlan asks the server how it would run the statement.
 func readPlan(
+	ctx context.Context,
 	connectionID, tabID, resultID int, session db.Session, statement string, analyze, autocommit bool,
 ) tea.Cmd {
 	return func() tea.Msg {
-		if err := beginManualTransaction(context.Background(), session, autocommit, statement); err != nil {
+		if err := beginManualTransaction(ctx, session, autocommit, statement); err != nil {
 			return planReadMsg{
 				ConnectionID: connectionID, TabID: tabID, ResultID: resultID,
-				Problem: db.DescribeError(err),
+				Problem: describeRunError(ctx, err),
 			}
 		}
-		plan, err := session.ExplainQuery(context.Background(), statement, analyze)
+		plan, err := session.ExplainQuery(ctx, statement, analyze)
 		if err != nil {
 			return planReadMsg{
 				ConnectionID: connectionID, TabID: tabID, ResultID: resultID,
-				Problem: db.DescribeError(err),
+				Problem: describeRunError(ctx, err),
 			}
 		}
 		return planReadMsg{

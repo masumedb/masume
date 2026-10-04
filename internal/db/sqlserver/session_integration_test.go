@@ -9,6 +9,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/masumedb/masume/internal/core"
 	"github.com/masumedb/masume/internal/db"
@@ -111,6 +112,37 @@ func TestServerRunsAReadAndAnswersItsColumns(t *testing.T) {
 	}
 	if answered.Columns[1].DataType == "" {
 		t.Error("the total carries no type name")
+	}
+}
+
+func TestServerStopsAStatementWhoseContextIsCancelled(t *testing.T) {
+	session := openShop(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	answered := make(chan error, 1)
+	go func() {
+		_, err := session.RunQuery(ctx,
+			"waitfor delay '00:00:30'; select 1 as one", dbtest.ReadEverything, nil)
+		answered <- err
+	}()
+	time.Sleep(500 * time.Millisecond)
+	cancel()
+
+	select {
+	case err := <-answered:
+		if err == nil {
+			t.Fatal("the cancelled statement answered without a failure")
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("the statement still ran 10 seconds after the cancel")
+	}
+	waiting, err := session.RunQuery(context.Background(),
+		"select count(*) as waiting from sys.dm_exec_requests where wait_type = 'WAITFOR'",
+		dbtest.ReadEverything, nil)
+	if err != nil {
+		t.Fatalf("the next statement answered %v", err)
+	}
+	if held := waiting.Rows[0][0]; held != int64(0) {
+		t.Errorf("the server still runs %v cancelled statements", held)
 	}
 }
 

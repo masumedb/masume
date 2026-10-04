@@ -14,14 +14,17 @@ import (
 // request.
 type stoppableSession struct {
 	db.Session
-	cancels bool
-	stops   bool
-	told    bool
-	err     error
+	cancels   bool
+	byContext bool
+	stops     bool
+	told      bool
+	err       error
 }
 
 func (session *stoppableSession) Capabilities() core.Capabilities {
-	return core.Capabilities{CancelsRunningQuery: session.cancels}
+	return core.Capabilities{
+		CancelsRunningQuery: session.cancels, CancelsByContext: session.byContext,
+	}
 }
 
 func (session *stoppableSession) CancelRunningQuery(context.Context) (bool, error) {
@@ -57,28 +60,32 @@ func TestRunStatementWithinCarriesTheFailure(t *testing.T) {
 
 func TestRunStatementWithinStopsALongStatement(t *testing.T) {
 	cases := []struct {
-		name    string
-		cancels bool
-		stops   bool
-		err     error
-		wanted  string
+		name      string
+		cancels   bool
+		byContext bool
+		stops     bool
+		err       error
+		wanted    string
 	}{
-		{"a server that cannot be told to stop", false, false, nil,
+		{"a server that cannot be told to stop", false, false, false, nil,
 			"the statement was still running after 10 ms; this engine does not support cancellation, " +
 				"and the statement may still be running; use a more specific predicate or a query LIMIT where appropriate"},
-		{"a server that stopped it", true, true, nil,
+		{"a driver that stops it through the context", false, true, false, nil,
 			"the statement was still running after 10 ms and was cancelled; " +
 				"use a more specific predicate or a query LIMIT where appropriate"},
-		{"a server that refused to stop it", true, false, nil,
+		{"a server that stopped it", true, false, true, nil,
+			"the statement was still running after 10 ms and was cancelled; " +
+				"use a more specific predicate or a query LIMIT where appropriate"},
+		{"a server that refused to stop it", true, false, false, nil,
 			"the statement was still running after 10 ms; server cancellation failed, " +
 				"and the statement may still be running; use a more specific predicate or a query LIMIT where appropriate"},
-		{"a server that failed to stop it", true, true, errors.New("no"),
+		{"a server that failed to stop it", true, false, true, errors.New("no"),
 			"the statement was still running after 10 ms; server cancellation failed, " +
 				"and the statement may still be running; use a more specific predicate or a query LIMIT where appropriate"},
 	}
 	for _, held := range cases {
 		session := &stoppableSession{
-			cancels: held.cancels, stops: held.stops, err: held.err,
+			cancels: held.cancels, byContext: held.byContext, stops: held.stops, err: held.err,
 		}
 		dropped := false
 		_, err := RunStatementWithin(

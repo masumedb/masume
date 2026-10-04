@@ -69,6 +69,9 @@ func stopRunningStatement(
 ) error {
 	waited := fmt.Sprintf("the statement was still running after %d ms", timeout.Milliseconds())
 	advice := "; use a more specific predicate or a query LIMIT where appropriate"
+	if session.Capabilities().CancelsByContext {
+		return db.NewDatabaseError("%s", waited+" and was cancelled"+advice)
+	}
 	if !session.Capabilities().CancelsRunningQuery {
 		return db.NewDatabaseError("%s", waited+
 			"; this engine does not support cancellation, and the statement may still be running"+advice)

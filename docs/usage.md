@@ -138,7 +138,7 @@ Named parameters such as `:customer_id` open a JSON value form before the run. `
 
 A read-only profile rejects writes. Other profiles can confirm writes and show a write plan. Check the SQL and the affected rows before accepting. See [write guards](configuration.md#profiles) and [write plans](configuration.md#write-plans).
 
-`Ctrl+X` cancels the running query and stops a running export. Cancellation depends on the engine. Amazon DocumentDB, Azure SQL Database, Cassandra, CockroachDB, MongoDB, PlanetScale, Redis, SQL Server, SQLite, and Turso cannot cancel a statement. On these engines the key is hidden, and the run spinner has the note `this engine cannot stop a running statement`. `Ctrl+C` copies or quits.
+`Ctrl+X` cancels the running query and stops a running export. Cancellation depends on the engine. Amazon DocumentDB, Cassandra, CockroachDB, MongoDB, PlanetScale, Redis, and Turso cannot cancel a statement. On these engines the key is hidden, and the run spinner has the note `this engine cannot stop a running statement`. `Ctrl+C` copies or quits.
 
 ## Transactions
 

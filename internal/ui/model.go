@@ -1068,6 +1068,7 @@ func (model *Model) shutDown() tea.Cmd {
 	for _, connection := range model.connections.all() {
 		// A chat still asking the model holds the session the close below ends.
 		connection.Chat.Stopped()
+		connection.StopRuns()
 		commands = append(commands, model.saveWorkspace(connection))
 	}
 	for _, connection := range model.connections.all() {

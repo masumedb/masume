@@ -27,7 +27,7 @@ Most capabilities are static defaults. The interface shows an action only when i
 | aurora-mysql | yes | yes | yes | yes | yes | no | yes | yes | yes | yes |
 | aurora-postgres | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
 | cassandra | no | no | no | no | no | no | no | no | yes | yes |
-| azure-sql | yes | yes | yes | no | yes | yes | no | yes | yes | yes |
+| azure-sql | yes | yes | yes | yes | yes | yes | no | yes | yes | yes |
 | clickhouse | yes | no | no | yes | yes | no | yes | yes | yes | yes |
 | cockroach | yes | yes | yes | no | no | no | no | yes | yes | yes |
 | documentdb | yes | yes | yes | no | yes | no | no | yes | no | no |
@@ -40,8 +40,8 @@ Most capabilities are static defaults. The interface shows an action only when i
 | redis | no | no | no | no | yes | no | no | no | no | no |
 | redshift | yes | no | yes | yes | yes | no | no | yes | yes | yes |
 | scylladb | no | no | no | no | no | no | no | no | yes | yes |
-| sqlite | yes | no | yes | no | no | no | no | yes | no | yes |
-| sqlserver | yes | yes | yes | no | yes | yes | yes | yes | yes | yes |
+| sqlite | yes | no | yes | yes | no | no | no | yes | no | yes |
+| sqlserver | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
 | supabase | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
 | tidb | yes | yes | yes | yes | yes | no | no | yes | yes | yes |
 | timescale | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
@@ -247,7 +247,7 @@ Statement diagnostics use `sys.dm_exec_describe_first_result_set`, which compile
 
 An estimated plan comes from `SET SHOWPLAN_ALL ON`. A measured plan comes from `SET STATISTICS PROFILE ON`. Both show estimated and actual rows per step, but no time per step.
 
-The dashboard stops another session with `KILL`, which ends the session and its transaction. T-SQL cannot cancel one statement in another session. The activity list has no cancel action, and a running statement on this connection has no cancel either; `Ctrl+X` is hidden on SQL Server. Set `statement_timeout_ms` to limit statement time. On a timeout, the driver stops the statement and the client reconnects. The old connection is unusable, an open transaction is lost with it, and the client reports this.
+The dashboard stops another session with `KILL`, which ends the session and its transaction. T-SQL cannot cancel one statement in another session. The activity list has no cancel action. Set `statement_timeout_ms` to limit statement time. On `Ctrl+X` or a timeout, the driver stops the statement and the client reconnects. The old connection is unusable, an open transaction is lost with it, and the client reports this.
 
 SQL Server has no read-only session, so only the client enforces a read-only profile. SQL Server also has no materialized views; an indexed view is shown as a view.
 

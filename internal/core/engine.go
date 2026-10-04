@@ -81,7 +81,9 @@ type Capabilities struct {
 	ReportsStatementStats bool
 	// A cancel needs a second connection to the same server.
 	CancelsRunningQuery bool
-	HasTransactions     bool
+	// The driver stops the statement on the server when its context is cancelled.
+	CancelsByContext bool
+	HasTransactions  bool
 	// True if the engine supports sorting read results.
 	SortsRead      bool
 	TruncatesTable bool
@@ -174,8 +176,10 @@ var sqliteCapabilities = Capabilities{
 	// SQLite has no server session list.
 	HasServerSessions:   false,
 	CancelsRunningQuery: false,
-	HasTransactions:     true,
-	SortsRead:           true,
+	// The driver calls sqlite3_interrupt.
+	CancelsByContext: true,
+	HasTransactions:  true,
+	SortsRead:        true,
 	// SQLite empties a table with a delete of every row.
 	TruncatesTable:         false,
 	WritesDDL:              true,
@@ -196,15 +200,23 @@ var sqlserverCapabilities = Capabilities{
 	// KILL ends a session. T-SQL has no statement that stops one statement, so the
 	// driver cancels through the context.
 	CancelsRunningQuery: false,
-	HasTransactions:     true,
-	SortsRead:           true,
-	TruncatesTable:      true,
-	WritesDDL:           true,
-	PlansWrites:         true,
+	// The driver sends an attention packet, and the session reconnects.
+	CancelsByContext: true,
+	HasTransactions:  true,
+	SortsRead:        true,
+	TruncatesTable:   true,
+	WritesDDL:        true,
+	PlansWrites:      true,
 	// The server has no read-only session, so this client blocks the write.
 	TakesReadOnlyMode:      true,
 	JoinsTables:            true,
 	AppliesChangesTogether: true,
+}
+
+func withSqlite(change func(*Capabilities)) Capabilities {
+	capabilities := sqliteCapabilities
+	change(&capabilities)
+	return capabilities
 }
 
 func withSqlserver(change func(*Capabilities)) Capabilities {
@@ -478,7 +490,11 @@ var engineRegistry = map[Engine]EngineInfo{
 		DefaultPort: 0, OpensFile: true, NeedsDatabase: true,
 	},
 	EngineTurso: {
-		Engine: EngineTurso, Family: FamilySqlite, Capabilities: sqliteCapabilities,
+		Engine: EngineTurso, Family: FamilySqlite,
+		// A cancelled HTTP request leaves the statement running on the server.
+		Capabilities: withSqlite(func(capabilities *Capabilities) {
+			capabilities.CancelsByContext = false
+		}),
 		// The database is the host name of the server, and the auth token is the password.
 		DefaultPort: 443, NeedsPassword: true, DefaultSSLMode: SSLRequire,
 		URLSchemes: []string{"libsql"},

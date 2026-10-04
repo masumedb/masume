@@ -40,7 +40,7 @@ func AnswersFor(capabilities core.Capabilities, needs Capability) bool {
 	case NeedsServerSessions:
 		return capabilities.HasServerSessions
 	case NeedsCancelsRunning:
-		return capabilities.CancelsRunningQuery
+		return capabilities.CancelsRunningQuery || capabilities.CancelsByContext
 	case NeedsTransactions:
 		return capabilities.HasTransactions
 	case NeedsSortsRead:

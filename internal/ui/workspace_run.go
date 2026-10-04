@@ -158,8 +158,8 @@ func (model *Model) runTabRead(
 	reads := []db.ComposedRead{read}
 	runID := model.startBatch(connection, tab, reads,
 		connection.Profile().PageSize, writeplan.UndoPlan{})
-	return model, runStatements(model.ActiveID(), tab.ID, runID, 0, connection.Session,
-		reads, connection.Profile().PageSize, writeplan.UndoPlan{},
+	return model, runStatements(connection.RunContext(), model.ActiveID(), tab.ID, runID, 0,
+		connection.Session, reads, connection.Profile().PageSize, writeplan.UndoPlan{},
 		model.log, connection.Profile().Name, connection.Autocommit)
 }
 
@@ -415,8 +415,8 @@ func (model *Model) startRun(
 	tab.Completion.Close()
 
 	runID := model.startBatch(connection, tab, reads, pageSize, undo)
-	return runStatements(model.ActiveID(), tab.ID, runID, 0, connection.Session, reads,
-		pageSize, undo, model.log, connection.Profile().Name, connection.Autocommit)
+	return runStatements(connection.RunContext(), model.ActiveID(), tab.ID, runID, 0,
+		connection.Session, reads, pageSize, undo, model.log, connection.Profile().Name, connection.Autocommit)
 }
 
 // startBatch opens a run of that tab and returns the number it is stamped with. The number
@@ -565,7 +565,7 @@ func (model *Model) askNextStatement(
 	if !held {
 		return nil
 	}
-	return runStatements(answered.ConnectionID, answered.TabID, answered.RunID,
+	return runStatements(connection.RunContext(), answered.ConnectionID, answered.TabID, answered.RunID,
 		answered.Index+1, connection.Session, batch.reads, batch.rowLimit,
 		batch.undo, model.log, batch.profileName, connection.Autocommit)
 }
@@ -768,7 +768,7 @@ func (model *Model) readMoreRows(connection *app.Connection, tab *app.Tab) tea.C
 		return nil
 	}
 	active.FetchingMore = true
-	return readNextPage(model.ActiveID(), tab.ID, tab.Results.ActiveIndex(), active.ID,
+	return readNextPage(connection.RunContext(), model.ActiveID(), tab.ID, tab.Results.ActiveIndex(), active.ID,
 		connection.Session, active.Read,
 		db.ReadWindow{Limit: active.PageSize, Offset: len(active.State.Result.Rows)}, connection.Autocommit)
 }
@@ -817,7 +817,7 @@ func (model *Model) countRows(
 	// The count of a whole relation takes as long as the server needs to read it, so the
 	// size says one is on its way.
 	active.Counting = true
-	return model, countRows(model.ActiveID(), tab.ID, tab.Results.ActiveIndex(), active.ID,
+	return model, countRows(connection.RunContext(), model.ActiveID(), tab.ID, tab.Results.ActiveIndex(), active.ID,
 		connection.Session, active.Read, connection.Autocommit)
 }
 
@@ -894,7 +894,7 @@ func (model *Model) explainBound(
 	if active := tab.Results.Active(); active != nil {
 		active.Plan = app.PlanState{Kind: app.PlanLoading}
 	}
-	return model, readPlan(model.ActiveID(), tab.ID, tab.ReadActiveResultID(),
+	return model, readPlan(connection.RunContext(), model.ActiveID(), tab.ID, tab.ReadActiveResultID(),
 		connection.Session, written, analyze, connection.Autocommit)
 }
 
