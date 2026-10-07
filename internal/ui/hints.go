@@ -385,6 +385,14 @@ func (model *Model) buildViewHints(
 	}
 
 	hints := []Hint{scroll}
+	if view == app.ViewDiff {
+		keys := hintList{}
+		keys.add(model.buildHint(
+			capabilities, cfg.ScopeDefinition, ActionCopyDefinition, "copy ALTER script"))
+		keys.add(model.buildHint(
+			capabilities, cfg.ScopeDefinition, ActionEditDefinition, "open ALTER script"))
+		hints = append(hints, keys.build()...)
+	}
 	if view == app.ViewDDL {
 		if sideways, found := model.buildPairHint(
 			cfg.ScopeDefinition, ActionScrollLeft, ActionScrollRight, "scroll sideways", ""); found {

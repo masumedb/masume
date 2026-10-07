@@ -63,18 +63,25 @@ func readTable(ctx context.Context, catalog db.CatalogReader, table db.TableRef)
 	return read, nil
 }
 
+// stripText removes the schema qualifier from a text, quoted in any dialect or not quoted.
+func stripText(text, schema string) string {
+	if schema == "" {
+		return text
+	}
+	for _, qualifier := range []string{
+		schema + ".", `"` + schema + `".`, "`" + schema + "`.", "[" + schema + "].",
+	} {
+		text = strings.ReplaceAll(text, qualifier, "")
+	}
+	return text
+}
+
 // stripSchema removes the schema qualifier from defaults and definitions.
 func stripSchema(table TableSnapshot, schema string) TableSnapshot {
 	if schema == "" {
 		return table
 	}
-	qualifiers := []string{schema + ".", `"` + schema + `".`, "`" + schema + "`.", "[" + schema + "]."}
-	strip := func(text string) string {
-		for _, qualifier := range qualifiers {
-			text = strings.ReplaceAll(text, qualifier, "")
-		}
-		return text
-	}
+	strip := func(text string) string { return stripText(text, schema) }
 	columns := make([]db.ColumnDetail, len(table.Columns))
 	for at, column := range table.Columns {
 		column.DefaultValue = strip(column.DefaultValue)

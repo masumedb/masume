@@ -528,6 +528,9 @@ func (model *Model) readMessage(message tea.Msg) (tea.Model, tea.Cmd) {
 	case relationViewMsg:
 		return model.readRelationViewAnswer(held)
 
+	case compareScriptMsg:
+		return model.readCompareScript(held)
+
 	case definitionCopiedMsg:
 		return model.readDefinitionCopied(held)
 

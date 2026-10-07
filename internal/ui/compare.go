@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/masumedb/masume/internal/app"
+	"github.com/masumedb/masume/internal/core"
 	"github.com/masumedb/masume/internal/db"
 	"github.com/masumedb/masume/internal/present"
 	"github.com/masumedb/masume/internal/schemadiff"
@@ -206,4 +207,87 @@ func (model *Model) renderDiff(
 		offset: tab.DetailOffset, rows: height, total: len(held),
 		moveTo: func(offset int) tea.Cmd { tab.DetailOffset = offset; return nil },
 	}, model.layout.detailTop, model.editorLeft+1, width, theme.Panel)
+}
+
+// compareScriptMsg carries the ALTER script of a compare tab, or why there is none.
+type compareScriptMsg struct {
+	ConnectionID int
+	TabID        int
+	Text         string
+	Problem      string
+	// True opens the script in a query tab. False copies it.
+	Edits bool
+}
+
+// writeCompareScript reads both schemas again and writes the ALTER script that changes the
+// source schema to the target.
+func (model *Model) writeCompareScript(
+	connection *app.Connection, tab *app.Tab, edits bool,
+) (tea.Model, tea.Cmd) {
+	compare := *tab.Compare
+	target := connection.Session
+	if compare.TargetProfile != "" {
+		other, found := model.findConnectionByProfile(compare.TargetProfile)
+		if !found {
+			connection.ShowError("connect to " + compare.TargetProfile + " to write the script")
+			return model, nil
+		}
+		target = other.Session
+	}
+	source := connection.Session
+	family := core.ResolveEngineInfo(source.Describe().Profile.Engine).Family
+	if family != core.ResolveEngineInfo(target.Describe().Profile.Engine).Family {
+		connection.ShowError("an ALTER script needs two servers of the same engine family")
+		return model, nil
+	}
+	connectionID := model.connections.idOf(connection)
+	return model, func() tea.Msg {
+		ctx, stop := context.WithTimeout(context.Background(), readTimeout)
+		defer stop()
+		answered := compareScriptMsg{ConnectionID: connectionID, TabID: tab.ID, Edits: edits}
+		script, err := buildCompareScript(ctx, source, target, compare, family)
+		if err != nil {
+			answered.Problem = db.DescribeError(err)
+			return answered
+		}
+		answered.Text = script.Write()
+		return answered
+	}
+}
+
+func buildCompareScript(
+	ctx context.Context, source, target db.Session, compare app.SchemaCompare, family core.Family,
+) (schemadiff.Script, error) {
+	from, err := schemadiff.ReadSnapshot(ctx, source, compare.SourceSchema)
+	if err != nil {
+		return schemadiff.Script{}, err
+	}
+	to, err := schemadiff.ReadSnapshot(ctx, target, compare.TargetSchema)
+	if err != nil {
+		return schemadiff.Script{}, err
+	}
+	return schemadiff.WriteScript(ctx, schemadiff.ScriptRequest{
+		Source: from, Target: to, Family: family, Dialect: source.Dialect(), TargetCatalog: target,
+		SessionSchema: source.Describe().DefaultSchema,
+	})
+}
+
+// readCompareScript copies the script, or opens it in a query tab.
+func (model *Model) readCompareScript(answered compareScriptMsg) (tea.Model, tea.Cmd) {
+	connection, _, found := model.findConnectionTab(answered.ConnectionID, answered.TabID)
+	if !found {
+		return model, nil
+	}
+	if answered.Problem != "" {
+		connection.ShowError(answered.Problem)
+		return model, nil
+	}
+	if !answered.Edits {
+		connection.Show("ALTER script copied")
+		return model, model.keepOnClipboard(answered.Text)
+	}
+	opened := connection.OpenQueryTab(answered.Text)
+	opened.Focus = app.PaneEditor
+	connection.Show("the ALTER script is open in the editor")
+	return model, nil
 }

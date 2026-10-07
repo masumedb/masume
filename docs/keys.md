@@ -16,7 +16,7 @@ A scope is the pane or card where a binding applies. Cards and input fields hand
 | `grid` | Result grid |
 | `document` | Result document tree |
 | `plan` | Plan view |
-| `definition` | DDL view |
+| `definition` | DDL view and compare view |
 | `notebook` | Cell list in a notebook tab |
 | `builder` | Diagram in a query builder tab |
 | `list` | Lists in cards, and scrolling in detail views |

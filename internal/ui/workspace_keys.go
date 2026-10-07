@@ -106,7 +106,7 @@ func (model *Model) readWorkspaceKey(key tea.Key) (next tea.Model, command tea.C
 				scopes = append(scopes, cfg.ScopeList, cfg.ScopePlan)
 			case app.ViewTree:
 				scopes = append(scopes, cfg.ScopeDocument, cfg.ScopeList)
-			case app.ViewDDL:
+			case app.ViewDDL, app.ViewDiff:
 				scopes = append(scopes, cfg.ScopeList, cfg.ScopeDefinition)
 			default:
 				scopes = append(scopes, cfg.ScopeList)

@@ -21,6 +21,7 @@ usage:
   -s, --schema NAME      the source schema; without it, the default schema of the connection
       --target-schema NAME
                          the target schema; without it, the source schema or the default schema
+      --sql              write the ALTER script that changes the source schema to the target
   -h, --help             print this help and exit
 
 exit codes:
@@ -29,7 +30,8 @@ exit codes:
   2 argument, password, connection or catalog read failure
 
 Each line is a table, column, index or constraint: + only in the target, - only in the
-source, ~ in both with a different definition.`
+source, ~ in both with a different definition. The ALTER script is written for the
+PostgreSQL and MySQL families, with both connections of one family.`
 
 // diffSide is one connection of a compare: a target or a profile name.
 type diffSide struct {
@@ -41,6 +43,7 @@ type diffInvocation struct {
 	sides        []diffSide
 	sourceSchema string
 	targetSchema string
+	script       bool
 	help         bool
 }
 
@@ -82,6 +85,8 @@ func parseDiffArguments(argv []string) (diffInvocation, error) {
 			if held.targetSchema, err = readFlagText(argument, "--target-schema="); err != nil {
 				return diffInvocation{}, err
 			}
+		case argument == "--sql":
+			held.script = true
 		case strings.HasPrefix(argument, "-"):
 			return diffInvocation{}, failArgument("unknown masume diff option: " + argument)
 		default:
@@ -144,5 +149,6 @@ func runDiffCommand(argv []string) int {
 				Profile: target, Password: targetPassword, Out: os.Stdout, Err: os.Stderr,
 			},
 			SourceSchema: held.sourceSchema, TargetSchema: held.targetSchema,
+			Script: held.script,
 		})
 }

@@ -636,6 +636,9 @@ func (model *Model) runPlanAction(
 func (model *Model) runDefinitionAction(
 	connection *app.Connection, tab *app.Tab, match Match,
 ) (tea.Model, tea.Cmd) {
+	if tab.ViewData.Kind == app.DataDiff {
+		return model.writeCompareScript(connection, tab, match.Action == ActionEditDefinition)
+	}
 	if tab.ViewData.Kind != app.DataDDL {
 		return model, nil
 	}

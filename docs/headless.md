@@ -265,6 +265,7 @@ See [dump and restore](usage.md#dump-and-restore) for the file layout.
 masume diff -p shop-staging -p shop
 masume diff -p shop -p shop --schema v1 --target-schema v2
 masume diff ./old.db ./new.db
+masume diff -p shop-staging -p shop --sql > migrate.sql
 ```
 
 ```text
@@ -276,6 +277,7 @@ masume diff SOURCE TARGET
 | `SOURCE`, `TARGET` | Connection target, or `-p NAME` for a profile. The first one is the source |
 | `-s`, `--schema NAME` | Source schema. Default: the default schema of the connection |
 | `--target-schema NAME` | Target schema. Default: the source schema, or the default schema of the connection |
+| `--sql` | Write the ALTER script that changes the source schema to the target, in place of the report |
 
 ```text
 orders
@@ -285,6 +287,8 @@ orders
 ```
 
 `+` is only in the target, `-` is only in the source, and `~` is in both with a different definition. The schema name is removed from defaults and definitions before the compare. Column order, comments, grants, and owners are not compared.
+
+The ALTER script is written for the PostgreSQL and MySQL families, with both connections of one family. It drops constraints, indexes, views, and tables, then creates tables, adds, changes and drops columns, and creates indexes, constraints, foreign keys, and views. A changed view or index is dropped and created again. Where the source schema is not the schema of the connection, a PostgreSQL script runs in one transaction with `SET LOCAL search_path`, and a MySQL script starts with `USE` and ends with a `USE` of the connection database. A change to a PostgreSQL identity or generated column is not written; the script lists it in a comment at the top. MySQL tables, columns, and views are copied from `SHOW CREATE` on the target. A dropped column or table loses its data.
 
 | Code | `diff` |
 | --- | --- |

@@ -101,3 +101,19 @@ func TestCompareWaitsForTheTargetConnection(t *testing.T) {
 		t.Errorf("the tab shows %+v", tab.ViewData)
 	}
 }
+
+func TestCompareOpensTheAlterScriptInAQueryTab(t *testing.T) {
+	model, staging := buildCompareModel(t)
+	model.openCompareChoice(staging, "public")
+	for _, message := range drainCommand(pressKey(t, model, tea.KeyPressMsg{Code: 'a', Text: "a"})) {
+		model.Update(message)
+	}
+	for _, message := range drainCommand(pressKey(t, model, tea.KeyPressMsg{Code: 'e', Text: "e"})) {
+		model.Update(message)
+	}
+	tab := staging.Active()
+	if tab.Kind != app.TabQuery ||
+		!strings.Contains(tab.Editor.Text, "ALTER TABLE orders ALTER COLUMN total TYPE bigint;") {
+		t.Errorf("the %s tab holds %q", tab.Kind, tab.Editor.Text)
+	}
+}
