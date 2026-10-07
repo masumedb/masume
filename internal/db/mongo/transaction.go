@@ -50,7 +50,7 @@ func (session *mongoSession) ReadTransactionState() db.TransactionState {
 	return session.transaction.held.ReadState()
 }
 
-// holdSession reserves the session and adds the open transaction to the context, if present.
+// holdSession reserves the session and adds the open transaction, or the run session, to the context.
 func (session *mongoSession) holdSession(
 	ctx context.Context,
 ) (context.Context, func(), error) {
@@ -59,6 +59,9 @@ func (session *mongoSession) holdSession(
 		return nil, nil, db.WrapDatabaseError(err)
 	}
 	opened := session.transaction.readOpened()
+	if opened == nil {
+		opened = session.runs
+	}
 	if opened == nil {
 		return ctx, giveBack, nil
 	}

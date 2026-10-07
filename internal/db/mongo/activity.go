@@ -106,7 +106,48 @@ func (session *mongoSession) CancelBackend(
 	return true, nil
 }
 
-// CancelRunningQuery is unsupported. Context cancellation stops the driver call; a second connection lacks the operation ID.
-func (session *mongoSession) CancelRunningQuery(context.Context) (bool, error) {
-	return false, db.NewUnsupportedError("cancel a running statement")
+// CancelRunningQuery stops every operation of the run session and of the open transaction.
+func (session *mongoSession) CancelRunningQuery(ctx context.Context) (bool, error) {
+	ids := bson.A{}
+	for _, held := range []*mongo.Session{session.runs, session.transaction.readOpened()} {
+		if held == nil {
+			continue
+		}
+		if id, err := held.ID().LookupErr("id"); err == nil {
+			ids = append(ids, id)
+		}
+	}
+	if len(ids) == 0 {
+		return false, nil
+	}
+
+	admin := session.client.Database("admin")
+	documents, err := session.readCursor(ctx, func() (*mongo.Cursor, error) {
+		return admin.Aggregate(ctx, bson.A{
+			bson.D{{Key: "$currentOp", Value: bson.D{}}},
+			bson.D{{Key: "$match", Value: bson.D{
+				{Key: "lsid.id", Value: bson.D{{Key: "$in", Value: ids}}},
+			}}},
+		})
+	})
+	if err != nil {
+		return false, err
+	}
+
+	stopped := false
+	for _, document := range documents {
+		for _, field := range document {
+			if field.Key != "opid" {
+				continue
+			}
+			killErr := admin.RunCommand(ctx, bson.D{
+				{Key: "killOp", Value: 1}, {Key: "op", Value: field.Value},
+			}).Err()
+			if killErr != nil {
+				return stopped, db.WrapDatabaseError(killErr)
+			}
+			stopped = true
+		}
+	}
+	return stopped, nil
 }

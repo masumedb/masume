@@ -56,6 +56,8 @@ type mongoSession struct {
 	// replica set and a sharded cluster hold a transaction; a standalone server has none.
 	holdsTransactions bool
 	transaction       *transactionHolder
+	// Explicit session of the user runs outside a transaction. Its ID finds the operations to stop.
+	runs *mongo.Session
 }
 
 // Capabilities returns what this connection does. Every entry is a fact of the engine
@@ -94,6 +96,9 @@ func (session *mongoSession) Close() error {
 	if opened := session.transaction.takeOpened(); opened != nil {
 		opened.EndSession(context.Background())
 		session.transaction.held.WriteState(db.TransactionNone)
+	}
+	if session.runs != nil {
+		session.runs.EndSession(context.Background())
 	}
 	return session.client.Disconnect(context.Background())
 }
@@ -1135,6 +1140,12 @@ func (adapter *mongoAdapter) Connect(
 	_ = client.Database("admin").
 		RunCommand(ctx, bson.D{{Key: "hello", Value: 1}}).Decode(&hello)
 
+	runs, sessionErr := client.StartSession()
+	if sessionErr != nil {
+		_ = client.Disconnect(context.Background())
+		return nil, db.WrapDatabaseError(sessionErr)
+	}
+
 	database := strings.TrimSpace(profile.Database)
 	if database == "" {
 		database = defaultDatabase
@@ -1149,6 +1160,7 @@ func (adapter *mongoAdapter) Connect(
 		client:            client,
 		holdsTransactions: deploymentHoldsTransactions(hello),
 		transaction:       newTransactionHolder(),
+		runs:              runs,
 	}, nil
 }
 

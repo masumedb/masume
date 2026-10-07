@@ -232,10 +232,8 @@ var mongoCapabilities = Capabilities{
 	// The client only requests plans for reads.
 	PlansEveryStatement: false,
 	// currentOp lists every running operation, and killOp stops one.
-	HasServerSessions: true,
-	// The driver cancels through the context. A second connection cannot find
-	// the operation id of the call it would stop.
-	CancelsRunningQuery: false,
+	HasServerSessions:   true,
+	CancelsRunningQuery: true,
 	// Transactions require a replica set or sharded cluster. The connected session checks deployment support.
 	HasTransactions: true,
 	// A find accepts a sort, so the server sorts the page.
@@ -432,7 +430,10 @@ var engineRegistry = map[Engine]EngineInfo{
 		SystemSchemas: []string{"system", "information_schema"},
 	},
 	EngineDocumentdb: {
-		Engine: EngineDocumentdb, Family: FamilyMongo, Capabilities: mongoCapabilities,
+		Engine: EngineDocumentdb, Family: FamilyMongo,
+		Capabilities: withMongo(func(capabilities *Capabilities) {
+			capabilities.CancelsRunningQuery = false
+		}),
 		// The cluster accepts a TLS connection only.
 		NeedsPassword: true, NeedsDatabase: true, DefaultSSLMode: SSLRequire,
 		DefaultPort:   27017,
@@ -508,6 +509,12 @@ var engineRegistry = map[Engine]EngineInfo{
 
 func withPostgres(change func(*Capabilities)) Capabilities {
 	capabilities := postgresCapabilities
+	change(&capabilities)
+	return capabilities
+}
+
+func withMongo(change func(*Capabilities)) Capabilities {
+	capabilities := mongoCapabilities
 	change(&capabilities)
 	return capabilities
 }

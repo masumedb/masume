@@ -32,7 +32,7 @@ Most capabilities are static defaults. The interface shows an action only when i
 | cockroach | yes | yes | yes | yes | yes | yes | no | yes | yes | yes |
 | documentdb | yes | yes | yes | no | yes | no | no | yes | no | no |
 | mariadb | yes | yes | yes | yes | yes | no | yes | yes | yes | yes |
-| mongodb | yes | yes | yes | no | yes | no | no | yes | no | no |
+| mongodb | yes | yes | yes | yes | yes | no | no | yes | no | no |
 | mysql | yes | yes | yes | yes | yes | no | yes | yes | yes | yes |
 | neon | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
 | planetscale | yes | yes | yes | no | no | no | no | yes | yes | yes |
