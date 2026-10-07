@@ -117,6 +117,8 @@ var defaultChords = map[string][]string{
 	// letter is bound too, or a plain terminal has no redo key.
 	"grid:redo-change":        {"ctrl+shift+z", "Z"},
 	"grid:count-rows":         {"t"},
+	"grid:pin-result":         {"P"},
+	"grid:compare-result":     {"="},
 	"grid:follow-foreign-key": {"g"},
 	"grid:insert-row":         {"n"},
 	"grid:copy-menu":          {"y"},

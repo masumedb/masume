@@ -248,6 +248,7 @@ See [editing SQL](usage.md#editing-sql) for search, replacement, completion, and
 | `add-sort-column` | `S` |
 | `choose-columns` | `H` |
 | `clear-rewrites` | `c` |
+| `compare-result` | `=` |
 | `copy-csv` | `C c` |
 | `copy-inserts` | `C i` |
 | `copy-json` | `C j` |
@@ -278,6 +279,7 @@ See [editing SQL](usage.md#editing-sql) for search, replacement, completion, and
 | `move-column-right` | `alt+shift+right` |
 | `open-menu` | `m` |
 | `open-row` | `return` |
+| `pin-result` | `P` |
 | `pop-filter` | `u` |
 | `redo-change` | `ctrl+shift+z` or `Z` |
 | `review-changes` | `p` |

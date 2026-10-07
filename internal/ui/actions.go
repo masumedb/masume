@@ -210,6 +210,8 @@ const (
 	ActionUndoChange       ActionID = "undo-change"
 	ActionRedoChange       ActionID = "redo-change"
 	ActionCountRows        ActionID = "count-rows"
+	ActionPinResult        ActionID = "pin-result"
+	ActionCompareResult    ActionID = "compare-result"
 	ActionFollowForeignKey ActionID = "follow-foreign-key"
 	ActionInsertRow        ActionID = "insert-row"
 	ActionCopyMenu         ActionID = "copy-menu"
@@ -430,6 +432,8 @@ var gridActions = []ActionDefinition{
 	{ID: ActionUndoChange, Label: "undo the last staged change"},
 	{ID: ActionRedoChange, Label: "redo the last undone change"},
 	{ID: ActionCountRows, Label: "count all result rows", AnswersInResult: true, MainHint: true},
+	{ID: ActionPinResult, Label: "pin the result to compare with"},
+	{ID: ActionCompareResult, Label: "compare the result with the pinned result", AnswersInResult: true},
 	{ID: ActionFollowForeignKey, Label: "open the row referenced by the foreign key"},
 	{ID: ActionInsertRow, Label: "insert a row"},
 	{ID: ActionCopyMenu, Label: "copy: cell, row, or the whole result"},

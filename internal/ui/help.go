@@ -99,6 +99,8 @@ var HelpSections = []HelpSection{
 			{Scope: cfg.ScopeGrid, Actions: []ActionID{ActionCopyMenu}},
 			{Scope: cfg.ScopeGrid, Actions: []ActionID{ActionOpenMenu}},
 			{Scope: cfg.ScopeGrid, Actions: []ActionID{ActionCountRows}},
+			{Scope: cfg.ScopeGrid, Actions: []ActionID{ActionPinResult}},
+			{Scope: cfg.ScopeGrid, Actions: []ActionID{ActionCompareResult}},
 			{Scope: cfg.ScopeGrid, Actions: []ActionID{ActionGoToColumn}},
 			{Scope: cfg.ScopeGrid, Actions: []ActionID{ActionSearchColumns}},
 			{Scope: cfg.ScopeGrid, Actions: []ActionID{ActionFreezeColumns}},

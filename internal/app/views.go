@@ -6,6 +6,7 @@ import (
 
 	"github.com/masumedb/masume/internal/db"
 	"github.com/masumedb/masume/internal/query"
+	"github.com/masumedb/masume/internal/resultdiff"
 	"github.com/masumedb/masume/internal/schemadiff"
 )
 
@@ -25,6 +26,7 @@ const (
 	ViewDDL         ResultView = "ddl"
 	ViewPlan        ResultView = "plan"
 	ViewDiff        ResultView = "diff"
+	ViewCompare     ResultView = "compare"
 )
 
 // DefaultView is the view a tab starts with and falls back to.
@@ -96,6 +98,7 @@ const (
 	DataPlan          ViewDataKind = "plan"
 	DataGrid          ViewDataKind = "grid"
 	DataDiff          ViewDataKind = "diff"
+	DataRowDiff       ViewDataKind = "row-diff"
 )
 
 // Statistic is one line of the statistics view about the result of a statement.
@@ -118,6 +121,7 @@ type PaneContent struct {
 	Constraints   []db.ConstraintDetail
 	Lines         []string
 	Differences   []schemadiff.Difference
+	RowDiff       resultdiff.Diff
 	Statistics    []Statistic
 	Plan          query.QueryPlan
 	// The start time of the read, so the wait indicator can show the elapsed time.

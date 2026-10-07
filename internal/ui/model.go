@@ -103,6 +103,9 @@ type Model struct {
 	formPicker *formPickerState
 
 	connections openConnections
+	// The result the grid compares other results with.
+	pinned  *pinnedResult
+	rowDiff rowDiffCache
 
 	runs runBatches
 	// A question a screen without a connection asks, which holds its own answer.

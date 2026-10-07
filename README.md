@@ -165,6 +165,7 @@ Query history and saved queries keep the statements. MongoDB takes a [subset of 
 - **Copy and export:** CSV and JSON files. Clipboard formats also include Markdown, `INSERT` statements, row JSON, and column `IN` clauses. See [copy and export](docs/usage.md#copy-and-export).
 - **Import:** CSV or JSON into an existing or new SQL table. See [importing files](docs/usage.md#importing-files).
 - **Dump and restore:** schema and data as a SQL file. See [dump and restore](docs/usage.md#dump-and-restore).
+- **Result compare:** pin a result and compare another one with it, row by row. See [result compare](docs/usage.md#result-compare).
 - **Schema compare:** tables, columns, indexes, and constraints of two schemas, on one connection or two. See [schema compare](docs/usage.md#schema-compare).
 - **Server dashboard:** sessions and metrics the engine supports. See [server activity](docs/usage.md#server-activity).
 

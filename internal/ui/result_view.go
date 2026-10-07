@@ -168,6 +168,9 @@ func (model *Model) describeResultTitle(
 	if drawn == app.ViewData {
 		subtitle = model.describeDataTitle(tab)
 	}
+	if drawn == app.ViewCompare && model.pinned != nil {
+		subtitle = "compare with " + model.pinned.Label
+	}
 	if drawn == app.ViewPlan && tab.ViewData.Kind == app.DataPlan {
 		subtitle = "plan · estimated"
 		if tab.ViewData.Plan.Analyzed {
@@ -341,6 +344,7 @@ var viewIcons = map[app.ResultView]cfg.IconKind{
 	app.ViewPlan:        cfg.IconPlan,
 	app.ViewStatistics:  cfg.IconSequence,
 	app.ViewDiff:        cfg.IconTable,
+	app.ViewCompare:     cfg.IconTable,
 }
 
 // describeBanner writes the rewrites the grid laid on, with or without a request to the server.
@@ -1088,6 +1092,8 @@ func (model *Model) resolveViewContent(tab *app.Tab, drawn app.ResultView) app.P
 		return app.PaneContent{Kind: app.DataTree}
 	case app.ViewStatistics:
 		return app.PaneContent{Kind: app.DataStatistics, Statistics: buildStatistics(tab)}
+	case app.ViewCompare:
+		return model.resolveRowDiff(tab)
 	case app.ViewFields:
 		active := tab.Results.Active()
 		if active == nil || active.State.Kind != app.QuerySucceeded {
@@ -1123,6 +1129,8 @@ func (model *Model) renderDetailView(
 		return model.renderWideLines(tab, content.Lines, width, height)
 	case app.DataDiff:
 		return model.renderDiff(tab, content.Differences, width, height)
+	case app.DataRowDiff:
+		return model.renderRowDiff(tab, content.RowDiff, width, height)
 	case app.DataStatistics:
 		return model.renderStatistics(tab, content.Statistics, width, height)
 	case app.DataPlan:

@@ -489,6 +489,10 @@ func (model *Model) runGridAction(
 
 	case ActionCountRows:
 		return model.countRows(connection, tab)
+	case ActionPinResult:
+		return model.pinResult(connection, tab)
+	case ActionCompareResult:
+		return model.compareWithPinned(connection, tab)
 
 	case ActionSortColumn, ActionAddSortColumn:
 		return model.sortByColumn(connection, tab, shape, match.Action == ActionAddSortColumn)

@@ -173,6 +173,12 @@ Foreign-key navigation filters by the selected column only. For a composite fore
 
 Masking hides the values in columns with sensitive names. `M` toggles masking, in the grid only. Cell viewers, row viewers, document trees, structured copies, and exports show the original values.
 
+## Result compare
+
+In the grid, `P` pins the result. On another result, `=` adds the Compare view: the rows that differ from the pinned result. The other result can be a later run of the same query, another tab, or another notebook cell. The pinned result stays until the next `P`, on every connection.
+
+Compare is meant for two versions of one result, such as a query before and after a change of the data or of the statement. The first line names both results, their row counts, and the match: by the primary key where both results are reads of one table with the same key, and by whole rows otherwise. Only columns in both results are compared. Where the columns differ, a second line lists the columns of each side that were left out. Results with no column in common are not compared. The last line counts the added, removed, changed, and same rows. A changed row shows `old → new` in each changed cell. Only loaded rows are compared; `loaded rows only` marks a result with more rows on the server.
+
 ## Sorting and filters
 
 A server sort or filter runs the read again. A screen filter only hides loaded rows. Neither changes the editor text. `Alt+E` writes the server sort and filters into the SQL.

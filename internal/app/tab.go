@@ -83,6 +83,9 @@ type Tab struct {
 	Builder *Builder
 	// The two schemas a compare tab compares. Only a compare tab has one.
 	Compare *SchemaCompare
+	// True after the result of the tab was compared with the pinned result, which adds the
+	// compare view.
+	ComparesPinned bool
 	// The rows the pane above the result takes in this tab. Zero uses the height of the
 	// kind of the tab.
 	PaneHeight int
@@ -355,7 +358,7 @@ func (tab *Tab) Views(session db.SessionInfo) []ResultView {
 	offered := ListOfferedViews(tab.Kind, hasResultSet)
 
 	opensDocuments := tab.opensDocuments()
-	kept := make([]ResultView, 0, len(offered))
+	kept := make([]ResultView, 0, len(offered)+1)
 	for _, view := range offered {
 		switch {
 		case view == ViewPlan && !tab.canExplain(session):
@@ -365,6 +368,9 @@ func (tab *Tab) Views(session db.SessionInfo) []ResultView {
 			continue
 		}
 		kept = append(kept, view)
+	}
+	if tab.ComparesPinned && hasResultSet {
+		kept = append(kept, ViewCompare)
 	}
 	return kept
 }
