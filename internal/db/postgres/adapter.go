@@ -858,7 +858,7 @@ func (session *postgresSession) ListLockWaits(ctx context.Context) ([]db.LockWai
 	if !session.Support.Capabilities.ReportsLockWaits {
 		return nil, db.NewUnsupportedError("report lock waits")
 	}
-	rows, err := session.readRows(ctx, listLockWaitsSQL)
+	rows, err := session.readRows(ctx, session.flavour.ListLockWaitsStatement)
 	if err != nil {
 		return nil, err
 	}

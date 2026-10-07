@@ -310,7 +310,6 @@ var engineRegistry = map[Engine]EngineInfo{
 		Capabilities: withPostgres(func(capabilities *Capabilities) {
 			// The server also plans a schema change: `explain drop table` returns a plan.
 			capabilities.PlansEveryStatement = true
-			capabilities.ReportsLockWaits = false
 			capabilities.ReportsServerLoad = false
 		}),
 		DefaultPort: 26257, NeedsUser: true, NeedsPassword: true, NeedsDatabase: true,

@@ -29,7 +29,7 @@ Most capabilities are static defaults. The interface shows an action only when i
 | cassandra | no | no | no | no | no | no | no | no | yes | yes |
 | azure-sql | yes | yes | yes | yes | yes | yes | no | yes | yes | yes |
 | clickhouse | yes | no | no | yes | yes | no | yes | yes | yes | yes |
-| cockroach | yes | yes | yes | yes | yes | no | no | yes | yes | yes |
+| cockroach | yes | yes | yes | yes | yes | yes | no | yes | yes | yes |
 | documentdb | yes | yes | yes | no | yes | no | no | yes | no | no |
 | mariadb | yes | yes | yes | yes | yes | no | yes | yes | yes | yes |
 | mongodb | yes | yes | yes | no | yes | no | no | yes | no | no |
@@ -86,7 +86,7 @@ The dashboard hides unsupported panels. Activity, lock relationships, server loa
 | Redshift, TiDB | Activity only | The adapter's activity query and sufficient permissions |
 | MongoDB, Amazon DocumentDB | Current operations | `currentOp` and sufficient permissions |
 | Redis | Connected clients | `CLIENT LIST`, and `CLIENT KILL` to stop a client |
-| CockroachDB | Activity | `crdb_internal.cluster_sessions`, and the VIEWACTIVITY privilege for the sessions of other users |
+| CockroachDB | Activity, locks | `crdb_internal.cluster_sessions`, `crdb_internal.cluster_locks`, and the VIEWACTIVITY privilege for the sessions of other users |
 | PlanetScale, SQLite, Turso, Cassandra, ScyllaDB | No dashboard metrics | None |
 
 YugabyteDB has no PostgreSQL write-ahead log. `pg_current_wal_lsn()` returns `not yet supported` and fails the whole load query, so the server load panel is hidden. Activity, lock waits and statement statistics work.

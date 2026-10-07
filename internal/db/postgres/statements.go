@@ -275,6 +275,26 @@ const listLockWaitsSQL = `
    order by waiting.state_change, waiting.pid, holder.pid
 `
 
+const listCockroachLockWaitsSQL = `
+  select /*masume:dashboard*/ waiting.pg_backend_pid as blocked_pid,
+         coalesce(waiting.active_queries, '') as blocked_query,
+         coalesce((extract(epoch from asked.duration) * 1000)::int8, 0) as waiting_ms,
+         coalesce(held.lock_strength, '') as mode,
+         coalesce(held.table_name, '')    as relation,
+         holder.pg_backend_pid            as blocking_pid,
+         coalesce(nullif(holder.active_queries, ''), holder.last_active_query, '') as blocking_query,
+         coalesce((extract(epoch from (now() - holder.active_query_start)) * 1000)::int8, 0)
+                                          as blocking_ms
+    from crdb_internal.cluster_locks asked
+    join crdb_internal.cluster_locks held
+      on held.lock_key = asked.lock_key and held.granted and held.txn_id <> asked.txn_id
+    join crdb_internal.cluster_sessions waiting on waiting.kv_txn = asked.txn_id::string
+    join crdb_internal.cluster_sessions holder on holder.kv_txn = held.txn_id::string
+   where not asked.granted
+     and asked.database_name = current_database()
+   order by asked.duration desc, waiting.pg_backend_pid, holder.pg_backend_pid
+`
+
 // Server load includes connection count, connection limit, and start time. The count covers all databases.
 const readServerLoadSQL = `
   select /*masume:dashboard*/ (select count(*) from pg_stat_activity)  as connections,
