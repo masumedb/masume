@@ -375,7 +375,6 @@ var engineRegistry = map[Engine]EngineInfo{
 		Capabilities: withMysql(func(capabilities *Capabilities) {
 			// TiDB accepts `set session transaction read only` without enforcing read-only mode.
 			capabilities.TakesReadOnlyMode = false
-			capabilities.ReportsLockWaits = false
 			// The status variables of the server are its own, not the ones MySQL reports.
 			capabilities.ReportsServerLoad = false
 		}),

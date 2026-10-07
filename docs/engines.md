@@ -43,7 +43,7 @@ Most capabilities are static defaults. The interface shows an action only when i
 | sqlite | yes | no | yes | yes | no | no | no | yes | no | yes |
 | sqlserver | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
 | supabase | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
-| tidb | yes | yes | yes | yes | yes | no | no | yes | yes | yes |
+| tidb | yes | yes | yes | yes | yes | yes | no | yes | yes | yes |
 | timescale | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
 | turso | yes | no | yes | no | no | no | no | yes | no | yes |
 | yugabyte | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
@@ -83,7 +83,8 @@ The dashboard hides unsupported panels. Activity, lock relationships, server loa
 | SQL Server | Activity, locks, connections, connection limit, start time, statement statistics | `sys.dm_exec_sessions`, `sys.dm_exec_requests`, `sys.dm_tran_locks`, `sys.dm_os_sys_info`, and the VIEW SERVER STATE permission |
 | Azure SQL Database | Activity, locks, statement statistics | The same views at database scope, and the VIEW DATABASE STATE permission |
 | YugabyteDB | Activity, locks, connections, connection limit, start time, transaction count, temporary files, cache hits, statement statistics | `pg_stat_activity`, `pg_locks`, `pg_stat_database`, and `pg_stat_statements`, which the server loads by default |
-| Redshift, TiDB | Activity only | The adapter's activity query and sufficient permissions |
+| TiDB | Activity, locks | The PROCESS privilege for `information_schema.cluster_tidb_trx` and `information_schema.cluster_processlist`, and `information_schema.data_lock_waits` |
+| Redshift | Activity only | The adapter's activity query and sufficient permissions |
 | MongoDB, Amazon DocumentDB | Current operations | `currentOp` and sufficient permissions |
 | Redis | Connected clients | `CLIENT LIST`, and `CLIENT KILL` to stop a client |
 | CockroachDB | Activity, locks, statement statistics | `crdb_internal.cluster_sessions`, `crdb_internal.cluster_locks`, `crdb_internal.statement_statistics`, and the VIEWACTIVITY privilege for locks, statistics, and the sessions of other users |
