@@ -24,6 +24,23 @@ func describeColumnSource(column ColumnDetail, dialect *query.Dialect) string {
 	return ""
 }
 
+// RenderColumnDefinition returns the column as a CREATE TABLE writes it: name, type,
+// default or identity, and NOT NULL.
+func RenderColumnDefinition(column ColumnDetail, dialect *query.Dialect, quotesName bool) string {
+	quote := dialect.QuoteIdentifierIfNeeded
+	if quotesName {
+		quote = dialect.QuoteIdentifier
+	}
+	parts := []string{quote(column.Name) + " " + column.DataType}
+	if written := describeColumnSource(column, dialect); written != "" {
+		parts = append(parts, written)
+	}
+	if !column.Nullable {
+		parts = append(parts, "NOT NULL")
+	}
+	return strings.Join(parts, " ")
+}
+
 // RenderTableDDL builds CREATE TABLE SQL from catalog metadata, with keywords in capitals.
 // quotesEveryName quotes each name; otherwise a name is quoted only where needed.
 func RenderTableDDL(
@@ -38,14 +55,7 @@ func RenderTableDDL(
 
 	body := make([]string, 0, len(detail.Columns)+len(constraints))
 	for _, column := range detail.Columns {
-		parts := []string{"    " + quote(column.Name) + " " + column.DataType}
-		if written := describeColumnSource(column, dialect); written != "" {
-			parts = append(parts, written)
-		}
-		if !column.Nullable {
-			parts = append(parts, "NOT NULL")
-		}
-		body = append(body, strings.Join(parts, " "))
+		body = append(body, "    "+RenderColumnDefinition(column, dialect, quotesEveryName))
 	}
 	for _, constraint := range constraints {
 		body = append(body, "    CONSTRAINT "+quote(constraint.Name)+" "+
