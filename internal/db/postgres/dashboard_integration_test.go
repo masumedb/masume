@@ -94,6 +94,9 @@ func TestServerReportsTheLoadItIsUnder(t *testing.T) {
 	if load.StartedAt.After(time.Now()) {
 		t.Errorf("the server says it started at %s, which is ahead of now", load.StartedAt)
 	}
+	if !load.HasWalBytes {
+		t.Error("the primary server reports no WAL position")
+	}
 }
 
 // A server with nothing blocked answers an empty list rather than a fault. The dashboard

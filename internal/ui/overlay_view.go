@@ -2089,7 +2089,7 @@ func (model *Model) buildDashboardMeasures(overlay app.Overlay) []dashboardMeasu
 			})
 		}
 		if rate, held := app.ResolveCounterRate(
-			overlay.View.Previous.WalBytes, load.WalBytes, span); held {
+			overlay.View.Previous.WalBytes, load.WalBytes, span); held && load.HasWalBytes {
 			measures = append(measures, dashboardMeasure{
 				label: "wal", value: core.FormatByteRate(rate), ink: theme.Text,
 			})

@@ -903,6 +903,7 @@ func (session *postgresSession) ReadServerLoad(ctx context.Context) (db.ServerLo
 	// The counters are reported together, so one of them being there means the server counts.
 	_, countsTransactions := readOptionalFloat(held["transactions"])
 	load.HasCounters = countsTransactions
+	_, load.HasWalBytes = readOptionalFloat(held["wal_bytes"])
 
 	hit, hasHit := readOptionalFloat(held["blocks_hit"])
 	read, hasRead := readOptionalFloat(held["blocks_read"])

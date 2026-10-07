@@ -217,6 +217,7 @@ type ServerLoad struct {
 	WalBytes     int64
 	TempFiles    int64
 	HasCounters  bool
+	HasWalBytes  bool
 
 	// The share of block reads the server answered from its own cache, from 0 to 1, and
 	// unset where it has read no block.
