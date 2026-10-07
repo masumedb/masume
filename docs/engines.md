@@ -69,7 +69,7 @@ On MongoDB, the transaction and atomic staged-change flags come from the deploym
 | Write previews | Every SQL engine except ClickHouse and Cassandra. Not MongoDB |
 | Read-only mode | Every engine except TiDB. Client-only on MongoDB, Amazon DocumentDB, SQL Server, Azure SQL Database, Redis, Cassandra, ScyllaDB and Turso |
 | Atomic staged changes | Every engine except ClickHouse, which has no transactions. Set after connection on MongoDB |
-| Statement statistics | Off on every engine until connection. On for CockroachDB. Set after an extension check on the rest of the PostgreSQL family, a permission check on SQL Server, and a query log check on ClickHouse |
+| Statement statistics | Off on every engine until connection. Then on for CockroachDB, and set after an extension check on the rest of the PostgreSQL family, a permission check on SQL Server, and a query log check on ClickHouse |
 
 ## Dashboard metrics
 
