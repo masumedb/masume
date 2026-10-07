@@ -312,6 +312,14 @@ To run a `.sql` file, select a schema, press `m`, and choose Restore a dump. Pic
 
 Dump and restore need an engine that reports object definitions. See [engine support](engines.md). `masume dump` and `masume restore` do the same in [headless mode](headless.md#dump-and-restore).
 
+## Schema compare
+
+In the explorer, select a schema, press `m`, and choose Compare with. The card lists the other schemas of the connection, then each other open connection. For another connection, the target is the schema with the same name, or the default schema of that connection. A letter picks the target.
+
+The compare tab lists the differences in tables, views, columns, indexes, and constraints, grouped by table. `+` is only in the target, `-` is only in the source, and `~` is in both with a different definition. A changed item shows the source definition on a `-` line and the target definition on a `+` line. `Ctrl+R` reads both schemas again.
+
+A compare tab with another connection as the target stays empty until that connection is open. The next connect restores the tab. `masume diff` does the same in [headless mode](headless.md#schema-compare).
+
 ## Query plans
 
 `Ctrl+E` shows the estimated plan. `Ctrl+Y` shows the analyzed plan where supported. Analysis runs the read to measure it. For a statement classified as a write, masume shows the estimate instead and does not run the write.

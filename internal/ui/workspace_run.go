@@ -141,6 +141,9 @@ func (model *Model) runTabRead(
 		return model, readObjectDDL(
 			model.ActiveID(), tab.ID, connection.Session, tab.Object)
 	}
+	if tab.Kind == app.TabCompare {
+		return model.readCompare(connection, tab)
+	}
 	if tab.Kind != app.TabTable {
 		return model.execute(connection, tab, connection.Session.Language().SplitStatements(
 			tab.Editor.Text))
@@ -1059,6 +1062,9 @@ func (model *Model) loadShownView(
 	// itself, so the frame that draws them builds them.
 	case app.ViewFields, app.ViewStatistics:
 		return model, nil
+
+	case app.ViewDiff:
+		return model.readCompare(connection, tab)
 
 	case app.ViewDDL:
 		if tab.Kind == app.TabObject {

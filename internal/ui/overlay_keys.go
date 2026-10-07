@@ -1417,6 +1417,8 @@ func (model *Model) runObjectAction(
 			dump.Options{Schema: row.Node.Schema})
 	case app.ObjectRestoreFile:
 		return model.openRestore(connection)
+	case app.ObjectCompareSchema:
+		return model.openCompareChoice(connection, row.Node.Schema)
 
 	case app.ObjectTruncate:
 		statement = build.GenerateTruncate(row.Node.Table.Qualified(), dialect)

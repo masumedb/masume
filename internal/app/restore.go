@@ -62,6 +62,12 @@ func buildRestoredTab(id int, saved hist.SavedTab, buildPreview PreviewBuilder) 
 		applySavedState(tab, saved.State)
 		applySavedCells(tab, saved.State)
 		return tab
+	case "compare":
+		tab := NewCompareTab(id, SchemaCompare{
+			SourceSchema: saved.Schema, TargetSchema: saved.Name, TargetProfile: saved.Identity,
+		})
+		applySavedState(tab, saved.State)
+		return tab
 	case "builder":
 		tab := NewBuilderTab(id)
 		tab.Builder = buildRestoredBuilder(saved.State.Builder)
@@ -150,6 +156,12 @@ func buildSavedTab(tab *Tab) hist.SavedTab {
 		return hist.SavedTab{
 			Kind: "object", Schema: tab.Object.Schema, Name: tab.Object.Name,
 			ObjectKind: string(tab.Object.Kind), Identity: tab.Object.Identity, State: state,
+		}
+	}
+	if tab.Kind == TabCompare && tab.Compare != nil {
+		return hist.SavedTab{
+			Kind: "compare", Schema: tab.Compare.SourceSchema, Name: tab.Compare.TargetSchema,
+			Identity: tab.Compare.TargetProfile, State: state,
 		}
 	}
 	if tab.Kind == TabBuilder && tab.Builder != nil {

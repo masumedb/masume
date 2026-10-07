@@ -158,6 +158,8 @@ func (model *Model) describeResultTitle(
 	case app.TabObject:
 		subject = model.icons.Prefix(cfg.IconKind(tab.Object.Kind)) +
 			tab.Object.Schema + "." + tab.Object.Name
+	case app.TabCompare:
+		subject = tab.Compare.DescribeTitle()
 	}
 
 	// The view name after the subject, so `▦ public.orders · indexes` says whose indexes
@@ -338,6 +340,7 @@ var viewIcons = map[app.ResultView]cfg.IconKind{
 	app.ViewDDL:         cfg.IconQuery,
 	app.ViewPlan:        cfg.IconPlan,
 	app.ViewStatistics:  cfg.IconSequence,
+	app.ViewDiff:        cfg.IconTable,
 }
 
 // describeBanner writes the rewrites the grid laid on, with or without a request to the server.
@@ -1118,6 +1121,8 @@ func (model *Model) renderDetailView(
 		return model.wrapMessage(content.Message, width, height, theme.Error)
 	case app.DataDDL:
 		return model.renderWideLines(tab, content.Lines, width, height)
+	case app.DataDiff:
+		return model.renderDiff(tab, content.Differences, width, height)
 	case app.DataStatistics:
 		return model.renderStatistics(tab, content.Statistics, width, height)
 	case app.DataPlan:

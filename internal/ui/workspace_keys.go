@@ -492,6 +492,9 @@ func (model *Model) startNaming(
 	case app.TabObject:
 		connection.Show("this tab takes the name of the " + string(tab.Object.Kind) + " it shows")
 		return model, nil
+	case app.TabCompare:
+		connection.Show("this tab takes the names of the schemas it compares")
+		return model, nil
 	}
 
 	if tab.Kind == app.TabNotebook {

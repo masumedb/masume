@@ -444,6 +444,7 @@ const (
 	ObjectImportNewTable = "import-new-table"
 	ObjectDumpTable      = "dump-table"
 	ObjectDumpSchema     = "dump-schema"
+	ObjectCompareSchema  = "compare-schema"
 	ObjectRestoreFile    = "restore-file"
 	ObjectTruncate       = "truncate"
 	ObjectDropRelation   = "drop-relation"
@@ -517,6 +518,10 @@ var schemaActions = []MenuAction{
 	},
 	{
 		ID: ObjectDumpSchema, Label: "Dump the schema…", Detail: "every table as SQL",
+		Icon: cfg.IconTable,
+	},
+	{
+		ID: ObjectCompareSchema, Label: "Compare with…", Detail: "another schema or connection",
 		Icon: cfg.IconTable,
 	},
 	{

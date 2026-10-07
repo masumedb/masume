@@ -81,6 +81,8 @@ type Tab struct {
 	Notebook *Notebook
 	// The tables and the joins a builder tab holds. Only a builder tab has one.
 	Builder *Builder
+	// The two schemas a compare tab compares. Only a compare tab has one.
+	Compare *SchemaCompare
 	// The rows the pane above the result takes in this tab. Zero uses the height of the
 	// kind of the tab.
 	PaneHeight int
@@ -306,6 +308,8 @@ func (tab *Tab) Label() string {
 		return tab.Table.Name
 	case TabObject:
 		return tab.Object.Name
+	case TabCompare:
+		return present.TruncateText(tab.Compare.DescribeTitle(), tabLabelWidth+2)
 	case TabNotebook:
 		return present.TruncateText(tab.NotebookName(), tabLabelWidth+2)
 	case TabBuilder:
@@ -398,7 +402,7 @@ func (tab *Tab) canExplain(session db.SessionInfo) bool {
 	if tab.Kind == TabTable {
 		return true
 	}
-	if tab.Kind == TabObject {
+	if tab.Kind == TabObject || tab.Kind == TabCompare {
 		return false
 	}
 	statement := tab.StatementToExplain(session)

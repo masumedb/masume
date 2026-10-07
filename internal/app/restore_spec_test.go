@@ -191,3 +191,20 @@ func TestASnapshotOfRestoredTabsRoundTrips(t *testing.T) {
 		}
 	}
 }
+
+func TestRestoreTabsReadsTheCompareTabAgain(t *testing.T) {
+	compare := app.SchemaCompare{SourceSchema: "public", TargetProfile: "prod", TargetSchema: "sales"}
+	written := openConnection(t)
+	written.Tabs = []*app.Tab{app.NewQueryTab(1, ""), app.NewCompareTab(2, compare)}
+
+	read := openConnection(t)
+	read.RestoreTabs(written.BuildWorkspaceSnapshot(), buildPreview)
+
+	tab := read.Tabs[1]
+	if tab.Kind != app.TabCompare || tab.Compare == nil || *tab.Compare != compare {
+		t.Fatalf("the compare tab came back as %v with %+v", tab.Kind, tab.Compare)
+	}
+	if !read.TakeUnread(tab) {
+		t.Error("the restored compare tab is not read again")
+	}
+}

@@ -6,6 +6,7 @@ import (
 
 	"github.com/masumedb/masume/internal/db"
 	"github.com/masumedb/masume/internal/query"
+	"github.com/masumedb/masume/internal/schemadiff"
 )
 
 // ResultView is one display mode of a result.
@@ -23,6 +24,7 @@ const (
 	ViewConstraints ResultView = "constraints"
 	ViewDDL         ResultView = "ddl"
 	ViewPlan        ResultView = "plan"
+	ViewDiff        ResultView = "diff"
 )
 
 // DefaultView is the view a tab starts with and falls back to.
@@ -31,7 +33,7 @@ const DefaultView = ViewData
 // TabKind is the binding of a tab.
 type TabKind string
 
-// The five kinds of tab.
+// The six kinds of tab.
 const (
 	// TabTable is bound to one table, so it can describe that table.
 	TabTable TabKind = "table"
@@ -43,6 +45,8 @@ const (
 	TabNotebook TabKind = "notebook"
 	// TabBuilder holds the tables and the joins of a query the user builds.
 	TabBuilder TabKind = "builder"
+	// TabCompare shows the schema differences between two schemas. It runs no statement.
+	TabCompare TabKind = "compare"
 )
 
 // The views of each kind of tab, before the plan is removed.
@@ -52,7 +56,8 @@ var (
 	}
 	queryViews = []ResultView{ViewData, ViewTree, ViewFields, ViewPlan}
 	// A schema object has the definition view only.
-	objectViews = []ResultView{ViewDDL}
+	objectViews  = []ResultView{ViewDDL}
+	compareViews = []ResultView{ViewDiff}
 	// The message shown for a statement without a result set.
 	outcomeViews = []ResultView{ViewStatistics, ViewPlan}
 )
@@ -64,6 +69,8 @@ func ListOfferedViews(kind TabKind, hasResultSet bool) []ResultView {
 		return tableViews
 	case TabObject:
 		return objectViews
+	case TabCompare:
+		return compareViews
 	}
 	if hasResultSet {
 		return queryViews
@@ -88,6 +95,7 @@ const (
 	DataStatistics    ViewDataKind = "statistics"
 	DataPlan          ViewDataKind = "plan"
 	DataGrid          ViewDataKind = "grid"
+	DataDiff          ViewDataKind = "diff"
 )
 
 // Statistic is one line of the statistics view about the result of a statement.
@@ -109,6 +117,7 @@ type PaneContent struct {
 	Indexes       []db.IndexDetail
 	Constraints   []db.ConstraintDetail
 	Lines         []string
+	Differences   []schemadiff.Difference
 	Statistics    []Statistic
 	Plan          query.QueryPlan
 	// The start time of the read, so the wait indicator can show the elapsed time.
