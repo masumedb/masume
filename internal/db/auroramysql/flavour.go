@@ -18,4 +18,5 @@ var Flavour = mysql.Flavour{
 		}
 		return "call mysql.rds_kill_query(" + strconv.FormatInt(pid, 10) + ")"
 	},
+	ListLockWaitsStatement: mysql.ListLockWaitsSQL,
 }

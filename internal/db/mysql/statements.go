@@ -206,3 +206,24 @@ const listMysqlActivitySQL = `
    where id <> connection_id()
    order by command <> 'Sleep' desc, time desc
 `
+
+// ListLockWaitsSQL reads the InnoDB lock waits of MySQL 8.
+const ListLockWaitsSQL = `
+  select waiting.trx_mysql_thread_id                  as blocked_pid,
+         coalesce(waiting.trx_query, '')              as blocked_query,
+         timestampdiff(microsecond, waiting.trx_wait_started, now(6)) div 1000 as waiting_ms,
+         coalesce(held.lock_mode, '')                 as mode,
+         coalesce(held.object_name, '')               as relation,
+         holder.trx_mysql_thread_id                   as blocking_pid,
+         coalesce(holder.trx_query, '')               as blocking_query,
+         timestampdiff(microsecond, holder.trx_started, now(6)) div 1000 as blocking_ms
+    from performance_schema.data_lock_waits wait
+    join information_schema.innodb_trx waiting
+      on waiting.trx_id = wait.requesting_engine_transaction_id
+    join information_schema.innodb_trx holder
+      on holder.trx_id = wait.blocking_engine_transaction_id
+    join performance_schema.data_locks held
+      on held.engine_lock_id = wait.blocking_engine_lock_id
+   where database() is null or held.object_schema = database()
+   order by waiting.trx_wait_started, blocked_pid, blocking_pid
+`

@@ -164,10 +164,7 @@ var postgresCapabilities = Capabilities{
 	AppliesChangesTogether: true,
 }
 
-var mysqlCapabilities = withPostgres(func(capabilities *Capabilities) {
-	// MySQL lock waits require performance_schema queries that this client does not implement.
-	capabilities.ReportsLockWaits = false
-})
+var mysqlCapabilities = postgresCapabilities
 
 var sqliteCapabilities = Capabilities{
 	// SQLite plans a statement, but it does not measure the run.
@@ -382,6 +379,7 @@ var engineRegistry = map[Engine]EngineInfo{
 		Capabilities: withMysql(func(capabilities *Capabilities) {
 			// TiDB accepts `set session transaction read only` without enforcing read-only mode.
 			capabilities.TakesReadOnlyMode = false
+			capabilities.ReportsLockWaits = false
 			// The status variables of the server are its own, not the ones MySQL reports.
 			capabilities.ReportsServerLoad = false
 		}),
@@ -393,6 +391,7 @@ var engineRegistry = map[Engine]EngineInfo{
 		Capabilities: withMysql(func(capabilities *Capabilities) {
 			capabilities.HasServerSessions = false
 			capabilities.CancelsRunningQuery = false
+			capabilities.ReportsLockWaits = false
 			capabilities.ReportsServerLoad = false
 		}),
 		DefaultPort: 3306, NeedsUser: true, NeedsPassword: true, DefaultSSLMode: SSLRequire,

@@ -527,6 +527,30 @@ func (session *mysqlSession) ListActivity(ctx context.Context) ([]db.Activity, e
 	return activity, nil
 }
 
+func (session *mysqlSession) ListLockWaits(ctx context.Context) ([]db.LockWait, error) {
+	if !session.Support.Capabilities.ReportsLockWaits || session.flavour.ListLockWaitsStatement == "" {
+		return nil, db.NewUnsupportedError("report lock waits")
+	}
+	rows, _, err := session.readNamedRows(ctx, session.flavour.ListLockWaitsStatement)
+	if err != nil {
+		return nil, err
+	}
+	waits := make([]db.LockWait, 0, len(rows))
+	for _, row := range rows {
+		waits = append(waits, db.LockWait{
+			BlockedPID:    db.ReadNonNegativeCount(row["blocked_pid"]),
+			BlockedQuery:  db.ReadAnyText(row["blocked_query"]),
+			Waiting:       time.Duration(db.ReadNonNegativeCount(row["waiting_ms"])) * time.Millisecond,
+			Mode:          db.ReadAnyText(row["mode"]),
+			Relation:      db.ReadAnyText(row["relation"]),
+			BlockingPID:   db.ReadNonNegativeCount(row["blocking_pid"]),
+			BlockingQuery: db.ReadAnyText(row["blocking_query"]),
+			BlockingFor:   time.Duration(db.ReadNonNegativeCount(row["blocking_ms"])) * time.Millisecond,
+		})
+	}
+	return waits, nil
+}
+
 // ReadServerLoad returns load statistics and calculates server start time from uptime.
 func (session *mysqlSession) ReadServerLoad(ctx context.Context) (db.ServerLoad, error) {
 	if !session.Support.Capabilities.ReportsServerLoad {

@@ -18,6 +18,8 @@ type Flavour struct {
 	ReadOnlyStatement string
 	// BuildKillStatement writes nothing if a client cannot stop a session.
 	BuildKillStatement func(pid int64, terminate bool) string
+	// Empty if the server reports no lock waits.
+	ListLockWaitsStatement string
 }
 
 // ReadFirstCell returns a plan stored in the first result cell.
@@ -66,6 +68,7 @@ var FlavourStandard = Flavour{
 	ReadPlan: func(answered db.QueryResult, analyzed bool) (db.QueryPlan, bool) {
 		return result.ParseTextPlan(ReadFirstCell(answered), analyzed, true)
 	},
-	ReadOnlyStatement:  "set session transaction read only",
-	BuildKillStatement: BuildKillStatement,
+	ReadOnlyStatement:      "set session transaction read only",
+	BuildKillStatement:     BuildKillStatement,
+	ListLockWaitsStatement: ListLockWaitsSQL,
 }

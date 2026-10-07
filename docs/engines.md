@@ -24,16 +24,16 @@ Most capabilities are static defaults. The interface shows an action only when i
 
 | Engine | Plans | Measures | Transactions | Cancels | Activity | Locks | Load | Sorts | Truncates | DDL |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| aurora-mysql | yes | yes | yes | yes | yes | no | yes | yes | yes | yes |
+| aurora-mysql | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
 | aurora-postgres | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
 | cassandra | no | no | no | no | no | no | no | no | yes | yes |
 | azure-sql | yes | yes | yes | yes | yes | yes | no | yes | yes | yes |
 | clickhouse | yes | no | no | yes | yes | no | yes | yes | yes | yes |
 | cockroach | yes | yes | yes | yes | yes | yes | no | yes | yes | yes |
 | documentdb | yes | yes | yes | no | yes | no | no | yes | no | no |
-| mariadb | yes | yes | yes | yes | yes | no | yes | yes | yes | yes |
+| mariadb | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
 | mongodb | yes | yes | yes | yes | yes | no | no | yes | no | no |
-| mysql | yes | yes | yes | yes | yes | no | yes | yes | yes | yes |
+| mysql | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
 | neon | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
 | planetscale | yes | yes | yes | no | no | no | no | yes | yes | yes |
 | postgres | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
@@ -78,7 +78,7 @@ The dashboard hides unsupported panels. Activity, lock relationships, server loa
 | Engines | Metrics | Requires |
 | --- | --- | --- |
 | PostgreSQL, TimescaleDB, Neon, Supabase, Aurora PostgreSQL | Activity, locks, connections, connection limit, start time, transaction count, WAL bytes, temporary files, cache hits, replication lag | PostgreSQL statistics views, functions, and sufficient permissions |
-| MySQL, MariaDB, Aurora MySQL | Activity, connections, connection limit, start time | `information_schema.processlist`, `performance_schema.global_status`, and `@@max_connections` |
+| MySQL, MariaDB, Aurora MySQL | Activity, locks, connections, connection limit, start time | `information_schema.processlist`, `performance_schema.global_status`, `@@max_connections`, and the PROCESS privilege for `information_schema.innodb_trx`. Locks also read `performance_schema.data_lock_waits` on MySQL and `information_schema.innodb_lock_waits` on MariaDB |
 | ClickHouse | Running statements, connections, connection limit, start time, statement statistics | `system.processes`, `system.metrics`, `system.server_settings`, and `system.query_log` |
 | SQL Server | Activity, locks, connections, connection limit, start time, statement statistics | `sys.dm_exec_sessions`, `sys.dm_exec_requests`, `sys.dm_tran_locks`, `sys.dm_os_sys_info`, and the VIEW SERVER STATE permission |
 | Azure SQL Database | Activity, locks, statement statistics | The same views at database scope, and the VIEW DATABASE STATE permission |
