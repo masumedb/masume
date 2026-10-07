@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"maps"
+	"net"
 	"slices"
 	"strconv"
 	"strings"
@@ -85,9 +86,31 @@ func buildPostgresConfig(profile cfg.Profile, password string) (*pgx.ConnConfig,
 		return config, nil
 	}
 	// Unset and prefer modes permit a retry without TLS.
+	config.Fallbacks = nil
 	if tlsConfig != nil && mayFallBack {
-		config.Fallbacks = []*pgconn.FallbackConfig{
-			{Host: dialHost, Port: uint16(dialPort), TLSConfig: nil},
+		config.Fallbacks = append(config.Fallbacks,
+			&pgconn.FallbackConfig{Host: dialHost, Port: uint16(dialPort), TLSConfig: nil})
+	}
+	for _, written := range profile.OtherHosts {
+		host, port, splitErr := net.SplitHostPort(written)
+		if splitErr != nil {
+			return nil, splitErr
+		}
+		number, portErr := strconv.Atoi(port)
+		if portErr != nil {
+			return nil, portErr
+		}
+		other := profile
+		other.Host = host
+		otherTLS, otherFallBack, otherErr := buildPostgresTLS(other)
+		if otherErr != nil {
+			return nil, otherErr
+		}
+		config.Fallbacks = append(config.Fallbacks,
+			&pgconn.FallbackConfig{Host: host, Port: uint16(number), TLSConfig: otherTLS})
+		if otherTLS != nil && otherFallBack {
+			config.Fallbacks = append(config.Fallbacks,
+				&pgconn.FallbackConfig{Host: host, Port: uint16(number), TLSConfig: nil})
 		}
 	}
 	// Proxies can lack named prepared statement support. Exec mode avoids the statement cache.

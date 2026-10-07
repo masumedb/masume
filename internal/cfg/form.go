@@ -137,7 +137,7 @@ var serverFields = map[string]bool{
 	"host": true, "port": true, "user": true, "auth": true,
 	"passwordEnv": true, "passwordCommand": true, "sslMode": true,
 	"secret": true, "secretRef": true, tlsToggleKey: true,
-	"sslRootCert": true, "sslCert": true, "sslKey": true, "options": true,
+	"sslRootCert": true, "sslCert": true, "sslKey": true, "options": true, "otherHosts": true,
 }
 
 // passwordFields are the visible fields for each password source. Prompt and keyring modes have no source fields.
@@ -190,6 +190,7 @@ func BuildFormFields(profile Profile, editing bool, secretStoreNames []string) [
 		{Key: "engine", Label: "engine", Value: string(source.Engine), Choices: listEngineNames()},
 		{Key: "host", Label: "host", Value: source.Host},
 		{Key: "port", Label: "port", Value: strconv.Itoa(source.Port)},
+		{Key: "otherHosts", Label: "other hosts", Value: strings.Join(source.OtherHosts, ",")},
 		{Key: "database", Label: resolveDatabaseLabel(source.Engine), Value: source.Database},
 		{Key: "user", Label: "user", Value: source.User},
 		{Key: "auth", Label: "auth", Value: string(source.Auth), Choices: listModeNames(AuthModes)},
@@ -291,6 +292,9 @@ func FindShownFields(fields []FormField) []FormField {
 			continue
 		}
 		if mongoFields[field.Key] && !speaksMongo {
+			continue
+		}
+		if field.Key == "otherHosts" && !(known && takesOtherHosts(engine)) {
 			continue
 		}
 		if field.Key == "port" && readsSRV {
@@ -402,6 +406,18 @@ func BuildProfileFromFields(fields []FormField, source Profile, editing bool) (P
 		return Profile{}, tunnelErr
 	}
 
+	built.OtherHosts = nil
+	if written := read("otherHosts"); written != "" && takesOtherHosts(engine) {
+		hosts, ports, err := splitHostList(written, built.Port)
+		if err != nil {
+			return Profile{}, FormError{Reason: err.Error(), Field: "otherHosts"}
+		}
+		built.OtherHosts = joinHosts(hosts, ports)
+	}
+	if problem := findOtherHostsProblem(built); problem != "" {
+		return Profile{}, FormError{Reason: problem, Field: "otherHosts"}
+	}
+
 	if built.Name == "" {
 		return Profile{}, FormError{Reason: "the name is missing", Field: "name"}
 	}
@@ -498,6 +514,7 @@ type ConnectionURL struct {
 	AuthSource       string
 	ReplicaSet       string
 	Options          map[string]string
+	OtherHosts       []string
 }
 
 // urlSchemes are the engines for supported URL schemes and aliases.
@@ -590,7 +607,7 @@ func readURLMongoOptions(parsed *url.URL, engine core.Engine) (bool, string, str
 // ParseConnectionURL requires a supported scheme and host. A database is required only for an
 // engine that connects to one. The returned fields omit the password.
 func ParseConnectionURL(text string) (ConnectionURL, bool) {
-	trimmed := strings.TrimSpace(text)
+	trimmed, hostList := takeHostList(strings.TrimSpace(text))
 	if !strings.Contains(trimmed, "://") {
 		return ConnectionURL{}, false
 	}
@@ -604,21 +621,18 @@ func ParseConnectionURL(text string) (ConnectionURL, bool) {
 		return ConnectionURL{}, false
 	}
 
-	// Connection hosts use IPv6 addresses without brackets.
-	host := strings.Trim(parsed.Hostname(), "[]")
 	database := strings.TrimPrefix(parsed.Path, "/")
-	if host == "" || (database == "" && core.NeedsDatabase(engine)) {
+	if hostList == "" {
+		hostList = parsed.Host
+	}
+	if hostList == "" || (database == "" && core.NeedsDatabase(engine)) {
 		return ConnectionURL{}, false
 	}
-
-	port := core.ResolveDefaultPort(engine)
-	if written := parsed.Port(); written != "" {
-		held, portErr := strconv.Atoi(written)
-		if portErr != nil || held <= 0 {
-			return ConnectionURL{}, false
-		}
-		port = held
+	hosts, ports, hostErr := splitHostList(hostList, core.ResolveDefaultPort(engine))
+	if hostErr != nil || (len(hosts) > 1 && !takesOtherHosts(engine)) {
+		return ConnectionURL{}, false
 	}
+	host, port := hosts[0], ports[0]
 
 	direct, directErr := readURLDirectConnection(parsed, engine)
 	if directErr != nil {
@@ -638,7 +652,7 @@ func ParseConnectionURL(text string) (ConnectionURL, bool) {
 		Engine: engine, Host: host, Port: port, Database: database,
 		User: user, SSLMode: sslMode, SSLFiles: readURLSSLFiles(parsed),
 		DirectConnection: direct, SRV: srv, AuthSource: authSource, ReplicaSet: replicaSet,
-		Options: readURLOptions(parsed, engine),
+		Options: readURLOptions(parsed, engine), OtherHosts: joinOtherHosts(hosts, ports),
 	}, true
 }
 
@@ -675,6 +689,7 @@ func ApplyConnectionURL(fields []FormField, held ConnectionURL) []FormField {
 		{srvKey, describeToggle(held.SRV)},
 		{"authSource", held.AuthSource}, {"replicaSet", held.ReplicaSet},
 		{"options", WriteOptions(held.Options)},
+		{"otherHosts", strings.Join(held.OtherHosts, ",")},
 	} {
 		filled = writeField(filled, written[0], written[1])
 	}
@@ -811,6 +826,7 @@ var formFieldLines = map[string]string{
 	srvKey:            "host is an SRV record name, as in mongodb+srv://",
 	"authSource":      "database that holds the user; empty uses admin",
 	"options":         "driver options as a URL query, such as connect_timeout=5&application_name=etl",
+	"otherHosts":      "more servers as host:port, joined by commas",
 	sshToggleKey:      "connect through an ssh server",
 	"aiInstructions":  "context sent to the AI chat with every request",
 }

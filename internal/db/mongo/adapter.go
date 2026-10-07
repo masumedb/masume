@@ -1019,7 +1019,7 @@ func BuildClientOptions(profile cfg.Profile, password string) (*options.ClientOp
 			held.ApplyURI(written.String())
 		}
 		dialHost, dialPort := profile.DialAddress()
-		held.SetHosts([]string{fmt.Sprintf("%s:%d", dialHost, dialPort)})
+		held.SetHosts(append([]string{fmt.Sprintf("%s:%d", dialHost, dialPort)}, profile.OtherHosts...))
 	}
 	if _, set := profile.Options["appName"]; !set {
 		held.SetAppName(applicationName)

@@ -241,7 +241,7 @@ masume --mcp --check                     check enabled MCP profiles
 masume --version                         print the version
 ```
 
-URL support is partial: most native driver options are ignored. See [connection targets](docs/usage.md#connection-targets).
+A URL query key without a profile key of its own is passed to the driver. See [connection targets](docs/usage.md#connection-targets) and [driver options](docs/configuration.md#driver-options).
 
 ## Docs
 

@@ -45,7 +45,9 @@ A URL without a database uses the user name on PostgreSQL-family engines, databa
 
 Connection strings accept single-quoted values and backslash escapes inside quotes. `engine` takes the profile engine names. Any other key is a driver option.
 
-A URL can carry one host, credentials, a port, a database, `sslmode` (also spelled `ssl-mode` or `sslMode`), the certificate files `sslrootcert`, `sslcert`, and `sslkey`, and on MongoDB `directConnection`, `authSource`, and `replicaSet`. Every other query key is a driver option. See [driver options](configuration.md#driver-options). A `mongodb+srv` URL sets `srv = true`, takes no port, and defaults to `sslmode = "verify-full"`.
+A URL can carry credentials, a host and port, a database, `sslmode` (also spelled `ssl-mode` or `sslMode`), the certificate files `sslrootcert`, `sslcert`, and `sslkey`, and on MongoDB `directConnection`, `authSource`, and `replicaSet`. Every other query key is a driver option. See [driver options](configuration.md#driver-options). A `mongodb+srv` URL sets `srv = true`, takes no port, and defaults to `sslmode = "verify-full"`.
+
+On the PostgreSQL and MongoDB families, a URL can carry several hosts joined by commas, such as `postgres://ada@db1:5432,db2:5432/shop?target_session_attrs=read-write`. A connection string takes `host=db1,db2` with one port, or one port per host. The hosts after the first one are `other_hosts`.
 
 `rediss://` connects with TLS and verifies the certificate. Other settings take the defaults of a new connection, such as `env = "dev"`, `mode = "write"`, and `page_size = 200`.
 

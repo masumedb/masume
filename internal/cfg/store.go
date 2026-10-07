@@ -187,6 +187,10 @@ func buildProfileKeys(profile Profile) ([]string, map[string]any, map[string]boo
 	if profile.SRV {
 		written["srv"] = true
 	}
+	managed["other_hosts"] = true
+	if len(profile.OtherHosts) > 0 {
+		written["other_hosts"] = profile.OtherHosts
+	}
 	managed["options"] = true
 	if len(profile.Options) > 0 {
 		written["options"] = profile.Options
@@ -198,7 +202,7 @@ func buildProfileKeys(profile Profile) ([]string, map[string]any, map[string]boo
 
 	// A fixed order that is easy to read, not the order of a map.
 	order := []string{
-		"engine", "host", "port", "database", "user", "auth",
+		"engine", "host", "port", "other_hosts", "database", "user", "auth",
 		"password", "password_env", "password_command", "secret", "secret_ref",
 		"env", "mode", "sslmode", "sslrootcert", "sslcert", "sslkey",
 		"direct_connection", "srv", "auth_source", "replica_set", "options",

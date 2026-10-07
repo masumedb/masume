@@ -140,6 +140,7 @@ func readTargetSSLMode(parsed *url.URL, engine core.Engine) (core.SSLMode, error
 }
 
 func buildProfileFromURL(text string) (Profile, error) {
+	text, hostList := takeHostList(text)
 	parsed, err := url.Parse(text)
 	if err != nil {
 		return Profile{}, failTarget(
@@ -154,21 +155,17 @@ func buildProfileFromURL(text string) (Profile, error) {
 	}
 
 	built := buildTargetProfile(engine)
-	// Connection hosts use IPv6 addresses without brackets.
-	built.Host = strings.Trim(parsed.Hostname(), "[]")
-	if strings.Contains(built.Host, ",") {
-		return Profile{}, failTarget(
-			"multiple hosts are unsupported; use one host in the URL")
+	built.Host = defaultTargetHost
+	if hostList == "" {
+		hostList = parsed.Host
 	}
-	if built.Host == "" {
-		built.Host = defaultTargetHost
-	}
-	if written := parsed.Port(); written != "" {
-		port, portErr := readPortNumber(written)
-		if portErr != nil {
-			return Profile{}, portErr
+	if hostList != "" {
+		hosts, ports, hostErr := splitHostList(hostList, built.Port)
+		if hostErr != nil {
+			return Profile{}, hostErr
 		}
-		built.Port = port
+		built.Host, built.Port = hosts[0], ports[0]
+		built.OtherHosts = joinOtherHosts(hosts, ports)
 	}
 	if parsed.User != nil {
 		built.User = parsed.User.Username()
@@ -193,6 +190,9 @@ func buildProfileFromURL(text string) (Profile, error) {
 	}
 
 	built.Options = readURLOptions(parsed, engine)
+	if problem := findOtherHostsProblem(built); problem != "" {
+		return Profile{}, failTarget("%s", problem)
+	}
 
 	built.Database = strings.TrimPrefix(parsed.Path, "/")
 	// The database path has one segment.
@@ -311,6 +311,7 @@ func buildProfileFromKeywords(text string) (Profile, error) {
 	}
 
 	built := buildTargetProfile(engine)
+	writtenPorts := ""
 	for _, pair := range pairs {
 		key, known := keywordAliases[strings.ToLower(pair[0])]
 		if !known {
@@ -327,11 +328,7 @@ func buildProfileFromKeywords(text string) (Profile, error) {
 		case "host":
 			built.Host = value
 		case "port":
-			port, portErr := readPortNumber(value)
-			if portErr != nil {
-				return Profile{}, portErr
-			}
-			built.Port = port
+			writtenPorts = value
 		case "database":
 			built.Database = value
 		case "user":
@@ -359,6 +356,9 @@ func buildProfileFromKeywords(text string) (Profile, error) {
 
 	if built.Host == "" {
 		built.Host = defaultTargetHost
+	}
+	if err := splitKeywordHosts(&built, writtenPorts); err != nil {
+		return Profile{}, err
 	}
 	if built.Database == "" {
 		built.Database = resolveDefaultDatabase(built.Engine, built.User)
@@ -444,4 +444,38 @@ func ResolveUniqueProfileName(profiles []Profile, wanted string) string {
 			return candidate
 		}
 	}
+}
+
+// splitKeywordHosts reads `host=db1,db2 port=5432,5433` as libpq does: one port for every
+// host, or one port per host.
+func splitKeywordHosts(built *Profile, writtenPorts string) error {
+	hosts := strings.Split(built.Host, ",")
+	ports := []int{}
+	if writtenPorts != "" {
+		for _, written := range strings.Split(writtenPorts, ",") {
+			port, err := readPortNumber(strings.TrimSpace(written))
+			if err != nil {
+				return err
+			}
+			ports = append(ports, port)
+		}
+	}
+	switch {
+	case len(ports) == 0:
+		ports = slices.Repeat([]int{built.Port}, len(hosts))
+	case len(ports) == 1:
+		ports = slices.Repeat(ports, len(hosts))
+	case len(ports) != len(hosts):
+		return failTarget("%d ports for %d hosts; use one port, or one port per host",
+			len(ports), len(hosts))
+	}
+	for at := range hosts {
+		hosts[at] = strings.TrimSpace(hosts[at])
+	}
+	built.Host, built.Port = hosts[0], ports[0]
+	built.OtherHosts = joinOtherHosts(hosts, ports)
+	if problem := findOtherHostsProblem(*built); problem != "" {
+		return failTarget("%s", problem)
+	}
+	return nil
 }

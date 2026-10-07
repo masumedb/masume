@@ -4,6 +4,8 @@ package postgres_test
 
 import (
 	"context"
+	"net"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -51,4 +53,18 @@ func TestServerRefusesAnOptionItDoesNotKnow(t *testing.T) {
 	if !strings.Contains(db.DescribeError(err), "masume_unknown_setting") {
 		t.Errorf("the error does not name the option: %v", db.DescribeError(err))
 	}
+}
+
+func TestServerIsReachedThroughAnotherHost(t *testing.T) {
+	profile, password := dbtest.BuildProfile(t, dbtest.Postgres)
+	reachable := net.JoinHostPort(profile.Host, strconv.Itoa(profile.Port))
+	profile.Port = 1
+	profile.OtherHosts = []string{reachable}
+	ctx, stop := context.WithTimeout(context.Background(), 30*time.Second)
+	defer stop()
+	session, err := engines.CreateAdapters().Open(ctx, profile, password)
+	if err != nil {
+		t.Fatalf("the other host was not tried: %v", err)
+	}
+	_ = session.Close()
 }

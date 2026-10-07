@@ -172,3 +172,15 @@ func TestBuildClientOptionsReportsAnOptionValueTheDriverCannotRead(t *testing.T)
 		t.Errorf("the error is %v", err)
 	}
 }
+
+func TestBuildClientOptionsSeedsEveryHost(t *testing.T) {
+	profile := buildProbeProfile("")
+	profile.OtherHosts = []string{"db2.example.com:27018"}
+	held, err := BuildClientOptions(profile, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(held.Hosts, []string{"cluster.example.com:27017", "db2.example.com:27018"}) {
+		t.Errorf("the hosts are %v", held.Hosts)
+	}
+}

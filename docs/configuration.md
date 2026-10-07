@@ -70,6 +70,7 @@ mode     = "write"
 | `engine` | `postgres` | Database engine. [engines.md](engines.md) lists the engines |
 | `host` | required | The connection form default is `127.0.0.1`. A path or `socket` means a unix socket; see [Unix socket](#unix-socket). Ignored for SQLite |
 | `port` | per engine | Server port |
+| `other_hosts` | | PostgreSQL and MongoDB families. More servers as `host:port`, such as `["db2:5432"]`. PostgreSQL tries them in order after `host`. MongoDB takes every host as a seed. Not allowed with `ssh_host` or `srv` |
 | `database` | required, except on MySQL-protocol engines | Database name, SQLite file path, or Redis database number |
 | `user` | required if the engine needs one | Ignored for SQLite. Optional for Redis and MongoDB |
 | `auth` | `secret` if `secret` is set; otherwise `command` if `password_command` is set; otherwise `password` | Password source: `prompt`, `keyring`, `command`, `secret` or `password`. See [Passwords](#passwords) |

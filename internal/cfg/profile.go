@@ -125,6 +125,9 @@ type Profile struct {
 	// Empty for an engine that opens a file and not a server.
 	Host string
 	Port int
+	// More servers as host:port, after Host and Port. The PostgreSQL family tries them in
+	// order, and the MongoDB family takes them as seed hosts.
+	OtherHosts []string
 	// The database on the server, or the path of the SQLite file.
 	Database    string
 	User        string
@@ -517,6 +520,12 @@ func buildProfile(name string, source Table) (Profile, error) {
 	if err != nil {
 		return Profile{}, err
 	}
+	otherHosts, _ := FindStringList(source, "other_hosts")
+	for _, written := range otherHosts {
+		if _, _, hostErr := splitHostList(written, port); hostErr != nil {
+			return Profile{}, failProfile("other_hosts: %v", hostErr)
+		}
+	}
 
 	sshPort, hasSSHPort, err := readPositiveInteger(source, "ssh_port")
 	if err != nil {
@@ -543,8 +552,9 @@ func buildProfile(name string, source Table) (Profile, error) {
 	description, _ := FindString(source, "description")
 	aiInstructions, _ := FindString(source, "ai_instructions")
 
-	return Profile{
-		Name: name, Engine: engine, Host: host, Port: port, Database: database, User: user,
+	built := Profile{
+		Name: name, Engine: engine, Host: host, Port: port, OtherHosts: otherHosts,
+		Database: database, User: user,
 		Auth: auth, Environment: environment, AccessMode: accessMode,
 		PasswordEnv: passwordEnv, PasswordCommand: passwordCommand,
 		Secret: secretName, SecretRef: secretRef,
@@ -561,7 +571,11 @@ func buildProfile(name string, source Table) (Profile, error) {
 		Description:      description,
 		StatementTimeout: time.Duration(timeoutMilliseconds) * time.Millisecond,
 		AiInstructions:   aiInstructions, McpAccess: mcpAccess, InConfigFile: true,
-	}, nil
+	}
+	if problem := findOtherHostsProblem(built); problem != "" {
+		return Profile{}, failProfile("%s", problem)
+	}
+	return built, nil
 }
 
 // ParseProfiles reads `[profile]` and `[secret]`, resolves store commands, and reports skipped entries.
