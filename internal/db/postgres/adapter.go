@@ -884,7 +884,7 @@ func (session *postgresSession) ReadServerLoad(ctx context.Context) (db.ServerLo
 	if !session.Support.Capabilities.ReportsServerLoad {
 		return db.ServerLoad{}, db.NewUnsupportedError("report server load")
 	}
-	rows, err := session.readRows(ctx, readServerLoadSQL)
+	rows, err := session.readRows(ctx, session.flavour.ReadServerLoadStatement)
 	if err != nil {
 		return db.ServerLoad{}, err
 	}

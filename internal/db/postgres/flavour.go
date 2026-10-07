@@ -7,9 +7,10 @@ type Flavour struct {
 	// The statement that opens a session where the server refuses every write.
 	ReadOnlyStatement string
 	// Statement that stops the session with process ID $1. A row count above zero is a stop.
-	BuildCancelStatement   func(terminate bool) string
-	ListActivityStatement  string
-	ListLockWaitsStatement string
+	BuildCancelStatement    func(terminate bool) string
+	ListActivityStatement   string
+	ListLockWaitsStatement  string
+	ReadServerLoadStatement string
 	// SQL expression, true where the server keeps statement statistics. Empty for none.
 	CountsStatementsExpression  string
 	ListSlowStatementsStatement string
@@ -49,10 +50,20 @@ var FlavourStandard = Flavour{
 		}
 		return "explain (COSTS)"
 	},
-	ReadOnlyStatement:      postgresReadOnlyStatement,
-	BuildCancelStatement:   buildPostgresCancelStatement,
-	ListActivityStatement:  listActivitySQL,
-	ListLockWaitsStatement: listLockWaitsSQL,
+	ReadOnlyStatement:       postgresReadOnlyStatement,
+	BuildCancelStatement:    buildPostgresCancelStatement,
+	ListActivityStatement:   listActivitySQL,
+	ListLockWaitsStatement:  listLockWaitsSQL,
+	ReadServerLoadStatement: readServerLoadSQL,
+}
+
+// FlavourYugabyte is PostgreSQL with its own server load read.
+var FlavourYugabyte = buildFlavourYugabyte()
+
+func buildFlavourYugabyte() Flavour {
+	flavour := FlavourStandard
+	flavour.ReadServerLoadStatement = readYugabyteServerLoadSQL
+	return flavour
 }
 
 // FlavourCockroach writes its own plan, and takes no options in brackets.

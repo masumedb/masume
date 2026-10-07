@@ -46,7 +46,7 @@ Most capabilities are static defaults. The interface shows an action only when i
 | tidb | yes | yes | yes | yes | yes | no | no | yes | yes | yes |
 | timescale | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
 | turso | yes | no | yes | no | no | no | no | yes | no | yes |
-| yugabyte | yes | yes | yes | yes | yes | yes | no | yes | yes | yes |
+| yugabyte | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
 
 | Flag | Meaning |
 | --- | --- |
@@ -82,14 +82,14 @@ The dashboard hides unsupported panels. Activity, lock relationships, server loa
 | ClickHouse | Running statements, connections, connection limit, start time, statement statistics | `system.processes`, `system.metrics`, `system.server_settings`, and `system.query_log` |
 | SQL Server | Activity, locks, connections, connection limit, start time, statement statistics | `sys.dm_exec_sessions`, `sys.dm_exec_requests`, `sys.dm_tran_locks`, `sys.dm_os_sys_info`, and the VIEW SERVER STATE permission |
 | Azure SQL Database | Activity, locks, statement statistics | The same views at database scope, and the VIEW DATABASE STATE permission |
-| YugabyteDB | Activity, locks, statement statistics | `pg_stat_activity`, `pg_locks`, and `pg_stat_statements`, which the server loads by default |
+| YugabyteDB | Activity, locks, connections, connection limit, start time, transaction count, temporary files, cache hits, statement statistics | `pg_stat_activity`, `pg_locks`, `pg_stat_database`, and `pg_stat_statements`, which the server loads by default |
 | Redshift, TiDB | Activity only | The adapter's activity query and sufficient permissions |
 | MongoDB, Amazon DocumentDB | Current operations | `currentOp` and sufficient permissions |
 | Redis | Connected clients | `CLIENT LIST`, and `CLIENT KILL` to stop a client |
 | CockroachDB | Activity, locks, statement statistics | `crdb_internal.cluster_sessions`, `crdb_internal.cluster_locks`, `crdb_internal.statement_statistics`, and the VIEWACTIVITY privilege for locks, statistics, and the sessions of other users |
 | PlanetScale, SQLite, Turso, Cassandra, ScyllaDB | No dashboard metrics | None |
 
-YugabyteDB has no PostgreSQL write-ahead log. `pg_current_wal_lsn()` returns `not yet supported` and fails the whole load query, so the server load panel is hidden. Activity, lock waits and statement statistics work.
+YugabyteDB has no PostgreSQL write-ahead log, and a read of `pg_stat_replication` does not return. The YugabyteDB dashboard has no WAL rate and no replication lag.
 
 PostgreSQL metrics use `pg_stat_activity`, `pg_locks`, `pg_stat_database`, WAL functions, and replication statistics. Replication lag is shown only when the query returns a value. The cache hit rate needs recorded block reads or hits. Every rate needs at least two counter samples.
 

@@ -355,12 +355,8 @@ var engineRegistry = map[Engine]EngineInfo{
 	},
 	EngineYugabyte: {
 		Engine: EngineYugabyte, Family: FamilyPostgres,
-		Capabilities: withPostgres(func(capabilities *Capabilities) {
-			// The server holds no write ahead log of PostgreSQL, so it answers
-			// `pg_current_wal_lsn() is not yet supported` and the whole load read fails.
-			capabilities.ReportsServerLoad = false
-		}),
-		DefaultPort: 5433, NeedsUser: true, NeedsPassword: true, NeedsDatabase: true,
+		Capabilities: postgresCapabilities,
+		DefaultPort:  5433, NeedsUser: true, NeedsPassword: true, NeedsDatabase: true,
 		URLSchemes:    []string{"yugabytedb"},
 		SystemSchemas: postgresCatalogSchemas, SystemSchemaPrefixes: postgresOwnPrefixes,
 	},

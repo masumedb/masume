@@ -317,6 +317,17 @@ const readServerLoadSQL = `
          end as replication_lag_s
 `
 
+// YugabyteDB has no WAL position, and a read of pg_stat_replication does not return.
+const readYugabyteServerLoadSQL = `
+  select /*masume:dashboard*/ (select count(*) from pg_stat_activity)  as connections,
+         current_setting('max_connections')::int8 as max_connections,
+         pg_postmaster_start_time()               as started_at,
+         (select sum(xact_commit + xact_rollback)::int8 from pg_stat_database) as transactions,
+         (select sum(temp_files)::int8 from pg_stat_database)            as temp_files,
+         (select sum(blks_hit)::int8   from pg_stat_database)            as blocks_hit,
+         (select sum(blks_read)::int8  from pg_stat_database)            as blocks_read
+`
+
 // DashboardMark is the query comment used to exclude dashboard reads from statement statistics.
 // PostgreSQL groups statements by parse tree. Identical queries with different comments share a statistics row.
 const DashboardMark = "masume:dashboard"
