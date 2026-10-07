@@ -69,7 +69,7 @@ On MongoDB, the transaction and atomic staged-change flags come from the deploym
 | Write previews | Every SQL engine except ClickHouse and Cassandra. Not MongoDB |
 | Read-only mode | Every engine except TiDB. Client-only on MongoDB, Amazon DocumentDB, SQL Server, Azure SQL Database, Redis, Cassandra, ScyllaDB and Turso |
 | Atomic staged changes | Every engine except ClickHouse, which has no transactions. Set after connection on MongoDB |
-| Statement statistics | Off on every engine until connection. Set after an extension check on the PostgreSQL family, a permission check on SQL Server, and a query log check on ClickHouse |
+| Statement statistics | Off on every engine until connection. On for CockroachDB. Set after an extension check on the rest of the PostgreSQL family, a permission check on SQL Server, and a query log check on ClickHouse |
 
 ## Dashboard metrics
 
@@ -86,7 +86,7 @@ The dashboard hides unsupported panels. Activity, lock relationships, server loa
 | Redshift, TiDB | Activity only | The adapter's activity query and sufficient permissions |
 | MongoDB, Amazon DocumentDB | Current operations | `currentOp` and sufficient permissions |
 | Redis | Connected clients | `CLIENT LIST`, and `CLIENT KILL` to stop a client |
-| CockroachDB | Activity, locks | `crdb_internal.cluster_sessions`, `crdb_internal.cluster_locks`, and the VIEWACTIVITY privilege for the sessions of other users |
+| CockroachDB | Activity, locks, statement statistics | `crdb_internal.cluster_sessions`, `crdb_internal.cluster_locks`, `crdb_internal.statement_statistics`, and the VIEWACTIVITY privilege for locks, statistics, and the sessions of other users |
 | PlanetScale, SQLite, Turso, Cassandra, ScyllaDB | No dashboard metrics | None |
 
 YugabyteDB has no PostgreSQL write-ahead log. `pg_current_wal_lsn()` returns `not yet supported` and fails the whole load query, so the server load panel is hidden. Activity, lock waits and statement statistics work.

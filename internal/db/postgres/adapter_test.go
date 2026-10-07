@@ -30,8 +30,7 @@ func TestCancelRunningQueryRefusesAnUnknownBackend(t *testing.T) {
 	}
 }
 
-// Redshift documents the catalogs of PostgreSQL 8.0, which hold no pg_extension, so the
-// statement that opens a connection asks that server for less.
+// Only PostgreSQL itself keeps statement statistics in an extension.
 func TestBuildIdentityStatementAsksOnlyTheServersThatHoldTheCatalog(t *testing.T) {
 	for _, one := range []struct {
 		name    string
@@ -39,7 +38,7 @@ func TestBuildIdentityStatementAsksOnlyTheServersThatHoldTheCatalog(t *testing.T
 		asks    bool
 	}{
 		{"standard", FlavourStandard, true},
-		{"cockroach", FlavourCockroach, true},
+		{"cockroach", FlavourCockroach, false},
 		{"redshift", FlavourRedshift, false},
 	} {
 		written := buildIdentityStatement(one.flavour)

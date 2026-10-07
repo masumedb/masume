@@ -10,8 +10,9 @@ type Flavour struct {
 	BuildCancelStatement   func(terminate bool) string
 	ListActivityStatement  string
 	ListLockWaitsStatement string
-	// True if pg_extension is available. Redshift lacks this catalog.
-	HasExtensionCatalog bool
+	// SQL expression, true where the server keeps statement statistics. Empty for none.
+	CountsStatementsExpression  string
+	ListSlowStatementsStatement string
 }
 
 const postgresReadOnlyStatement = "set default_transaction_read_only = on"
@@ -35,9 +36,13 @@ func buildCockroachCancelStatement(terminate bool) string {
 	           where session.pg_backend_pid = $1)`
 }
 
+const countsPgStatStatements = `(select count(*) from pg_extension
+                                   where extname = 'pg_stat_statements') > 0`
+
 // FlavourStandard is PostgreSQL itself, which the other flavours differ from.
 var FlavourStandard = Flavour{
-	HasExtensionCatalog: true,
+	CountsStatementsExpression:  countsPgStatStatements,
+	ListSlowStatementsStatement: listSlowStatementsSQL,
 	BuildExplainPrefix: func(analyze bool) string {
 		if analyze {
 			return "explain (ANALYZE, BUFFERS, COSTS)"
@@ -52,7 +57,8 @@ var FlavourStandard = Flavour{
 
 // FlavourCockroach writes its own plan, and takes no options in brackets.
 var FlavourCockroach = Flavour{
-	HasExtensionCatalog: true,
+	CountsStatementsExpression:  "true",
+	ListSlowStatementsStatement: listCockroachSlowStatementsSQL,
 	BuildExplainPrefix: func(analyze bool) string {
 		if analyze {
 			return "explain analyze"

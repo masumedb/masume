@@ -360,3 +360,28 @@ var postgresObjectDDL = map[db.SchemaObjectKind]string{
 const readViewDefinitionSQL = `
   select pg_get_viewdef($1::regclass, true) as definition
 `
+
+// CockroachDB strips comments from the recorded statements, so its dashboard reads are matched
+// by the crdb_internal tables they read.
+const listCockroachSlowStatementsSQL = `
+  select /*masume:dashboard*/ query,
+         sum(calls)::int8                         as calls,
+         (sum(total_s) / sum(calls)::float8 * 1000) as mean_ms,
+         (sum(total_s) * 1000)::float8            as total_ms,
+         sum(rows_returned)::int8                 as rows_returned
+    from (select query,
+                 (statistics->'statistics'->>'cnt')::int8 as calls,
+                 (statistics->'statistics'->'svcLat'->>'mean')::float8
+                   * (statistics->'statistics'->>'cnt')::float8 as total_s,
+                 (statistics->'statistics'->'numRows'->>'mean')::float8
+                   * (statistics->'statistics'->>'cnt')::float8 as rows_returned
+            from crdb_internal.statement_statistics
+           where database = current_database()
+             and app_name not like '$ internal%'
+             and query not like '%crdb_internal%'
+             and query not like '%' || $2 || '%') as aggregated
+   group by query
+  having sum(calls) > 0
+   order by mean_ms desc
+   limit $1
+`

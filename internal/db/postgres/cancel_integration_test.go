@@ -159,3 +159,33 @@ func TestCockroachReportsWhichSessionWaitsForALock(t *testing.T) {
 		t.Error("the waiter never finished after the lock was freed")
 	}
 }
+
+func TestCockroachReportsTheStatementsItSpendsItsTimeIn(t *testing.T) {
+	session := dbtest.Open(t, dbtest.Cockroach)
+	if !session.Capabilities().ReportsStatementStats {
+		t.Fatal("the session reports no statement statistics")
+	}
+	ctx := context.Background()
+	if _, err := session.RunQuery(ctx,
+		"select pg_sleep(0.2), 'masume-crdb-slow'", dbtest.ReadEverything, nil); err != nil {
+		t.Fatalf("the statement failed: %v", err)
+	}
+
+	for range 100 {
+		slow, err := session.ListSlowStatements(ctx, 1000)
+		if err != nil {
+			t.Fatalf("the server did not report its statements: %v", err)
+		}
+		for _, held := range slow {
+			if strings.Contains(held.Query, "crdb_internal") {
+				t.Errorf("a dashboard read is reported: %q", held.Query)
+			}
+			if strings.Contains(held.Query, "pg_sleep") && held.Calls > 0 &&
+				held.MeanTime >= 100*time.Millisecond {
+				return
+			}
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	t.Fatal("the statement that ran is not reported")
+}

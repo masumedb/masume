@@ -926,7 +926,8 @@ func (session *postgresSession) ListSlowStatements(
 	if limit < 1 {
 		return nil, nil
 	}
-	rows, err := session.readRows(ctx, listSlowStatementsSQL, limit, DashboardMark)
+	rows, err := session.readRows(
+		ctx, session.flavour.ListSlowStatementsStatement, limit, DashboardMark)
 	if err != nil {
 		return nil, err
 	}
@@ -1152,9 +1153,8 @@ var _ db.Session = (*postgresSession)(nil)
 // buildIdentityStatement returns the statement that reads the identity of the connection.
 func buildIdentityStatement(flavour Flavour) string {
 	written := "select pg_backend_pid() as pid, current_schema() as schema"
-	if flavour.HasExtensionCatalog {
-		written += `, (select count(*) from pg_extension
-		                where extname = 'pg_stat_statements') > 0 as counts_statements`
+	if flavour.CountsStatementsExpression != "" {
+		written += ", " + flavour.CountsStatementsExpression + " as counts_statements"
 	}
 	return written
 }
