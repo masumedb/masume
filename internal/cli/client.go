@@ -31,6 +31,7 @@ usage:
   masume nb run [TARGET | -p NAME] FILE    run a notebook
   masume dump [TARGET | -p NAME] FILE      dump schema and data
   masume restore [TARGET | -p NAME] FILE   restore a dump
+  masume diff SOURCE TARGET                compare the schemas of two connections
   masume FILE.masume.md                    open a notebook file
   masume --mcp                             serve allowed profiles over JSON-RPC on stdio
   masume --mcp --profile NAME              serve one allowed profile
@@ -40,6 +41,7 @@ usage:
 
 Run masume run --help for headless options, and masume nb --help for notebooks.
 Run masume dump --help and masume restore --help for the SQL file commands.
+Run masume diff --help for schema compare.
 
 A command-line connection remains temporary until saved.
 Press Ctrl+N, then e, then Ctrl+S to save the selected profile.
@@ -66,6 +68,9 @@ func Run(argv []string) int {
 	}
 	if len(argv) > 0 && argv[0] == "restore" {
 		return runRestoreCommand(argv[1:])
+	}
+	if len(argv) > 0 && argv[0] == "diff" {
+		return runDiffCommand(argv[1:])
 	}
 	if slices.Contains(argv, "--help") || slices.Contains(argv, "-h") {
 		fmt.Printf(usage+"\n", cfg.ResolveConfigPath(), core.ResolveStatePath("history.sqlite"))

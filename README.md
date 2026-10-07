@@ -218,7 +218,7 @@ masume run -p shop -e ./reports/daily.sql --param day=2026-09-02
 masume run ./notes.db -f csv 'select * from notes limit 100000' > notes.csv
 ```
 
-See [headless mode](docs/headless.md) for formats, exit codes, dump, restore, and notebooks.
+See [headless mode](docs/headless.md) for formats, exit codes, dump, restore, schema compare, and notebooks.
 
 ## Command line
 
@@ -231,6 +231,7 @@ masume run [TARGET | -p NAME] STATEMENT  run statements
 masume nb run [TARGET | -p NAME] FILE    run a notebook
 masume dump [TARGET | -p NAME] FILE      dump schema and data
 masume restore [TARGET | -p NAME] FILE   restore a dump
+masume diff SOURCE TARGET                compare the schemas of two connections
 masume --mcp                             serve allowed MCP profiles
 masume --mcp --profile NAME              serve one allowed MCP profile
 masume --mcp --check                     check enabled MCP profiles

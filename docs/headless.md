@@ -1,6 +1,6 @@
 # Headless mode
 
-`masume run`, `masume nb run`, `masume dump`, and `masume restore` open a connection, do the work, and write to stdout. They use profiles, connection commands, timeouts, and read-only checks. They have no write confirmation, write plan, or undo.
+`masume run`, `masume nb run`, `masume dump`, `masume restore`, and `masume diff` open a connection, do the work, and write to stdout. They use profiles, connection commands, timeouts, and read-only checks. They have no write confirmation, write plan, or undo.
 
 ```sh
 masume run -p shop-prod -f json 'select count(*) from orders'
@@ -256,6 +256,41 @@ A restore runs each statement on its own, in file order, with no wrapping transa
 | `3` | | Read-only profile |
 
 See [dump and restore](usage.md#dump-and-restore) for the file layout.
+
+## Schema compare
+
+`masume diff` compares the tables, views, columns, indexes, and constraints of two schemas. The schemas can be on two connections or on one.
+
+```sh
+masume diff -p shop-staging -p shop
+masume diff -p shop -p shop --schema v1 --target-schema v2
+masume diff ./old.db ./new.db
+```
+
+```text
+masume diff SOURCE TARGET
+```
+
+| Argument | Meaning |
+| --- | --- |
+| `SOURCE`, `TARGET` | Connection target, or `-p NAME` for a profile. The first one is the source |
+| `-s`, `--schema NAME` | Source schema. Default: the default schema of the connection |
+| `--target-schema NAME` | Target schema. Default: the source schema, or the default schema of the connection |
+
+```text
+orders
+  - column note  text
+  + column placed_at  timestamp with time zone
+  ~ column total  integer not null -> bigint not null
+```
+
+`+` is only in the target, `-` is only in the source, and `~` is in both with a different definition. The schema name is removed from defaults and definitions before the compare. Column order, comments, grants, and owners are not compared.
+
+| Code | `diff` |
+| --- | --- |
+| `0` | No differences |
+| `1` | Differences found |
+| `2` | Argument, password, connection, or catalog read failure |
 
 ## Config and history
 
