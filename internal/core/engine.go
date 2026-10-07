@@ -310,8 +310,6 @@ var engineRegistry = map[Engine]EngineInfo{
 		Capabilities: withPostgres(func(capabilities *Capabilities) {
 			// The server also plans a schema change: `explain drop table` returns a plan.
 			capabilities.PlansEveryStatement = true
-			// CockroachDB session IDs are strings. The server has no pg_cancel_backend.
-			capabilities.HasServerSessions = false
 			capabilities.ReportsLockWaits = false
 			capabilities.ReportsServerLoad = false
 		}),

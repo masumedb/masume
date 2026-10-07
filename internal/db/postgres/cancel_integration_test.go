@@ -53,3 +53,34 @@ func stopRunningStatement(t *testing.T, session db.Session) {
 		t.Errorf("the statement after the stopped one answered %v", err)
 	}
 }
+
+func TestCockroachStopsAnotherSessionBothWays(t *testing.T) {
+	for _, held := range []struct {
+		name   string
+		marker string
+		ends   bool
+	}{
+		{"cancel the statement", "masume-crdb-cancel-marker", false},
+		{"end the session", "masume-crdb-end-marker", true},
+	} {
+		t.Run(held.name, func(t *testing.T) {
+			session := dbtest.Open(t, dbtest.Cockroach)
+			other := dbtest.Open(t, dbtest.Cockroach)
+
+			ctx := context.Background()
+			go func() {
+				_, _ = other.RunQuery(ctx,
+					"select pg_sleep(5) /* "+held.marker+" */", dbtest.ReadEverything, nil)
+			}()
+
+			pid := findSessionByMarker(t, session, held.marker)
+			stopped, stopErr := session.CancelBackend(ctx, pid, held.ends)
+			if stopErr != nil {
+				t.Fatalf("the server refused to stop session %d: %v", pid, stopErr)
+			}
+			if !stopped {
+				t.Errorf("the server did not stop session %d", pid)
+			}
+		})
+	}
+}

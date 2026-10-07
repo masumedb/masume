@@ -223,6 +223,22 @@ const listActivitySQL = `
    order by state = 'active' desc, query_start nulls last
 `
 
+// Sessions with the "$ internal" application name belong to the server.
+const listCockroachActivitySQL = `
+  select /*masume:dashboard*/ pg_backend_pid as pid,
+         coalesce(user_name, '')        as usename,
+         coalesce(application_name, '') as application_name,
+         coalesce(client_address, '')   as client_addr,
+         lower(coalesce(status, ''))    as state,
+         coalesce((extract(epoch from (now() - active_query_start)) * 1000)::int8, 0) as duration_ms,
+         coalesce(nullif(active_queries, ''), last_active_query, '') as query
+    from crdb_internal.cluster_sessions
+   where pg_backend_pid <> pg_backend_pid()
+     and status <> 'CLOSED'
+     and application_name not like '$ internal%'
+   order by status = 'ACTIVE' desc, active_query_start nulls last
+`
+
 // The sessions that wait for a lock, and the session that holds the one they wait for.
 // pg_blocking_pids answers the holders of one waiter without joining pg_locks to itself.
 // The mode reported is the one the holder was granted on the relation the waiter asked for.

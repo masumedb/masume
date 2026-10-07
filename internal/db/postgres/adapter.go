@@ -836,7 +836,7 @@ func (session *postgresSession) ListActivity(ctx context.Context) ([]db.Activity
 	if !session.Support.Capabilities.HasServerSessions {
 		return nil, db.NewUnsupportedError("list sessions")
 	}
-	rows, err := session.readRows(ctx, listActivitySQL)
+	rows, err := session.readRows(ctx, session.flavour.ListActivityStatement)
 	if err != nil {
 		return nil, err
 	}

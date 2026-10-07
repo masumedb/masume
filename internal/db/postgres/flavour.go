@@ -7,7 +7,8 @@ type Flavour struct {
 	// The statement that opens a session where the server refuses every write.
 	ReadOnlyStatement string
 	// Statement that stops the session with process ID $1. A row count above zero is a stop.
-	BuildCancelStatement func(terminate bool) string
+	BuildCancelStatement  func(terminate bool) string
+	ListActivityStatement string
 	// True if pg_extension is available. Redshift lacks this catalog.
 	HasExtensionCatalog bool
 }
@@ -42,8 +43,9 @@ var FlavourStandard = Flavour{
 		}
 		return "explain (COSTS)"
 	},
-	ReadOnlyStatement:    postgresReadOnlyStatement,
-	BuildCancelStatement: buildPostgresCancelStatement,
+	ReadOnlyStatement:     postgresReadOnlyStatement,
+	BuildCancelStatement:  buildPostgresCancelStatement,
+	ListActivityStatement: listActivitySQL,
 }
 
 // FlavourCockroach writes its own plan, and takes no options in brackets.
@@ -55,15 +57,17 @@ var FlavourCockroach = Flavour{
 		}
 		return "explain"
 	},
-	ReadOnlyStatement:    postgresReadOnlyStatement,
-	BuildCancelStatement: buildCockroachCancelStatement,
+	ReadOnlyStatement:     postgresReadOnlyStatement,
+	BuildCancelStatement:  buildCockroachCancelStatement,
+	ListActivityStatement: listCockroachActivitySQL,
 }
 
 // FlavourRedshift plans without measuring, so it is only asked for the estimate.
 var FlavourRedshift = Flavour{
-	BuildExplainPrefix:   func(bool) string { return "explain" },
-	ReadOnlyStatement:    postgresReadOnlyStatement,
-	BuildCancelStatement: buildPostgresCancelStatement,
+	BuildExplainPrefix:    func(bool) string { return "explain" },
+	ReadOnlyStatement:     postgresReadOnlyStatement,
+	BuildCancelStatement:  buildPostgresCancelStatement,
+	ListActivityStatement: listActivitySQL,
 }
 
 // MysqlFlavour holds the parts each MySQL-protocol server does differently. They share
