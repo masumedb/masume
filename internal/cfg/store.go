@@ -2,8 +2,10 @@ package cfg
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -79,6 +81,13 @@ func writeTomlValue(value any) (string, error) {
 			written = append(written, quoteTomlString(entry))
 		}
 		return "[" + strings.Join(written, ", ") + "]", nil
+	case map[string]string:
+		keys := slices.Sorted(maps.Keys(held))
+		written := make([]string, 0, len(keys))
+		for _, key := range keys {
+			written = append(written, writeTomlKey(key)+" = "+quoteTomlString(held[key]))
+		}
+		return "{ " + strings.Join(written, ", ") + " }", nil
 	}
 	return "", fmt.Errorf("unsupported config value type %T", value)
 }
@@ -178,6 +187,10 @@ func buildProfileKeys(profile Profile) ([]string, map[string]any, map[string]boo
 	if profile.SRV {
 		written["srv"] = true
 	}
+	managed["options"] = true
+	if len(profile.Options) > 0 {
+		written["options"] = profile.Options
+	}
 	managed["ssh_port"] = true
 	if profile.OpensTunnel() {
 		written["ssh_port"] = profile.SSHPort
@@ -188,7 +201,7 @@ func buildProfileKeys(profile Profile) ([]string, map[string]any, map[string]boo
 		"engine", "host", "port", "database", "user", "auth",
 		"password", "password_env", "password_command", "secret", "secret_ref",
 		"env", "mode", "sslmode", "sslrootcert", "sslcert", "sslkey",
-		"direct_connection", "srv", "auth_source", "replica_set",
+		"direct_connection", "srv", "auth_source", "replica_set", "options",
 		"confirm_writes", "group", "description", "ai_instructions",
 		"ssh_host", "ssh_port", "ssh_user", "ssh_key", "ssh_key_passphrase_env",
 		"ssh_password_env", "ssh_known_hosts",

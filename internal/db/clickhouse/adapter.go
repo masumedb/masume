@@ -603,6 +603,9 @@ func NewAdapter(support db.EngineSupport) db.Adapter {
 func (adapter *clickhouseAdapter) Connect(
 	ctx context.Context, profile cfg.Profile, password string,
 ) (db.Session, error) {
+	if err := checkSettingNames(ctx, profile, password); err != nil {
+		return nil, db.WrapDatabaseMessage(db.BuildConnectMessage(profile, err), err)
+	}
 	pool, poolErr := openClickhousePool(profile, password)
 	if poolErr != nil {
 		return nil, db.WrapDatabaseMessage(

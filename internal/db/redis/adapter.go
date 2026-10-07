@@ -550,12 +550,16 @@ func (adapter *redisAdapter) Connect(
 		return nil, err
 	}
 
-	options := &redis.Options{
-		Addr:     fmt.Sprintf("%s:%d", profile.Host, profile.Port),
-		Username: profile.User,
-		Password: password,
-		DB:       index,
+	options := &redis.Options{}
+	if len(profile.Options) > 0 {
+		parsed, parseErr := redis.ParseURL("redis://localhost/?" + cfg.WriteOptions(profile.Options))
+		if parseErr != nil {
+			return nil, db.WrapDatabaseMessage("invalid options: "+parseErr.Error(), parseErr)
+		}
+		options = parsed
 	}
+	options.Addr = fmt.Sprintf("%s:%d", profile.Host, profile.Port)
+	options.Username, options.Password, options.DB = profile.User, password, index
 	// A profile that names no mode connects in the clear, as a Redis client does.
 	tlsConfig, tlsErr := db.BuildPolicyTLS(
 		core.ResolveSSLPolicy(profile.SSLMode), profile.Host, profile.BuildSSLFiles())

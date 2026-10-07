@@ -90,6 +90,7 @@ mode     = "write"
 | `srv` | `false` | MongoDB. `true` reads the hosts from the SRV record of `host`, and `authSource` and `replicaSet` from its TXT record, as a `mongodb+srv` URL does. `port` is ignored, and TLS is on unless `sslmode` is `disable`. Not allowed with `ssh_host` or `direct_connection` |
 | `auth_source` | `admin`, or the TXT record value with `srv` | MongoDB and Amazon DocumentDB. Database that holds the user |
 | `replica_set` | | MongoDB and Amazon DocumentDB. Replica set name |
+| `options` | | Driver options, such as `options = { connect_timeout = "5" }`. See [Driver options](#driver-options) |
 | `statement_timeout_ms` | `0` | Time limit for one statement in milliseconds. `0` means the server default |
 | `keepalive_s` | `30` | Seconds between connection checks. `0` disables the keepalive |
 | `page_size` | `200` | Rows per page, in the grid and in `masume run`. Must be above zero |
@@ -163,6 +164,23 @@ The command line accepts the same names as URL parameters and as connection keyw
 masume "postgres://reader@db.internal/shop?sslmode=verify-full&sslrootcert=~/.certs/ca.pem"
 masume "host=db.internal dbname=shop user=reader sslmode=verify-ca sslrootcert=/certs/ca.pem"
 ```
+
+### Driver options
+
+`options` is a table of driver options by name. A URL query key that has no profile key of its own is kept in `options`, and so is an unknown key of a keyword connection string. The connection form shows them as a URL query, such as `connect_timeout=5&application_name=etl`.
+
+| Engines | Driver | Options |
+| --- | --- | --- |
+| PostgreSQL family | pgx | libpq keywords, such as `connect_timeout`, `application_name`, `target_session_attrs`, and `options`. Any other key is a server setting for the session |
+| MySQL family | go-sql-driver/mysql | DSN parameters, such as `timeout`, `charset`, `collation`, and `loc`. Any other key is a system variable, set as written, so a text value needs quotes: `sql_mode = "'ANSI_QUOTES'"`. `multiStatements`, `parseTime`, and `interpolateParams` stay as masume sets them |
+| SQL Server, Azure SQL Database | go-mssqldb | Connection string parameters, such as `app name`, `dial timeout`, `connection timeout`, and `packet size` |
+| ClickHouse | clickhouse-go | DSN parameters, such as `dial_timeout`, `read_timeout`, and `compress`. Any other key is a server setting for every statement, such as `max_execution_time`. The connection checks each setting name first |
+| MongoDB, Amazon DocumentDB | mongo-go-driver | Connection string options, such as `authMechanism`, `maxPoolSize`, `readPreference`, `retryWrites`, and `appName` |
+| Redis | go-redis | URL options, such as `client_name`, `dial_timeout`, `read_timeout`, and `protocol` |
+| Cassandra, ScyllaDB | gocql | `timeout` and `connect_timeout` as durations such as `10s`, `consistency` such as `local_quorum`, `proto_version`, `local_dc`, and `disable_initial_host_lookup`. Any other key is an error |
+| Turso | libsql-client-go | URL parameters of the client, such as `jwt`. Any other key is an error |
+
+Profile keys win over options with the same meaning: host, port, database, user, password, and TLS. A server refuses an option it does not know when the connection opens.
 
 ## Project file
 

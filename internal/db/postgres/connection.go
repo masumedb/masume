@@ -5,7 +5,10 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"maps"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -35,10 +38,20 @@ func buildPostgresTLS(profile cfg.Profile) (*tls.Config, bool, error) {
 	return config, mayFallBack, err
 }
 
+// writeOptionString returns the options as a keyword connection string that pgx reads.
+func writeOptionString(options map[string]string) string {
+	parts := make([]string, 0, len(options))
+	for _, key := range slices.Sorted(maps.Keys(options)) {
+		value := strings.ReplaceAll(strings.ReplaceAll(options[key], `\`, `\\`), "'", `\'`)
+		parts = append(parts, key+"='"+value+"'")
+	}
+	return strings.Join(parts, " ")
+}
+
 func buildPostgresConfig(profile cfg.Profile, password string) (*pgx.ConnConfig, error) {
-	config, err := pgx.ParseConfig("")
+	config, err := pgx.ParseConfig(writeOptionString(profile.Options))
 	if err != nil {
-		config = &pgx.ConnConfig{}
+		return nil, db.WrapDatabaseMessage("invalid options: "+db.DescribeError(err), err)
 	}
 	dialHost, dialPort := profile.DialAddress()
 	config.Host = dialHost
@@ -46,11 +59,15 @@ func buildPostgresConfig(profile cfg.Profile, password string) (*pgx.ConnConfig,
 	config.Database = profile.Database
 	config.User = profile.User
 	config.Password = password
-	config.ConnectTimeout = postgresConnectTimeout
+	if _, set := profile.Options["connect_timeout"]; !set {
+		config.ConnectTimeout = postgresConnectTimeout
+	}
 	if config.RuntimeParams == nil {
 		config.RuntimeParams = map[string]string{}
 	}
-	config.RuntimeParams["application_name"] = "masume"
+	if _, set := profile.Options["application_name"]; !set {
+		config.RuntimeParams["application_name"] = "masume"
+	}
 	// PostgreSQL also enforces the statement time limit on the server.
 	if profile.StatementTimeout > 0 {
 		config.RuntimeParams["statement_timeout"] =
@@ -74,7 +91,9 @@ func buildPostgresConfig(profile cfg.Profile, password string) (*pgx.ConnConfig,
 		}
 	}
 	// Proxies can lack named prepared statement support. Exec mode avoids the statement cache.
-	config.DefaultQueryExecMode = pgx.QueryExecModeExec
+	if _, set := profile.Options["default_query_exec_mode"]; !set {
+		config.DefaultQueryExecMode = pgx.QueryExecModeExec
+	}
 	return config, nil
 }
 

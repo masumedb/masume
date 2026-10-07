@@ -3,6 +3,7 @@ package cfg_test
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -72,7 +73,7 @@ func TestSaveProfileToFilePreservesNewProfileSettings(t *testing.T) {
 					t.Fatalf("reload problems: %v", loaded.Problems)
 				}
 				profile.InConfigFile = true
-				if reloaded := findProfile(t, loaded, profile.Name); reloaded != profile {
+				if reloaded := findProfile(t, loaded, profile.Name); !reflect.DeepEqual(reloaded, profile) {
 					t.Errorf("reloaded profile: %+v\nwant: %+v", reloaded, profile)
 				}
 			})
@@ -113,7 +114,7 @@ keepalive_s = 0
 	}
 	profile.ProjectFile = ""
 	profile.InConfigFile = true
-	if reloaded := findProfile(t, loaded, "shop"); reloaded != profile {
+	if reloaded := findProfile(t, loaded, "shop"); !reflect.DeepEqual(reloaded, profile) {
 		t.Errorf("reloaded profile: %+v\nwant: %+v", reloaded, profile)
 	}
 }

@@ -137,7 +137,7 @@ var serverFields = map[string]bool{
 	"host": true, "port": true, "user": true, "auth": true,
 	"passwordEnv": true, "passwordCommand": true, "sslMode": true,
 	"secret": true, "secretRef": true, tlsToggleKey: true,
-	"sslRootCert": true, "sslCert": true, "sslKey": true,
+	"sslRootCert": true, "sslCert": true, "sslKey": true, "options": true,
 }
 
 // passwordFields are the visible fields for each password source. Prompt and keyring modes have no source fields.
@@ -232,6 +232,7 @@ func BuildFormFields(profile Profile, editing bool, secretStoreNames []string) [
 		},
 		{Key: "authSource", Label: "auth source", Value: source.AuthSource},
 		{Key: "replicaSet", Label: "replica set", Value: source.ReplicaSet},
+		{Key: "options", Label: "options", Value: WriteOptions(source.Options)},
 		{
 			Key: sshToggleKey, Label: "ssh tunnel",
 			Value:   describeToggle(source.OpensTunnel()),
@@ -359,6 +360,14 @@ func BuildProfileFromFields(fields []FormField, source Profile, editing bool) (P
 	if isMongoEngine(engine) {
 		built.AuthSource = read("authSource")
 		built.ReplicaSet = read("replicaSet")
+	}
+	built.Options = nil
+	if !opensFile {
+		options, err := ParseOptions(read("options"))
+		if err != nil {
+			return Profile{}, FormError{Reason: err.Error(), Field: "options"}
+		}
+		built.Options = options
 	}
 
 	// A file engine uses no port, so the form does not show one.
@@ -488,6 +497,7 @@ type ConnectionURL struct {
 	SRV              bool
 	AuthSource       string
 	ReplicaSet       string
+	Options          map[string]string
 }
 
 // urlSchemes are the engines for supported URL schemes and aliases.
@@ -628,6 +638,7 @@ func ParseConnectionURL(text string) (ConnectionURL, bool) {
 		Engine: engine, Host: host, Port: port, Database: database,
 		User: user, SSLMode: sslMode, SSLFiles: readURLSSLFiles(parsed),
 		DirectConnection: direct, SRV: srv, AuthSource: authSource, ReplicaSet: replicaSet,
+		Options: readURLOptions(parsed, engine),
 	}, true
 }
 
@@ -663,6 +674,7 @@ func ApplyConnectionURL(fields []FormField, held ConnectionURL) []FormField {
 		{directKey, describeToggle(held.DirectConnection)},
 		{srvKey, describeToggle(held.SRV)},
 		{"authSource", held.AuthSource}, {"replicaSet", held.ReplicaSet},
+		{"options", WriteOptions(held.Options)},
 	} {
 		filled = writeField(filled, written[0], written[1])
 	}
@@ -798,6 +810,7 @@ var formFieldLines = map[string]string{
 	directKey:         "connect to this host only; no replica set discovery",
 	srvKey:            "host is an SRV record name, as in mongodb+srv://",
 	"authSource":      "database that holds the user; empty uses admin",
+	"options":         "driver options as a URL query, such as connect_timeout=5&application_name=etl",
 	sshToggleKey:      "connect through an ssh server",
 	"aiInstructions":  "context sent to the AI chat with every request",
 }

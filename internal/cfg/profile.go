@@ -154,8 +154,10 @@ type Profile struct {
 	// MongoDB only: Host is an SRV record name, as in a mongodb+srv URL.
 	SRV bool
 	// MongoDB only: the authentication database, and the replica set name.
-	AuthSource    string
-	ReplicaSet    string
+	AuthSource string
+	ReplicaSet string
+	// Driver options by name, as a URL query writes them. The driver of the engine reads them.
+	Options       map[string]string
 	Autocommit    bool
 	ConfirmWrites ConfirmWrites
 	WritePlan     WritePlan
@@ -511,6 +513,10 @@ func buildProfile(name string, source Table) (Profile, error) {
 	srv, _ := FindBool(source, "srv")
 	authSource, _ := FindString(source, "auth_source")
 	replicaSet, _ := FindString(source, "replica_set")
+	options, err := readOptionsTable(source)
+	if err != nil {
+		return Profile{}, err
+	}
 
 	sshPort, hasSSHPort, err := readPositiveInteger(source, "ssh_port")
 	if err != nil {
@@ -544,7 +550,7 @@ func buildProfile(name string, source Table) (Profile, error) {
 		Secret: secretName, SecretRef: secretRef,
 		SSLMode: sslMode, SSLRootCert: sslFiles.RootCert, SSLCert: sslFiles.Cert,
 		SSLKey: sslFiles.Key, DirectConnection: directConnection,
-		SRV: srv, AuthSource: authSource, ReplicaSet: replicaSet,
+		SRV: srv, AuthSource: authSource, ReplicaSet: replicaSet, Options: options,
 		Autocommit: autocommit, ConfirmWrites: confirmWrites,
 		WritePlan: writePlan, UndoRows: undoRows,
 		SSHHost: sshHost, SSHPort: sshPort, SSHUser: sshUser, SSHKey: sshKey,

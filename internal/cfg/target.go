@@ -192,6 +192,8 @@ func buildProfileFromURL(text string) (Profile, error) {
 		return Profile{}, err
 	}
 
+	built.Options = readURLOptions(parsed, engine)
+
 	built.Database = strings.TrimPrefix(parsed.Path, "/")
 	// The database path has one segment.
 	if strings.Contains(built.Database, "/") {
@@ -312,8 +314,11 @@ func buildProfileFromKeywords(text string) (Profile, error) {
 	for _, pair := range pairs {
 		key, known := keywordAliases[strings.ToLower(pair[0])]
 		if !known {
-			return Profile{}, failTarget(
-				"unsupported connection keyword %q", pair[0])
+			if built.Options == nil {
+				built.Options = map[string]string{}
+			}
+			built.Options[pair[0]] = pair[1]
+			continue
 		}
 		value := pair[1]
 		switch key {

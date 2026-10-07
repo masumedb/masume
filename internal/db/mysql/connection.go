@@ -68,6 +68,13 @@ func resolveMysqlTLS(profile cfg.Profile) (string, bool, error) {
 
 func buildMysqlDsn(profile cfg.Profile, password string) (string, error) {
 	config := driver.NewConfig()
+	if len(profile.Options) > 0 {
+		parsed, err := driver.ParseDSN("/?" + cfg.WriteOptions(profile.Options))
+		if err != nil {
+			return "", db.WrapDatabaseMessage("invalid options: "+err.Error(), err)
+		}
+		config = parsed
+	}
 	config.User = profile.User
 	config.Passwd = password
 	config.Net = "tcp"
@@ -86,7 +93,9 @@ func buildMysqlDsn(profile cfg.Profile, password string) (string, error) {
 		tlsName, mayFallBack = resolvedName, resolvedFallback
 	}
 	config.DBName = profile.Database
-	config.Timeout = mysqlConnectTimeout
+	if _, set := profile.Options["timeout"]; !set {
+		config.Timeout = mysqlConnectTimeout
+	}
 	config.TLSConfig = tlsName
 	config.AllowFallbackToPlaintext = mayFallBack
 	// Query buffers can contain multiple statements.

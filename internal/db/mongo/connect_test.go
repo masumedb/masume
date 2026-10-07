@@ -138,3 +138,37 @@ func TestBuildClientOptionsRefusesAnSRVRecordThroughATunnel(t *testing.T) {
 		t.Error("an SRV record with a direct connection builds options")
 	}
 }
+
+func TestBuildClientOptionsTakesTheOptionsOfTheProfile(t *testing.T) {
+	profile := buildProbeProfile("reader")
+	profile.Options = map[string]string{
+		"maxPoolSize": "3", "appName": "etl", "retryWrites": "false", "authMechanism": "SCRAM-SHA-256",
+	}
+	held, err := BuildClientOptions(profile, "secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := held.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	if *held.MaxPoolSize != 3 || *held.AppName != "etl" || *held.RetryWrites ||
+		held.Auth.AuthMechanism != "SCRAM-SHA-256" || held.Auth.Password != "secret" {
+		t.Errorf("the options are pool %d, app %q, retry %v, mechanism %q",
+			*held.MaxPoolSize, *held.AppName, *held.RetryWrites, held.Auth.AuthMechanism)
+	}
+	if !slices.Equal(held.Hosts, []string{"cluster.example.com:27017"}) {
+		t.Errorf("the hosts are %v", held.Hosts)
+	}
+}
+
+func TestBuildClientOptionsReportsAnOptionValueTheDriverCannotRead(t *testing.T) {
+	profile := buildProbeProfile("")
+	profile.Options = map[string]string{"maxPoolSize": "many"}
+	held, err := BuildClientOptions(profile, "")
+	if err == nil {
+		err = held.Validate()
+	}
+	if err == nil || !strings.Contains(err.Error(), "maxPoolSize") {
+		t.Errorf("the error is %v", err)
+	}
+}

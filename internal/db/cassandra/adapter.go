@@ -279,6 +279,9 @@ func (adapter *cassandraAdapter) Connect(
 	cluster.ConnectTimeout = connectTimeout
 	// The client holds one connection, as it does for every other engine.
 	cluster.NumConns = 1
+	if err := applyClusterOptions(cluster, profile.Options); err != nil {
+		return nil, db.WrapDatabaseMessage("invalid options: "+err.Error(), err)
+	}
 	if profile.User != "" {
 		cluster.Authenticator = gocql.PasswordAuthenticator{
 			Username: profile.User, Password: password,

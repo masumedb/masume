@@ -1,11 +1,14 @@
 package clickhouse
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/tls"
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"maps"
+	"slices"
 	"time"
 
 	driver "github.com/ClickHouse/clickhouse-go/v2"
@@ -44,17 +47,25 @@ func buildOptions(profile cfg.Profile, password string) (*driver.Options, error)
 	if err != nil {
 		return nil, err
 	}
+	options := &driver.Options{DialTimeout: clickhouseConnectTimeout}
+	if len(profile.Options) > 0 {
+		parsed, parseErr := driver.ParseDSN("clickhouse://localhost?" + cfg.WriteOptions(profile.Options))
+		if parseErr != nil {
+			return nil, db.WrapDatabaseMessage("invalid options: "+parseErr.Error(), parseErr)
+		}
+		if _, set := profile.Options["dial_timeout"]; !set {
+			parsed.DialTimeout = clickhouseConnectTimeout
+		}
+		maps.Copy(settings, parsed.Settings)
+		options = parsed
+	}
 	dialHost, dialPort := profile.DialAddress()
-	return &driver.Options{
-		Addr: []string{fmt.Sprintf("%s:%d", dialHost, dialPort)},
-		Auth: driver.Auth{
-			Database: profile.Database, Username: profile.User, Password: password,
-		},
-		Settings:    settings,
-		TLS:         tlsConfig,
-		DialTimeout: clickhouseConnectTimeout,
-		ClientInfo:  driver.ClientInfo{Products: []struct{ Name, Version string }{{Name: clientName}}},
-	}, nil
+	options.Addr = []string{fmt.Sprintf("%s:%d", dialHost, dialPort)}
+	options.Auth = driver.Auth{Database: profile.Database, Username: profile.User, Password: password}
+	options.Settings = settings
+	options.TLS = tlsConfig
+	options.ClientInfo = driver.ClientInfo{Products: []struct{ Name, Version string }{{Name: clientName}}}
+	return options, nil
 }
 
 // openClickhousePool opens a pool limited to one connection.
@@ -76,4 +87,53 @@ func buildQueryID() string {
 		return ""
 	}
 	return clientName + "-" + hex.EncodeToString(held)
+}
+
+// checkSettingNames reads the names of the server settings in the options on a connection
+// without them. The server refuses every statement of a session with an unknown setting,
+// and the driver reports that as a bad connection.
+func checkSettingNames(ctx context.Context, profile cfg.Profile, password string) error {
+	options, err := buildOptions(profile, password)
+	if err != nil || len(profile.Options) == 0 {
+		return err
+	}
+	names := []string{}
+	for name := range options.Settings {
+		if _, set := profile.Options[name]; set {
+			names = append(names, name)
+		}
+	}
+	if len(names) == 0 {
+		return nil
+	}
+	plain := profile
+	plain.Options = nil
+	pool, err := openClickhousePool(plain, password)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = pool.Close() }()
+	rows, err := pool.QueryContext(context.WithoutCancel(ctx),
+		"select name from system.settings where name in ?", names)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = rows.Close() }()
+	known := map[string]bool{}
+	for rows.Next() {
+		var name string
+		if scanErr := rows.Scan(&name); scanErr != nil {
+			return scanErr
+		}
+		known[name] = true
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, name := range slices.Sorted(slices.Values(names)) {
+		if !known[name] {
+			return db.NewDatabaseError("unknown setting %s in the options", name)
+		}
+	}
+	return nil
 }

@@ -37,9 +37,13 @@ func BuildSource(profile cfg.Profile, password string) (string, error) {
 		host = net.JoinHostPort(host, strconv.Itoa(profile.Port))
 	}
 
-	built := url.URL{Scheme: scheme, Host: host}
-	if password != "" {
-		built.RawQuery = url.Values{"authToken": {password}}.Encode()
+	query := url.Values{}
+	for name, value := range profile.Options {
+		query.Set(name, value)
 	}
+	if password != "" {
+		query.Set("authToken", password)
+	}
+	built := url.URL{Scheme: scheme, Host: host, RawQuery: query.Encode()}
 	return built.String(), nil
 }

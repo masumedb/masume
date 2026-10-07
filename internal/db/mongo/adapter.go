@@ -999,18 +999,37 @@ func BuildClientOptions(profile cfg.Profile, password string) (*options.ClientOp
 		}
 		// The driver reads the hosts from the SRV record, and authSource and replicaSet
 		// from the TXT record. It keeps the TXT authSource only for a URI with a user.
-		written := url.URL{Scheme: srvScheme, Host: profile.Host, Path: "/"}
+		written := url.URL{
+			Scheme: srvScheme, Host: profile.Host, Path: "/",
+			RawQuery: cfg.WriteOptions(profile.Options),
+		}
 		if profile.User != "" {
 			written.User = url.User(profile.User)
 		}
 		held.ApplyURI(written.String())
 	} else {
+		if len(profile.Options) > 0 {
+			written := url.URL{
+				Scheme: "mongodb", Host: "localhost", Path: "/",
+				RawQuery: cfg.WriteOptions(profile.Options),
+			}
+			if profile.User != "" {
+				written.User = url.UserPassword(profile.User, password)
+			}
+			held.ApplyURI(written.String())
+		}
 		dialHost, dialPort := profile.DialAddress()
 		held.SetHosts([]string{fmt.Sprintf("%s:%d", dialHost, dialPort)})
 	}
-	held.SetAppName(applicationName).
-		SetConnectTimeout(connectTimeout).
-		SetServerSelectionTimeout(connectTimeout)
+	if _, set := profile.Options["appName"]; !set {
+		held.SetAppName(applicationName)
+	}
+	if _, set := profile.Options["connectTimeoutMS"]; !set {
+		held.SetConnectTimeout(connectTimeout)
+	}
+	if _, set := profile.Options["serverSelectionTimeoutMS"]; !set {
+		held.SetServerSelectionTimeout(connectTimeout)
+	}
 
 	// The driver dials other replica set members directly, which the tunnel does not
 	// reach.
@@ -1025,8 +1044,12 @@ func BuildClientOptions(profile cfg.Profile, password string) (*options.ClientOp
 		credential := options.Credential{
 			Username: profile.User, Password: password, AuthSource: profile.AuthSource,
 		}
-		if credential.AuthSource == "" && held.Auth != nil {
-			credential.AuthSource = held.Auth.AuthSource
+		if held.Auth != nil {
+			if credential.AuthSource == "" {
+				credential.AuthSource = held.Auth.AuthSource
+			}
+			credential.AuthMechanism = held.Auth.AuthMechanism
+			credential.AuthMechanismProperties = held.Auth.AuthMechanismProperties
 		}
 		held.SetAuth(credential)
 	} else {

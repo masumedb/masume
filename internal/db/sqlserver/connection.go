@@ -40,18 +40,31 @@ func buildSqlserverConfig(profile cfg.Profile, password string) (msdsn.Config, e
 	if err != nil {
 		return msdsn.Config{}, err
 	}
-	dialHost, dialPort := profile.DialAddress()
-	return msdsn.Config{
-		Host: dialHost, Port: uint64(dialPort), Database: profile.Database,
-		User: profile.User, Password: password,
-		Encryption: encryption, TLSConfig: tlsConfig,
-		TrustServerCertificate: tlsConfig != nil && tlsConfig.InsecureSkipVerify,
-		AppName:                applicationName,
-		DialTimeout:            sqlserverConnectTimeout,
-		// The driver dials the protocols of this list, and it dials none without one.
-		Protocols:  []string{"tcp"},
+	config := msdsn.Config{
+		AppName: applicationName, DialTimeout: sqlserverConnectTimeout,
 		Parameters: map[string]string{},
-	}, nil
+	}
+	if len(profile.Options) > 0 {
+		parsed, parseErr := msdsn.Parse("sqlserver://localhost?" + cfg.WriteOptions(profile.Options))
+		if parseErr != nil {
+			return msdsn.Config{}, db.WrapDatabaseMessage("invalid options: "+parseErr.Error(), parseErr)
+		}
+		if _, set := profile.Options["app name"]; !set {
+			parsed.AppName = applicationName
+		}
+		if _, set := profile.Options["dial timeout"]; !set {
+			parsed.DialTimeout = sqlserverConnectTimeout
+		}
+		config = parsed
+	}
+	dialHost, dialPort := profile.DialAddress()
+	config.Host, config.Port, config.Instance = dialHost, uint64(dialPort), ""
+	config.Database, config.User, config.Password = profile.Database, profile.User, password
+	config.Encryption, config.TLSConfig = encryption, tlsConfig
+	config.TrustServerCertificate = tlsConfig != nil && tlsConfig.InsecureSkipVerify
+	// The driver dials the protocols of this list, and it dials none without one.
+	config.Protocols = []string{"tcp"}
+	return config, nil
 }
 
 // openSqlserverPool opens a pool limited to one connection.

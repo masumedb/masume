@@ -56,3 +56,15 @@ func TestBuildSourceRefusesAProfileWithoutAHost(t *testing.T) {
 		t.Error("a profile without a host answered no error")
 	}
 }
+
+func TestBuildSourceCarriesTheOptions(t *testing.T) {
+	written, err := turso.BuildSource(cfg.Profile{
+		Host: "db.turso.io", Options: map[string]string{"jwt": "abc"},
+	}, "token")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if written != "wss://db.turso.io?authToken=token&jwt=abc" {
+		t.Errorf("the source is %q", written)
+	}
+}
