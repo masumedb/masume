@@ -29,7 +29,7 @@ Most capabilities are static defaults. The interface shows an action only when i
 | cassandra | no | no | no | no | no | no | no | no | yes | yes |
 | azure-sql | yes | yes | yes | yes | yes | yes | no | yes | yes | yes |
 | clickhouse | yes | no | no | yes | yes | no | yes | yes | yes | yes |
-| cockroach | yes | yes | yes | no | no | no | no | yes | yes | yes |
+| cockroach | yes | yes | yes | yes | no | no | no | yes | yes | yes |
 | documentdb | yes | yes | yes | no | yes | no | no | yes | no | no |
 | mariadb | yes | yes | yes | yes | yes | no | yes | yes | yes | yes |
 | mongodb | yes | yes | yes | no | yes | no | no | yes | no | no |

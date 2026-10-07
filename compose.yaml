@@ -30,6 +30,19 @@ services:
       timeout: 5s
       retries: 60
 
+  cockroach:
+    image: ${MASUME_TEST_COCKROACH_IMAGE:-cockroachdb/cockroach:latest}
+    command: ["start-single-node", "--insecure"]
+    environment:
+      COCKROACH_DATABASE: shop
+    ports:
+      - "127.0.0.1:56257:26257"
+    healthcheck:
+      test: ["CMD", "./cockroach", "sql", "--insecure", "-d", "shop", "-e", "select 1"]
+      interval: 1s
+      timeout: 5s
+      retries: 90
+
   mysql:
     image: ${MASUME_TEST_MYSQL_IMAGE:-mysql:8.4}
     environment:

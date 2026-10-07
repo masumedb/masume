@@ -953,12 +953,16 @@ func (session *postgresSession) CancelBackend(
 	if !session.Support.Capabilities.HasServerSessions {
 		return false, db.NewUnsupportedError("stop another session")
 	}
-	rows, err := session.readRows(ctx,
-		"select "+session.flavour.BuildCancelFunction(terminate)+"($1) as ok", pid)
+	connection, giveBack, err := session.holdCatalog(ctx)
 	if err != nil {
 		return false, err
 	}
-	return len(rows) > 0 && readFlag(rows[0]["ok"]), nil
+	defer giveBack()
+	tag, execErr := connection.Exec(ctx, session.flavour.BuildCancelStatement(terminate), pid)
+	if execErr != nil {
+		return false, execErr
+	}
+	return tag.RowsAffected() > 0, nil
 }
 
 // CancelRunningQuery sends cancellation through the side connection.
@@ -980,20 +984,12 @@ func (session *postgresSession) CancelRunningQuery(ctx context.Context) (bool, e
 	}
 	defer giveBack()
 
-	rows, queryErr := connection.Query(ctx,
-		"select "+session.flavour.BuildCancelFunction(false)+"($1) as ok", session.backendPID)
-	if queryErr != nil {
-		return false, queryErr
+	tag, execErr := connection.Exec(
+		ctx, session.flavour.BuildCancelStatement(false), session.backendPID)
+	if execErr != nil {
+		return false, execErr
 	}
-	defer rows.Close()
-	if !rows.Next() {
-		return false, rows.Err()
-	}
-	values, valueErr := rows.Values()
-	if valueErr != nil {
-		return false, valueErr
-	}
-	return len(values) > 0 && readFlag(values[0]), nil
+	return tag.RowsAffected() > 0, nil
 }
 
 // Ping checks the backend ID for connection replacement during transactions. Busy user connections skip the check.

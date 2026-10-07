@@ -6,6 +6,7 @@
 //
 //	MASUME_TEST_POSTGRES=postgres://postgres:secret@127.0.0.1:55432/shop
 //	MASUME_TEST_MYSQL=mysql://root:secret@127.0.0.1:55306/shop
+//	MASUME_TEST_COCKROACH=cockroachdb://root@127.0.0.1:56257/shop
 //	MASUME_TEST_SQLSERVER=sqlserver://sa:Masume_2024@127.0.0.1:55433/shop
 //	MASUME_TEST_CLICKHOUSE=clickhouse://default:Masume_2024@127.0.0.1:55900/shop
 //	MASUME_TEST_TURSO=libsql://127.0.0.1:55480
@@ -64,6 +65,9 @@ var (
 	Postgres  = Target{Variable: "MASUME_TEST_POSTGRES", Engine: core.EnginePostgres, DefaultPort: 5432}
 	MySQL     = Target{Variable: "MASUME_TEST_MYSQL", Engine: core.EngineMysql, DefaultPort: 3306}
 	Mongo     = Target{Variable: "MASUME_TEST_MONGO", Engine: core.EngineMongo, DefaultPort: 27017}
+	Cockroach = Target{
+		Variable: "MASUME_TEST_COCKROACH", Engine: core.EngineCockroach, DefaultPort: 26257,
+	}
 	Sqlserver = Target{
 		Variable: "MASUME_TEST_SQLSERVER", Engine: core.EngineSqlserver, DefaultPort: 1433,
 	}

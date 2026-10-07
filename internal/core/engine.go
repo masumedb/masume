@@ -312,7 +312,6 @@ var engineRegistry = map[Engine]EngineInfo{
 			capabilities.PlansEveryStatement = true
 			// CockroachDB session IDs are strings. The server has no pg_cancel_backend.
 			capabilities.HasServerSessions = false
-			capabilities.CancelsRunningQuery = false
 			capabilities.ReportsLockWaits = false
 			capabilities.ReportsServerLoad = false
 		}),
