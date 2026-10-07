@@ -217,8 +217,8 @@ func resolveDumpProfile(
 	return *start, nil
 }
 
-// openDumpProfile reads the config file and answers the profile of the command.
-func openDumpProfile(held dumpInvocation, command string) (cfg.Profile, string, int) {
+// loadCommandConfig reads the config file and writes its problems to stderr.
+func loadCommandConfig() cfg.LoadedConfig {
 	loaded := cfg.LoadConfigForWorkingDirectory(cfg.ResolveConfigPath())
 	for _, problem := range loaded.Project.Problems {
 		fmt.Fprintln(os.Stderr, "masume: "+problem)
@@ -229,7 +229,12 @@ func openDumpProfile(held dumpInvocation, command string) (cfg.Profile, string, 
 	for _, warning := range loaded.Warnings {
 		fmt.Fprintln(os.Stderr, "masume: "+warning.DescribeWarning())
 	}
+	return loaded
+}
 
+// openDumpProfile reads the config file and answers the profile of the command.
+func openDumpProfile(held dumpInvocation, command string) (cfg.Profile, string, int) {
+	loaded := loadCommandConfig()
 	profile, err := resolveDumpProfile(held, loaded.Profiles, command)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "masume: "+err.Error())
