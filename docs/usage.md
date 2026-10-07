@@ -179,6 +179,14 @@ In the grid, `P` pins the result. On another result, `=` adds the Compare view: 
 
 Compare is meant for two versions of one result, such as a query before and after a change of the data or of the statement. The first line names both results, their row counts, and the match: by the primary key where both results are reads of one table with the same key, and by whole rows otherwise. Only columns in both results are compared. Where the columns differ, a second line lists the columns of each side that were left out. Results with no column in common are not compared. The last line counts the added, removed, changed, and same rows. A changed row shows `old → new` in each changed cell. Only loaded rows are compared; `loaded rows only` marks a result with more rows on the server.
 
+## Data search
+
+In the explorer, select a schema, press `m`, and choose Search data. The text is looked for in every column of every table of the schema, as text and in any case. `%` matches any text and `_` any one character. Columns of a type the server cannot compare are skipped.
+
+The menu lists each table with matched rows, the count of rows read, and the columns that hold the text. A table reads at most 100 matched rows, and `100+` marks a table with more. Enter opens the table in a new tab, with a `where` filter that reads the matched rows. The status line counts the tables searched, and names a table the server refused to search.
+
+Data search works on the PostgreSQL and MySQL families, SQL Server, SQLite, and ClickHouse. Each table is read in full.
+
 ## Sorting and filters
 
 A server sort or filter runs the read again. A screen filter only hides loaded rows. Neither changes the editor text. `Alt+E` writes the server sort and filters into the SQL.

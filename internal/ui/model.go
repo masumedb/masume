@@ -106,6 +106,7 @@ type Model struct {
 	// The result the grid compares other results with.
 	pinned  *pinnedResult
 	rowDiff rowDiffCache
+	search  dataSearchState
 
 	runs runBatches
 	// A question a screen without a connection asks, which holds its own answer.
@@ -533,6 +534,9 @@ func (model *Model) readMessage(message tea.Msg) (tea.Model, tea.Cmd) {
 
 	case compareScriptMsg:
 		return model.readCompareScript(held)
+
+	case dataSearchMsg:
+		return model.readDataSearch(held)
 
 	case definitionCopiedMsg:
 		return model.readDefinitionCopied(held)

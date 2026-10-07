@@ -24,6 +24,9 @@ var Dialect = &query.Dialect{
 	// MySQL literals escape backslashes and quotes. Executed values use bound parameters.
 	// MySQL reads bytes as a hexadecimal literal.
 	RenderBytes: func(hex string) string { return "x'" + hex + "'" },
+	MatchText: func(column, pattern string) string {
+		return "cast(" + column + " as char) like " + pattern
+	},
 	QuoteTextLiteral: func(text string) string {
 		return "'" + strings.ReplaceAll(strings.ReplaceAll(text, `\`, `\\`), "'", "''") + "'"
 	},

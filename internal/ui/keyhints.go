@@ -843,7 +843,7 @@ var promptAnswers = map[app.PromptKind]string{
 	app.PromptWhere: "apply", app.PromptBuilderFilter: "apply",
 	app.PromptSearch: "search", app.PromptFind: "find", app.PromptReplace: "replace",
 	app.PromptGoToColumn: "go", app.PromptAiNotebook: "build",
-	app.PromptNotebookReport: "write",
+	app.PromptNotebookReport: "write", app.PromptDataSearch: "search",
 }
 
 func describePromptAnswer(scene keyScene) string {

@@ -42,6 +42,9 @@ var Dialect = &query.Dialect{
 	},
 	// SQL Server reads bytes as a hexadecimal number.
 	RenderBytes: func(hex string) string { return "0x" + hex },
+	MatchText: func(column, pattern string) string {
+		return "cast(" + column + " as nvarchar(max)) like " + pattern
+	},
 	QuoteTextLiteral: func(text string) string {
 		return "N'" + strings.ReplaceAll(text, "'", "''") + "'"
 	},

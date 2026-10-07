@@ -124,6 +124,8 @@ const (
 	PromptReplace        PromptKind = "replace"
 	// PromptBuilderFilter is one condition of the where clause of a query builder tab.
 	PromptBuilderFilter PromptKind = "builder-filter"
+	// PromptDataSearch is the text a search looks for in every table of a schema.
+	PromptDataSearch PromptKind = "data-search"
 )
 
 // ListState is the shared selection, scroll, and filter state for overlay lists.
@@ -445,6 +447,7 @@ const (
 	ObjectDumpTable      = "dump-table"
 	ObjectDumpSchema     = "dump-schema"
 	ObjectCompareSchema  = "compare-schema"
+	ObjectSearchData     = "search-data"
 	ObjectRestoreFile    = "restore-file"
 	ObjectTruncate       = "truncate"
 	ObjectDropRelation   = "drop-relation"
@@ -522,6 +525,10 @@ var schemaActions = []MenuAction{
 	},
 	{
 		ID: ObjectCompareSchema, Label: "Compare with…", Detail: "another schema or connection",
+		Icon: cfg.IconTable,
+	},
+	{
+		ID: ObjectSearchData, Label: "Search data…", Detail: "a text in every table",
 		Icon: cfg.IconTable,
 	},
 	{

@@ -25,6 +25,9 @@ var Dialect = &query.Dialect{
 	RowLockClause: "",
 	// ClickHouse reads bytes through unhex.
 	RenderBytes: func(hex string) string { return "unhex('" + hex + "')" },
+	MatchText: func(column, pattern string) string {
+		return "toString(" + column + ") ilike " + pattern
+	},
 	QuoteTextLiteral: func(text string) string {
 		return "'" + strings.ReplaceAll(text, "'", "''") + "'"
 	},

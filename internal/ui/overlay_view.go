@@ -2381,6 +2381,7 @@ var promptCards = map[app.PromptKind]bool{
 	app.PromptNotebookRename: true,
 	app.PromptNotebookReport: true,
 	app.PromptAiNotebook:     true,
+	app.PromptDataSearch:     true,
 }
 
 // drawsPromptBar is true for a prompt that opens a field at the foot of a pane.

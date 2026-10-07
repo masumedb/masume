@@ -27,6 +27,9 @@ var Dialect = &query.Dialect{
 	// A backslash is a plain character in a Postgres literal, so only a quote is doubled.
 	// PostgreSQL reads bytes as a string of the hexadecimal form.
 	RenderBytes: func(hex string) string { return `'\x` + hex + `'` },
+	MatchText: func(column, pattern string) string {
+		return "cast(" + column + " as text) ilike " + pattern
+	},
 	QuoteTextLiteral: func(text string) string {
 		return "'" + strings.ReplaceAll(text, "'", "''") + "'"
 	},

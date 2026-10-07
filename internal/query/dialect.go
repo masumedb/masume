@@ -114,6 +114,9 @@ type Dialect struct {
 	SwitchIdentityInsert func(dialect *Dialect, target string, on bool) string
 	// NamesWithoutQuotes is an optional additional check for identifiers that need no quotes.
 	NamesWithoutQuotes func(name string) bool
+	// MatchText writes a case-insensitive LIKE of the column as text against the pattern
+	// literal. A dialect that leaves it unset has no data search.
+	MatchText func(column, pattern string) string
 }
 
 // ReadOnlyUnit is the pair of statements that open and close a unit of work the server

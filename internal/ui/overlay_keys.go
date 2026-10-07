@@ -959,6 +959,9 @@ func (model *Model) chooseOverlayRow(
 		}
 		chosen := actions[overlay.List.Cursor].ID
 		connection.CloseEveryOverlay()
+		if strings.HasPrefix(chosen, dataMatchPrefix) {
+			return model.openDataMatch(connection, chosen)
+		}
 		if strings.HasPrefix(chosen, cellKindPrefix) ||
 			strings.HasPrefix(chosen, newCellKindPrefix) {
 			return model.applyCellKind(connection, tab, chosen)
@@ -1183,6 +1186,8 @@ func (model *Model) answerPrompt(
 	connection.CloseOverlay()
 
 	switch overlay.Prompt {
+	case app.PromptDataSearch:
+		return model.searchData(connection, written)
 	case app.PromptTabName:
 		if tab.Kind == app.TabNotebook && tab.Notebook != nil {
 			tab.Notebook.Title = written
@@ -1419,6 +1424,8 @@ func (model *Model) runObjectAction(
 		return model.openRestore(connection)
 	case app.ObjectCompareSchema:
 		return model.openCompareChoice(connection, row.Node.Schema)
+	case app.ObjectSearchData:
+		return model.openDataSearch(connection, row.Node.Schema)
 
 	case app.ObjectTruncate:
 		statement = build.GenerateTruncate(row.Node.Table.Qualified(), dialect)

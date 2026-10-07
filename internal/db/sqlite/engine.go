@@ -21,6 +21,9 @@ var Dialect = &query.Dialect{
 	CountExpression:  "count(*)",
 	// SQLite reads bytes as a hexadecimal literal.
 	RenderBytes: func(hex string) string { return "x'" + hex + "'" },
+	MatchText: func(column, pattern string) string {
+		return "cast(" + column + " as text) like " + pattern
+	},
 	QuoteTextLiteral: func(text string) string {
 		return "'" + strings.ReplaceAll(text, "'", "''") + "'"
 	},
