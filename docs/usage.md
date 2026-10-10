@@ -59,7 +59,7 @@ The client prompts for a missing password when the engine and the user need one.
 masume --detect
 ```
 
-`--detect` lists running containers with `docker`, or with `podman` if Docker is not installed. Detected databases appear before saved profiles in the connection picker. Detection does not write the configuration file.
+`--detect` lists running containers with `docker`, or with `podman` if Docker is not installed, and the pods of the current `kubectl` context. Detected databases appear before saved profiles in the connection picker. Detection does not write the configuration file.
 
 A container appears when both are true:
 
@@ -81,7 +81,11 @@ A missing variable takes its default. A PostgreSQL container with only `POSTGRES
 
 Detected connections use `env = "dev"` and `mode = "write"`. Hosted-service images such as `supabase/postgres` use `sslmode = "prefer"` instead of the engine default `require`.
 
-`--detect` exits with code 1 if neither tool is installed, if detection fails, or if no supported database is found. `--detect` cannot be combined with a target or `--profile`. An explicit target or profile takes priority over `$DATABASE_URL`.
+`--detect` also lists the pods of the current `kubectl` context, in every namespace, when `kubectl` is on the PATH. A running pod appears when the image of one of its containers matches the rules above. The port of the database is the default port of the engine where the container declares it or declares no port, and the first declared port otherwise.
+
+A detected pod connects through `kubectl port-forward` to a free port on this machine, as the [connection command](configuration.md#connection-command) of the profile. The user, the database, and the password come from the environment of the container, including values read from a Secret or a ConfigMap with `valueFrom`. A password from a Secret becomes a `password_command` that reads the Secret, so it also works in a saved profile. `envFrom` is not read. Detected pods use the same settings as containers: `env = "dev"` and `mode = "write"`.
+
+`--detect` exits with code 1 if neither container tool nor a `kubectl` context is found, if detection fails, or if no supported database is found. `--detect` cannot be combined with a target or `--profile`. An explicit target or profile takes priority over `$DATABASE_URL`.
 
 ## Temporary connections
 

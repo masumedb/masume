@@ -114,7 +114,7 @@ A connection can also come from the command line:
 
 - `masume postgres://ada@127.0.0.1:5432/shop` opens a URL.
 - `masume ./notes.db` opens a SQLite file.
-- `masume --detect` lists the databases in running Docker or Podman containers.
+- `masume --detect` lists the databases in running Docker or Podman containers and in the pods of the current `kubectl` context.
 
 The first interactive run creates a starter configuration file. A profile can also be written by hand:
 
@@ -193,7 +193,7 @@ Both use the same database tools with different policies. See [security limits](
 - **Password sources:** prompt, keyring, environment variables, commands, and named secret stores. Profile files do not store database passwords. See [credentials](SECURITY.md#credentials).
 - **Read-only profiles:** checked in the client, and also enforced by the server on engines that support it. See [read-only access](docs/engines.md#read-only-access).
 - **SSH tunnels and unix sockets:** see [SSH tunnel](docs/configuration.md#ssh-tunnel) and [unix socket](docs/configuration.md#unix-socket).
-- **Container detection:** `masume --detect` finds databases in running Docker or Podman containers. See [databases in a container](docs/usage.md#databases-in-a-container).
+- **Container detection:** `masume --detect` finds databases in running Docker or Podman containers, and in Kubernetes pods through `kubectl port-forward`. See [databases in a container](docs/usage.md#databases-in-a-container).
 - **Themes:** built-in themes, custom themes, or terminal colours. See [themes](docs/themes.md).
 
 A repository can share connections and saved queries in `.masume.toml`. masume reads the nearest one in or above the working directory:
@@ -230,7 +230,7 @@ See [headless mode](docs/headless.md) for formats, exit codes, dump, restore, sc
 masume                                   open the client
 masume TARGET                            open a connection, postgres://you@host/shop
 masume --profile NAME                    open a user or project profile
-masume --detect                          open detected container databases
+masume --detect                          open detected container and pod databases
 masume run [TARGET | -p NAME] STATEMENT  run statements
 masume nb run [TARGET | -p NAME] FILE    run a notebook
 masume dump [TARGET | -p NAME] FILE      dump schema and data

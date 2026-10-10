@@ -26,7 +26,7 @@ usage:
   masume                                   open the client
   masume TARGET                            open a connection, postgres://you@host/shop
   masume --profile NAME                    open a user or project profile
-  masume --detect                          open the picker with detected container databases
+  masume --detect                          open the picker with detected container and pod databases
   masume run [TARGET | -p NAME] STATEMENT  run statements
   masume nb run [TARGET | -p NAME] FILE    run a notebook
   masume dump [TARGET | -p NAME] FILE      dump schema and data

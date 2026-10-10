@@ -127,14 +127,15 @@ func resolveStartProfile(
 	return append([]cfg.Profile{built}, profiles...), &built, nil
 }
 
-// listDetectedProfiles returns detected container databases before configured profiles.
+// listDetectedProfiles returns detected container and pod databases before configured profiles.
 func listDetectedProfiles(profiles []cfg.Profile) ([]cfg.Profile, error) {
-	found, err := detect.BuildContainerProfiles()
+	found, err := detect.BuildDetectedProfiles()
 	if err != nil {
 		return nil, err
 	}
 	if len(found) == 0 {
-		return nil, errors.New("no container databases detected on this machine")
+		return nil, errors.New(
+			"no databases detected in containers or in the pods of the current kubectl context")
 	}
 
 	listed := []cfg.Profile{}
