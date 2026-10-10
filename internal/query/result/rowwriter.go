@@ -18,8 +18,11 @@ type RowWriter interface {
 
 // CreateRowWriter returns the writer of that format.
 func CreateRowWriter(format ExportFormat, csv CSVOptions, out io.Writer) RowWriter {
-	if format == ExportXLSX {
+	switch format {
+	case ExportXLSX:
 		return newXlsxRowWriter(out)
+	case ExportParquet:
+		return newParquetRowWriter(out)
 	}
 	return &textRowWriter{out: out, writer: CreateExportWriter(format, csv)}
 }
