@@ -138,6 +138,17 @@ After a run from the editor, the result pane has focus. Outside text entry, `;` 
 
 Named parameters such as `:customer_id` open a JSON value form before the run. `Ctrl+R` submits the values and Esc cancels. Each statement with parameters has its own form, and no statement runs until every form is complete.
 
+masume reports its state to the terminal with the Program Status Protocol (OSC 7501), and a terminal without support ignores it:
+
+| State | When |
+| --- | --- |
+| `working` | A statement, an export, a dump, a restore, an import, or an AI chat reply runs. A dump, a restore, and an import report their progress |
+| `blocked` | A write confirmation, a write plan, or an AI chat statement waits for approval, a parameter form waits for values, or a password prompt is open |
+| `done`, `error` | A run or an export ended, until the next key press or click |
+| `idle` | Anything else |
+
+Quitting clears the report. Inside tmux this needs `set -g allow-passthrough on`.
+
 A read-only profile rejects writes. Other profiles can confirm writes and show a write plan. Check the SQL and the affected rows before accepting. See [write guards](configuration.md#profiles) and [write plans](configuration.md#write-plans).
 
 `Ctrl+X` cancels the running query and stops a running export. Cancellation depends on the engine. Amazon DocumentDB, Cassandra, PlanetScale, Redis, and Turso cannot cancel a statement. On these engines the key is hidden, and the run spinner has the note `this engine cannot stop a running statement`. `Ctrl+C` copies or quits.

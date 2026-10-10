@@ -103,6 +103,10 @@ type Model struct {
 	formPicker *formPickerState
 
 	connections openConnections
+	// The done or error report of the last run, kept until the next key press or click.
+	outcome *tea.ProgramStatus
+	// The status last sent through tmux.
+	reported *tea.ProgramStatus
 	// The result the grid compares other results with.
 	pinned  *pinnedResult
 	rowDiff rowDiffCache
@@ -341,6 +345,10 @@ func (model *Model) findConnection(id int) (*app.Connection, int, bool) {
 
 // Update reads one message and returns the work it asks for.
 func (model *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
+	switch message.(type) {
+	case tea.KeyPressMsg, tea.MouseClickMsg:
+		model.outcome = nil
+	}
 	next, command := model.readMessage(message)
 	model.settleSplitView()
 	if read := model.readShownSides(); read != nil {
@@ -350,6 +358,13 @@ func (model *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.MouseMotionMsg, tea.MouseClickMsg, tea.MouseReleaseMsg, tea.MouseWheelMsg:
 		if shape := model.followPointerShape(); shape != nil {
 			command = tea.Batch(command, shape)
+		}
+	}
+	if report := model.reportProgramStatus(); report != nil {
+		if model.quitting {
+			command = tea.Sequence(report, command)
+		} else {
+			command = tea.Batch(command, report)
 		}
 	}
 	return next, command
@@ -700,6 +715,9 @@ func (model *Model) View() tea.View {
 	view.MouseMode = tea.MouseModeAllMotion
 	view.ReportFocus = true
 	view.WindowTitle = model.windowTitle()
+	if !insideTmux {
+		view.ProgramStatus = model.resolveProgramStatus()
+	}
 	return view
 }
 
@@ -1493,12 +1511,16 @@ func (model *Model) readExportAnswer(answered exportWrittenMsg) (tea.Model, tea.
 	if !found {
 		return model, nil
 	}
+	connection.EndExport()
 	if answered.Problem != "" {
 		connection.ShowError(answered.Problem)
+		model.keepExportOutcome(connection, "export failed: "+answered.Problem, true)
 		return model, nil
 	}
-	connection.Show(strings.Join([]string{
+	written := strings.Join([]string{
 		"exported", present.FormatRowCount(answered.Rows), "to", answered.Path,
-	}, " "))
+	}, " ")
+	connection.Show(written)
+	model.keepExportOutcome(connection, written, false)
 	return model, nil
 }

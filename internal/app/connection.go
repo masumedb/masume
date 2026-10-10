@@ -261,6 +261,12 @@ func (connection *Connection) BeginExport(stop func()) {
 	connection.stopExport = stop
 }
 
+// EndExport forgets the export that finished.
+func (connection *Connection) EndExport() { connection.stopExport = nil }
+
+// IsExporting is true while an export streams.
+func (connection *Connection) IsExporting() bool { return connection.stopExport != nil }
+
 // StopExport ends the export that streams now, where one does.
 func (connection *Connection) StopExport() {
 	if connection.stopExport == nil {
