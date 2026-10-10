@@ -202,7 +202,7 @@ In the explorer, select a schema, press `m`, and choose Search data. The text is
 
 The menu lists each table with matched rows, the count of rows read, and the columns that hold the text. A table reads at most 100 matched rows, and `100+` marks a table with more. Enter opens the table in a new tab, with a `where` filter that reads the matched rows. The status line counts the tables searched, and names a table the server refused to search.
 
-Data search works on the PostgreSQL and MySQL families, SQL Server, SQLite, and ClickHouse. Each table is read in full.
+Data search works on the PostgreSQL and MySQL families, SQL Server, SQLite, ClickHouse, and MongoDB. Each table is read in full. On MongoDB, the search reads the string and array fields of the sampled documents of each collection with a case-insensitive `$regex`, and Enter opens the collection with that `find` filter.
 
 ## Sorting and filters
 
