@@ -3,12 +3,10 @@
 # with an older Go cannot read the packages that this tree compiles.
 go = "1.27"
 node = "24"
-staticcheck = "2026.2.1"
 "aqua:goreleaser/goreleaser" = "2.18.0"
 "go:golang.org/x/tools/cmd/goimports" = "latest"
 "go:golang.org/x/vuln/cmd/govulncheck" = "latest"
 "go:golang.org/x/tools/cmd/deadcode" = "latest"
-"go:github.com/kisielk/errcheck" = "latest"
 
 [env]
 GOIMPORTS_LOCAL = "github.com/masumedb/masume"
@@ -91,7 +89,7 @@ if [ -n "$out" ]; then echo "imports are not grouped in:"; echo "$out"; exit 1; 
 
 [tasks.errcheck]
 description = "Report unchecked errors"
-run = "errcheck ./..."
+run = "go tool errcheck ./..."
 
 [tasks.vuln]
 description = "Report known vulnerabilities"
@@ -142,7 +140,7 @@ run = "go vet ./..."
 
 [tasks.staticcheck]
 description = "Run staticcheck with the settings in staticcheck.conf"
-run = "staticcheck ./..."
+run = "go tool staticcheck ./..."
 
 [tasks.release-check]
 description = "Validate .goreleaser.yaml"
