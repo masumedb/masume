@@ -70,8 +70,8 @@ func TestScriptWritesNothingForEqualSchemas(t *testing.T) {
 
 func TestScriptRefusesAnotherFamily(t *testing.T) {
 	snapshot := buildSnapshot()
-	if _, err := writeScript(t, snapshot, snapshot, core.FamilySqlite); err == nil ||
-		!strings.Contains(err.Error(), "PostgreSQL and MySQL families only") {
+	if _, err := writeScript(t, snapshot, snapshot, core.FamilyClickhouse); err == nil ||
+		!strings.Contains(err.Error(), "SQL Server, and SQLite only") {
 		t.Errorf("the script answered %v", err)
 	}
 }

@@ -31,7 +31,7 @@ exit codes:
 
 Each line is a table, column, index or constraint: + only in the target, - only in the
 source, ~ in both with a different definition. The ALTER script is written for the
-PostgreSQL and MySQL families, with both connections of one family.`
+PostgreSQL and MySQL families, SQL Server, and SQLite, with both connections of one family.`
 
 // diffSide is one connection of a compare: a target or a profile name.
 type diffSide struct {

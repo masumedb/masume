@@ -7,47 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/masumedb/masume/internal/core"
 	"github.com/masumedb/masume/internal/db"
 	"github.com/masumedb/masume/internal/db/dbtest"
 	"github.com/masumedb/masume/internal/db/engines"
-	"github.com/masumedb/masume/internal/schemadiff"
 )
-
-// migrate runs the script of source to target on source, and returns what still differs.
-func migrate(
-	t *testing.T, source, target db.Session, sourceSchema, targetSchema string,
-) []schemadiff.Difference {
-	t.Helper()
-	ctx := context.Background()
-	read := func(session db.Session, schema string) schemadiff.Snapshot {
-		snapshot, err := schemadiff.ReadSnapshot(ctx, session, schema)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return snapshot
-	}
-	family := core.ResolveEngineInfo(source.Describe().Profile.Engine).Family
-	script, err := schemadiff.WriteScript(ctx, schemadiff.ScriptRequest{
-		Source: read(source, sourceSchema), Target: read(target, targetSchema),
-		Family: family, Dialect: source.Dialect(), TargetCatalog: target,
-		SessionSchema: source.Describe().DefaultSchema,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(script.Notes) > 0 {
-		t.Errorf("the script has notes: %v", script.Notes)
-	}
-	written := script.Write()
-	t.Log("\n" + written)
-	for _, statement := range source.Language().SplitStatements(written) {
-		if _, err := source.RunQuery(ctx, statement, dbtest.ReadEverything, nil); err != nil {
-			t.Fatalf("the script failed at %q: %v", statement, err)
-		}
-	}
-	return schemadiff.Compare(read(source, sourceSchema), read(target, targetSchema))
-}
 
 const dropScriptSchemas = "drop schema if exists masume_s1 cascade; drop schema if exists masume_s2 cascade"
 
@@ -119,6 +82,57 @@ func TestScriptMakesTheMysqlSourceEqualTheTarget(t *testing.T) {
 	source := openMysqlDatabase(t, "masume_s1")
 	target := openMysqlDatabase(t, "masume_s2")
 	if left := migrate(t, source, target, "masume_s1", "masume_s2"); len(left) != 0 {
+		t.Errorf("after the script the schemas still differ: %+v", left)
+	}
+}
+
+func openSqlserverDatabase(t *testing.T, database string) db.Session {
+	t.Helper()
+	profile, password := dbtest.BuildProfile(t, dbtest.Sqlserver)
+	profile.Database = database
+	ctx, stop := context.WithTimeout(context.Background(), 30*time.Second)
+	defer stop()
+	session, err := engines.CreateAdapters().Open(ctx, profile, password)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = session.Close() })
+	return session
+}
+
+func TestScriptMakesTheSqlserverSourceEqualTheTarget(t *testing.T) {
+	setup := dbtest.Open(t, dbtest.Sqlserver)
+	dropDatabases := func() {
+		for _, database := range []string{"masume_s1", "masume_s2"} {
+			_, _ = setup.RunQuery(context.Background(), "if db_id('"+database+"') is not null begin "+
+				"alter database "+database+" set single_user with rollback immediate "+
+				"drop database "+database+" end", dbtest.ReadEverything, nil)
+		}
+	}
+	dropDatabases()
+	t.Cleanup(dropDatabases)
+	dbtest.RunStatements(t, setup, "create database masume_s1", "create database masume_s2")
+
+	source := openSqlserverDatabase(t, "masume_s1")
+	dbtest.RunStatements(t, source,
+		`create table orders (id int identity(1,1) primary key,
+			total int not null default 5 constraint orders_positive check (total > 0),
+			note varchar(20), legacy int default 1)`,
+		"create index orders_total on orders (total)",
+		"create table archive (id int)",
+		"create view old_orders as select id from orders")
+	target := openSqlserverDatabase(t, "masume_s2")
+	dbtest.RunStatements(t, target,
+		`create table customers (id int identity(1,1) primary key,
+			name nvarchar(50) not null, constraint customers_name unique (name))`,
+		`create table orders (id int identity(1,1) primary key,
+			total bigint not null default 0 constraint orders_positive check (total > 0),
+			note varchar(20) not null default 'none', placed_at datetime2,
+			customer_id int constraint orders_customer references customers (id))`,
+		"create index orders_placed on orders (placed_at)",
+		"create view big_orders as select id, total from orders where total > 100")
+
+	if left := migrate(t, source, target, "dbo", "dbo"); len(left) != 0 {
 		t.Errorf("after the script the schemas still differ: %+v", left)
 	}
 }
