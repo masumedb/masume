@@ -55,24 +55,37 @@ func (model *Model) openImport(
 		connection.ShowError(importTransactionProblem)
 		return model, nil
 	}
-	if !connection.Session.Capabilities().WritesDDL {
+	capabilities := connection.Session.Capabilities()
+	if !capabilities.WritesDDL && !capabilities.StoresDocuments {
 		connection.Show("file import is not available for this server")
 		return model, nil
 	}
 
+	options := load.DefaultReadOptions()
+	if capabilities.StoresDocuments {
+		options.Format = load.FileJSON
+	}
 	connection.Open(app.Overlay{
 		Kind: app.OverlayImport, Title: " import ",
 		Import: app.ImportRequest{
 			Stage: app.ImportPick,
 			Plan: load.Plan{
-				Options: load.DefaultReadOptions(), Table: table.Qualified(),
-				CreatesTable: creating,
+				Options: options, Table: table.Qualified(), CreatesTable: creating,
 			},
+			Documents: capabilities.StoresDocuments,
 		},
 		Draft: app.NewEditorBuffer("", 0),
 	})
 	// The card opens on the picker, and the path can still be typed on the row it fills in.
-	return model, model.openFilePicker(model.ActiveID(), load.ListFileExtensions())
+	return model, model.openFilePicker(model.ActiveID(), listImportExtensions(capabilities.StoresDocuments))
+}
+
+// listImportExtensions returns the extensions of a file the import reads.
+func listImportExtensions(documents bool) []string {
+	if documents {
+		return load.ListDocumentExtensions()
+	}
+	return load.ListFileExtensions()
 }
 
 // buildImportTarget returns the columns of the table the rows go into, as the import reads
@@ -125,7 +138,7 @@ func (model *Model) stepImport(
 	if readFieldKey(*overlay) == "path" {
 		held.Stage = app.ImportPick
 		overlay.Notice = ""
-		return model, model.openFilePicker(model.ActiveID(), load.ListFileExtensions())
+		return model, model.openFilePicker(model.ActiveID(), listImportExtensions(held.Documents))
 	}
 	return model.advanceImport(connection, overlay)
 }
@@ -157,13 +170,20 @@ func (model *Model) advanceImport(
 	overlay.Notice = ""
 	held.Running = true
 	id := model.ActiveID()
-	switch held.Stage {
-	case app.ImportFile:
+	switch {
+	case held.Stage == app.ImportFile && held.Documents:
+		return model, checkDocumentFile(id, held.Plan)
+	case held.Stage == app.ImportFile:
 		return model, readImportFile(id, connection.Session, held.Plan)
-	case app.ImportMapping:
+	case held.Stage == app.ImportMapping:
 		return model, checkImportFile(id, held.Plan, connection.Session.Dialect())
 	}
 	writes := int64(held.Report.Rows - held.Report.Refused)
+	if held.Documents {
+		held.Progress = app.Progress{Total: writes, Label: "documents"}
+		updates, follow := startProgress(id, app.OverlayImport)
+		return model, tea.Batch(runDocumentImport(connection, id, held.Plan, writes, updates), follow)
+	}
 	held.Progress = app.Progress{Total: writes, Label: "rows"}
 	updates, follow := startProgress(id, app.OverlayImport)
 	return model, tea.Batch(
@@ -177,6 +197,9 @@ func leaveImportReview(overlay *app.Overlay) bool {
 		return false
 	}
 	overlay.Import.Stage = app.ImportMapping
+	if overlay.Import.Documents {
+		overlay.Import.Stage = app.ImportFile
+	}
 	overlay.Import.Statements = nil
 	overlay.Notice = ""
 	return true
@@ -401,8 +424,12 @@ func (model *Model) readImportRun(answered importRanMsg) (tea.Model, tea.Cmd) {
 
 	creating := connection.Overlay.Kind == app.OverlayImport &&
 		connection.Overlay.Import.Plan.CreatesTable
+	written := present.FormatCountOf(int64(answered.Written), "row", "rows")
+	if connection.Overlay.Kind == app.OverlayImport && connection.Overlay.Import.Documents {
+		written = present.FormatCountOf(int64(answered.Written), "document", "documents")
+	}
 	connection.CloseEveryOverlay()
-	connection.Show("imported " + present.FormatCountOf(int64(answered.Written), "row", "rows"))
+	connection.Show("imported " + written)
 	if creating {
 		return model, readCatalog(answered.ConnectionID, connection.Session, quietCatalogRead)
 	}

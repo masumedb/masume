@@ -176,7 +176,7 @@ func describeImportAdvance(overlay app.Overlay) string {
 	if held.Running {
 		return "reading…"
 	}
-	if held.Stage == app.ImportFile {
+	if held.Stage == app.ImportFile && !held.Documents {
 		return "read the file"
 	}
 	return "review"
@@ -185,18 +185,22 @@ func describeImportAdvance(overlay app.Overlay) string {
 // buildImportTitle names the card: the file being read, and the rows it holds once they
 // have been counted.
 func buildImportTitle(held app.ImportRequest) string {
+	relation := "table"
+	if held.Documents {
+		relation = "collection"
+	}
 	if held.Plan.Path == "" {
 		if held.Plan.CreatesTable {
-			return " import into a new table in " + held.Plan.Table.Schema + " "
+			return " import into a new " + relation + " in " + held.Plan.Table.Schema + " "
 		}
 		return " import into " + describeImportTable(held) + " "
 	}
 	title := " import " + present.TruncatePath(filepath.Base(held.Plan.Path), 40)
 	if held.Plan.CreatesTable {
-		title += " · new table"
+		title += " · new " + relation
 	}
 	if held.Report.Rows > 0 {
-		title += " · " + present.FormatRowCount(int64(held.Report.Rows))
+		title += " · " + describeImportCount(held, held.Report.Rows)
 	} else if len(held.Plan.Sample.Rows) > 0 && held.Plan.Sample.More {
 		title += " · " + strconv.Itoa(len(held.Plan.Sample.Rows)) + "+ rows"
 	}
@@ -222,7 +226,7 @@ func (model *Model) renderImportReview(overlay app.Overlay, width int) string {
 	}
 	if held.Report.Refused > 0 {
 		lines = append(lines, model.styles.Error().Render(present.TruncateText(
-			present.FormatRowCount(int64(held.Report.Refused))+
+			describeImportCount(held, held.Report.Refused)+
 				" will be skipped:", inner)))
 		for at, problem := range held.Report.Problems {
 			if at >= importedProblemRows {
@@ -276,6 +280,5 @@ func describeImportRun(held app.ImportRequest) string {
 	if held.Running {
 		return "writing…"
 	}
-	written := held.Report.Rows - held.Report.Refused
-	return "write " + present.FormatRowCount(int64(written))
+	return "write " + describeImportCount(held, held.Report.Rows-held.Report.Refused)
 }

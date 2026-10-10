@@ -2,6 +2,7 @@ package ui
 
 import (
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -92,6 +93,12 @@ func (model *Model) readPickedFile(
 	overlay.Draft = app.NewEditorBuffer(path, len(path))
 
 	overlay.Import.Running = true
+	if overlay.Import.Documents {
+		if overlay.Import.Plan.Table.Name == "" {
+			overlay.Import.Plan.Table.Name = strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+		}
+		return model, checkDocumentFile(connectionID, overlay.Import.Plan), true
+	}
 	return model, readImportFile(connectionID, connection.Session, overlay.Import.Plan), true
 }
 

@@ -238,6 +238,9 @@ type ImportRequest struct {
 	Progress Progress
 	// ColumnOffset is the first column row the form draws while the rows do not fit.
 	ColumnOffset int
+	// True on a document server: each document of a JSON file is written whole, with no
+	// column mapping.
+	Documents bool
 }
 
 // DumpMode is what the card of a dump file does.
@@ -514,6 +517,23 @@ var objectActions = []MenuAction{
 	},
 }
 
+// The entries on a collection and on a database of a document server.
+var collectionActions = []MenuAction{{
+	ID: ObjectImportFile, Label: "Import a file…", Detail: "a JSON or an NDJSON file",
+	Icon: cfg.IconTable,
+}}
+
+var databaseActions = []MenuAction{
+	{
+		ID: ObjectImportNewTable, Label: "Import a file…", Detail: "into a new collection",
+		Icon: cfg.IconTable,
+	},
+	{
+		ID: ObjectSearchData, Label: "Search data…", Detail: "a text in every collection",
+		Icon: cfg.IconTable,
+	},
+}
+
 var schemaActions = []MenuAction{
 	{
 		ID: ObjectImportNewTable, Label: "Import a file…", Detail: "into a new table",
@@ -554,10 +574,10 @@ var objectActionNeeds = map[string]func(core.Capabilities) bool{
 	ObjectTruncate: func(capabilities core.Capabilities) bool { return capabilities.TruncatesTable },
 }
 
-// BuildObjectActions returns actions for a tree node when the server supports DDL generation.
+// BuildObjectActions returns the actions of a tree node.
 func BuildObjectActions(node present.TreeNode, capabilities core.Capabilities) []MenuAction {
 	if !capabilities.WritesDDL {
-		return nil
+		return buildDocumentActions(node, capabilities)
 	}
 
 	offered := func(actions []MenuAction) []MenuAction {
@@ -582,6 +602,23 @@ func BuildObjectActions(node present.TreeNode, capabilities core.Capabilities) [
 			return offered(tableActions)
 		}
 		return offered(viewActions)
+	}
+	return nil
+}
+
+// buildDocumentActions returns the actions of a server that writes no DDL: the import and
+// the data search on a document server, and nothing on any other.
+func buildDocumentActions(node present.TreeNode, capabilities core.Capabilities) []MenuAction {
+	if !capabilities.StoresDocuments {
+		return nil
+	}
+	switch node.Kind {
+	case present.NodeSchema:
+		return databaseActions
+	case present.NodeTable:
+		if node.Table.Kind == db.RelationTable {
+			return collectionActions
+		}
 	}
 	return nil
 }

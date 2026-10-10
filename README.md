@@ -163,7 +163,7 @@ Query history and saved queries keep the statements. MongoDB takes a [subset of 
 - **Transactions:** begin, commit, and rollback. With autocommit off, running a statement starts a transaction.
 - **Masking:** hides columns with sensitive names in the grid only. Copies, exports, and value viewers show the original values.
 - **Copy and export:** CSV and JSON files. Clipboard formats also include Markdown, `INSERT` statements, row JSON, and column `IN` clauses. See [copy and export](docs/usage.md#copy-and-export).
-- **Import:** CSV or JSON into an existing or new SQL table. See [importing files](docs/usage.md#importing-files).
+- **Import:** CSV or JSON into an existing or new SQL table, and JSON documents into a MongoDB collection. See [importing files](docs/usage.md#importing-files).
 - **Dump and restore:** schema and data as a SQL file. See [dump and restore](docs/usage.md#dump-and-restore).
 - **Data search:** a text in every column of every table of a schema. See [data search](docs/usage.md#data-search).
 - **Result compare:** pin a result and compare another one with it, row by row. See [result compare](docs/usage.md#result-compare).

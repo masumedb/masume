@@ -96,6 +96,8 @@ type Capabilities struct {
 	AppliesChangesTogether bool
 	// True if the server joins tables in one statement, which the query builder writes.
 	JoinsTables bool
+	// True if the server stores schemaless documents. An import writes each document whole.
+	StoresDocuments bool
 }
 
 // EngineInfo is the engine metadata available before connection. Query support adds the dialect and language.
@@ -238,7 +240,8 @@ var mongoCapabilities = Capabilities{
 	// Emptying a collection deletes all documents.
 	TruncatesTable: false,
 	// Every statement is a command, so the object menu has no SQL to generate.
-	WritesDDL: false,
+	WritesDDL:       false,
+	StoresDocuments: true,
 	// The server has no read-only session, so this client blocks the write.
 	TakesReadOnlyMode: true,
 	// Atomic changes require transactions. The connected session checks deployment support.

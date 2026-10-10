@@ -44,6 +44,17 @@ func ListFileExtensions() []string {
 	return held
 }
 
+// ListDocumentExtensions returns the extensions of a JSON file an import reads.
+func ListDocumentExtensions() []string {
+	held := []string{}
+	for _, extension := range ListFileExtensions() {
+		if fileExtensions[extension] == FileJSON {
+			held = append(held, extension)
+		}
+	}
+	return held
+}
+
 // tabDelimited are the extensions of a file whose fields are separated by a tab.
 var tabDelimited = map[string]bool{".tsv": true}
 
@@ -241,6 +252,62 @@ func buildCSVRow(line int, record, names []string, options ReadOptions) Row {
 
 // walkJSON reads an object array or consecutive objects. Column order follows the first appearance of each field.
 func walkJSON(file io.Reader, onNames func([]string) error, onRow func(Row) error) error {
+	names := []string{}
+	held := map[string]bool{}
+	return walkJSONObjects(file, func(decoder *json.Decoder, line int, opening json.Token, first bool) error {
+		fields, order, readErr := readJSONObject(decoder, opening)
+		if readErr != nil {
+			return readErr
+		}
+		grew := false
+		for _, name := range order {
+			if !held[name] {
+				held[name] = true
+				names = append(names, name)
+				grew = true
+			}
+		}
+		if grew || first {
+			if err := onNames(names); err != nil {
+				return err
+			}
+		}
+		values := make([]any, 0, len(names))
+		for _, name := range names {
+			values = append(values, fields[name])
+		}
+		return onRow(Row{Line: line, Values: values})
+	})
+}
+
+// WalkDocuments reads an object array or consecutive objects, and returns each object as
+// compact JSON text with the line it starts on.
+func WalkDocuments(path string, onDocument func(line int, text string) error) error {
+	file, err := os.Open(core.ExpandHomePath(path))
+	if err != nil {
+		return failFile("%s cannot be read: %v", path, err)
+	}
+	defer func() { _ = file.Close() }()
+
+	return walkJSONObjects(file, func(decoder *json.Decoder, line int, opening json.Token, _ bool) error {
+		if brace, isDelimiter := opening.(json.Delim); !isDelimiter || brace != '{' {
+			return failFile("expected a JSON object")
+		}
+		written := &strings.Builder{}
+		written.WriteString("{")
+		if err := writeJSONRest(decoder, written, '}'); err != nil {
+			return err
+		}
+		return onDocument(line, written.String())
+	})
+}
+
+// walkJSONObjects reads an object array or consecutive objects, and calls readObject at the
+// opening token of each. first is true for the first object.
+func walkJSONObjects(
+	file io.Reader,
+	readObject func(decoder *json.Decoder, line int, opening json.Token, first bool) error,
+) error {
 	counter := &lineCounter{reader: cutByteOrderMark(file)}
 	decoder := json.NewDecoder(counter)
 	decoder.UseNumber()
@@ -257,39 +324,13 @@ func walkJSON(file io.Reader, onNames func([]string) error, onRow func(Row) erro
 	if !isDelimiter || (delimiter != '[' && delimiter != '{') {
 		return failFile("the file must contain JSON objects or an array of objects")
 	}
-	inArray := delimiter == '['
 
-	names := []string{}
-	held := map[string]bool{}
-	reported := false
-
-	readOne := func(line int, first json.Token) error {
-		fields, order, readErr := readJSONObject(decoder, first)
-		if readErr != nil {
-			return readErr
-		}
-		grew := false
-		for _, name := range order {
-			if !held[name] {
-				held[name] = true
-				names = append(names, name)
-				grew = true
-			}
-		}
-		if grew || !reported {
-			reported = true
-			if err := onNames(names); err != nil {
-				return err
-			}
-		}
-		values := make([]any, 0, len(names))
-		for _, name := range names {
-			values = append(values, fields[name])
-		}
-		return onRow(Row{Line: line, Values: values})
+	read := 0
+	readOne := func(line int, token json.Token) error {
+		read++
+		return readObject(decoder, line, token, read == 1)
 	}
-
-	if !inArray {
+	if delimiter == '{' {
 		if err := readOne(readLine(), opening); err != nil {
 			return err
 		}
@@ -313,7 +354,7 @@ func walkJSON(file io.Reader, onNames func([]string) error, onRow func(Row) erro
 		}
 	}
 
-	if !reported {
+	if read == 0 {
 		return failFile("the file has no documents")
 	}
 	return nil

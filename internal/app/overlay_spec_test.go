@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/masumedb/masume/internal/app"
@@ -24,6 +25,28 @@ func TestBuildObjectActionsOffersNothingWithoutDDL(t *testing.T) {
 	}}
 	if actions := app.BuildObjectActions(node, core.Capabilities{}); len(actions) != 0 {
 		t.Errorf("a server that writes no DDL was offered %v", actions)
+	}
+}
+
+func TestBuildObjectActionsOffersImportAndSearchOnADocumentServer(t *testing.T) {
+	capabilities := core.Capabilities{StoresDocuments: true}
+	collection := present.TreeNode{Kind: present.NodeTable, Table: db.TableRef{
+		Name: "orders", Kind: db.RelationTable,
+	}}
+	database := present.TreeNode{Kind: present.NodeSchema, Schema: "shop"}
+	listIDs := func(actions []app.MenuAction) string {
+		ids := []string{}
+		for _, action := range actions {
+			ids = append(ids, action.ID)
+		}
+		return strings.Join(ids, " ")
+	}
+	if ids := listIDs(app.BuildObjectActions(collection, capabilities)); ids != app.ObjectImportFile {
+		t.Errorf("a collection was offered %q", ids)
+	}
+	if ids := listIDs(app.BuildObjectActions(database, capabilities)); ids !=
+		app.ObjectImportNewTable+" "+app.ObjectSearchData {
+		t.Errorf("a database was offered %q", ids)
 	}
 }
 

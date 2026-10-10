@@ -32,6 +32,12 @@ func BuildImportFields(overlay app.Overlay) []DialogField {
 		formats = append(formats, string(format))
 	}
 
+	if held.Documents {
+		return []DialogField{
+			{Key: "path", Label: "file", Value: readImportPath(overlay)},
+			{Key: "table", Label: "collection", Value: held.Plan.Table.Name},
+		}
+	}
 	fields := []DialogField{
 		{Key: "path", Label: "file", Value: readImportPath(overlay)},
 		{Key: "table", Label: "table", Value: describeImportTable(held)},
@@ -97,6 +103,12 @@ func FindImportProblem(overlay app.Overlay, dialect *query.Dialect) string {
 	if strings.TrimSpace(readImportPath(overlay)) == "" {
 		return "enter a file path"
 	}
+	if overlay.Import.Documents {
+		if strings.TrimSpace(overlay.Import.Plan.Table.Name) == "" {
+			return "enter a collection name"
+		}
+		return ""
+	}
 	options := overlay.Import.Plan.Options
 	if options.Format == load.FileCSV && len([]rune(options.Delimiter)) != 1 {
 		return "the delimiter must be one character"
@@ -135,6 +147,10 @@ func ReadImportField(overlay *app.Overlay, written string) {
 	case "path":
 		overlay.Import.Plan.Path = written
 	case "table":
+		if overlay.Import.Documents {
+			overlay.Import.Plan.Table.Name = strings.TrimSpace(written)
+			return
+		}
 		readImportTable(overlay, written)
 	case "delimiter":
 		overlay.Import.Plan.Options.Delimiter = written
@@ -219,6 +235,9 @@ func StepImportField(overlay *app.Overlay, step int) {
 // ApplyImportPath sets the format and the delimiter from the name of the file. A format the
 // user chose themselves is kept.
 func ApplyImportPath(overlay *app.Overlay) {
+	if overlay.Import.Documents {
+		return
+	}
 	held := load.BuildReadOptions(overlay.Import.Plan.Path)
 	if !overlay.Import.FormatChosen {
 		overlay.Import.Plan.Options.Format = held.Format
@@ -230,10 +249,22 @@ func ApplyImportPath(overlay *app.Overlay) {
 
 // DescribeImportSummary returns what the import would do, in one line, for the review.
 func DescribeImportSummary(held app.ImportRequest) string {
+	if held.Documents {
+		return present.FormatCount(int64(held.Report.Rows-held.Report.Refused)) + " of " +
+			describeImportCount(held, held.Report.Rows) + " into " + held.Plan.Table.Name
+	}
 	mapped := len(held.Plan.ListMappedColumns())
 	written := present.FormatCount(int64(held.Report.Rows - held.Report.Refused))
 	return written + " of " +
 		present.FormatCountOf(int64(held.Report.Rows), "row", "rows") +
 		" into " + held.Plan.Table.Name + ", " +
 		present.FormatCountOf(int64(mapped), "column", "columns")
+}
+
+// describeImportCount returns a count of the rows, or of the documents, of the file.
+func describeImportCount(held app.ImportRequest, count int) string {
+	if held.Documents {
+		return present.FormatCountOf(int64(count), "document", "documents")
+	}
+	return present.FormatRowCount(int64(count))
 }

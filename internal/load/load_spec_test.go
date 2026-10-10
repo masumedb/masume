@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -726,5 +727,27 @@ func TestResolveColumnKindReadsSlashDatesTheFileProvesAreDayFirst(t *testing.T) 
 func TestResolveColumnKindReadsAnIsoDateOnItsOwn(t *testing.T) {
 	if kind := load.ResolveColumnKind([]any{"2024-04-03"}); kind != core.KindTimestamp {
 		t.Errorf("answered %s, wanted a date column", kind)
+	}
+}
+
+func TestWalkDocumentsReturnsEachObjectAsCompactText(t *testing.T) {
+	path := writeFile(t, "people.json",
+		"[\n  {\"name\": \"Ada\", \"born\": {\"$date\": \"1815-12-10\"}},\n  {\"n\": 1.50}\n]\n")
+	lines, texts := []int{}, []string{}
+	err := load.WalkDocuments(path, func(line int, text string) error {
+		lines, texts = append(lines, line), append(texts, text)
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wanted := []string{`{"name":"Ada","born":{"$date":"1815-12-10"}}`, `{"n":1.50}`}
+	if !slices.Equal(texts, wanted) || !slices.Equal(lines, []int{2, 3}) {
+		t.Errorf("the documents read %q on lines %v", texts, lines)
+	}
+
+	scalar := writeFile(t, "scalar.json", "[1]")
+	if err := load.WalkDocuments(scalar, func(int, string) error { return nil }); err == nil {
+		t.Error("an array of numbers was read as documents")
 	}
 }

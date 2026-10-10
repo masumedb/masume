@@ -288,7 +288,7 @@ Result JSON exports and copies keep JSON nulls and native numbers and booleans. 
 
 ## Importing files
 
-In the explorer, select a table, press `m`, and choose Import a file. The schema menu imports into a new table. Imports support PostgreSQL-family, MySQL-family, and SQLite engines. MongoDB has no import, and read-only connections reject imports.
+In the explorer, select a table, press `m`, and choose Import a file. The schema menu imports into a new table. Imports support PostgreSQL-family, MySQL-family, and SQLite engines, and MongoDB as described in [MongoDB import](#mongodb-import). Read-only connections reject imports.
 
 ![The import form](../vhs/shots/18-import-form.png)
 
@@ -320,6 +320,14 @@ Imports reject an open transaction. Each import starts a transaction and tries t
 Rollback depends on engine and table support. MySQL-family DDL can commit implicitly. Nontransactional tables cannot roll back writes. An import that creates a table is not always all-or-nothing.
 
 Imports keep no undo and do not use `write_plan`. The input must be UTF-8: CSV, a JSON array of objects, or newline-delimited JSON objects.
+
+### MongoDB import
+
+On MongoDB, the collection menu imports into the collection, and the database menu imports into a new collection. The file is a JSON array of objects or newline-delimited JSON objects, with the extension `.json`, `.jsonl`, or `.ndjson`. Each object is written whole as one document, in Extended JSON, so `{"$oid": …}` and `{"$date": …}` keep their BSON types. The NDJSON export writes the same format.
+
+The form has two settings: `file` and `collection`. A new collection takes the file name without the extension. The review counts the documents, lists the first 20 documents that are not valid Extended JSON, and shows the `insertMany` of the first 5 documents. The import skips the invalid documents.
+
+An `insertMany` writes at most 1000 documents or 4 MiB of document text. The import uses no transaction. After a failure, the documents of the earlier batches stay written, and the card shows their count.
 
 ## Dump and restore
 
