@@ -302,3 +302,24 @@ func TestTheImportReportsTheRowsItWrites(t *testing.T) {
 		t.Errorf("the card draws no count:\n%s", drawn)
 	}
 }
+
+func TestImportIntoANewTableReadsTheCatalogAgain(t *testing.T) {
+	model, connection, session := openImportModel(t)
+	if _, err := session.RunQuery(context.Background(), "create table people (id integer)", 1, nil); err != nil {
+		t.Fatal(err)
+	}
+	connection.Open(app.Overlay{Kind: app.OverlayImport, Import: app.ImportRequest{
+		Plan: load.Plan{CreatesTable: true},
+	}})
+	_, command := model.readImportRun(importRanMsg{ConnectionID: model.ActiveID(), Written: 1})
+	for _, message := range drainCommand(command) {
+		model.Update(message)
+	}
+	names := []string{}
+	for _, table := range connection.Catalog.Tables {
+		names = append(names, table.Name)
+	}
+	if strings.Join(names, " ") != "orders people" {
+		t.Errorf("after the import the catalog holds %v", names)
+	}
+}

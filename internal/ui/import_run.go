@@ -382,7 +382,7 @@ func (model *Model) readImportCheck(answered importCheckedMsg) (tea.Model, tea.C
 // readImportRun reports what the import wrote, and reads the object tree again where it
 // made a table.
 func (model *Model) readImportRun(answered importRanMsg) (tea.Model, tea.Cmd) {
-	connection, id, found := model.findConnection(answered.ConnectionID)
+	connection, _, found := model.findConnection(answered.ConnectionID)
 	if !found {
 		return model, nil
 	}
@@ -404,7 +404,7 @@ func (model *Model) readImportRun(answered importRanMsg) (tea.Model, tea.Cmd) {
 	connection.CloseEveryOverlay()
 	connection.Show("imported " + present.FormatCountOf(int64(answered.Written), "row", "rows"))
 	if creating {
-		return model, readCatalog(id, connection.Session, quietCatalogRead)
+		return model, readCatalog(answered.ConnectionID, connection.Session, quietCatalogRead)
 	}
 	return model, nil
 }

@@ -312,7 +312,7 @@ func (model *Model) readDumpWritten(answered dumpWrittenMsg) (tea.Model, tea.Cmd
 // readRestoreRan reports what the restore ran, and reads the object tree again, because the
 // file can make and drop tables.
 func (model *Model) readRestoreRan(answered restoreRanMsg) (tea.Model, tea.Cmd) {
-	connection, id, found := model.findConnection(answered.ConnectionID)
+	connection, _, found := model.findConnection(answered.ConnectionID)
 	if !found {
 		return model, nil
 	}
@@ -328,10 +328,10 @@ func (model *Model) readRestoreRan(answered restoreRanMsg) (tea.Model, tea.Cmd) 
 		} else {
 			connection.ShowError(problem)
 		}
-		return model, readCatalog(id, connection.Session, quietCatalogRead)
+		return model, readCatalog(answered.ConnectionID, connection.Session, quietCatalogRead)
 	}
 
 	connection.CloseEveryOverlay()
 	connection.Show("ran " + ran)
-	return model, readCatalog(id, connection.Session, quietCatalogRead)
+	return model, readCatalog(answered.ConnectionID, connection.Session, quietCatalogRead)
 }
