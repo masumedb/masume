@@ -3,17 +3,17 @@ module github.com/masumedb/masume
 go 1.27
 
 require (
-	charm.land/bubbletea/v2 v2.0.9
+	charm.land/bubbletea/v2 v2.1.0
 	charm.land/lipgloss/v2 v2.0.6
 	github.com/BurntSushi/toml v1.6.0
 	github.com/ClickHouse/clickhouse-go/v2 v2.48.0
-	github.com/charmbracelet/ultraviolet v0.0.0-20260812204455-68fa937c71be
-	github.com/charmbracelet/x/ansi v0.11.8
+	github.com/charmbracelet/ultraviolet v0.0.0-20261008173134-6b8d4baf91b4
+	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/go-sql-driver/mysql v1.10.0
 	github.com/gocql/gocql v1.7.0
 	github.com/godbus/dbus/v5 v5.2.2
 	github.com/jackc/pgx/v5 v5.10.0
-	github.com/mattn/go-runewidth v0.0.28
+	github.com/mattn/go-runewidth v0.0.30
 	github.com/microsoft/go-mssqldb v1.11.0
 	github.com/redis/go-redis/v9 v9.22.0
 	github.com/tursodatabase/libsql-client-go v0.0.0-20260528064733-9d5d30a29a60
