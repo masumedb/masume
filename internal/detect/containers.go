@@ -354,26 +354,31 @@ func buildContainerProfile(held container) (cfg.Profile, bool) {
 		Keepalive: cfg.DefaultKeepalive, Description: describeContainer(held, name),
 	}
 
-	environment := readEnvironment(held)
-	switch core.ResolveEngineInfo(engine).Family {
+	applyEnvironment(&profile, readEnvironment(held))
+	return profile, true
+}
+
+// applyEnvironment fills the user, the database and the password from the environment of
+// the image of the engine.
+func applyEnvironment(profile *cfg.Profile, environment map[string]string) {
+	switch core.ResolveEngineInfo(profile.Engine).Family {
 	case core.FamilyPostgres:
-		if engine == core.EngineCockroach {
-			applyCockroachEnvironment(&profile, environment)
+		if profile.Engine == core.EngineCockroach {
+			applyCockroachEnvironment(profile, environment)
 		} else {
-			applyPostgresEnvironment(&profile, environment)
+			applyPostgresEnvironment(profile, environment)
 		}
 	case core.FamilyMysql:
-		applyMysqlEnvironment(&profile, environment)
+		applyMysqlEnvironment(profile, environment)
 	case core.FamilyMongo:
-		applyMongoEnvironment(&profile, environment)
+		applyMongoEnvironment(profile, environment)
 	case core.FamilyRedis:
-		applyRedisEnvironment(&profile, environment)
+		applyRedisEnvironment(profile, environment)
 	case core.FamilySqlserver:
-		applySqlserverEnvironment(&profile, environment)
+		applySqlserverEnvironment(profile, environment)
 	case core.FamilyClickhouse:
-		applyClickhouseEnvironment(&profile, environment)
+		applyClickhouseEnvironment(profile, environment)
 	}
-	return profile, true
 }
 
 // BuildProfilesFromInspection returns one connection per database in the answer of
