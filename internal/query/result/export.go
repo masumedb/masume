@@ -20,10 +20,11 @@ const (
 	ExportCSV    ExportFormat = "csv"
 	ExportJSON   ExportFormat = "json"
 	ExportNDJSON ExportFormat = "ndjson"
+	ExportXLSX   ExportFormat = "xlsx"
 )
 
 // ExportFormats lists the formats in the order the form steps through them.
-var ExportFormats = []ExportFormat{ExportCSV, ExportJSON, ExportNDJSON}
+var ExportFormats = []ExportFormat{ExportCSV, ExportJSON, ExportNDJSON, ExportXLSX}
 
 // BuildRecordKeys generates unique record keys with numeric suffixes for duplicate column names.
 func BuildRecordKeys(columns []query.ResultColumn) []string {

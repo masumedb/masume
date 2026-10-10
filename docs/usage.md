@@ -254,7 +254,7 @@ Neither editor undo nor grid undo reverses a database write that ran. `Alt+U` ne
 
 Result and column copies include every loaded row, including rows hidden by screen filters. They use the original values, ignore masks, and do not apply staged edits. Copies never fetch more rows. INSERT copies need a table target.
 
-`Ctrl+S` opens CSV file export. `Ctrl+G` opens JSON file export. The format field also offers `ndjson`, one JSON object per line. Up and Down move between fields, and Left and Right change choices. Set the path and options, then press `Ctrl+S` to write. Overwriting an existing file needs confirmation.
+`Ctrl+S` opens CSV file export. `Ctrl+G` opens JSON file export. The format field also offers `ndjson`, one JSON object per line, and `xlsx`, a workbook of one sheet. An xlsx file has a bold header row, numbers and booleans as typed cells, and every other value as text. An integer of 15 digits or more is text. A null is an empty cell. A sheet holds at most 1,048,576 rows and a cell at most 32,767 characters; a larger result stops the export with an error. Up and Down move between fields, and Left and Right change choices. Set the path and options, then press `Ctrl+S` to write. Overwriting an existing file needs confirmation.
 
 | Row scope | Behavior |
 | --- | --- |
