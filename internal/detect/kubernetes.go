@@ -52,6 +52,11 @@ type podContainer struct {
 			ConfigMapKeyRef *keyReference
 		}
 	}
+	EnvFrom []struct {
+		Prefix       string
+		SecretRef    *struct{ Name string }
+		ConfigMapRef *struct{ Name string }
+	}
 }
 
 // keyReference is one key of a Secret or a ConfigMap.
@@ -100,22 +105,39 @@ func (source *kubeSource) readKeyData(namespace, kind, name string) map[string]s
 }
 
 // readPodEnvironment returns the environment of a container, with the values its Secrets
-// and ConfigMaps hold, and the Secret key of each variable that reads one.
+// and ConfigMaps hold, and the Secret key of each variable that reads one. A variable in
+// env replaces a variable of the same name from envFrom.
 func (source *kubeSource) readPodEnvironment(
 	namespace string, container podContainer,
 ) (map[string]string, map[string]keyReference) {
 	environment := map[string]string{}
 	secrets := map[string]keyReference{}
+	for _, imported := range container.EnvFrom {
+		switch {
+		case imported.SecretRef != nil:
+			name := imported.SecretRef.Name
+			for key, value := range source.readKeyData(namespace, "secret", name) {
+				environment[imported.Prefix+key] = value
+				secrets[imported.Prefix+key] = keyReference{Name: name, Key: key}
+			}
+		case imported.ConfigMapRef != nil:
+			for key, value := range source.readKeyData(namespace, "configmap", imported.ConfigMapRef.Name) {
+				environment[imported.Prefix+key] = value
+			}
+		}
+	}
 	for _, variable := range container.Env {
 		switch {
 		case variable.ValueFrom == nil:
 			environment[variable.Name] = variable.Value
+			delete(secrets, variable.Name)
 		case variable.ValueFrom.SecretKeyRef != nil:
 			reference := *variable.ValueFrom.SecretKeyRef
 			secrets[variable.Name] = reference
 			environment[variable.Name] = source.readKeyData(namespace, "secret", reference.Name)[reference.Key]
 		case variable.ValueFrom.ConfigMapKeyRef != nil:
 			reference := *variable.ValueFrom.ConfigMapKeyRef
+			delete(secrets, variable.Name)
 			environment[variable.Name] = source.readKeyData(namespace, "configmap", reference.Name)[reference.Key]
 		}
 	}

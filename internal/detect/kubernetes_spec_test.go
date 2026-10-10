@@ -77,3 +77,45 @@ func TestBuildProfilesFromPodsReadsTheDatabasePods(t *testing.T) {
 		t.Errorf("the redis profile is %+v", redis)
 	}
 }
+
+const envFromPodList = `{"items": [
+  {"metadata": {"name": "orders-db", "namespace": "shop"},
+   "status": {"phase": "Running"},
+   "spec": {"containers": [{
+     "name": "mysql", "image": "mysql:8",
+     "envFrom": [
+       {"configMapRef": {"name": "mysql-settings"}},
+       {"secretRef": {"name": "mysql-secret"}, "prefix": "MYSQL_"}
+     ],
+     "env": [{"name": "MYSQL_DATABASE", "value": "orders"}]}]}}
+]}`
+
+func fakeEnvFromKubectl(arguments ...string) ([]byte, error) {
+	joined := strings.Join(arguments, " ")
+	switch {
+	case strings.HasPrefix(joined, "get secret mysql-secret"):
+		return []byte(`{"data": {"PASSWORD": "` + base64.StdEncoding.EncodeToString([]byte("s3cret")) + `"}}`), nil
+	case strings.HasPrefix(joined, "get configmap mysql-settings"):
+		return []byte(`{"data": {"MYSQL_USER": "shop_app", "MYSQL_DATABASE": "ignored"}}`), nil
+	}
+	return nil, nil
+}
+
+func TestBuildProfilesFromPodsReadsEnvFrom(t *testing.T) {
+	found, err := detect.BuildProfilesFromPods([]byte(envFromPodList), "kind-dev", fakeEnvFromKubectl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(found) != 1 {
+		t.Fatalf("found %d profiles: %+v", len(found), found)
+	}
+	mysql := found[0]
+	if mysql.User != "shop_app" || mysql.Database != "orders" {
+		t.Errorf("the user and database are %q and %q", mysql.User, mysql.Database)
+	}
+	if mysql.Auth != cfg.AuthCommand ||
+		!strings.Contains(mysql.PasswordCommand, "kubectl get secret mysql-secret") ||
+		!strings.Contains(mysql.PasswordCommand, `index .data "PASSWORD" | base64decode`) {
+		t.Errorf("the password source is %s with %q", mysql.Auth, mysql.PasswordCommand)
+	}
+}
