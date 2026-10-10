@@ -15,14 +15,15 @@ import (
 // ExportFormat is a format an export can write.
 type ExportFormat string
 
-// The two formats a reader may choose.
+// The formats a reader may choose.
 const (
-	ExportCSV  ExportFormat = "csv"
-	ExportJSON ExportFormat = "json"
+	ExportCSV    ExportFormat = "csv"
+	ExportJSON   ExportFormat = "json"
+	ExportNDJSON ExportFormat = "ndjson"
 )
 
 // ExportFormats lists the formats in the order the form steps through them.
-var ExportFormats = []ExportFormat{ExportCSV, ExportJSON}
+var ExportFormats = []ExportFormat{ExportCSV, ExportJSON, ExportNDJSON}
 
 // BuildRecordKeys generates unique record keys with numeric suffixes for duplicate column names.
 func BuildRecordKeys(columns []query.ResultColumn) []string {
@@ -304,10 +305,34 @@ func (writer *jsonWriter) End() string {
 	return "\n]\n"
 }
 
+// ndjsonWriter writes one JSON object per line, with no enclosing array.
+type ndjsonWriter struct{}
+
+func (ndjsonWriter) Begin([]query.ResultColumn) string { return "" }
+
+func (ndjsonWriter) WriteRows(rows [][]any, columns []query.ResultColumn) string {
+	keys := BuildRecordKeys(columns)
+	var written strings.Builder
+	for _, row := range rows {
+		encoded, err := json.Marshal(buildJSONRecord(row, columns, keys))
+		if err != nil {
+			encoded, _ = json.Marshal(buildTextRecord(row, columns, keys))
+		}
+		written.Write(encoded)
+		written.WriteByte('\n')
+	}
+	return written.String()
+}
+
+func (ndjsonWriter) End() string { return "" }
+
 // CreateExportWriter returns the writer for that format.
 func CreateExportWriter(format ExportFormat, csv CSVOptions) ExportWriter {
-	if format == ExportCSV {
+	switch format {
+	case ExportCSV:
 		return &csvWriter{options: csv}
+	case ExportNDJSON:
+		return ndjsonWriter{}
 	}
 	return &jsonWriter{}
 }

@@ -20,7 +20,7 @@ masume run [TARGET] -e FILE
 | `TARGET` | Connection URL, keyword connection string, or existing SQLite file. Without a target, use `--profile` or `$DATABASE_URL` |
 | `-p`, `--profile NAME` | User or project profile |
 | `-e`, `--execute FILE` | Statement file. `-` reads stdin |
-| `-f`, `--format FORMAT` | `table` by default, or `csv`, `json`, or `markdown` |
+| `-f`, `--format FORMAT` | `table` by default, or `csv`, `json`, `ndjson`, or `markdown`. `ndjson` writes one JSON object per line |
 | `-l`, `--limit ROWS` | Maximum output rows per statement, above zero. Also applies to a statement with its own limit |
 | `--param NAME=VALUE` | String value for `:NAME`. Repeat for each parameter |
 | `--explain` | JSON plan. Reads are measured where the engine supports it |

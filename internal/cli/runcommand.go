@@ -25,7 +25,7 @@ usage:
   TARGET                 a supported URL, keyword connection string, or existing SQLite file
   -p, --profile NAME     a user or project profile; without a target or profile, use $DATABASE_URL
   -e, --execute FILE     read the statement from a file, or from - for stdin
-  -f, --format FORMAT    table (the default), csv, json or markdown
+  -f, --format FORMAT    table (the default), csv, json, ndjson or markdown
   -l, --limit ROWS       positive output cap per statement, including statements with SQL limits
       --param NAME=VALUE string value for :NAME; repeat for each parameter
       --explain          write a JSON plan; run eligible queries for measurements

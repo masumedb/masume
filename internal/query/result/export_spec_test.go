@@ -377,3 +377,21 @@ func TestJSONExportKeepsARowWithAValueJSONCannotHold(t *testing.T) {
 		t.Errorf("a number the encoder holds reads %v", read[2]["rate"])
 	}
 }
+
+func TestNdjsonExportWritesOneObjectPerLine(t *testing.T) {
+	writer := result.CreateExportWriter(result.ExportNDJSON, result.DefaultCSVOptions())
+	written := writer.Begin(shopColumns) +
+		writer.WriteRows([][]any{{int64(1), "ada"}}, shopColumns) +
+		writer.WriteRows([][]any{{int64(2), nil}}, shopColumns) + writer.End()
+	wanted := `{"customer":"ada","id":1}` + "\n" + `{"customer":null,"id":2}` + "\n"
+	if written != wanted {
+		t.Errorf("the file reads %q, wanted %q", written, wanted)
+	}
+}
+
+func TestNdjsonExportOfNoRowsIsEmpty(t *testing.T) {
+	writer := result.CreateExportWriter(result.ExportNDJSON, result.DefaultCSVOptions())
+	if written := writer.Begin(shopColumns) + writer.End(); written != "" {
+		t.Errorf("the file reads %q", written)
+	}
+}

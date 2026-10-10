@@ -598,3 +598,15 @@ func TestRunKeepsALastRowOfEmptyCells(t *testing.T) {
 			len(lines), written)
 	}
 }
+
+func TestRunWritesNdjson(t *testing.T) {
+	profile := buildDatabase(t, cfg.AccessWrite)
+	code, out, reported := runOptions(t, headless.Options{
+		Profile: profile, Format: headless.FormatNDJSON,
+		Statement: "select id, status from orders where id < 3 order by id",
+	})
+	wanted := `{"id":1,"status":"paid"}` + "\n" + `{"id":2,"status":"paid"}` + "\n"
+	if code != headless.CodeOK || out != wanted {
+		t.Errorf("the run answered %d with %q and %q", code, out, reported)
+	}
+}

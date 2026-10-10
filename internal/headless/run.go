@@ -38,11 +38,12 @@ const (
 	FormatTable    Format = "table"
 	FormatCSV      Format = "csv"
 	FormatJSON     Format = "json"
+	FormatNDJSON   Format = "ndjson"
 	FormatMarkdown Format = "markdown"
 )
 
 // Formats lists the formats, the default first.
-var Formats = []Format{FormatTable, FormatCSV, FormatJSON, FormatMarkdown}
+var Formats = []Format{FormatTable, FormatCSV, FormatJSON, FormatNDJSON, FormatMarkdown}
 
 // FormatNames returns the format names for use in an error message.
 func FormatNames() string {

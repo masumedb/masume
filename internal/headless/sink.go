@@ -24,7 +24,7 @@ type rowSink interface {
 // createRowSink returns the sink of that format.
 func createRowSink(format Format, out io.Writer) rowSink {
 	switch format {
-	case FormatCSV, FormatJSON:
+	case FormatCSV, FormatJSON, FormatNDJSON:
 		return &streamingSink{
 			writer: result.CreateRowWriter(
 				resolveExportFormat(format), result.DefaultCSVOptions(), out),
@@ -38,8 +38,11 @@ func createRowSink(format Format, out io.Writer) rowSink {
 
 // resolveExportFormat returns the export format of a run format.
 func resolveExportFormat(format Format) result.ExportFormat {
-	if format == FormatCSV {
+	switch format {
+	case FormatCSV:
 		return result.ExportCSV
+	case FormatNDJSON:
+		return result.ExportNDJSON
 	}
 	return result.ExportJSON
 }
