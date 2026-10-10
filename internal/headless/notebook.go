@@ -60,6 +60,11 @@ func RunNotebook(
 			return code
 		}
 	}
+	if options.Format.isBinary() {
+		options.report("%s output is for masume run; a notebook run writes table, csv, json, "+
+			"ndjson or markdown", options.Format)
+		return CodeStatement
+	}
 	if code := refuseSeveralJSONResults(options); code != CodeOK {
 		return code
 	}

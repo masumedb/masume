@@ -6,8 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
+
+	"github.com/charmbracelet/x/term"
 
 	"github.com/masumedb/masume/internal/cfg"
 	"github.com/masumedb/masume/internal/core"
@@ -39,11 +42,43 @@ const (
 	FormatCSV      Format = "csv"
 	FormatJSON     Format = "json"
 	FormatNDJSON   Format = "ndjson"
+	FormatXLSX     Format = "xlsx"
+	FormatParquet  Format = "parquet"
 	FormatMarkdown Format = "markdown"
 )
 
 // Formats lists the formats, the default first.
-var Formats = []Format{FormatTable, FormatCSV, FormatJSON, FormatNDJSON, FormatMarkdown}
+var Formats = []Format{
+	FormatTable, FormatCSV, FormatJSON, FormatNDJSON, FormatXLSX, FormatParquet, FormatMarkdown,
+}
+
+// isBinary is true for a format that writes a file and not text.
+func (format Format) isBinary() bool {
+	return format == FormatXLSX || format == FormatParquet
+}
+
+// writesOneDocument is true for a format whose output holds one result only.
+func (format Format) writesOneDocument() bool {
+	return format == FormatJSON || format.isBinary()
+}
+
+// refuseBinaryOutput refuses a binary format that would reach a terminal, or a plan, which
+// is JSON.
+func refuseBinaryOutput(options Options) int {
+	if !options.Format.isBinary() {
+		return CodeOK
+	}
+	if options.Explain {
+		options.report("--explain writes JSON plans; use --format json")
+		return CodeStatement
+	}
+	if file, isFile := options.Out.(*os.File); isFile && term.IsTerminal(file.Fd()) {
+		options.report("%s output is binary; redirect it to a file, such as > result.%s",
+			options.Format, options.Format)
+		return CodeStatement
+	}
+	return CodeOK
+}
 
 // FormatNames returns the format names for use in an error message.
 func FormatNames() string {
@@ -84,6 +119,9 @@ func Run(ctx context.Context, adapters engines.Adapters, options Options) int {
 	if code := checkPassword(options); code != CodeOK {
 		return code
 	}
+	if code := refuseBinaryOutput(options); code != CodeOK {
+		return code
+	}
 
 	session, preConnect, code := openSession(ctx, adapters, options)
 	if code != CodeOK {
@@ -101,9 +139,9 @@ func Run(ctx context.Context, adapters engines.Adapters, options Options) int {
 		return CodeStatement
 	}
 
-	if options.Format == FormatJSON && len(statements) > 1 {
-		options.report("json output supports one statement per run; received %d statements. "+
-			"Use csv or table, or run each statement separately", len(statements))
+	if options.Format.writesOneDocument() && len(statements) > 1 {
+		options.report("%s output supports one statement per run; received %d statements. "+
+			"Use csv or table, or run each statement separately", options.Format, len(statements))
 		return CodeStatement
 	}
 

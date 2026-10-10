@@ -219,6 +219,7 @@ See [project file](docs/configuration.md#project-file) and [project security](SE
 masume run -p shop-prod -f json 'select count(*) from orders'
 masume run -p shop -e ./reports/daily.sql --param day=2026-09-02
 masume run ./notes.db -f csv 'select * from notes limit 100000' > notes.csv
+masume run -p shop -f parquet 'select * from orders' > orders.parquet
 ```
 
 See [headless mode](docs/headless.md) for formats, exit codes, dump, restore, schema compare, and notebooks.

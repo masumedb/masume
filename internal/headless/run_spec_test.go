@@ -552,7 +552,7 @@ func TestFindFormatReadsEveryName(t *testing.T) {
 			t.Errorf("%q reads as %q, %v", held, found, known)
 		}
 	}
-	if _, known := headless.FindFormat("parquet"); known {
+	if _, known := headless.FindFormat("avro"); known {
 		t.Error("a format there is not was read as one there is")
 	}
 	if !strings.Contains(headless.FormatNames(), "markdown") {
@@ -608,5 +608,42 @@ func TestRunWritesNdjson(t *testing.T) {
 	wanted := `{"id":1,"status":"paid"}` + "\n" + `{"id":2,"status":"paid"}` + "\n"
 	if code != headless.CodeOK || out != wanted {
 		t.Errorf("the run answered %d with %q and %q", code, out, reported)
+	}
+}
+
+func TestRunWritesXlsxAndParquet(t *testing.T) {
+	profile := buildDatabase(t, cfg.AccessWrite)
+	for _, held := range []struct {
+		format headless.Format
+		magic  string
+	}{
+		{headless.FormatXLSX, "PK\x03\x04"},
+		{headless.FormatParquet, "PAR1"},
+	} {
+		code, out, reported := runOptions(t, headless.Options{
+			Profile: profile, Format: held.format, Statement: "select id, status from orders order by id",
+		})
+		if code != headless.CodeOK || !strings.HasPrefix(out, held.magic) {
+			t.Errorf("%s answered %d with %q", held.format, code, reported)
+		}
+	}
+}
+
+func TestRunRefusesWhatABinaryFormatCannotHold(t *testing.T) {
+	profile := buildDatabase(t, cfg.AccessWrite)
+	for _, held := range []struct {
+		options headless.Options
+		wanted  string
+	}{
+		{headless.Options{Format: headless.FormatXLSX, Statement: "select 1; select 2"},
+			"xlsx output supports one statement per run"},
+		{headless.Options{Format: headless.FormatParquet, Statement: "select 1", Explain: true},
+			"--explain writes JSON plans"},
+	} {
+		held.options.Profile = profile
+		code, _, reported := runOptions(t, held.options)
+		if code != headless.CodeStatement || !strings.Contains(reported, held.wanted) {
+			t.Errorf("%s answered %d with %q", held.options.Format, code, reported)
+		}
 	}
 }

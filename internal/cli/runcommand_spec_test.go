@@ -117,8 +117,8 @@ func TestParseRunArgumentsReportsWhatItCannotRead(t *testing.T) {
 	for _, argv := range [][]string{
 		{},
 		{"-p", "shop"},
-		{"-f", "parquet", "select 1"},
-		{"--format=parquet", "select 1"},
+		{"-f", "avro", "select 1"},
+		{"--format=avro", "select 1"},
 		{"-p", "shop", "./notes.db", "select 1"},
 		{"-e", "daily.sql", "./notes.db", "select 1"},
 		{"./notes.db", "select 1", "select 2"},

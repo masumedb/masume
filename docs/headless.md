@@ -20,7 +20,7 @@ masume run [TARGET] -e FILE
 | `TARGET` | Connection URL, keyword connection string, or existing SQLite file. Without a target, use `--profile` or `$DATABASE_URL` |
 | `-p`, `--profile NAME` | User or project profile |
 | `-e`, `--execute FILE` | Statement file. `-` reads stdin |
-| `-f`, `--format FORMAT` | `table` by default, or `csv`, `json`, `ndjson`, or `markdown`. `ndjson` writes one JSON object per line |
+| `-f`, `--format FORMAT` | `table` by default, or `csv`, `json`, `ndjson`, `xlsx`, `parquet`, or `markdown`. `ndjson` writes one JSON object per line. `xlsx` and `parquet` are binary and need a redirect to a file; see [export](usage.md#copy-and-export) for their layout |
 | `-l`, `--limit ROWS` | Maximum output rows per statement, above zero. Also applies to a statement with its own limit |
 | `--param NAME=VALUE` | String value for `:NAME`. Repeat for each parameter |
 | `--explain` | JSON plan. Reads are measured where the engine supports it |
@@ -149,7 +149,7 @@ masume run -p shop -e payment.sql
 
 Engine restrictions on DDL and on nontransactional tables still apply.
 
-`--format json` rejects several statements before running any, and exits with `1`. Other formats write the results one after another, with a separate header for each tabular result. Empty input exits with `1`, and so does SQL that contains only comments.
+`--format json`, `xlsx`, and `parquet` reject several statements before running any, and exit with `1`. `xlsx` and `parquet` also reject `--explain`, output to a terminal, and `masume nb run`. Other formats write the results one after another, with a separate header for each tabular result. Empty input exits with `1`, and so does SQL that contains only comments.
 
 ## Row limits
 
