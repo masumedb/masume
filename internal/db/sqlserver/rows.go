@@ -176,5 +176,8 @@ func readLastResultSet(rows *sql.Rows, cap int) ([][]any, []db.ResultColumn, err
 		}
 		read, columns = next, nextColumns
 	}
+	if err := rows.Err(); err != nil {
+		return nil, nil, err
+	}
 	return read, columns, nil
 }
