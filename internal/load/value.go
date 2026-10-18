@@ -225,11 +225,10 @@ func castText(written string, kind core.ColumnKind) (any, error) {
 		}
 		return held, nil
 	case core.KindNumber:
-		held, err := strconv.ParseFloat(written, 64)
-		if err != nil {
+		if _, err := strconv.ParseFloat(written, 64); err != nil {
 			return nil, failValue("invalid number %q", written)
 		}
-		return held, nil
+		return written, nil
 	case core.KindBoolean:
 		held, known := booleanWords[strings.ToLower(written)]
 		if !known {
