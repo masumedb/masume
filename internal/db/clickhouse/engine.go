@@ -38,7 +38,7 @@ var Dialect = &query.Dialect{
 		return "toString(" + column + ") ilike " + pattern
 	},
 	QuoteTextLiteral: func(text string) string {
-		return "'" + strings.ReplaceAll(text, "'", "''") + "'"
+		return "'" + strings.ReplaceAll(strings.ReplaceAll(text, `\`, `\\`), "'", "''") + "'"
 	},
 	// The server compares every type it stores, including an array and a map.
 	CanCompareType: func(string) bool { return true },
