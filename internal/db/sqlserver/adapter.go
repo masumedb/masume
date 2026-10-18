@@ -689,7 +689,7 @@ func (adapter *sqlserverAdapter) Connect(
 		holdsStatementStats: readsStatementStats(ctx, connection),
 		side: db.NewSideConnection(func() (*sql.DB, error) {
 			return openSqlserverPool(profile, password)
-		}),
+		}, nil),
 		mainQueue: db.NewCallQueue(),
 	}, nil
 }

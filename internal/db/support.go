@@ -407,22 +407,25 @@ func IsBrokenConnection(ctx context.Context, err error) bool {
 // SideConnection is a lazily opened connection for independent server operations.
 type SideConnection[T any] struct {
 	open func() (T, error)
+	// isClosed is nil for a pool, which opens its connections again itself.
+	isClosed func(T) bool
 	// The mutex permits one connection open at a time.
 	guard      sync.Mutex
 	connection T
 	opened     bool
 }
 
-// NewSideConnection holds how a second connection is opened.
-func NewSideConnection[T any](open func() (T, error)) *SideConnection[T] {
-	return &SideConnection[T]{open: open}
+// NewSideConnection holds how a second connection is opened, and how a closed one is found.
+func NewSideConnection[T any](open func() (T, error), isClosed func(T) bool) *SideConnection[T] {
+	return &SideConnection[T]{open: open, isClosed: isClosed}
 }
 
-// Read returns the second connection, and opens it on the first call.
+// Read returns the second connection. It opens the connection on the first call, and
+// again after the connection closed.
 func (side *SideConnection[T]) Read() (T, error) {
 	side.guard.Lock()
 	defer side.guard.Unlock()
-	if side.opened {
+	if side.opened && (side.isClosed == nil || !side.isClosed(side.connection)) {
 		return side.connection, nil
 	}
 	connection, err := side.open()

@@ -1019,6 +1019,13 @@ func (session *postgresSession) Ping(ctx context.Context) error {
 		defer giveBack()
 
 		_, execErr := connection.Exec(ctx, "select 1")
+		if execErr != nil && connection.IsClosed() {
+			reopened, err := session.side.Read()
+			if err != nil {
+				return err
+			}
+			_, execErr = reopened.Exec(ctx, "select 1")
+		}
 		return execErr
 	}
 
@@ -1155,7 +1162,7 @@ func (adapter *postgresAdapter) Connect(
 		typeWritten: typeWritten,
 		side: db.NewSideConnection(func() (*pgx.Conn, error) {
 			return openPostgresConnection(context.Background(), profile, password)
-		}),
+		}, (*pgx.Conn).IsClosed),
 		mainQueue: db.NewCallQueue(), sideQueue: db.NewCallQueue(),
 	}, nil
 }

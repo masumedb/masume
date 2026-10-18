@@ -73,3 +73,22 @@ func TestLostTransactionIsReportedOnce(t *testing.T) {
 		t.Errorf("the session still reads backend %s", pid)
 	}
 }
+
+func TestSideConnectionOpensAgainAfterTheServerClosesIt(t *testing.T) {
+	session := dbtest.Open(t, dbtest.Postgres)
+	other := dbtest.Open(t, dbtest.Postgres)
+	ctx := context.Background()
+	if _, err := session.ListSchemas(ctx); err != nil {
+		t.Fatalf("the first catalog read answered %v", err)
+	}
+	user := readText(t, session, "select pg_backend_pid()")
+	dbtest.RunStatements(t, other, "select pg_terminate_backend(pid) from pg_stat_activity "+
+		"where application_name = 'masume' and pid not in ("+user+", pg_backend_pid())")
+
+	if err := session.Ping(ctx); err != nil {
+		t.Errorf("the health check answered %v", err)
+	}
+	if _, err := session.ListSchemas(ctx); err != nil {
+		t.Errorf("the catalog read answered %v", err)
+	}
+}

@@ -817,7 +817,7 @@ func (adapter *mysqlAdapter) Connect(
 		profile: profile, password: password,
 		side: db.NewSideConnection(func() (*sql.DB, error) {
 			return openMysqlPool(profile, password)
-		}),
+		}, nil),
 		mainQueue: db.NewCallQueue(),
 	}, nil
 }

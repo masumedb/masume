@@ -648,7 +648,7 @@ func (adapter *clickhouseAdapter) Connect(
 		listedIDs:           map[int64]string{},
 		side: db.NewSideConnection(func() (*sql.DB, error) {
 			return openClickhousePool(profile, password)
-		}),
+		}, nil),
 		mainQueue: db.NewCallQueue(),
 	}, nil
 }
