@@ -6,6 +6,7 @@ import (
 	"math"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/masumedb/masume/internal/core"
 	"github.com/masumedb/masume/internal/query"
@@ -140,51 +141,59 @@ func buildCSVRow(row []any, columns []query.ResultColumn, options CSVOptions) st
 			written = append(written, escapeCSVField(options.NullText, options))
 			continue
 		}
-		dataType := ""
+		column := query.ResultColumn{}
 		if index < len(columns) {
-			dataType = columns[index].DataType
+			column = columns[index]
 		}
-		written = append(written, escapeCSVField(buildExportText(cell, dataType), options))
+		written = append(written, escapeCSVField(buildExportText(cell, column), options))
 	}
 	return strings.Join(written, options.Delimiter)
 }
 
 // buildExportText formats a cell for export, using relaxed JSON for valid documents.
-func buildExportText(value any, dataType string) string {
+func buildExportText(value any, column query.ResultColumn) string {
 	if held, isDocument := value.(core.DocumentValue); isDocument {
 		if relaxed, isJSON := core.RelaxDocumentJSON(held.Text); isJSON {
 			return relaxed
 		}
 	}
-	return core.FormatCell(value, dataType)
+	return FormatColumnText(value, column)
+}
+
+// FormatColumnText formats a cell as text. A moment of a zoned column keeps its offset.
+func FormatColumnText(value any, column query.ResultColumn) string {
+	if held, isTime := value.(time.Time); isTime && column.Zoned {
+		return core.FormatZonedTime(held)
+	}
+	return core.FormatCell(value, column.DataType)
 }
 
 // castToJSONValue preserves supported JSON values and formats other values as text.
-func castToJSONValue(value any, dataType string) any {
+func castToJSONValue(value any, column query.ResultColumn) any {
 	if value == nil {
 		return nil
 	}
 	// Embed valid document and list values as JSON.
-	if core.IsDocumentType(dataType) || core.IsListValue(value) {
-		if embedded, isJSON := embedJSONDocument(value, dataType); isJSON {
+	if core.IsDocumentType(column.DataType) || core.IsListValue(value) {
+		if embedded, isJSON := embedJSONDocument(value, column); isJSON {
 			return embedded
 		}
 	}
 	// JSON has no numeric representation for NaN or infinity.
 	if held, isFloat := readFloatValue(value); isFloat {
 		if math.IsNaN(held) || math.IsInf(held, 0) {
-			return buildExportText(value, dataType)
+			return buildExportText(value, column)
 		}
 	}
 	switch value.(type) {
 	case string, bool, float32, float64,
 		int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
 		if _, isBytes := value.([]byte); isBytes {
-			return buildExportText(value, dataType)
+			return buildExportText(value, column)
 		}
 		return value
 	}
-	return buildExportText(value, dataType)
+	return buildExportText(value, column)
 }
 
 // readFloatValue converts float32 and float64 values to float64.
@@ -199,8 +208,8 @@ func readFloatValue(value any) (float64, bool) {
 }
 
 // embedJSONDocument returns valid JSON from the formatted value.
-func embedJSONDocument(value any, dataType string) (json.RawMessage, bool) {
-	written := buildExportText(value, dataType)
+func embedJSONDocument(value any, column query.ResultColumn) (json.RawMessage, bool) {
+	written := buildExportText(value, column)
 	if !json.Valid([]byte(written)) {
 		return nil, false
 	}
@@ -218,7 +227,7 @@ func buildJSONRecord(row []any, columns []query.ResultColumn, keys []string) map
 		if index < len(row) {
 			cell = row[index]
 		}
-		record[key] = castToJSONValue(cell, column.DataType)
+		record[key] = castToJSONValue(cell, column)
 	}
 	return record
 }
@@ -237,7 +246,7 @@ func buildTextRecord(
 		if index < len(row) {
 			cell = row[index]
 		}
-		record[key] = buildExportText(cell, column.DataType)
+		record[key] = buildExportText(cell, column)
 	}
 	return record
 }
@@ -382,11 +391,11 @@ func BuildMarkdown(columns []query.ResultColumn, rows [][]any) string {
 	for _, row := range rows {
 		cells := make([]string, 0, len(row))
 		for index, value := range row {
-			dataType := ""
+			column := query.ResultColumn{}
 			if index < len(columns) {
-				dataType = columns[index].DataType
+				column = columns[index]
 			}
-			cells = append(cells, escapeCell(core.FormatCell(value, dataType)))
+			cells = append(cells, escapeCell(FormatColumnText(value, column)))
 		}
 		lines = append(lines, "| "+strings.Join(cells, " | ")+" |")
 	}

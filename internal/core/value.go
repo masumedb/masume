@@ -89,6 +89,11 @@ func FormatCell(value any, dataType string) string {
 	return string(written)
 }
 
+// FormatZonedTime writes a moment with its offset from UTC.
+func FormatZonedTime(held time.Time) string {
+	return held.Format("2006-01-02 15:04:05.999999999-07:00")
+}
+
 // FormatTimeLiteral writes a moment for a statement: the date alone for a date column, and
 // the fraction of a second only where the moment holds one. A server whose column holds
 // whole seconds refuses a fraction it never stored.

@@ -3,6 +3,7 @@ package postgres
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/masumedb/masume/internal/core"
 	"github.com/masumedb/masume/internal/db"
@@ -27,6 +28,12 @@ var Dialect = &query.Dialect{
 	// A backslash is a plain character in a Postgres literal, so only a quote is doubled.
 	// PostgreSQL reads bytes as a string of the hexadecimal form.
 	RenderBytes: func(hex string) string { return `'\x` + hex + `'` },
+	RenderTime: func(held time.Time, dataType string) string {
+		if strings.Contains(dataType, "with time zone") || dataType == "timestamptz" {
+			return core.FormatZonedTime(held)
+		}
+		return core.FormatTimeLiteral(held, dataType)
+	},
 	MatchText: func(column, pattern string) string {
 		return "cast(" + column + " as text) ilike " + pattern
 	},

@@ -3,6 +3,7 @@ package clickhouse
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/masumedb/masume/internal/core"
 	"github.com/masumedb/masume/internal/db"
@@ -25,6 +26,14 @@ var Dialect = &query.Dialect{
 	RowLockClause: "",
 	// ClickHouse reads bytes through unhex.
 	RenderBytes: func(hex string) string { return "unhex('" + hex + "')" },
+	// The server reads a DateTime literal in the time zone of the column, and the driver
+	// returns a moment in that zone.
+	RenderTime: func(held time.Time, dataType string) string {
+		if strings.Contains(dataType, "DateTime") {
+			return held.Format("2006-01-02 15:04:05.999999999")
+		}
+		return core.FormatTimeLiteral(held, dataType)
+	},
 	MatchText: func(column, pattern string) string {
 		return "toString(" + column + ") ilike " + pattern
 	},

@@ -3,6 +3,7 @@ package sqlserver
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/masumedb/masume/internal/core"
 	"github.com/masumedb/masume/internal/db"
@@ -42,6 +43,12 @@ var Dialect = &query.Dialect{
 	},
 	// SQL Server reads bytes as a hexadecimal number.
 	RenderBytes: func(hex string) string { return "0x" + hex },
+	RenderTime: func(held time.Time, dataType string) string {
+		if dataType == "datetimeoffset" {
+			return core.FormatZonedTime(held)
+		}
+		return core.FormatTimeLiteral(held, dataType)
+	},
 	MatchText: func(column, pattern string) string {
 		return "cast(" + column + " as nvarchar(max)) like " + pattern
 	},

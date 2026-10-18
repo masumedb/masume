@@ -5,6 +5,7 @@ import (
 	"math"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/masumedb/masume/internal/core"
 	"github.com/masumedb/masume/internal/query"
@@ -393,5 +394,20 @@ func TestNdjsonExportOfNoRowsIsEmpty(t *testing.T) {
 	writer := result.CreateExportWriter(result.ExportNDJSON, result.DefaultCSVOptions())
 	if written := writer.Begin(shopColumns) + writer.End(); written != "" {
 		t.Errorf("the file reads %q", written)
+	}
+}
+
+func TestCsvExportWritesAZonedMomentWithItsOffset(t *testing.T) {
+	berlin := time.FixedZone("CEST", 2*60*60)
+	columns := []query.ResultColumn{
+		{Name: "placed", DataType: "timestamp with time zone", Zoned: true},
+		{Name: "noted", DataType: "timestamp without time zone"},
+	}
+	moment := time.Date(2026, 5, 1, 12, 0, 0, 500_000_000, berlin)
+	writer := result.CreateExportWriter(result.ExportCSV, result.DefaultCSVOptions())
+
+	written := writer.WriteRows([][]any{{moment, moment}}, columns)
+	if !strings.Contains(written, "2026-05-01 12:00:00.5+02:00,2026-05-01 10:00:00.5") {
+		t.Errorf("the row reads %q", written)
 	}
 }

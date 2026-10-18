@@ -5,7 +5,6 @@ import (
 	"io"
 	"strings"
 
-	"github.com/masumedb/masume/internal/core"
 	"github.com/masumedb/masume/internal/present"
 	"github.com/masumedb/masume/internal/query"
 	"github.com/masumedb/masume/internal/query/result"
@@ -94,7 +93,7 @@ func buildPlainTable(columns []query.ResultColumn, rows [][]any) string {
 		for at := range columns {
 			cell := ""
 			if at < len(row) {
-				cell = present.SafeText(core.FormatCell(row[at], columns[at].DataType))
+				cell = present.SafeText(result.FormatColumnText(row[at], columns[at]))
 			}
 			widths[at] = max(widths[at], present.MeasureText(cell))
 			cells = append(cells, cell)

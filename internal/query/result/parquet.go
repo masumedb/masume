@@ -166,7 +166,7 @@ func buildParquetPage(
 			}
 			values = binary.LittleEndian.AppendUint64(values, math.Float64bits(held))
 		default:
-			text := buildExportText(value, column.DataType)
+			text := buildExportText(value, column)
 			values = binary.LittleEndian.AppendUint32(values, uint32(len(text)))
 			values = append(values, text...)
 		}

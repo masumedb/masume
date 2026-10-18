@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/masumedb/masume/internal/core"
 	"github.com/masumedb/masume/internal/query/syntax"
@@ -84,6 +85,9 @@ type Dialect struct {
 	// RenderBytes writes raw bytes as a literal this server reads back. A dialect that
 	// leaves it unset writes the bytes as text.
 	RenderBytes func(hex string) string
+	// RenderTime writes a moment as the text of a literal of the column type. A dialect
+	// that leaves it unset writes the moment in UTC without an offset.
+	RenderTime func(held time.Time, dataType string) string
 	// RenderList writes a list value as a literal this server reads back. The texts are
 	// the elements as they were read. A dialect that leaves it unset holds no list type,
 	// and the list is written as JSON text.

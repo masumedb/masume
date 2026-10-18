@@ -137,11 +137,11 @@ func (writer *xlsxRowWriter) writeRow(row []any, columns []query.ResultColumn, h
 			continue
 		}
 		reference := buildColumnLetters(index) + number
-		dataType := ""
+		column := query.ResultColumn{}
 		if index < len(columns) {
-			dataType = columns[index].DataType
+			column = columns[index]
 		}
-		cell, err := buildXlsxCell(reference, value, dataType, header)
+		cell, err := buildXlsxCell(reference, value, column, header)
 		if err != nil {
 			return err
 		}
@@ -163,7 +163,9 @@ func buildColumnLetters(index int) string {
 }
 
 // buildXlsxCell writes a cell: a number or a flag as its type, and anything else as text.
-func buildXlsxCell(reference string, value any, dataType string, header bool) (string, error) {
+func buildXlsxCell(
+	reference string, value any, column query.ResultColumn, header bool,
+) (string, error) {
 	switch held := value.(type) {
 	case bool:
 		flag := "0"
@@ -182,7 +184,7 @@ func buildXlsxCell(reference string, value any, dataType string, header bool) (s
 			return `<c r="` + reference + `"><v>` + strconv.FormatFloat(parsed, 'g', -1, 64) + `</v></c>`, nil
 		}
 	}
-	text := buildExportText(value, dataType)
+	text := buildExportText(value, column)
 	if len([]rune(text)) > xlsxMaxCellChars {
 		return "", fmt.Errorf("cell %s holds more than %d characters, the most an xlsx cell holds",
 			reference, xlsxMaxCellChars)

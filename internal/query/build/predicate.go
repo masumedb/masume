@@ -56,6 +56,9 @@ func RenderLiteral(value any, dialect *query.Dialect, dataType string) string {
 			return written
 		}
 	case time.Time:
+		if dialect.RenderTime != nil {
+			return dialect.QuoteTextLiteral(dialect.RenderTime(held, dataType))
+		}
 		return dialect.QuoteTextLiteral(core.FormatTimeLiteral(held, dataType))
 	}
 	if written, holds := renderList(value, dialect, dataType); holds {
