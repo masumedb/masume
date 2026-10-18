@@ -190,7 +190,7 @@ MongoDB `describe_table` samples up to 100 documents per collection and returns 
 
 The chat asks for confirmation before every `run_query` call, reads included, and ignores `confirm_writes`. It also asks before `explain_query` on a statement classified as a write. `plan_write` needs no confirmation.
 
-A statement the chat classifies as a read runs inside a read-only transaction where the engine has one, so a routine it calls cannot write. See [read-only access](engines.md#read-only-access).
+A statement the chat classifies as a read runs inside a read-only transaction where the engine has one, so a routine it calls cannot write. A read that opens or ends a transaction, such as `COMMIT`, is refused there. See [read-only access](engines.md#read-only-access).
 
 `write_plan` adds a plan when the profile, the engine, and the statement support measurement. After execution, `Alt+U` opens the undo. See [write plans](configuration.md#write-plans).
 

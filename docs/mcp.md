@@ -171,7 +171,7 @@ mcp = "read-only"
 
 MCP opens a read-only connection when effective access is read-only. The connection fails on a server without read-only sessions, so a TiDB profile with read-only MCP access cannot connect. See [read-only access](engines.md#read-only-access).
 
-A statement classified as a read runs inside a read-only transaction where the engine has one, so a routine it calls cannot write. See [read-only access](engines.md#read-only-access). An agent cannot keep a transaction open: `BEGIN` is a read, and its transaction ends with the statement.
+A statement classified as a read runs inside a read-only transaction where the engine has one, so a routine it calls cannot write. A read that opens or ends a transaction, such as `BEGIN` or `COMMIT`, is refused there. Elsewhere `BEGIN` is a read, and its transaction ends with the statement, so an agent cannot keep a transaction open. See [read-only access](engines.md#read-only-access).
 
 `explain_query` with `analyze: true` executes a statement classified as a read; a write gets only an estimated plan, subject to access and confirmation. `plan_write` runs counts that evaluate the write predicate.
 

@@ -196,15 +196,20 @@ const readOnlyUnitWait = 5 * time.Second
 // RunGuardedRead runs a statement this client classified as a read inside a unit of work the
 // server refuses a write in. A routine the statement calls writes nothing there. A server
 // with no such unit, a connection that is read-only already, and a connection inside a
-// transaction all run the statement as it is.
+// transaction all run the statement as it is. Inside the unit, a statement that opens or
+// ends a transaction is refused.
 func RunGuardedRead(
-	ctx context.Context, session Session, run func(context.Context) (QueryResult, error),
+	ctx context.Context, session Session, sql string,
+	run func(context.Context) (QueryResult, error),
 ) (QueryResult, error) {
 	unit := session.Dialect().ReadOnlyUnit
 	if unit.Open == "" || !session.Capabilities().TakesReadOnlyMode ||
 		session.Describe().Profile.AccessMode == cfg.AccessReadOnly ||
 		session.ReadTransactionState() != TransactionNone {
 		return run(ctx)
+	}
+	if statement.ResolveTransactionEffect(sql, session.Dialect().Syntax) != statement.EffectNone {
+		return QueryResult{}, NewDatabaseError("a read cannot open or end a transaction")
 	}
 	if _, err := session.RunQuery(ctx, unit.Open, 1, nil); err != nil {
 		return QueryResult{}, err

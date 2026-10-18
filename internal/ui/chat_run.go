@@ -234,7 +234,7 @@ func (model *Model) buildChatToolDeps(
 				// The server refuses a write inside the unit. A routine the
 				// statement calls writes nothing there.
 				if session.Language().ResolveWriteRisk(sql) == statement.RiskNone {
-					result, err := db.RunGuardedRead(ctx, session, run)
+					result, err := db.RunGuardedRead(ctx, session, sql, run)
 					return agent.StatementAnswer{Result: result}, err
 				}
 				return runChatWrite(ctx, session, held, run)

@@ -212,7 +212,7 @@ func runRead(
 ) (agent.StatementAnswer, error) {
 	// The server refuses a write inside the unit. A routine the statement calls writes
 	// nothing there.
-	result, err := db.RunGuardedRead(ctx, session,
+	result, err := db.RunGuardedRead(ctx, session, sql,
 		func(guarded context.Context) (db.QueryResult, error) {
 			return agent.RunStatementWithin(guarded, session, deps.Config.Timeout,
 				func(limited context.Context) (db.QueryResult, error) {
