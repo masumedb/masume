@@ -63,6 +63,9 @@ func parseDiffArguments(argv []string) (diffInvocation, error) {
 			if value, at, err = readFlagValue(argv, at, argument); err != nil {
 				return diffInvocation{}, err
 			}
+			if strings.TrimSpace(value) == "" {
+				return diffInvocation{}, failArgument("--profile requires a profile name")
+			}
 			held.sides = append(held.sides, diffSide{profileName: value})
 		case strings.HasPrefix(argument, "--profile="):
 			if value, err = readFlagText(argument, "--profile="); err != nil {
@@ -89,6 +92,8 @@ func parseDiffArguments(argv []string) (diffInvocation, error) {
 			held.script = true
 		case strings.HasPrefix(argument, "-"):
 			return diffInvocation{}, failArgument("unknown masume diff option: " + argument)
+		case strings.TrimSpace(argument) == "":
+			return diffInvocation{}, failArgument("arguments cannot be empty")
 		default:
 			held.sides = append(held.sides, diffSide{target: argument})
 		}

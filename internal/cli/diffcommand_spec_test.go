@@ -30,6 +30,8 @@ func TestParseDiffArgumentsRefusesWhatItCannotRun(t *testing.T) {
 		{"one side", []string{"a.db"}, "requires two connections"},
 		{"three sides", []string{"a.db", "b.db", "-p", "c"}, "received 3"},
 		{"an unknown option", []string{"--table", "a.db", "b.db"}, "unknown"},
+		{"an empty target", []string{"", "b.db"}, "cannot be empty"},
+		{"an empty profile", []string{"-p", "", "b.db"}, "requires a profile name"},
 	} {
 		t.Run(held.name, func(t *testing.T) {
 			_, err := parseDiffArguments(held.argv)
