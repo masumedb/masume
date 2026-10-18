@@ -22,6 +22,12 @@ import (
 // dialTimeout is the SSH dial timeout.
 const dialTimeout = 15 * time.Second
 
+// keepaliveInterval is the time between two keepalive requests on the SSH session.
+const keepaliveInterval = 15 * time.Second
+
+// keepaliveWait is the time limit for the answer to one keepalive request.
+const keepaliveWait = 15 * time.Second
+
 // DefaultPort is the default SSH port.
 const DefaultPort = 22
 
@@ -40,11 +46,16 @@ type Settings struct {
 
 // Handle is an open tunnel: the SSH client and the local listener.
 type Handle struct {
-	client   *ssh.Client
 	listener net.Listener
 	// Forward target on the SSH server.
 	target string
-	closed sync.Once
+	server string
+	config *ssh.ClientConfig
+
+	// The mutex guards the client, which a dropped SSH session replaces.
+	guard   sync.Mutex
+	client  *ssh.Client
+	stopped bool
 }
 
 // Address returns the local host and port of the tunnel.
@@ -68,14 +79,21 @@ func (handle *Handle) Stop() {
 	if handle == nil {
 		return
 	}
-	handle.closed.Do(func() {
-		if handle.listener != nil {
-			_ = handle.listener.Close()
-		}
-		if handle.client != nil {
-			_ = handle.client.Close()
-		}
-	})
+	handle.guard.Lock()
+	if handle.stopped {
+		handle.guard.Unlock()
+		return
+	}
+	handle.stopped = true
+	client := handle.client
+	handle.guard.Unlock()
+
+	if handle.listener != nil {
+		_ = handle.listener.Close()
+	}
+	if client != nil {
+		_ = client.Close()
+	}
 }
 
 // Open dials the SSH server and starts a local forward to host:port. The SSH server
@@ -103,11 +121,80 @@ func Open(settings Settings, host string, port int) (*Handle, error) {
 	}
 
 	handle := &Handle{
-		client: client, listener: listener,
+		client: client, listener: listener, server: server, config: config,
 		target: net.JoinHostPort(host, strconv.Itoa(port)),
 	}
+	go handle.watchClient(client)
 	go handle.acceptConnections()
 	return handle, nil
+}
+
+// readClient returns the current SSH client.
+func (handle *Handle) readClient() *ssh.Client {
+	handle.guard.Lock()
+	defer handle.guard.Unlock()
+	return handle.client
+}
+
+// redial replaces the failed SSH client with a new one. A client that another forward
+// replaced already is returned as it is.
+func (handle *Handle) redial(failed *ssh.Client) (*ssh.Client, error) {
+	handle.guard.Lock()
+	defer handle.guard.Unlock()
+	if handle.stopped {
+		return nil, errors.New("the ssh tunnel is closed")
+	}
+	if handle.client != failed {
+		return handle.client, nil
+	}
+	_ = failed.Close()
+	client, err := ssh.Dial("tcp", handle.server, handle.config)
+	if err != nil {
+		return nil, fmt.Errorf("the ssh tunnel to %s failed: %w", handle.server, err)
+	}
+	handle.client = client
+	go handle.watchClient(client)
+	return client, nil
+}
+
+// watchClient sends keepalive requests until the client closes, and closes a client whose
+// server stops answering.
+func (handle *Handle) watchClient(client *ssh.Client) {
+	closed := make(chan struct{})
+	go func() {
+		_ = client.Wait()
+		close(closed)
+	}()
+	ticker := time.NewTicker(keepaliveInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-closed:
+			return
+		case <-ticker.C:
+			if !sendKeepalive(client) {
+				_ = client.Close()
+				return
+			}
+		}
+	}
+}
+
+// sendKeepalive is true when the server answers one keepalive request in time.
+func sendKeepalive(client *ssh.Client) bool {
+	answered := make(chan error, 1)
+	go func() {
+		_, _, err := client.SendRequest("keepalive@openssh.com", true, nil)
+		answered <- err
+	}()
+	timer := time.NewTimer(keepaliveWait)
+	defer timer.Stop()
+	select {
+	case err := <-answered:
+		return err == nil
+	case <-timer.C:
+		return false
+	}
 }
 
 // acceptConnections forwards each accepted connection.
@@ -125,7 +212,16 @@ func (handle *Handle) acceptConnections() {
 func (handle *Handle) forwardConnection(local net.Conn) {
 	defer func() { _ = local.Close() }()
 
-	remote, err := handle.client.Dial("tcp", handle.target)
+	client := handle.readClient()
+	remote, err := client.Dial("tcp", handle.target)
+	var refused *ssh.OpenChannelError
+	if err != nil && !errors.As(err, &refused) {
+		reopened, redialErr := handle.redial(client)
+		if redialErr != nil {
+			return
+		}
+		remote, err = reopened.Dial("tcp", handle.target)
+	}
 	if err != nil {
 		return
 	}

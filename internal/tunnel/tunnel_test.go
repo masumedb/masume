@@ -135,3 +135,41 @@ func TestStopClosesTheLocalPort(t *testing.T) {
 		t.Error("the local port still accepts connections")
 	}
 }
+
+// sendThroughTunnel writes one word through the local endpoint and returns the echo.
+func sendThroughTunnel(t *testing.T, handle *tunnel.Handle) string {
+	t.Helper()
+	localHost, localPort := handle.Address()
+	connection, err := net.Dial("tcp", net.JoinHostPort(localHost, strconv.Itoa(localPort)))
+	if err != nil {
+		t.Fatalf("the local port refused a connection: %v", err)
+	}
+	defer func() { _ = connection.Close() }()
+	if _, err := connection.Write([]byte("ping")); err != nil {
+		t.Fatalf("the write failed: %v", err)
+	}
+	held := make([]byte, 4)
+	if _, err := io.ReadFull(connection, held); err != nil {
+		return ""
+	}
+	return string(held)
+}
+
+func TestTunnelDialsAgainAfterTheSSHSessionDrops(t *testing.T) {
+	server := tunneltest.Start(t)
+	echo := echoServer(t)
+	host, port := tunneltest.SplitAddress(t, echo.Addr().String())
+	handle, err := tunnel.Open(server.Settings(), host, port)
+	if err != nil {
+		t.Fatalf("the tunnel did not open: %v", err)
+	}
+	defer handle.Stop()
+	if held := sendThroughTunnel(t, handle); held != "ping" {
+		t.Fatalf("the tunnel answered %q", held)
+	}
+
+	server.DropClients()
+	if held := sendThroughTunnel(t, handle); held != "ping" {
+		t.Errorf("the tunnel answered %q after the drop", held)
+	}
+}

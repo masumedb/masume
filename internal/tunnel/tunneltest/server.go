@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	"golang.org/x/crypto/ssh"
@@ -31,6 +32,24 @@ type Server struct {
 	// KeyPath is the private key of the client, and KnownHosts holds the host key.
 	KeyPath    string
 	KnownHosts string
+
+	clients *clientList
+}
+
+// clientList is the open client connections of a server.
+type clientList struct {
+	guard       sync.Mutex
+	connections []net.Conn
+}
+
+// DropClients closes every client connection the server has accepted.
+func (server Server) DropClients() {
+	server.clients.guard.Lock()
+	defer server.clients.guard.Unlock()
+	for _, connection := range server.clients.connections {
+		_ = connection.Close()
+	}
+	server.clients.connections = nil
 }
 
 // Settings returns the tunnel settings that reach this server.
@@ -66,12 +85,16 @@ func Start(t *testing.T) Server {
 	}
 	t.Cleanup(func() { _ = listener.Close() })
 
+	clients := &clientList{}
 	go func() {
 		for {
 			connection, err := listener.Accept()
 			if err != nil {
 				return
 			}
+			clients.guard.Lock()
+			clients.connections = append(clients.connections, connection)
+			clients.guard.Unlock()
 			go serveConnection(connection, config)
 		}
 	}()
@@ -81,6 +104,7 @@ func Start(t *testing.T) Server {
 		Host: host, Port: port,
 		KeyPath:    WriteFile(t, "id_ed25519", clientKey),
 		KnownHosts: WriteKnownHosts(t, listener.Addr().String(), hostSigner.PublicKey()),
+		clients:    clients,
 	}
 }
 
