@@ -122,7 +122,7 @@ func readWrappedDate(held JSONValue) (DocumentScalar, bool) {
 		return DocumentScalar{}, false
 	}
 	return DocumentScalar{
-		Text: FormatClockTime(time.UnixMilli(milliseconds).UTC()), Type: DocumentTypeDate,
+		Text: FormatCell(time.UnixMilli(milliseconds), ""), Type: DocumentTypeDate,
 	}, true
 }
 

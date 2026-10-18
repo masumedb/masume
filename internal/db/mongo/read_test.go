@@ -546,7 +546,7 @@ func TestADateColumnKeepsTheTimeOfDay(t *testing.T) {
 	held := FormatValue(bson.NewDateTimeFromTime(moment))
 
 	written := core.FormatCell(held, TypeDate)
-	if written != "2025-01-12 10:30:45.000" {
+	if written != "2025-01-12 10:30:45" {
 		t.Errorf("the moment reads %q, wanted the time of day with it", written)
 	}
 }

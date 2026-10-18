@@ -67,6 +67,23 @@ func TestFormatCellKeepsTheZoneOfATime(t *testing.T) {
 	}
 }
 
+func TestFormatCellWritesTheFractionOfASecondTheServerSent(t *testing.T) {
+	for _, held := range []struct {
+		nanoseconds int
+		want        string
+	}{
+		{0, "2026-01-02 03:04:05"},
+		{500_000_000, "2026-01-02 03:04:05.5"},
+		{123_456_000, "2026-01-02 03:04:05.123456"},
+		{123_456_700, "2026-01-02 03:04:05.1234567"},
+	} {
+		at := time.Date(2026, 1, 2, 3, 4, 5, held.nanoseconds, time.UTC)
+		if written := FormatCell(at, "timestamp"); written != held.want {
+			t.Errorf("the time writes as %q, wanted %q", written, held.want)
+		}
+	}
+}
+
 // A container is displayed as JSON, so a map or a list is readable in one cell and not
 // printed as a Go value.
 func TestIsStructuredValueNamesWhatIsDrawnAsJson(t *testing.T) {

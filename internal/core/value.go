@@ -55,8 +55,7 @@ func FormatCell(value any, dataType string) string {
 		if strings.EqualFold(dataType, "date") {
 			return held.UTC().Format("2006-01-02")
 		}
-		// Timestamps use three decimal places.
-		return held.UTC().Format("2006-01-02 15:04:05.000")
+		return held.UTC().Format("2006-01-02 15:04:05.999999999")
 	case bool:
 		return strconv.FormatBool(held)
 	case float32:

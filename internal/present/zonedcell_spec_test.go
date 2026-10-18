@@ -25,9 +25,9 @@ func TestFormatRowWritesAZonedMomentInTheZoneWithTheOffset(t *testing.T) {
 		zone          *time.Location
 		zoned, native string
 	}{
-		{nil, "2026-09-23 18:00:00.000 +05:30", "2026-09-23 12:30:00.000"},
-		{time.UTC, "2026-09-23 12:30:00.000 +00:00", "2026-09-23 12:30:00.000"},
-		{berlin, "2026-09-23 14:30:00.000 +02:00", "2026-09-23 12:30:00.000"},
+		{nil, "2026-09-23 18:00:00 +05:30", "2026-09-23 12:30:00"},
+		{time.UTC, "2026-09-23 12:30:00 +00:00", "2026-09-23 12:30:00"},
+		{berlin, "2026-09-23 14:30:00 +02:00", "2026-09-23 12:30:00"},
 	} {
 		format.Zone = held.zone
 		written := present.FormatRow(row, format)
@@ -48,13 +48,13 @@ func TestFormatColumnForViewerWritesAZonedMomentAsTheGrid(t *testing.T) {
 	zoned := db.ResultColumn{Name: "placed", DataType: "timestamptz", Zoned: true}
 	native := db.ResultColumn{Name: "noted", DataType: "timestamp"}
 
-	if written := present.FormatColumnForViewer(moment, zoned, nil); written != "2026-09-23 18:00:00.000 +05:30" {
+	if written := present.FormatColumnForViewer(moment, zoned, nil); written != "2026-09-23 18:00:00 +05:30" {
 		t.Errorf("the zoned value reads %q", written)
 	}
-	if written := present.FormatColumnForViewer(moment, zoned, time.UTC); written != "2026-09-23 12:30:00.000 +00:00" {
+	if written := present.FormatColumnForViewer(moment, zoned, time.UTC); written != "2026-09-23 12:30:00 +00:00" {
 		t.Errorf("the zoned value in UTC reads %q", written)
 	}
-	if written := present.FormatColumnForViewer(moment, native, nil); written != "2026-09-23 12:30:00.000" {
+	if written := present.FormatColumnForViewer(moment, native, nil); written != "2026-09-23 12:30:00" {
 		t.Errorf("the timestamp value reads %q", written)
 	}
 }

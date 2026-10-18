@@ -131,7 +131,7 @@ func TestANestedValueKeepsTheTypeTheServerStores(t *testing.T) {
 	}{
 		{"name", "customer 0", core.DocumentTypeString},
 		{"age", "20", core.DocumentTypeInt},
-		{"joined", "2020-09-13 12:26:40.000", core.DocumentTypeDate},
+		{"joined", "2020-09-13 12:26:40", core.DocumentTypeDate},
 	} {
 		node, found := held[want.key]
 		if !found {

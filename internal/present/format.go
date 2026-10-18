@@ -244,7 +244,7 @@ type RowFormat struct {
 }
 
 // zonedTimeLayout is the layout of a moment in a zoned column.
-const zonedTimeLayout = "2006-01-02 15:04:05.000 -07:00"
+const zonedTimeLayout = "2006-01-02 15:04:05.999999999 -07:00"
 
 // FormatRow returns one row as cell text, which the grid draws, searches and measures. A
 // masked column is hidden on screen only. A copy or an export keeps the value.

@@ -185,7 +185,7 @@ func TestTheTreeKeepsTheTypeOfANestedValue(t *testing.T) {
 	if held["since"].Type != core.DocumentTypeDate {
 		t.Errorf("the date inside the document is a %q", held["since"].Type)
 	}
-	if held["since"].Value != "2020-09-13 12:26:40.000" {
+	if held["since"].Value != "2020-09-13 12:26:40" {
 		t.Errorf("the date reads %q", held["since"].Value)
 	}
 	if held["city"].Value != "berlin" {
