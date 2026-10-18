@@ -14,6 +14,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgconn/ctxwatch"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/masumedb/masume/internal/cfg"
@@ -69,6 +70,13 @@ func buildPostgresConfig(profile cfg.Profile, password string) (*pgx.ConnConfig,
 	if _, set := profile.Options["application_name"]; !set {
 		config.RuntimeParams["application_name"] = "masume"
 	}
+	// pgx closes the connection of a cancelled statement by default. A cancel request stops
+	// the statement on the server and keeps the connection and its session state.
+	config.BuildContextWatcherHandler = func(connection *pgconn.PgConn) ctxwatch.Handler {
+		return &pgconn.CancelRequestContextWatcherHandler{
+			Conn: connection, DeadlineDelay: cancelRequestWait,
+		}
+	}
 	// PostgreSQL also enforces the statement time limit on the server.
 	if profile.StatementTimeout > 0 {
 		config.RuntimeParams["statement_timeout"] =
@@ -119,6 +127,10 @@ func buildPostgresConfig(profile cfg.Profile, password string) (*pgx.ConnConfig,
 	}
 	return config, nil
 }
+
+// cancelRequestWait is the time the server has to answer a cancel request before the
+// connection is closed.
+const cancelRequestWait = 5 * time.Second
 
 func openPostgresConnection(
 	ctx context.Context, profile cfg.Profile, password string,

@@ -66,10 +66,6 @@ func (session *postgresSession) reopenClosedConnection(ctx context.Context) erro
 	if !session.connection.IsClosed() {
 		return nil
 	}
-	if session.transaction.ReadState() != db.TransactionNone {
-		return db.NewDatabaseError("the connection closed and the transaction was lost")
-	}
-
 	profile := session.Descriptor.Profile
 	opened, err := openPostgresConnection(ctx, profile, session.password)
 	if err != nil {
@@ -86,6 +82,11 @@ func (session *postgresSession) reopenClosedConnection(ctx context.Context) erro
 
 	session.connection = opened
 	session.backendPID = readBackendPID(ctx, opened)
+	lost := session.transaction.ReadState() != db.TransactionNone
+	session.transaction.WriteState(db.TransactionNone)
+	if lost {
+		return db.NewDatabaseError("the connection closed and the transaction was lost")
+	}
 	return nil
 }
 
@@ -761,6 +762,9 @@ func (session *postgresSession) BeginTransaction(ctx context.Context) error {
 	}
 	defer giveBack()
 
+	if err := session.reopenClosedConnection(ctx); err != nil {
+		return err
+	}
 	if _, err := session.connection.Exec(ctx, "begin"); err != nil {
 		return db.WrapDatabaseMessage(describeFailure(err), err)
 	}
@@ -775,6 +779,9 @@ func (session *postgresSession) CommitTransaction(ctx context.Context) error {
 	}
 	defer giveBack()
 
+	if err := session.reopenClosedConnection(ctx); err != nil {
+		return err
+	}
 	if _, err := session.connection.Exec(ctx, "commit"); err != nil {
 		return db.WrapDatabaseMessage(describeFailure(err), err)
 	}
@@ -789,6 +796,9 @@ func (session *postgresSession) RollbackTransaction(ctx context.Context) error {
 	}
 	defer giveBack()
 
+	if err := session.reopenClosedConnection(ctx); err != nil {
+		return err
+	}
 	if _, err := session.connection.Exec(ctx, "rollback"); err != nil {
 		return db.WrapDatabaseMessage(describeFailure(err), err)
 	}
