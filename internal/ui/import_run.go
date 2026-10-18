@@ -273,8 +273,26 @@ func runImport(
 		if session.ReadTransactionState() != db.TransactionNone {
 			return fail(importTransactionProblem)
 		}
+		createdFirst := plan.CreatesTable && dialect.CommitsDDL
+		dropCreated := func(problem string) string {
+			if !createdFirst {
+				return problem
+			}
+			if _, err := session.RunQuery(context.WithoutCancel(ctx),
+				"drop table "+dialect.BuildQualifiedName(plan.Table), 1, nil); err != nil {
+				return problem + ", and the drop of the new table failed: " + db.DescribeError(err)
+			}
+			return problem
+		}
+		if createdFirst {
+			if _, err := session.RunQuery(
+				ctx, load.BuildCreateTable(plan, dialect), 1, nil); err != nil {
+				return fail(db.DescribeError(err))
+			}
+			plan.CreatesTable = false
+		}
 		if err := session.BeginTransaction(ctx); err != nil {
-			return fail(db.DescribeError(err))
+			return fail(dropCreated(db.DescribeError(err)))
 		}
 		written, err := writeImportRows(ctx, session, plan, dialect, func(rows int) {
 			sendProgress(updates, app.Progress{
@@ -285,13 +303,13 @@ func runImport(
 			// The rollback runs whatever stopped the import, so it takes its own context.
 			if rollbackErr := session.RollbackTransaction(
 				context.WithoutCancel(ctx)); rollbackErr != nil {
-				return fail(db.DescribeError(err) + ", and the rollback failed: " +
-					db.DescribeError(rollbackErr))
+				return fail(dropCreated(db.DescribeError(err) + ", and the rollback failed: " +
+					db.DescribeError(rollbackErr)))
 			}
-			return fail(db.DescribeError(err))
+			return fail(dropCreated(db.DescribeError(err)))
 		}
 		if err := session.CommitTransaction(ctx); err != nil {
-			return fail(db.DescribeError(err))
+			return fail(dropCreated(db.DescribeError(err)))
 		}
 		return importRanMsg{ConnectionID: connectionID, Written: written}
 	}

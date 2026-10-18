@@ -20,6 +20,7 @@ var Dialect = &query.Dialect{
 	},
 	BuildPlaceholder: func(int) string { return "?" },
 	CountExpression:  "count(*)",
+	CommitsDDL:       true,
 	RowLockClause:    " for update",
 	// MySQL literals escape backslashes and quotes. Executed values use bound parameters.
 	// MySQL reads bytes as a hexadecimal literal.

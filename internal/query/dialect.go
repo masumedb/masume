@@ -100,6 +100,8 @@ type Dialect struct {
 	DropSchema  func(dialect *Dialect, schema string) string
 	DropTrigger func(dialect *Dialect, schema, name, table string) string
 	DropRoutine func(dialect *Dialect, schema, name, identity string) string
+	// CommitsDDL is true if a DDL statement commits the open transaction.
+	CommitsDDL bool
 	// ReadOnlyUnit is how this server opens and closes a unit of work that refuses a
 	// write. A dialect that leaves it unset has none.
 	ReadOnlyUnit ReadOnlyUnit
