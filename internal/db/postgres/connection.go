@@ -152,6 +152,24 @@ func keepJSONFieldOrder(connection *pgx.Conn) {
 	})
 }
 
+// textUUIDCodec decodes a uuid as its text. pgx decodes it as [16]byte.
+type textUUIDCodec struct{ pgtype.UUIDCodec }
+
+func (codec textUUIDCodec) DecodeValue(
+	types *pgtype.Map, oid uint32, format int16, src []byte,
+) (any, error) {
+	return codec.DecodeDatabaseSQLValue(types, oid, format, src)
+}
+
+func decodeUUIDAsText(connection *pgx.Conn) {
+	types := connection.TypeMap()
+	uuidType := &pgtype.Type{Name: "uuid", OID: pgtype.UUIDOID, Codec: textUUIDCodec{}}
+	types.RegisterType(uuidType)
+	types.RegisterType(&pgtype.Type{
+		Name: "_uuid", OID: pgtype.UUIDArrayOID, Codec: &pgtype.ArrayCodec{ElementType: uuidType},
+	})
+}
+
 // readTypeNames returns server type names by OID, including custom enums, domains, and
 // composites: the internal name, and the name format_type writes.
 func readTypeNames(

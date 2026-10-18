@@ -82,6 +82,7 @@ func (session *postgresSession) reopenClosedConnection(ctx context.Context) erro
 		}
 	}
 	keepJSONFieldOrder(opened)
+	decodeUUIDAsText(opened)
 
 	session.connection = opened
 	session.backendPID = readBackendPID(ctx, opened)
@@ -1103,6 +1104,7 @@ func (adapter *postgresAdapter) Connect(
 	}
 
 	keepJSONFieldOrder(connection)
+	decodeUUIDAsText(connection)
 
 	typeNames, typeWritten, typeErr := readTypeNames(ctx, connection)
 	if typeErr != nil {
