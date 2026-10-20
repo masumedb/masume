@@ -145,7 +145,7 @@ services:
       retries: 60
 
   mongo:
-    image: ${MASUME_TEST_MONGO_IMAGE:-mongo:8}
+    image: ${MASUME_TEST_MONGO_IMAGE:-mongo:8.2}
     ports:
       - "127.0.0.1:55017:27017"
     tmpfs:
@@ -160,7 +160,7 @@ services:
   # the client behaves differently there. The server accepts a ping from anyone and refuses
   # every other command, so a connection check must use one of the accepted commands.
   mongo-auth:
-    image: ${MASUME_TEST_MONGO_IMAGE:-mongo:8}
+    image: ${MASUME_TEST_MONGO_IMAGE:-mongo:8.2}
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: secret
@@ -186,7 +186,7 @@ services:
   # set advertises the addresses of its members and the tests connect from outside the
   # container.
   mongo-rs:
-    image: ${MASUME_TEST_MONGO_IMAGE:-mongo:8}
+    image: ${MASUME_TEST_MONGO_IMAGE:-mongo:8.2}
     command: ["--replSet", "rs0", "--port", "55020", "--bind_ip_all"]
     ports:
       - "127.0.0.1:55020:55020"
