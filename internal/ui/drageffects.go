@@ -47,42 +47,42 @@ type animationState struct {
 
 // startLanding flashes an item where a drag dropped it, and asks for the frames of the flash.
 func (model *Model) startLanding(spans func() []cellSpan) tea.Cmd {
-	model.animation.landing = &landing{spans: spans, at: time.Now()}
+	model.pointer.animation.landing = &landing{spans: spans, at: time.Now()}
 	return model.scheduleAnimation()
 }
 
 // isAnimating is true while a drop zone fades in or an item flashes where it landed.
 func (model *Model) isAnimating() bool {
-	if held := model.animation.landing; held != nil && time.Since(held.at) < landingFlash {
+	if held := model.pointer.animation.landing; held != nil && time.Since(held.at) < landingFlash {
 		return true
 	}
-	return model.drag.holds(dragTab) && model.drag.dropping &&
-		time.Since(model.drag.dropSince) < dropFadeIn
+	return model.pointer.drag.holds(dragTab) && model.pointer.drag.dropping &&
+		time.Since(model.pointer.drag.dropSince) < dropFadeIn
 }
 
 // scheduleAnimation asks for the next frame of a running effect, and for nothing where none
 // runs or a frame is asked for already.
 func (model *Model) scheduleAnimation() tea.Cmd {
-	if model.animation.scheduled || !model.isAnimating() {
+	if model.pointer.animation.scheduled || !model.isAnimating() {
 		return nil
 	}
-	model.animation.scheduled = true
+	model.pointer.animation.scheduled = true
 	return wake(animationFrame)
 }
 
 // continueAnimation reads a wake: the frame it drew was the one asked for, and the next one is
 // asked for while the effect runs.
 func (model *Model) continueAnimation() tea.Cmd {
-	model.animation.scheduled = false
-	if held := model.animation.landing; held != nil && time.Since(held.at) >= landingFlash {
-		model.animation.landing = nil
+	model.pointer.animation.scheduled = false
+	if held := model.pointer.animation.landing; held != nil && time.Since(held.at) >= landingFlash {
+		model.pointer.animation.landing = nil
 	}
 	return model.scheduleAnimation()
 }
 
 // resolveDropTint returns the weight of the drop zone, which grows while it fades in.
 func (model *Model) resolveDropTint() float64 {
-	share := float64(time.Since(model.drag.dropSince)) / float64(dropFadeIn)
+	share := float64(time.Since(model.pointer.drag.dropSince)) / float64(dropFadeIn)
 	return dropTint * min(max(share, 0.25), 1)
 }
 
@@ -90,14 +90,14 @@ func (model *Model) resolveDropTint() float64 {
 // it.
 func (model *Model) findDragSpans() []cellSpan {
 	connection := model.Active()
-	if connection == nil || !model.drag.lifted {
+	if connection == nil || !model.pointer.drag.lifted {
 		return nil
 	}
-	switch model.drag.kind {
+	switch model.pointer.drag.kind {
 	case dragTab:
-		return model.findTabSpans(connection, model.drag.dragged.tab)
+		return model.findTabSpans(connection, model.pointer.drag.dragged.tab)
 	case dragColumnHeader:
-		return model.findColumnSpans(model.drag.column)
+		return model.findColumnSpans(model.pointer.drag.column)
 	case dragCell:
 		if book := connection.Active().Notebook; book != nil {
 			return model.findCellSpans(book.Focused)
@@ -210,7 +210,7 @@ func (model *Model) paintDragPlaceholder(frame string) string {
 
 // paintLanding flashes the item a drag dropped, fading from the accent to its own colours.
 func (model *Model) paintLanding(frame string) string {
-	held := model.animation.landing
+	held := model.pointer.animation.landing
 	if held == nil {
 		return frame
 	}
@@ -226,20 +226,20 @@ func (model *Model) paintLanding(frame string) string {
 // no item is dragged.
 func (model *Model) describeDragGhost() string {
 	connection := model.Active()
-	if connection == nil || !model.drag.lifted {
+	if connection == nil || !model.pointer.drag.lifted {
 		return ""
 	}
-	switch model.drag.kind {
+	switch model.pointer.drag.kind {
 	case dragTab:
-		if index := connection.IndexOfTab(model.drag.dragged.tab); index >= 0 {
+		if index := connection.IndexOfTab(model.pointer.drag.dragged.tab); index >= 0 {
 			tab := connection.Tabs[index]
 			return model.icons.Prefix(resolveTabIcon(tab)) + tab.Label()
 		}
 	case dragColumnHeader:
 		tab := connection.Active()
 		shape := model.buildGridShape(connection, tab)
-		if model.drag.column < len(shape.Columns) {
-			return shape.Columns[model.drag.column].Name
+		if model.pointer.drag.column < len(shape.Columns) {
+			return shape.Columns[model.pointer.drag.column].Name
 		}
 	case dragCell:
 		if book := connection.Active().Notebook; book != nil {

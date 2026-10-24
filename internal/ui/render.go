@@ -541,8 +541,8 @@ func (model *Model) describeStatus(
 	// A report that has to be acted on carries its mark, so what the bar says is read by
 	// its shape before it is read as words.
 	warning := model.icons.Prefix(cfg.IconNote)
-	if model.drag.lifted {
-		switch model.drag.kind {
+	if model.pointer.drag.lifted {
+		switch model.pointer.drag.kind {
 		case dragTab:
 			return model.describeTabDrop(), app.NoticeActive
 		case dragCell:

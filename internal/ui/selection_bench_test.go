@@ -24,7 +24,7 @@ func buildBusyFrame(rows, columns int) string {
 func BenchmarkPaintSelection(bench *testing.B) {
 	frame := buildBusyFrame(34, 120)
 	model := &Model{width: 120, height: 34, styles: NewStyles(NewThemeRegistry())}
-	model.selection = screenSelection{
+	model.pointer.selection = screenSelection{
 		fromX: 40, fromY: 4, toX: 90, toY: 8, held: true,
 		block:   blockRect{fromX: 37, toX: 118, fromY: 3, toY: 31},
 		bounded: true,

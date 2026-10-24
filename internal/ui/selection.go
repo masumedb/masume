@@ -81,7 +81,7 @@ func (selection screenSelection) spanOnRow(row, width int) (int, int, bool) {
 // paintSelection lays the selection over the frame. The cells keep their text and take the
 // ground of the selection, so what is under the pointer is read as one block.
 func (model *Model) paintSelection(frame string) string {
-	if !model.selection.held {
+	if !model.pointer.selection.held {
 		return frame
 	}
 	theme := model.styles.Theme
@@ -91,11 +91,11 @@ func (model *Model) paintSelection(frame string) string {
 	for row, line := range rows {
 		// Mapping a row costs a cell per column, so a row the selection never reaches
 		// is left alone.
-		if !model.selection.coversRow(row) {
+		if !model.pointer.selection.coversRow(row) {
 			continue
 		}
 		cells := mapCells(line)
-		from, to, covers := model.selection.spanOnRow(row, len(cells))
+		from, to, covers := model.pointer.selection.spanOnRow(row, len(cells))
 		if !covers {
 			continue
 		}
@@ -110,18 +110,18 @@ func (model *Model) paintSelection(frame string) string {
 // readSelectedText returns the text the drag covers, one line per row, or nothing where the
 // drag covered only blanks. The blanks at the end of a row are padding, not content.
 func (model *Model) readSelectedText(frame string) string {
-	if !model.selection.held {
+	if !model.pointer.selection.held {
 		return ""
 	}
 	written := []string{}
 	for row, line := range strings.Split(frame, "\n") {
-		if !model.selection.coversRow(row) {
+		if !model.pointer.selection.coversRow(row) {
 			continue
 		}
 		// The paint reads display cells, so the copy reads them too. A wide glyph takes
 		// two columns and one rune, and counting runes would cover a different span.
 		cells := mapCells(line)
-		from, to, covers := model.selection.spanOnRow(row, len(cells))
+		from, to, covers := model.pointer.selection.spanOnRow(row, len(cells))
 		if !covers {
 			continue
 		}

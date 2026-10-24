@@ -349,13 +349,13 @@ func (model *Model) readMouse(press tea.MouseClickMsg) (tea.Model, tea.Cmd) {
 	// press itself still acts, because a drag of one cell is a press.
 	if mouse.Button == tea.MouseLeft {
 		block, bounded := model.layout.findSelectionBlock(mouse.X, mouse.Y)
-		model.selection = screenSelection{
+		model.pointer.selection = screenSelection{
 			fromX: mouse.X, fromY: mouse.Y, toX: mouse.X, toY: mouse.Y, dragging: true,
 			block: block, bounded: bounded,
 		}
 		// A terminal that lost a release leaves the last drag open, and this press ends it
 		// whether it began on the statement or on a bar.
-		model.drag.stop()
+		model.pointer.drag.stop()
 		model.frame.disarmKey()
 	}
 
@@ -372,7 +372,7 @@ func (model *Model) readMouse(press tea.MouseClickMsg) (tea.Model, tea.Cmd) {
 	if mouse.Button == tea.MouseLeft {
 		if _, _, held, pressed := findButton(
 			model.layout.buttons, mouse.X, mouse.Y); pressed {
-			model.selection = screenSelection{}
+			model.pointer.selection = screenSelection{}
 			model.frame.armKey(held)
 			return model, nil
 		}
@@ -405,7 +405,7 @@ func (model *Model) pressScrollbar(mouse tea.Mouse) (tea.Model, tea.Cmd, bool) {
 	}
 	// A press lets the last drag over the cells of the frame go, as a press anywhere else
 	// does.
-	model.selection = screenSelection{}
+	model.pointer.selection = screenSelection{}
 
 	start, size, drawn := resolveThumbSpan(bar.offset, bar.rows, bar.total)
 	if !drawn || bar.moveTo == nil {
@@ -423,7 +423,7 @@ func (model *Model) pressScrollbar(mouse tea.Mouse) (tea.Model, tea.Cmd, bool) {
 		grab = (to - from) / 2
 		command = bar.moveTo(resolveTrackOffset(row-grab, bar.rows, bar.total))
 	}
-	model.drag.takeScrollbar(bar, grab)
+	model.pointer.drag.takeScrollbar(bar, grab)
 	return model, command, true
 }
 
@@ -436,7 +436,7 @@ func (model *Model) dragSplit(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 	}
 	// The line is the last row of the editor, so the rows down to it are the rows the
 	// editor keeps.
-	rows := mouse.Y - model.drag.lineGrab - model.layout.editorTop + 1
+	rows := mouse.Y - model.pointer.drag.lineGrab - model.layout.editorTop + 1
 	room := model.layout.editorRows + model.layout.resultRows
 	if rows > room-minPaneHeight {
 		rows = room - minPaneHeight
@@ -450,7 +450,7 @@ func (model *Model) dragSplit(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 	if tab := connection.Active(); tab != nil {
 		tab.PaneHeight = rows
 	}
-	model.drag.moved = true
+	model.pointer.drag.moved = true
 	return model, nil
 }
 
@@ -463,8 +463,8 @@ func (model *Model) dragTreeEdge(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 		return model, nil
 	}
 	// The border is the last column of the tree, so the columns up to it are its width.
-	connection.SidebarWidth = max(mouse.X-model.drag.lineGrab+1, present.MinSidebarWidth)
-	model.drag.moved = true
+	connection.SidebarWidth = max(mouse.X-model.pointer.drag.lineGrab+1, present.MinSidebarWidth)
+	model.pointer.drag.moved = true
 	return model, nil
 }
 
@@ -474,22 +474,22 @@ func (model *Model) dragTab(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 	if connection == nil {
 		return model, nil
 	}
-	model.drag.lifted = true
+	model.pointer.drag.lifted = true
 	// Along the tab row the tab moves among the tabs. Over the panes it lands on a side.
 	if mouse.Y != model.layout.tabRow {
 		side, dropping := model.findDropSide(mouse.X, mouse.Y)
-		if dropping && (!model.drag.dropping || side != model.drag.dropSide) {
-			model.drag.dropSince = time.Now()
+		if dropping && (!model.pointer.drag.dropping || side != model.pointer.drag.dropSide) {
+			model.pointer.drag.dropSince = time.Now()
 		}
-		model.drag.dropSide, model.drag.dropping = side, dropping
+		model.pointer.drag.dropSide, model.pointer.drag.dropping = side, dropping
 		return model, model.scheduleAnimation()
 	}
-	model.drag.dropping = false
-	from := connection.IndexOfTab(model.drag.dragged.tab)
+	model.pointer.drag.dropping = false
+	from := connection.IndexOfTab(model.pointer.drag.dragged.tab)
 	for _, held := range model.layout.tabs {
 		if mouse.X >= held.from && mouse.X <= held.to && held.index != from && from >= 0 {
 			connection.MoveTab(from, held.index)
-			model.drag.moved = true
+			model.pointer.drag.moved = true
 			return model, nil
 		}
 	}
@@ -499,12 +499,12 @@ func (model *Model) dragTab(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 // dragScrollbar moves the view of the bar being dragged to where the pointer stands. The
 // pointer may wander off the track and the drag holds, which is what a scroll bar does.
 func (model *Model) dragScrollbar(mouse tea.Mouse) (tea.Model, tea.Cmd) {
-	bar := model.drag.bar
+	bar := model.pointer.drag.bar
 	if bar.moveTo == nil || bar.rows < 1 {
 		return model, nil
 	}
 	return model, bar.moveTo(resolveTrackOffset(
-		mouse.Y-bar.top-model.drag.grab, bar.rows, bar.total))
+		mouse.Y-bar.top-model.pointer.drag.grab, bar.rows, bar.total))
 }
 
 // pressMiddleButton returns a press of the middle button: on a tab it closes it, and nowhere
@@ -668,11 +668,11 @@ func (model *Model) readMouseMotion(moved tea.MouseMotionMsg) (tea.Model, tea.Cm
 	}
 	// A drag belongs to whatever the press took hold of, and to no other button than the
 	// one that took it.
-	if model.drag.running() {
+	if model.pointer.drag.running() {
 		if mouse.Button != tea.MouseLeft {
 			return model, nil
 		}
-		switch model.drag.kind {
+		switch model.pointer.drag.kind {
 		case dragColumnEdge:
 			return model.dragColumnEdge(mouse)
 		case dragSplitLine:
@@ -694,13 +694,13 @@ func (model *Model) readMouseMotion(moved tea.MouseMotionMsg) (tea.Model, tea.Cm
 		}
 		return model, nil
 	}
-	if !model.selection.dragging || mouse.Button != tea.MouseLeft {
+	if !model.pointer.selection.dragging || mouse.Button != tea.MouseLeft {
 		return model, nil
 	}
 	reported := model.holdsSelection()
-	model.selection.toX, model.selection.toY = mouse.X, mouse.Y
+	model.pointer.selection.toX, model.pointer.selection.toY = mouse.X, mouse.Y
 	// A drag of one cell selects nothing, so a plain press is not a selection.
-	model.selection.held = model.selection.fromX != mouse.X || model.selection.fromY != mouse.Y
+	model.pointer.selection.held = model.pointer.selection.fromX != mouse.X || model.pointer.selection.fromY != mouse.Y
 	// A drag over the cells of the frame draws nothing of its own: it is laid over the frame
 	// afterwards, as the mark of the pointer is. Only the step that gives the status bar a
 	// selection to report changes the frame itself.
@@ -721,8 +721,8 @@ func (model *Model) readMouseRelease(released tea.MouseReleaseMsg) (tea.Model, t
 		next, command := model.runButton(held, scope, action)
 		return next, tea.Batch(command, wake(keyFlashWait))
 	}
-	if held := model.drag; held.running() {
-		model.drag.stop()
+	if held := model.pointer.drag; held.running() {
+		model.pointer.drag.stop()
 		if held.holds(dragTab) {
 			return model, model.releaseTab(held)
 		}
@@ -771,17 +771,17 @@ func (model *Model) readMouseRelease(released tea.MouseReleaseMsg) (tea.Model, t
 		return model.runAction(connection, tab,
 			Match{Action: ActionToggleResult, Scope: cfg.ScopeGlobal})
 	}
-	if !model.selection.dragging {
+	if !model.pointer.selection.dragging {
 		return model, nil
 	}
-	model.selection.dragging = false
-	if !model.selection.held {
-		model.selection = screenSelection{}
+	model.pointer.selection.dragging = false
+	if !model.pointer.selection.held {
+		model.pointer.selection = screenSelection{}
 		return model, nil
 	}
 	// Nothing but blanks under the pointer is not a selection.
 	if model.readSelectedText(model.frame.text) == "" {
-		model.selection = screenSelection{}
+		model.pointer.selection = screenSelection{}
 	}
 	return model, nil
 }
@@ -866,7 +866,7 @@ func (model *Model) pressPicker(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 		return model, nil
 	}
 	model.picker.focus(row, len(rows))
-	if model.clicks.count("picker-"+strconv.Itoa(row), time.Now()) < 2 {
+	if model.pointer.clicks.count("picker-"+strconv.Itoa(row), time.Now()) < 2 {
 		return model, nil
 	}
 	return model.runPickerAction(Match{Action: ActionChooseRow, Scope: cfg.ScopeList})
@@ -959,13 +959,13 @@ func (model *Model) pressPaneBorder(mouse tea.Mouse) bool {
 		return false
 	}
 	if grab, pane, onLine := model.findSplitLine(mouse.X, mouse.Y); onLine {
-		model.selection = screenSelection{}
-		model.drag.takeSplitLine(grab, pane)
+		model.pointer.selection = screenSelection{}
+		model.pointer.drag.takeSplitLine(grab, pane)
 		return true
 	}
 	if grab, pane, onEdge := model.findTreeEdge(mouse.X, mouse.Y); onEdge {
-		model.selection = screenSelection{}
-		model.drag.takeTreeEdge(grab, pane)
+		model.pointer.selection = screenSelection{}
+		model.pointer.drag.takeTreeEdge(grab, pane)
 		return true
 	}
 	return false
@@ -1027,8 +1027,8 @@ func (model *Model) pressTabRow(
 		if mouse.Button == tea.MouseLeft && len(connection.Tabs) > 1 &&
 			(held.closeTo < held.closeFrom || mouse.X < held.closeFrom || mouse.X > held.closeTo) {
 			previous, hasPrevious := model.findActiveKey()
-			model.selection = screenSelection{}
-			model.drag.takeTab(model.buildTabKey(connection, connection.Tabs[held.index]),
+			model.pointer.selection = screenSelection{}
+			model.pointer.drag.takeTab(model.buildTabKey(connection, connection.Tabs[held.index]),
 				previous, hasPrevious, model.split)
 			return model, nil
 		}
@@ -1081,7 +1081,7 @@ func (model *Model) pressTreeRow(
 		}
 		return model, nil
 	}
-	if model.clicks.count("tree-"+held.ID, time.Now()) < 2 {
+	if model.pointer.clicks.count("tree-"+held.ID, time.Now()) < 2 {
 		return model, nil
 	}
 	return model.openTreeNode(connection, held)
@@ -1122,7 +1122,7 @@ func (model *Model) pressResultPane(
 		return model.runGridAction(connection, tab,
 			Match{Action: ActionOpenMenu, Scope: cfg.ScopeGrid})
 	}
-	if model.clicks.count("grid-"+strconv.Itoa(row), time.Now()) < 2 {
+	if model.pointer.clicks.count("grid-"+strconv.Itoa(row), time.Now()) < 2 {
 		return model, nil
 	}
 	return model.runGridAction(connection, tab,
@@ -1233,8 +1233,8 @@ func (model *Model) pressColumnHeader(
 		return model.openColumnMenu(connection, tab, model.buildGridShape(connection, tab))
 	}
 	// A drag of the name moves the column, and a release that never moved sorts by it.
-	model.selection = screenSelection{}
-	model.drag.takeColumnHeader(column, mouse.Mod.Contains(tea.ModShift))
+	model.pointer.selection = screenSelection{}
+	model.pointer.drag.takeColumnHeader(column, mouse.Mod.Contains(tea.ModShift))
 	return model, nil
 }
 
@@ -1245,14 +1245,14 @@ func (model *Model) dragColumnHeader(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 		return model, nil
 	}
 	tab := connection.Active()
-	model.drag.lifted = true
+	model.pointer.drag.lifted = true
 	under, over := findColumnUnder(model.layout.gridColumns, mouse.X)
-	if !over || under == model.drag.column {
+	if !over || under == model.pointer.drag.column {
 		return model, nil
 	}
-	moveColumnTo(tab, len(model.buildGridShape(connection, tab).Columns), model.drag.column, under)
-	tab.GridColumn = model.drag.column
-	model.drag.moved = true
+	moveColumnTo(tab, len(model.buildGridShape(connection, tab).Columns), model.pointer.drag.column, under)
+	tab.GridColumn = model.pointer.drag.column
+	model.pointer.drag.moved = true
 	return model, nil
 }
 
@@ -1267,17 +1267,17 @@ func (model *Model) pressColumnEdge(tab *app.Tab, mouse tea.Mouse) (tea.Model, b
 	}
 	// A drag over a border belongs to the border, so the cells of the frame keep no
 	// selection of their own.
-	model.selection = screenSelection{}
+	model.pointer.selection = screenSelection{}
 
 	// A second press gives the column back to the width of its widest value.
-	if model.clicks.count("edge-"+strconv.Itoa(edge.index), time.Now()) >= 2 {
+	if model.pointer.clicks.count("edge-"+strconv.Itoa(edge.index), time.Now()) >= 2 {
 		delete(tab.ColumnWidths, edge.index)
 		return model, true
 	}
 	if edge.index >= len(model.layout.gridWidths) {
 		return model, true
 	}
-	model.drag.takeColumnEdge(edge.index, model.layout.gridWidths[edge.index], mouse.X)
+	model.pointer.drag.takeColumnEdge(edge.index, model.layout.gridWidths[edge.index], mouse.X)
 	return model, true
 }
 
@@ -1301,8 +1301,8 @@ func (model *Model) dragColumnEdge(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 	if tab.ColumnWidths == nil {
 		tab.ColumnWidths = map[int]int{}
 	}
-	tab.ColumnWidths[model.drag.column] = clampColumnWidth(
-		model.drag.columnWidth + mouse.X - model.drag.columnFrom)
+	tab.ColumnWidths[model.pointer.drag.column] = clampColumnWidth(
+		model.pointer.drag.columnWidth + mouse.X - model.pointer.drag.columnFrom)
 	return model, nil
 }
 
@@ -1375,7 +1375,7 @@ func (model *Model) pressDiagram(
 			continue
 		}
 		overlay.Field = index
-		if model.clicks.count("diagram-"+strconv.Itoa(index), time.Now()) < 2 {
+		if model.pointer.clicks.count("diagram-"+strconv.Itoa(index), time.Now()) < 2 {
 			return model, nil
 		}
 		return model.openDiagramBox(connection, overlay)
@@ -1401,10 +1401,10 @@ func (model *Model) pressEditor(
 	}
 	// A drag over the statement belongs to the buffer, so the cells of the frame keep no
 	// selection of their own and only one of the two is ever drawn.
-	model.selection = screenSelection{}
-	model.drag.takeEditorText()
+	model.pointer.selection = screenSelection{}
+	model.pointer.drag.takeEditorText()
 
-	switch model.clicks.count("editor-"+strconv.Itoa(offset), time.Now()) {
+	switch model.pointer.clicks.count("editor-"+strconv.Itoa(offset), time.Now()) {
 	case 1:
 		tab.Editor.PlaceCaret(offset, mouse.Mod.Contains(uv.ModShift))
 	case 2:

@@ -75,7 +75,7 @@ func (model *Model) readWorkspaceKey(key tea.Key) (next tea.Model, command tea.C
 			return model, nil
 		}
 		tab.Editor.ClearSelection()
-		model.selection = screenSelection{}
+		model.pointer.selection = screenSelection{}
 		return model, nil
 	}
 

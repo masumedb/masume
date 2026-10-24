@@ -7,7 +7,7 @@ import (
 
 func buildSelectionModel(frame string, fromX, fromY, toX, toY int) *Model {
 	model := &Model{styles: NewStyles(NewThemeRegistry()), frame: screenFrame{text: frame}}
-	model.selection = screenSelection{
+	model.pointer.selection = screenSelection{
 		fromX: fromX, fromY: fromY, toX: toX, toY: toY, held: true,
 	}
 	return model

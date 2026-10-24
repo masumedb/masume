@@ -99,7 +99,7 @@ func TestADragOfTheThumbFollowsThePointer(t *testing.T) {
 		X: bar.column, Y: bar.top, Button: tea.MouseLeft,
 	})
 	model = next.(*Model)
-	if !model.drag.holds(dragScrollbar) {
+	if !model.pointer.drag.holds(dragScrollbar) {
 		t.Fatal("a press on the track began no drag")
 	}
 
@@ -115,7 +115,7 @@ func TestADragOfTheThumbFollowsThePointer(t *testing.T) {
 
 	next, _ = model.readMouseRelease(tea.MouseReleaseMsg{X: 4, Y: bar.top + bar.rows/2})
 	model = next.(*Model)
-	if model.drag.holds(dragScrollbar) {
+	if model.pointer.drag.holds(dragScrollbar) {
 		t.Error("the drag outlived the release")
 	}
 	if tab.GridRowOffset != middle {

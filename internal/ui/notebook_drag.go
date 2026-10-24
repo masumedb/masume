@@ -14,7 +14,7 @@ func (model *Model) dragCell(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 		return model, nil
 	}
 	book := connection.Active().Notebook
-	model.drag.lifted = true
+	model.pointer.drag.lifted = true
 	block := model.layout.cellRows
 	switch {
 	case mouse.Y <= block.top:
@@ -36,8 +36,8 @@ func (model *Model) dragCell(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 	first, last := findCellRows(model.cellsOfRows, target)
 	middle := first + (last-first)/2
 	if (target > book.Focused && item >= middle) || (target < book.Focused && item <= middle) {
-		book.MoveCellTo(target, !model.drag.moved)
-		model.drag.moved = true
+		book.MoveCellTo(target, !model.pointer.drag.moved)
+		model.pointer.drag.moved = true
 	}
 	return model, nil
 }

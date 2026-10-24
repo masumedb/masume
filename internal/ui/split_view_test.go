@@ -291,7 +291,7 @@ func TestADragOfTheDividerResizesTheSides(t *testing.T) {
 		t.Error("a drag of the divider moved the focus")
 	}
 
-	model.clicks = clickCounter{}
+	model.pointer.clicks = clickCounter{}
 	model.Update(tea.MouseClickMsg{X: model.layout.divider.at, Y: row, Button: tea.MouseLeft})
 	model.Update(tea.MouseMotionMsg{X: 0, Y: row, Button: tea.MouseLeft})
 	model.Update(tea.MouseReleaseMsg{X: 0, Y: row, Button: tea.MouseLeft})

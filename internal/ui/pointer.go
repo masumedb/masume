@@ -7,6 +7,19 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
+// pointerState is the input state of the pointer: clicks, drags and the shape on show.
+type pointerState struct {
+	// The clicks in a row on one target, because a terminal reports no double click.
+	clicks clickCounter
+	// What the pointer was dragged over, which `Ctrl+C` copies.
+	selection screenSelection
+	drag      pointerDrag
+	// The pointer shape last sent to the terminal, or nothing before the first.
+	shape string
+	// The effect of a drag that runs between frames.
+	animation animationState
+}
+
 // The pointer shapes the client asks the terminal for, by the names of the CSS cursors.
 const (
 	pointerDefault  = "default"
@@ -20,7 +33,7 @@ const (
 
 // resolvePointerShape returns the pointer shape for the cell under the pointer.
 func (model *Model) resolvePointerShape(x, y int) string {
-	switch model.drag.kind {
+	switch model.pointer.drag.kind {
 	case dragColumnEdge:
 		return pointerResizing
 	case dragTreeEdge:
@@ -39,7 +52,7 @@ func (model *Model) resolvePointerShape(x, y int) string {
 	case dragTab, dragCell:
 		return pointerGrabbing
 	case dragColumnHeader:
-		if model.drag.moved {
+		if model.pointer.drag.moved {
 			return pointerGrabbing
 		}
 		return pointerHand
@@ -88,13 +101,13 @@ func (model *Model) resolvePointerShape(x, y int) string {
 // shape is the one the terminal already shows.
 func (model *Model) followPointerShape() tea.Cmd {
 	shape := model.resolvePointerShape(model.frame.pointerX, model.frame.pointerY)
-	if shape == model.pointerShape {
+	if shape == model.pointer.shape {
 		return nil
 	}
-	if model.pointerShape == "" && shape == pointerDefault {
+	if model.pointer.shape == "" && shape == pointerDefault {
 		return nil
 	}
-	model.pointerShape = shape
+	model.pointer.shape = shape
 	return tea.Raw(writePointerShape(shape))
 }
 

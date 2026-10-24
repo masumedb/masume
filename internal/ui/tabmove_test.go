@@ -126,15 +126,15 @@ func TestADroppedTabFlashesAndFades(t *testing.T) {
 	model.Update(tea.MouseMotionMsg{X: last.from + 1, Y: row, Button: tea.MouseLeft})
 	model.render()
 	_, command := model.Update(tea.MouseReleaseMsg{X: last.from + 1, Y: row, Button: tea.MouseLeft})
-	if command == nil || model.animation.landing == nil {
+	if command == nil || model.pointer.animation.landing == nil {
 		t.Fatal("the drop started no flash")
 	}
 	if _, next := model.Update(wakeMsg{}); next == nil {
 		t.Error("a frame of the flash asked for no next frame")
 	}
-	model.animation.landing.at = model.animation.landing.at.Add(-2 * landingFlash)
-	model.animation.scheduled = false
-	if _, next := model.Update(wakeMsg{}); next != nil || model.animation.landing != nil {
+	model.pointer.animation.landing.at = model.pointer.animation.landing.at.Add(-2 * landingFlash)
+	model.pointer.animation.scheduled = false
+	if _, next := model.Update(wakeMsg{}); next != nil || model.pointer.animation.landing != nil {
 		t.Error("the flash went on after its time")
 	}
 }

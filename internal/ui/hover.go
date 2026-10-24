@@ -400,7 +400,7 @@ func findViewIndex(offered []app.ResultView, drawn app.ResultView) int {
 
 // isDragging is true while a press is being dragged, whichever thing it took hold of.
 func (model *Model) isDragging() bool {
-	return model.drag.running() || model.selection.dragging
+	return model.pointer.drag.running() || model.pointer.selection.dragging
 }
 
 // keyFlashWait is how long a key stays lit after a press. It is one frame of the wheel, which

@@ -82,7 +82,7 @@ func TestADraggedCellShowsAGhostAndFlashesWhereItLands(t *testing.T) {
 		t.Errorf("the row under the pointer reads %q, wanted the ghost of %q", ghost, title)
 	}
 	model.Update(tea.MouseReleaseMsg{X: x, Y: y, Button: tea.MouseLeft})
-	if model.animation.landing == nil {
+	if model.pointer.animation.landing == nil {
 		t.Error("the dropped cell does not flash")
 	}
 }

@@ -120,23 +120,15 @@ type Model struct {
 	split splitView
 	// True while the side of the split view without the focus is drawn.
 	drawingAside bool
-	// The clicks in a row on one target, because a terminal reports no double click.
-	clicks clickCounter
-	// What the pointer was dragged over, which `Ctrl+C` copies.
-	selection screenSelection
-	drag      pointerDrag
+	pointer      pointerState
 	// What this client last put on the clipboard. A paste inside the client reads this
 	// when the machine has no clipboard tool.
 	clipboard string
 	frame     screenFrame
 	// The button of the card on show with the keyboard focus.
 	buttonFocus buttonFocus
-	// The pointer shape last sent to the terminal, or nothing before the first.
-	pointerShape string
 	// True while the terminal reports that its window is not focused.
 	terminalBlurred bool
-	// The effect of a drag that runs between frames.
-	animation animationState
 	// The caret cell of the where field: in its row, and in the frame.
 	promptCaretCell                   int
 	promptCaretRow, promptCaretColumn int
@@ -674,7 +666,7 @@ func (model *Model) View() tea.View {
 	// The pointer is read against the frame that is on screen, so the mark stands on what
 	// the reader sees rather than on what was there before.
 	marks := viewMarks{
-		selection: model.selection,
+		selection: model.pointer.selection,
 		pressed:   model.frame.pressed,
 		lit:       model.frame.isFlashing(),
 		armed:     model.frame.armed,
@@ -740,7 +732,7 @@ func (model *Model) holdsSelection() bool {
 // copySelection puts the text on the clipboard and says what it took. The editor keeps its
 // selection, so the keys that work on one still reach it.
 func (model *Model) copySelection(written string) tea.Cmd {
-	model.selection = screenSelection{}
+	model.pointer.selection = screenSelection{}
 	model.copied = describeCopied(written)
 	if connection := model.Active(); connection != nil {
 		connection.Show(model.copied)

@@ -84,7 +84,7 @@ func TestADraggedColumnShowsAGhostAndFlashesWhereItLands(t *testing.T) {
 		t.Errorf("the row under the pointer reads %q, wanted the ghost of %q", ghost, name)
 	}
 	model.Update(tea.MouseReleaseMsg{X: columns[0].from + 1, Y: row, Button: tea.MouseLeft})
-	if model.animation.landing == nil {
+	if model.pointer.animation.landing == nil {
 		t.Error("the dropped column does not flash")
 	}
 }

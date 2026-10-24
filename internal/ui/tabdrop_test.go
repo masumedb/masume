@@ -47,7 +47,7 @@ func TestDroppingATabOnTheRightHalfOpensTheSplit(t *testing.T) {
 	if bar := stripEscapes(frame[model.layout.hintRow]); !strings.Contains(bar, "release to split, with the tab on the right") {
 		t.Errorf("the bar during the drag reads %q", bar)
 	}
-	model.drag.dropSince = model.drag.dropSince.Add(-dropFadeIn)
+	model.pointer.drag.dropSince = model.pointer.drag.dropSince.Add(-dropFadeIn)
 	model.View()
 	frame = strings.Split(model.frame.shown, "\n")
 	other, _ := centreOf(zones[0])

@@ -24,8 +24,8 @@ func TestThePointerShapeFollowsWhatItStandsOn(t *testing.T) {
 		{"the border of the explorer", layout.treeTo, layout.editorTop + 1, pointerColumns},
 	} {
 		_, command := model.Update(tea.MouseMotionMsg{X: step.x, Y: step.y})
-		if model.pointerShape != step.want {
-			t.Errorf("over %s the pointer is %q, wanted %q", step.name, model.pointerShape,
+		if model.pointer.shape != step.want {
+			t.Errorf("over %s the pointer is %q, wanted %q", step.name, model.pointer.shape,
 				step.want)
 		}
 		if command == nil {

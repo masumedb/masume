@@ -416,12 +416,12 @@ func (model *Model) pressSideDivider(mouse tea.Mouse) bool {
 	if !onDivider {
 		return false
 	}
-	model.selection = screenSelection{}
-	if model.clicks.count("side-divider", time.Now()) >= 2 {
+	model.pointer.selection = screenSelection{}
+	if model.pointer.clicks.count("side-divider", time.Now()) >= 2 {
 		model.split.share = 0
 		return true
 	}
-	model.drag.takeSideDivider(grab)
+	model.pointer.drag.takeSideDivider(grab)
 	return true
 }
 
@@ -436,9 +436,9 @@ func (model *Model) dragSideDivider(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 		at, floor = mouse.Y, sideFloorRows
 	}
 	floor = min(floor, divider.room/2)
-	first := min(max(at-model.drag.lineGrab-divider.start+1, floor), divider.room-floor)
+	first := min(max(at-model.pointer.drag.lineGrab-divider.start+1, floor), divider.room-floor)
 	model.split.share = max((first*shareScale+divider.room/2)/divider.room, 1)
-	model.drag.moved = true
+	model.pointer.drag.moved = true
 	return model, nil
 }
 

@@ -64,11 +64,11 @@ func (model *Model) describeDropSide(side int) string {
 
 // describeTabDrop returns the bar text while a tab is dragged.
 func (model *Model) describeTabDrop() string {
-	if !model.drag.dropping {
+	if !model.pointer.drag.dropping {
 		return "release to drop the tab here"
 	}
-	side := model.describeDropSide(model.drag.dropSide)
-	if model.drag.splitBefore.open {
+	side := model.describeDropSide(model.pointer.drag.dropSide)
+	if model.pointer.drag.splitBefore.open {
 		return "release to show the tab on the " + side
 	}
 	return "release to split, with the tab on the " + side
@@ -76,14 +76,14 @@ func (model *Model) describeTabDrop() string {
 
 // paintDropZone tints the side a dragged tab would land on.
 func (model *Model) paintDropZone(frame string) string {
-	if !model.drag.holds(dragTab) || !model.drag.dropping {
+	if !model.pointer.drag.holds(dragTab) || !model.pointer.drag.dropping {
 		return frame
 	}
 	zones, _, room := model.planDropZones()
 	if !room {
 		return frame
 	}
-	zone := zones[model.drag.dropSide]
+	zone := zones[model.pointer.drag.dropSide]
 	spans := make([]cellSpan, 0, zone.height)
 	for row := zone.top; row < zone.top+zone.height; row++ {
 		spans = append(spans, cellSpan{row: row, from: zone.left, to: zone.left + zone.width - 1})

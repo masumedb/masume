@@ -452,7 +452,7 @@ func (model *Model) pressDocumentTree(
 	}
 	tab.TreeRow, tab.TreeRolled = row, false
 
-	if model.clicks.count("document-"+strconv.Itoa(row), time.Now()) < 2 {
+	if model.pointer.clicks.count("document-"+strconv.Itoa(row), time.Now()) < 2 {
 		// The row pressed is a row of the tree, and the page is asked for by the document
 		// that row belongs to.
 		node, held := model.findDocumentNode(connection, tab)

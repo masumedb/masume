@@ -127,11 +127,11 @@ func (model *Model) pressCellRow(
 		return model, nil
 	}
 	at := model.cellsOfRows[row]
-	held := model.clicks.count("cell-"+strconv.Itoa(at), time.Now())
+	held := model.pointer.clicks.count("cell-"+strconv.Itoa(at), time.Now())
 	// A drag of the cell moves it among the cells.
 	if mouse.Button == tea.MouseLeft && held < 2 && len(tab.Notebook.Cells) > 1 {
-		model.selection = screenSelection{}
-		model.drag.takeCell()
+		model.pointer.selection = screenSelection{}
+		model.pointer.drag.takeCell()
 	}
 	if at != tab.Notebook.Focused {
 		return model.focusCell(connection, tab, at)

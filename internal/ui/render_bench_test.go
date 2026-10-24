@@ -60,7 +60,7 @@ func BenchmarkViewOfARelation(bench *testing.B) {
 
 func BenchmarkViewWhileDragging(bench *testing.B) {
 	model := buildFrameModel(bench)
-	model.selection = screenSelection{
+	model.pointer.selection = screenSelection{
 		fromX: 40, fromY: 6, toX: 100, toY: 24, held: true,
 		block:   blockRect{fromX: 37, toX: 118, fromY: 3, toY: 31},
 		bounded: true,
@@ -72,7 +72,7 @@ func BenchmarkViewWhileDragging(bench *testing.B) {
 
 func BenchmarkMouseMotion(bench *testing.B) {
 	model := buildFrameModel(bench)
-	model.selection = screenSelection{
+	model.pointer.selection = screenSelection{
 		fromX: 40, fromY: 6, toX: 41, toY: 6, dragging: true,
 		block:   blockRect{fromX: 37, toX: 118, fromY: 3, toY: 31},
 		bounded: true,

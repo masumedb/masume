@@ -310,10 +310,10 @@ func TestADragOverTheStatementLeavesTheCellsAlone(t *testing.T) {
 		Button: tea.MouseLeft,
 	})
 	model = next.(*Model)
-	if model.selection.dragging {
+	if model.pointer.selection.dragging {
 		t.Error("a press on the statement began a drag over the cells of the frame")
 	}
-	if !model.drag.holds(dragEditorText) {
+	if !model.pointer.drag.holds(dragEditorText) {
 		t.Fatal("a press on the statement began no drag of the buffer")
 	}
 
@@ -330,7 +330,7 @@ func TestADragOverTheStatementLeavesTheCellsAlone(t *testing.T) {
 		X: model.layout.editorTextLeft + 6, Y: model.layout.editorTextTop,
 	})
 	model = next.(*Model)
-	if model.drag.holds(dragEditorText) {
+	if model.pointer.drag.holds(dragEditorText) {
 		t.Error("the drag of the buffer outlived the release")
 	}
 	if tab.Editor.Selection() != "lect" {
