@@ -324,38 +324,29 @@ func (model *Model) joinSides(
 // paneState is the model state that drawing a pane writes. Drawing the side without the focus
 // restores it.
 type paneState struct {
-	layout      frameLayout
-	editorLeft  int
-	paneTop     int
+	// Where the parts of the last frame were drawn, so a press of a button can be read
+	// as a press on a row, a cell or a tab.
+	layout frameLayout
+	// Where the caret of the editor last drew, so the completion popup stands under it.
 	caretRow    int
 	caretColumn int
-	faultRow    int
+	editorLeft  int
+	// The first row of the pane being drawn.
+	paneTop int
+	// The frame row of the fault row under the statement, and 0 while the editor draws none.
+	faultRow int
+	// The cell each drawn row of a notebook belongs to, so a press reaches that cell.
 	cellsOfRows []int
+	// builderRows is what every drawn row of a builder pane stands for.
 	builderRows []builderRow
-	sideLabel   string
-}
-
-func (model *Model) keepPaneState() paneState {
-	return paneState{
-		layout: model.layout, editorLeft: model.editorLeft, paneTop: model.paneTop,
-		caretRow: model.caretRow, caretColumn: model.caretColumn, faultRow: model.faultRow,
-		cellsOfRows: model.cellsOfRows, builderRows: model.builderRows,
-		sideLabel: model.sideLabel,
-	}
-}
-
-func (model *Model) restorePaneState(state paneState) {
-	model.layout, model.editorLeft, model.paneTop = state.layout, state.editorLeft, state.paneTop
-	model.caretRow, model.caretColumn, model.faultRow =
-		state.caretRow, state.caretColumn, state.faultRow
-	model.cellsOfRows, model.builderRows = state.cellsOfRows, state.builderRows
-	model.sideLabel = state.sideLabel
+	// The connection name before the titles of the side being drawn, or empty.
+	sideLabel string
 }
 
 // renderAside draws the side without the focus. No pane of it has the focus, and it records no
 // hit boxes.
 func (model *Model) renderAside(rect sideRect) []string {
-	saved := model.keepPaneState()
+	saved := model.paneState
 	restore, entered := model.enterSide(model.split.resolveAside())
 	if !entered {
 		return nil
@@ -365,7 +356,7 @@ func (model *Model) renderAside(rect sideRect) []string {
 	rows := model.renderSide(connection, connection.Active(), rect)
 	model.drawingAside = false
 	restore()
-	model.restorePaneState(saved)
+	model.paneState = saved
 	return rows
 }
 

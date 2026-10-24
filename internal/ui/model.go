@@ -89,8 +89,6 @@ type Model struct {
 
 	screen ScreenKind
 	picker pickerState
-	// builderRows is what every drawn row of a builder pane stands for.
-	builderRows []builderRow
 	// The settings screen.
 	settingsForm *SettingsState
 	// The key preset and chords of the config file, which are applied again when the AI
@@ -117,26 +115,11 @@ type Model struct {
 	quitting  bool
 
 	terminal terminalColorState
-	// The cell each drawn row of a notebook belongs to, so a press reaches that cell.
-	cellsOfRows []int
-	// Where the caret of the editor last drew, so the completion popup stands under it.
-	caretRow    int
-	caretColumn int
-	editorLeft  int
-	// The first row of the pane being drawn.
-	paneTop int
+	paneState
 	// The split view.
 	split splitView
 	// True while the side of the split view without the focus is drawn.
 	drawingAside bool
-	// The connection name before the titles of the side being drawn, or empty.
-	sideLabel string
-	// The frame row of the fault row under the statement, and 0 while the editor draws none.
-	faultRow int
-
-	// Where the parts of the last frame were drawn, so a press of a button can be read
-	// as a press on a row, a cell or a tab.
-	layout frameLayout
 	// The clicks in a row on one target, because a terminal reports no double click.
 	clicks clickCounter
 	// What the pointer was dragged over, which `Ctrl+C` copies.
