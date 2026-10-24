@@ -4,6 +4,9 @@ import (
 	"slices"
 	"strings"
 
+	tea "charm.land/bubbletea/v2"
+	uv "github.com/charmbracelet/ultraviolet"
+
 	"github.com/masumedb/masume/internal/app"
 	"github.com/masumedb/masume/internal/cfg"
 	"github.com/masumedb/masume/internal/secret"
@@ -216,4 +219,148 @@ func (picker *pickerState) offersKeyring() bool {
 
 func (picker *pickerState) waitsFor(name string) bool {
 	return picker.pending.Name == name
+}
+
+// typePassword types one press into the password field. The keyring box takes no text.
+func (picker *pickerState) typePassword(key tea.Key) {
+	if picker.keyringFocused {
+		return
+	}
+	switch key.Code {
+	case tea.KeyBackspace:
+		picker.password.DeleteBackward()
+		return
+	case tea.KeyDelete:
+		picker.password.DeleteForward()
+		return
+	case tea.KeyLeft:
+		picker.password.MoveCaret(-1, false)
+		return
+	case tea.KeyRight:
+		picker.password.MoveCaret(1, false)
+		return
+	}
+	if key.Text != "" && !key.Mod.Contains(uv.ModCtrl) && !key.Mod.Contains(uv.ModAlt) {
+		picker.password.Insert(key.Text)
+	}
+}
+
+// editFilter types one press into the filter field. It returns true where the filter text
+// changed.
+func (picker *pickerState) editFilter(key tea.Key) bool {
+	if isCtrlKey(key, 'u') {
+		picker.filter.SetText("")
+		return true
+	}
+	switch key.Code {
+	case tea.KeyBackspace:
+		picker.filter.DeleteBackward()
+	case tea.KeyDelete:
+		picker.filter.DeleteForward()
+	case tea.KeyLeft:
+		picker.filter.MoveCaret(-1, false)
+		return false
+	case tea.KeyRight:
+		picker.filter.MoveCaret(1, false)
+		return false
+	default:
+		if key.Text == "" || key.Mod.Contains(uv.ModCtrl) || key.Mod.Contains(uv.ModAlt) {
+			return false
+		}
+		picker.filter.Insert(key.Text)
+	}
+	return true
+}
+
+// focusFirstProfile selects the first profile row, or the first row of a list with no
+// profile row.
+func (picker *pickerState) focusFirstProfile(profiles []cfg.Profile) {
+	rows := picker.buildShownRows(profiles)
+	for at, row := range rows {
+		if !row.isGroup() {
+			picker.focus(at, len(rows))
+			return
+		}
+	}
+	picker.cursor = 0
+}
+
+// buildShownRows returns the rows the list draws. A filter unfolds every group.
+func (picker *pickerState) buildShownRows(profiles []cfg.Profile) []pickerRow {
+	folded := picker.folded
+	if picker.readFilterTerm() != "" {
+		folded = nil
+	}
+	return buildPickerRows(picker.keepFilteredProfiles(profiles), folded)
+}
+
+// findPickedRow returns the row under the cursor.
+func (picker *pickerState) findPickedRow(profiles []cfg.Profile) (pickerRow, bool) {
+	rows := picker.buildShownRows(profiles)
+	if picker.cursor < 0 || picker.cursor >= len(rows) {
+		return pickerRow{}, false
+	}
+	return rows[picker.cursor], true
+}
+
+// findPickedProfile returns the profile under the cursor. A group header has none.
+func (picker *pickerState) findPickedProfile(profiles []cfg.Profile) (cfg.Profile, bool) {
+	row, found := picker.findPickedRow(profiles)
+	if !found || row.isGroup() {
+		return cfg.Profile{}, false
+	}
+	return row.profile, true
+}
+
+// foldPickedGroup folds or unfolds the group under the cursor. Under a filter it does nothing.
+func (picker *pickerState) foldPickedGroup(profiles []cfg.Profile, folded bool) {
+	row, found := picker.findPickedRow(profiles)
+	if !found || !row.isGroup() || picker.readFilterTerm() != "" {
+		return
+	}
+	picker.setFolded(row.group, folded)
+}
+
+// foldPickedRow folds the group under the cursor. On a profile or a folded group, the
+// cursor moves to the parent group.
+func (picker *pickerState) foldPickedRow(profiles []cfg.Profile) {
+	row, found := picker.findPickedRow(profiles)
+	if !found {
+		return
+	}
+	if row.isGroup() && !picker.folded[row.group] && picker.readFilterTerm() == "" {
+		picker.setFolded(row.group, true)
+		return
+	}
+	parent := row.profile.Group
+	if row.isGroup() {
+		parent = findParentGroup(row.group)
+	}
+	if parent == "" {
+		return
+	}
+	rows := picker.buildShownRows(profiles)
+	for at, held := range rows {
+		if held.group == parent {
+			picker.focus(at, len(rows))
+			return
+		}
+	}
+}
+
+// focusProfile selects the profile of that name and unfolds its groups. An unlisted name
+// selects the first row.
+func (picker *pickerState) focusProfile(profiles []cfg.Profile, name string) {
+	if at, found := findProfileIndex(profiles, name); found {
+		picker.unfoldPath(profiles[at].Group)
+	}
+	rows := picker.buildShownRows(profiles)
+	index := 0
+	for at, row := range rows {
+		if !row.isGroup() && row.profile.Name == name {
+			index = at
+			break
+		}
+	}
+	picker.focus(index, len(rows))
 }

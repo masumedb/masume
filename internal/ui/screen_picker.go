@@ -8,7 +8,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	uv "github.com/charmbracelet/ultraviolet"
 
 	"github.com/masumedb/masume/internal/app"
 	"github.com/masumedb/masume/internal/cfg"
@@ -91,43 +90,10 @@ func (model *Model) readPickerFilterKey(key tea.Key) (tea.Model, tea.Cmd) {
 		key, pickerListActions, cfg.ScopeList); matched {
 		return model.runPickerAction(match)
 	}
-	if isCtrlKey(key, 'u') {
-		model.picker.filter.SetText("")
-		model.focusFirstPickerProfile()
-		return model, nil
+	if model.picker.editFilter(key) {
+		model.picker.focusFirstProfile(model.profiles)
 	}
-	switch key.Code {
-	case tea.KeyBackspace:
-		model.picker.filter.DeleteBackward()
-	case tea.KeyDelete:
-		model.picker.filter.DeleteForward()
-	case tea.KeyLeft:
-		model.picker.filter.MoveCaret(-1, false)
-		return model, nil
-	case tea.KeyRight:
-		model.picker.filter.MoveCaret(1, false)
-		return model, nil
-	default:
-		if key.Text == "" || key.Mod.Contains(uv.ModCtrl) || key.Mod.Contains(uv.ModAlt) {
-			return model, nil
-		}
-		model.picker.filter.Insert(key.Text)
-	}
-	model.focusFirstPickerProfile()
 	return model, nil
-}
-
-// focusFirstPickerProfile selects the first profile row, or the first row of a list with
-// no profile row.
-func (model *Model) focusFirstPickerProfile() {
-	rows := model.shownPickerRows()
-	for at, row := range rows {
-		if !row.isGroup() {
-			model.picker.focus(at, len(rows))
-			return
-		}
-	}
-	model.picker.cursor = 0
 }
 
 // runPickerAction runs one action of the connection picker, whether a key or a press asked
@@ -149,14 +115,14 @@ func (model *Model) runPickerAction(match Match) (tea.Model, tea.Cmd) {
 		model.picker.focus(count-1, count)
 	case ActionChooseRow:
 		if row, found := model.pickedRow(); found && row.isGroup() {
-			model.foldPickedGroup(!model.picker.folded[row.group])
+			model.picker.foldPickedGroup(model.profiles, !model.picker.folded[row.group])
 		} else if profile, found := model.pickedProfile(); found {
 			return model.chooseProfile(profile)
 		}
 	case ActionFoldRow:
-		model.foldPickedRow()
+		model.picker.foldPickedRow(model.profiles)
 	case ActionUnfoldRow:
-		model.foldPickedGroup(false)
+		model.picker.foldPickedGroup(model.profiles, false)
 	case ActionFilterConnections:
 		model.picker.startFilter()
 	case ActionNewConnection:
@@ -234,20 +200,12 @@ func (model *Model) isProfileOpen(name string) bool {
 
 // pickedRow returns the row under the cursor.
 func (model *Model) pickedRow() (pickerRow, bool) {
-	rows := model.shownPickerRows()
-	if model.picker.cursor < 0 || model.picker.cursor >= len(rows) {
-		return pickerRow{}, false
-	}
-	return rows[model.picker.cursor], true
+	return model.picker.findPickedRow(model.profiles)
 }
 
 // pickedProfile returns the profile under the cursor. A group header has none.
 func (model *Model) pickedProfile() (cfg.Profile, bool) {
-	row, found := model.pickedRow()
-	if !found || row.isGroup() {
-		return cfg.Profile{}, false
-	}
-	return row.profile, true
+	return model.picker.findPickedProfile(model.profiles)
 }
 
 // shownProfiles returns the profiles that match the filter.
@@ -257,64 +215,13 @@ func (model *Model) shownProfiles() []cfg.Profile {
 
 // shownPickerRows returns the rows the list draws. A filter unfolds every group.
 func (model *Model) shownPickerRows() []pickerRow {
-	folded := model.picker.folded
-	if model.picker.readFilterTerm() != "" {
-		folded = nil
-	}
-	return buildPickerRows(model.shownProfiles(), folded)
-}
-
-// foldPickedGroup folds or unfolds the group under the cursor. Under a filter it does nothing.
-func (model *Model) foldPickedGroup(folded bool) {
-	row, found := model.pickedRow()
-	if !found || !row.isGroup() || model.picker.readFilterTerm() != "" {
-		return
-	}
-	model.picker.setFolded(row.group, folded)
-}
-
-// foldPickedRow folds the group under the cursor. On a profile or a folded group, the
-// cursor moves to the parent group.
-func (model *Model) foldPickedRow() {
-	row, found := model.pickedRow()
-	if !found {
-		return
-	}
-	if row.isGroup() && !model.picker.folded[row.group] && model.picker.readFilterTerm() == "" {
-		model.picker.setFolded(row.group, true)
-		return
-	}
-	parent := row.profile.Group
-	if row.isGroup() {
-		parent = findParentGroup(row.group)
-	}
-	if parent == "" {
-		return
-	}
-	rows := model.shownPickerRows()
-	for at, held := range rows {
-		if held.group == parent {
-			model.picker.focus(at, len(rows))
-			return
-		}
-	}
+	return model.picker.buildShownRows(model.profiles)
 }
 
 // focusProfile selects the profile of that name and unfolds its groups. An unlisted name
 // selects the first row.
 func (model *Model) focusProfile(name string) {
-	if at, found := findProfileIndex(model.profiles, name); found {
-		model.picker.unfoldPath(model.profiles[at].Group)
-	}
-	rows := model.shownPickerRows()
-	index := 0
-	for at, row := range rows {
-		if !row.isGroup() && row.profile.Name == name {
-			index = at
-			break
-		}
-	}
-	model.picker.focus(index, len(rows))
+	model.picker.focusProfile(model.profiles, name)
 }
 
 // renderPicker draws the connections of the config file and of the project file, one row
@@ -795,26 +702,7 @@ func (model *Model) readPasswordKey(key tea.Key) (tea.Model, tea.Cmd) {
 		model.leavePasswordPrompt()
 		return model, nil
 	}
-	if model.picker.keyringFocused {
-		return model, nil
-	}
-	switch key.Code {
-	case tea.KeyBackspace:
-		model.picker.password.DeleteBackward()
-		return model, nil
-	case tea.KeyDelete:
-		model.picker.password.DeleteForward()
-		return model, nil
-	case tea.KeyLeft:
-		model.picker.password.MoveCaret(-1, false)
-		return model, nil
-	case tea.KeyRight:
-		model.picker.password.MoveCaret(1, false)
-		return model, nil
-	}
-	if key.Text != "" && !key.Mod.Contains(uv.ModCtrl) && !key.Mod.Contains(uv.ModAlt) {
-		model.picker.password.Insert(key.Text)
-	}
+	model.picker.typePassword(key)
 	return model, nil
 }
 
