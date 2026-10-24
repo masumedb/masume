@@ -6,10 +6,10 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"unicode"
+	"unicode/utf8"
 
 	"charm.land/lipgloss/v2"
-	"github.com/mattn/go-runewidth"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // A style measures every grapheme of the text it renders and checks the border, the margin
@@ -227,20 +227,20 @@ func measureRowWidth(line string) int {
 			at += measureEscape(line[at:])
 			continue
 		}
-		if held >= 0x20 && held < 0x7f {
-			plain := at
-			for at < len(line) {
-				next := line[at]
-				if next == 0x1b || next < 0x20 || next >= 0x7f {
-					break
-				}
+		odd := at
+		if isPlainByte(held) {
+			for at < len(line) && isPlainByte(line[at]) {
 				at++
 			}
-			cells += at - plain
-			continue
+			if at == len(line) || line[at] < utf8.RuneSelf {
+				cells += at - odd
+				continue
+			}
+			// A plain byte and the marks after it can form one grapheme cluster, as in a keycap.
+			cells += at - 1 - odd
+			odd = at - 1
 		}
 		// A run of characters that are not plain bytes.
-		odd := at
 		for at < len(line) {
 			next := line[at]
 			if next == 0x1b || (next >= 0x20 && next < 0x7f) {
@@ -248,43 +248,9 @@ func measureRowWidth(line string) int {
 			}
 			at++
 		}
-		cells += measureOddRun(line[odd:at])
+		cells += ansi.StringWidth(line[odd:at])
 	}
 	return cells
-}
-
-// measureOddRun returns the cells of a run that is not plain bytes. A run of characters that
-// each stand on their own is measured from the width table, one lookup each. A run that holds
-// a character which joins the one before it has to be read as graphemes, and only that run
-// goes to the library.
-func measureOddRun(run string) int {
-	cells := 0
-	for _, character := range run {
-		if joinsNeighbour(character) {
-			return lipgloss.Width(run)
-		}
-		cells += runewidth.RuneWidth(character)
-	}
-	return cells
-}
-
-// joinsNeighbour is true for a character that reads as part of the one beside it: a mark, a
-// joiner, a variation selector, a skin tone, or one half of a flag.
-func joinsNeighbour(character rune) bool {
-	// Nothing below the first combining mark joins anything, which is most of the text a
-	// frame holds that is not a plain byte.
-	if character < 0x0300 {
-		return false
-	}
-	switch {
-	case character == 0x200d, character == 0xfe0e, character == 0xfe0f:
-		return true
-	case character >= 0x1f1e6 && character <= 0x1f1ff:
-		return true
-	case character >= 0x1f3fb && character <= 0x1f3ff:
-		return true
-	}
-	return unicode.In(character, unicode.Mn, unicode.Me, unicode.Mc)
 }
 
 // measureEscape returns how many bytes the escape at the front of the text takes.

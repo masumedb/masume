@@ -55,6 +55,40 @@ func TestMapCellsCountsAWideCellTwice(t *testing.T) {
 	}
 }
 
+func TestMapCellsKeepsAGraphemeClusterInOneCell(t *testing.T) {
+	cells := mapCells("a👍🏽1️⃣b")
+	texts := make([]string, 0, len(cells))
+	for _, cell := range cells {
+		texts = append(texts, cell.text)
+	}
+	wanted := []string{"a", "👍🏽", "", "1️⃣", "", "b"}
+	if strings.Join(texts, "|") != strings.Join(wanted, "|") {
+		t.Errorf("the cells read %q, wanted %q", texts, wanted)
+	}
+}
+
+func TestCutRowKeepsEveryGraphemeClusterWhole(t *testing.T) {
+	red := lipgloss.NewStyle().Foreground(lipgloss.Color("#ff0000"))
+	for _, text := range []string{
+		"ab👍🏽cd", "ab👨‍👩‍👧cd", "ab❤️cd", "ab1️⃣cd", "a1️⃣",
+		"1️⃣b", "ab漢字cd", "abécd",
+	} {
+		row := red.Render(text)
+		for cells := 1; cells < lipgloss.Width(text); cells++ {
+			head, tail, covered := cutRow(row, cells)
+			if covered != cells || lipgloss.Width(head) != cells {
+				t.Errorf("%q cut at %d covers %d and draws %d cells", text, cells, covered,
+					lipgloss.Width(head))
+			}
+			joined := strings.TrimRight(stripEscapes(head), " ") + stripEscapes(tail)
+			if joined != text {
+				t.Errorf("%q cut at %d splits a cluster: %q and %q", text, cells,
+					stripEscapes(head), stripEscapes(tail))
+			}
+		}
+	}
+}
+
 func TestFollowColumnCursorMovesTheWindow(t *testing.T) {
 	shape := GridShape{Widths: []int{10, 10, 10, 10, 10}}
 	shape.Columns = make([]query.ResultColumn, len(shape.Widths))

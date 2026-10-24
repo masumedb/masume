@@ -12,7 +12,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/mattn/go-runewidth"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/masumedb/masume/internal/core"
 	"github.com/masumedb/masume/internal/db"
@@ -25,9 +25,24 @@ const NullDisplay = "∅"
 const EmptyTextDisplay = "''"
 
 // MeasureText returns the number of terminal cells the text takes. A CJK glyph takes two
-// cells and a combining mark takes none, so the number of runes is not the width.
+// cells and a combining mark takes none, so the number of runes is not the width. The text is
+// measured by grapheme cluster, with the width rules of the renderer.
 func MeasureText(text string) int {
-	return runewidth.StringWidth(SafeText(text))
+	return ansi.StringWidth(SafeText(text))
+}
+
+// measureFirstCluster returns the bytes and the cells of the grapheme cluster at the start of
+// the text. A control character or a byte that is not valid text is one cell.
+func measureFirstCluster(text string) (size, cells int) {
+	if text[0] < utf8.RuneSelf && (len(text) == 1 || text[1] < utf8.RuneSelf) {
+		return 1, 1
+	}
+	character, size := utf8.DecodeRuneInString(text)
+	if character == utf8.RuneError || isControlCharacter(character) {
+		return size, 1
+	}
+	cluster, cells := ansi.FirstGraphemeCluster(text, ansi.GraphemeWidth)
+	return len(cluster), cells
 }
 
 // MeasureTextUpTo returns the number of cells the text takes and stops at the limit. The
@@ -39,18 +54,15 @@ func MeasureTextUpTo(text string, limit int) int {
 		return 0
 	}
 	used := 0
-	for _, character := range text {
-		// A byte that is not valid text, or the replacement character itself. The exact
-		// measurement reads a group of them as one character, so the whole text goes
-		// through it.
-		if character == utf8.RuneError {
+	for at := 0; at < len(text); {
+		size, cells := measureFirstCluster(text[at:])
+		// A byte that is not valid text. The exact measurement reads a group of them as one
+		// character, so the whole text goes through it.
+		if size == 1 && text[at] >= utf8.RuneSelf {
 			return MeasureText(text)
 		}
-		if isControlCharacter(character) {
-			used++
-		} else {
-			used += runewidth.RuneWidth(character)
-		}
+		at += size
+		used += cells
 		if used >= limit {
 			return used
 		}
@@ -78,15 +90,13 @@ func FindByteOfCell(text string, cell int) int {
 		return 0
 	}
 	used := 0
-	for at, character := range text {
+	for at := 0; at < len(text); {
 		if used >= cell {
 			return at
 		}
-		if isControlCharacter(character) || character == utf8.RuneError {
-			used++
-			continue
-		}
-		used += runewidth.RuneWidth(character)
+		size, cells := measureFirstCluster(text[at:])
+		at += size
+		used += cells
 	}
 	return len(text)
 }
@@ -147,17 +157,16 @@ func TruncateText(text string, width int) string {
 		return "…"
 	}
 
-	var kept strings.Builder
-	used := 0
-	for _, character := range text {
-		cost := runewidth.RuneWidth(character)
-		if used+cost > width-1 {
+	end, used := 0, 0
+	for end < len(text) {
+		size, cells := measureFirstCluster(text[end:])
+		if used+cells > width-1 {
 			break
 		}
-		kept.WriteRune(character)
-		used += cost
+		end += size
+		used += cells
 	}
-	return kept.String() + strings.Repeat(" ", width-1-used) + "…"
+	return text[:end] + strings.Repeat(" ", width-1-used) + "…"
 }
 
 // TruncateTextStart cuts the text to the width from the start and adds an ellipsis at the
@@ -174,17 +183,13 @@ func TruncateTextStart(text string, width int) string {
 		return "…"
 	}
 
-	characters := []rune(text)
-	start, used := len(characters), 0
-	for start > 0 {
-		cost := runewidth.RuneWidth(characters[start-1])
-		if used+cost > width-1 {
-			break
-		}
-		start--
-		used += cost
+	start, used := 0, MeasureText(text)
+	for start < len(text) && used > width-1 {
+		size, cells := measureFirstCluster(text[start:])
+		start += size
+		used -= cells
 	}
-	return "…" + strings.Repeat(" ", width-1-used) + string(characters[start:])
+	return "…" + strings.Repeat(" ", width-1-used) + text[start:]
 }
 
 // TruncatePath cuts a file path to the width from the start, at a separator where the rest

@@ -88,6 +88,12 @@ func TestMeasureStyledWidthAnswersWhatTheLibraryAnswers(t *testing.T) {
 		"👨‍👩‍👧",     // one grapheme joined by zero width joiners
 		"ȩ́x",      // two marks over one letter
 		"tab\there", // a control character
+		"👍🏽",
+		"❤\ufe0f",
+		"key 1\ufe0f\u20e3 one",
+		"1\ufe0f\u20e3",
+		"🇩🇪",
+		paintText(ink, ground, "a1\ufe0f\u20e3b"),
 		paintText(ink, ground, "cell"),
 		paintText(ink, ground, "│ ▾ ◇ sample"),
 		paintText(ink, ground, "日本語") + paintText(nil, ground, "  "),

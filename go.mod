@@ -14,7 +14,6 @@ require (
 	github.com/gocql/gocql v1.7.0
 	github.com/godbus/dbus/v5 v5.2.2
 	github.com/jackc/pgx/v5 v5.10.0
-	github.com/mattn/go-runewidth v0.0.30
 	github.com/microsoft/go-mssqldb v1.11.0
 	github.com/redis/go-redis/v9 v9.22.0
 	github.com/tursodatabase/libsql-client-go v0.0.0-20260528064733-9d5d30a29a60
@@ -52,6 +51,7 @@ require (
 	github.com/klauspost/compress v1.19.2 // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.1 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
+	github.com/mattn/go-runewidth v0.0.30 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/paulmach/orb v0.13.0 // indirect

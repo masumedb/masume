@@ -3,6 +3,7 @@ package ui
 import (
 	"image/color"
 	"strings"
+	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -442,10 +443,21 @@ func cutRow(row string, cells int) (string, string, int) {
 		for at < len(row) && row[at] != 0x1b && isPlainByte(row[at]) == plain {
 			at++
 		}
+		// A plain byte and the marks after it can form one grapheme cluster, as in a keycap.
+		if plain && at < len(row) && row[at] >= utf8.RuneSelf {
+			if at-start > 1 {
+				at--
+			} else {
+				plain = false
+				for at < len(row) && row[at] != 0x1b && !isPlainByte(row[at]) {
+					at++
+				}
+			}
+		}
 		run := row[start:at]
 		width := len(run)
 		if !plain {
-			width = measureOddRun(run)
+			width = ansi.StringWidth(run)
 		}
 		if covered+width <= cells {
 			head.WriteString(run)
@@ -459,15 +471,22 @@ func cutRow(row string, cells int) (string, string, int) {
 			head.WriteString(run[:wanted])
 			return head.String(), open.String() + run[wanted:] + row[at:], cells
 		}
-		taken := ansi.Truncate(run, wanted, "")
-		head.WriteString(taken)
+		end, taken := 0, 0
+		for end < len(run) {
+			cluster, width := ansi.FirstGraphemeCluster(run[end:], ansi.GraphemeWidth)
+			if taken+width > wanted {
+				break
+			}
+			end += len(cluster)
+			taken += width
+		}
+		head.WriteString(run[:end])
 		// A character of two cells the cut runs through is drawn by neither half, so a
 		// blank stands in its place and both halves measure what they should.
-		if missing := wanted - lipgloss.Width(taken); missing > 0 {
+		if missing := wanted - taken; missing > 0 {
 			head.WriteString(strings.Repeat(" ", missing))
 		}
-		return head.String(),
-			open.String() + ansi.TruncateLeft(run, wanted, "") + row[at:], cells
+		return head.String(), open.String() + run[end:] + row[at:], cells
 	}
 
 	if at >= len(row) {
@@ -690,14 +709,15 @@ func mapCells(line string) []styledCell {
 			at += end + 1
 			continue
 		}
-		next := at + 1
-		for next < len(line) && line[next] >= 0x80 && line[next] < 0xc0 {
-			next++
+		next, width := at+1, 1
+		if !isPlainByte(line[at]) || (next < len(line) && line[next] >= utf8.RuneSelf) {
+			cluster, clusterWidth := ansi.FirstGraphemeCluster(line[at:], ansi.GraphemeWidth)
+			next, width = at+len(cluster), clusterWidth
 		}
 		text := line[at:next]
 		cells = append(cells, styledCell{sgr: sgr, text: text})
 		// A cell two columns wide takes the column beside it, which draws nothing.
-		for filler := 1; filler < measureStyledWidth(text); filler++ {
+		for filler := 1; filler < width; filler++ {
 			cells = append(cells, styledCell{sgr: sgr})
 		}
 		at = next
