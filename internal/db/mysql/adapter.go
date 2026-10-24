@@ -3,7 +3,6 @@ package mysql
 import (
 	"context"
 	"database/sql"
-	sqldriver "database/sql/driver"
 	"errors"
 	"strconv"
 	"strings"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/masumedb/masume/internal/cfg"
 	"github.com/masumedb/masume/internal/db"
+	"github.com/masumedb/masume/internal/db/sqlbase"
 	"github.com/masumedb/masume/internal/query/statement"
 	"github.com/masumedb/masume/internal/query/syntax"
 )
@@ -20,30 +20,17 @@ import (
 type mysqlSession struct {
 	db.NoSequences
 	db.NoServerLoad
-	db.SessionFacts
+	sqlbase.Session
 
-	flavour     Flavour
-	connection  *sql.Conn
-	pool        *sql.DB
-	side        *db.SideConnection[*sql.DB]
-	threadID    int64
-	profile     cfg.Profile
-	password    string
-	transaction db.TransactionMark
+	flavour  Flavour
+	threadID int64
+	profile  cfg.Profile
+	password string
 	// The row cap of the connection, kept so it is not set twice.
 	selectLimit    int
 	hasSelectLimit bool
 	// True if innodb_rollback_on_timeout enables full rollback after a lock timeout.
 	rollsBackOnTimeout bool
-	// True where the user connection cannot take another statement.
-	broken bool
-
-	// mainQueue serializes user connection calls. The single-connection catalog pool serializes its own calls.
-	mainQueue *db.CallQueue
-}
-
-func (session *mysqlSession) ReadTransactionState() db.TransactionState {
-	return session.transaction.ReadState()
 }
 
 // markTransactionFailed records full transaction rollback errors. Ordinary MySQL errors leave the transaction open.
@@ -55,27 +42,8 @@ func (session *mysqlSession) markTransactionFailed(err error) {
 	}
 	if reported.Number == mysqlDeadlock ||
 		(reported.Number == mysqlLockTimeout && session.rollsBackOnTimeout) {
-		session.transaction.MarkFailed()
+		session.Transaction.MarkFailed()
 	}
-}
-
-// markBroken records a user connection that cannot take another statement, and opens it
-// again at once. The driver closes the socket of a cancelled statement, and the server runs
-// that statement on until a KILL QUERY stops it.
-func (session *mysqlSession) markBroken(ctx context.Context, err error) {
-	if !db.IsBrokenConnection(ctx, err) && !errors.Is(err, driver.ErrInvalidConn) {
-		return
-	}
-	if ctx.Err() != nil {
-		session.stopAbandonedStatement(ctx)
-	}
-	session.broken = true
-	if session.transaction.ReadState() != db.TransactionNone {
-		// The next call reports the transaction that was lost with the connection.
-		return
-	}
-	// A connection that does not open now is opened by the next call.
-	_ = session.reopenBrokenConnection(ctx)
 }
 
 // stopAbandonedStatement stops the statement of the user connection on the server.
@@ -84,87 +52,33 @@ func (session *mysqlSession) stopAbandonedStatement(ctx context.Context) {
 	if session.threadID <= 0 || statement == "" {
 		return
 	}
-	side, err := session.side.Read()
+	side, err := session.Side.Read()
 	if err != nil {
 		return
 	}
-	held, stop := context.WithTimeout(context.WithoutCancel(ctx), stateWait)
+	held, stop := context.WithTimeout(context.WithoutCancel(ctx), sqlbase.StateWait)
 	defer stop()
 	_, _ = side.ExecContext(held, statement)
 }
 
-// reopenBrokenConnection opens the user connection again. A transaction is lost with the
-// connection, so one that was open is reported instead of carried on.
-func (session *mysqlSession) reopenBrokenConnection(ctx context.Context) error {
-	if !session.broken {
-		return nil
-	}
-	lost := session.transaction.ReadState() != db.TransactionNone
-	session.transaction.WriteState(db.TransactionNone)
+// isDriverBroken is true for the error of a connection the driver found unusable. The driver
+// closes the socket of a cancelled statement, and the server runs that statement on until a
+// KILL QUERY stops it.
+func isDriverBroken(err error) bool {
+	return errors.Is(err, driver.ErrInvalidConn)
+}
 
-	// The pool hands a closed connection out again unless the connection is marked bad.
-	_ = session.connection.Raw(func(any) error { return sqldriver.ErrBadConn })
-	_ = session.connection.Close()
-	held, stop := context.WithTimeout(context.WithoutCancel(ctx), reopenWait)
-	defer stop()
-	opened, err := session.pool.Conn(held)
+// prepareReopenedConnection prepares the user connection opened again after a failure.
+func (session *mysqlSession) prepareReopenedConnection(
+	ctx context.Context, opened *sql.Conn,
+) error {
+	threadID, err := prepareUserConnection(ctx, opened, session.profile, session.flavour)
 	if err != nil {
-		return db.WrapDatabaseMessage(db.BuildConnectMessage(session.profile, err), err)
+		return err
 	}
-	threadID, prepareErr := prepareUserConnection(held, opened, session.profile, session.flavour)
-	if prepareErr != nil {
-		_ = opened.Close()
-		return db.WrapDatabaseMessage(db.BuildConnectMessage(session.profile, prepareErr), prepareErr)
-	}
-	session.connection, session.threadID = opened, threadID
+	session.threadID = threadID
 	session.hasSelectLimit = false
-	session.broken = false
-	if lost {
-		return db.NewDatabaseError("the connection closed and the transaction was lost")
-	}
 	return nil
-}
-
-// stateWait is the time limit for one call the client makes after a failure.
-const stateWait = 5 * time.Second
-
-// reopenWait is the time limit for opening the connection again after a failure.
-const reopenWait = 15 * time.Second
-
-// resolveCatalogRunner uses the user connection during a transaction and the catalog pool otherwise.
-func (session *mysqlSession) resolveCatalogRunner() (queryRunner, error) {
-	if session.transaction.ReadState() != db.TransactionNone {
-		return session.connection, nil
-	}
-	side, err := session.side.Read()
-	if err != nil {
-		return nil, err
-	}
-	return side, nil
-}
-
-// holdCatalogPool reserves the user connection for transactional catalog reads and returns a release callback.
-func (session *mysqlSession) holdCatalogPool(
-	ctx context.Context,
-) (queryRunner, func(), error) {
-	runner, err := session.resolveCatalogRunner()
-	if err != nil {
-		return nil, nil, err
-	}
-	if session.transaction.ReadState() == db.TransactionNone {
-		return runner, func() {}, nil
-	}
-	giveBack, waitErr := session.mainQueue.Take(ctx)
-	if waitErr != nil {
-		return nil, nil, waitErr
-	}
-	return runner, giveBack, nil
-}
-
-// queryRunner is what a catalog read needs of a connection or a pool.
-type queryRunner interface {
-	QueryContext(ctx context.Context, sql string, params ...any) (*sql.Rows, error)
-	ExecContext(ctx context.Context, sql string, params ...any) (sql.Result, error)
 }
 
 // resolveSelectLimit returns the session row cap for a statement. A statement whose SELECT
@@ -188,9 +102,9 @@ func (session *mysqlSession) applySelectLimit(ctx context.Context, cap int) erro
 		}
 		written = strconv.Itoa(cap)
 	}
-	if _, err := session.connection.ExecContext(
+	if _, err := session.Connection.ExecContext(
 		ctx, "set session sql_select_limit = "+written); err != nil {
-		session.markBroken(ctx, err)
+		session.MarkBroken(ctx, err)
 		return err
 	}
 	session.selectLimit = cap
@@ -252,13 +166,13 @@ func (session *mysqlSession) RunQuery(
 	ctx context.Context, statement string, rowLimit int, params []any,
 ) (db.QueryResult, error) {
 	startedAt := time.Now()
-	giveBack, waitErr := session.mainQueue.Take(ctx)
+	giveBack, waitErr := session.MainQueue.Take(ctx)
 	if waitErr != nil {
 		return db.QueryResult{}, db.WrapDatabaseError(waitErr)
 	}
 	defer giveBack()
 
-	if err := session.reopenBrokenConnection(ctx); err != nil {
+	if err := session.ReopenBrokenConnection(ctx); err != nil {
 		return db.QueryResult{}, err
 	}
 	flavour := session.Support.Dialect.Syntax
@@ -269,10 +183,9 @@ func (session *mysqlSession) RunQuery(
 
 	lastStatement := db.ReadLastStatement(statement, flavour)
 	command := syntax.ReadCommandWord(lastStatement, flavour)
-	rows, err := session.connection.QueryContext(ctx, statement, params...)
+	rows, err := session.Connection.QueryContext(ctx, statement, params...)
 	if err != nil {
-		session.markTransactionFailed(err)
-		session.markBroken(ctx, err)
+		session.RecordFailure(ctx, err)
 		return db.QueryResult{}, db.WrapDatabaseError(err)
 	}
 	defer func() { _ = rows.Close() }()
@@ -280,15 +193,13 @@ func (session *mysqlSession) RunQuery(
 	// The driver exposes only row results. The final result here belongs to the last row-returning statement.
 	read, columns, readErr := readMysqlRows(rows, db.ReadOverscanRowLimit(rowLimit))
 	if readErr != nil {
-		session.markTransactionFailed(readErr)
-		session.markBroken(ctx, readErr)
+		session.RecordFailure(ctx, readErr)
 		return db.QueryResult{}, db.WrapDatabaseError(readErr)
 	}
 	for rows.NextResultSet() {
 		next, nextColumns, nextErr := readMysqlRows(rows, db.ReadOverscanRowLimit(rowLimit))
 		if nextErr != nil {
-			session.markTransactionFailed(nextErr)
-			session.markBroken(ctx, nextErr)
+			session.RecordFailure(ctx, nextErr)
 			return db.QueryResult{}, db.WrapDatabaseError(nextErr)
 		}
 		read, columns = next, nextColumns
@@ -306,19 +217,13 @@ func (session *mysqlSession) RunQuery(
 	if writes {
 		result.Affected, result.HasAffected = session.countAffected(ctx)
 	}
-	session.markTransactionFromStatement(statement)
+	session.MarkTransactionFromStatement(statement)
 	return result, nil
-}
-
-// markTransactionFromStatement updates transaction state after statements from the editor.
-func (session *mysqlSession) markTransactionFromStatement(sql string) {
-	session.transaction.ApplyStatementEffect(
-		statement.ResolveTransactionEffect(sql, session.Support.Dialect.Syntax))
 }
 
 // countAffected returns the last write count and distinguishes an unavailable count from zero.
 func (session *mysqlSession) countAffected(ctx context.Context) (int64, bool) {
-	row := session.connection.QueryRowContext(ctx, "select row_count() as changed")
+	row := session.Connection.QueryRowContext(ctx, "select row_count() as changed")
 	var changed int64
 	if row.Scan(&changed) != nil {
 		return 0, false
@@ -346,7 +251,7 @@ func (session *mysqlSession) CountRead(
 func (session *mysqlSession) CheckStatement(
 	ctx context.Context, statement string,
 ) (db.StatementProblem, bool) {
-	if session.transaction.ReadState() != db.TransactionNone {
+	if session.Transaction.ReadState() != db.TransactionNone {
 		return db.StatementProblem{}, false
 	}
 	if strings.TrimSpace(statement) == "" ||
@@ -354,7 +259,7 @@ func (session *mysqlSession) CheckStatement(
 		return db.StatementProblem{}, false
 	}
 
-	side, err := session.side.Read()
+	side, err := session.Side.Read()
 	if err != nil {
 		return db.StatementProblem{}, false
 	}
@@ -380,102 +285,6 @@ func (session *mysqlSession) CheckStatement(
 	return problem, true
 }
 
-// StreamQuery reads a batch at a time, so an export never holds the whole relation.
-func (session *mysqlSession) StreamQuery(
-	ctx context.Context, statement string, params []any, batchSize int,
-	onBatch func(rows [][]any, columns []db.ResultColumn) error,
-) (int64, error) {
-	if err := db.RefuseSeveralCommands(statement, session.Support.Dialect.Syntax); err != nil {
-		return 0, err
-	}
-	giveBack, waitErr := session.mainQueue.Take(ctx)
-	if waitErr != nil {
-		return 0, waitErr
-	}
-	defer giveBack()
-
-	if err := session.reopenBrokenConnection(ctx); err != nil {
-		return 0, err
-	}
-	// The row cap of a page would cut the export short.
-	if err := session.applySelectLimit(ctx, -1); err != nil {
-		return 0, err
-	}
-
-	rows, err := session.connection.QueryContext(ctx, statement, params...)
-	if err != nil {
-		session.markTransactionFailed(err)
-		session.markBroken(ctx, err)
-		return 0, err
-	}
-	defer func() { _ = rows.Close() }()
-
-	columns, _, columnErr := buildMysqlColumns(rows)
-	if columnErr != nil {
-		return 0, columnErr
-	}
-	if columns == nil {
-		return 0, nil
-	}
-
-	batcher := db.NewRowBatcher(batchSize, onBatch)
-	for rows.Next() {
-		values, scanErr := db.ScanRow(rows, len(columns))
-		if scanErr != nil {
-			return batcher.CountRows(), scanErr
-		}
-		if batchErr := batcher.AddRow(values, columns); batchErr != nil {
-			return batcher.CountRows(), batchErr
-		}
-	}
-	if rows.Err() != nil {
-		session.markTransactionFailed(rows.Err())
-		session.markBroken(ctx, rows.Err())
-		return batcher.CountRows(), rows.Err()
-	}
-	if batchErr := batcher.FlushRows(columns); batchErr != nil {
-		return batcher.CountRows(), batchErr
-	}
-	return batcher.CountRows(), nil
-}
-
-// readNamedRows reads a catalog result as rows keyed by column name, and returns the
-// order the server named them in.
-func (session *mysqlSession) readNamedRows(
-	ctx context.Context, statement string, params ...any,
-) ([]map[string]any, []string, error) {
-	runner, giveBack, err := session.holdCatalogPool(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer giveBack()
-
-	rows, queryErr := runner.QueryContext(ctx, statement, params...)
-	if queryErr != nil {
-		return nil, nil, queryErr
-	}
-	defer func() { _ = rows.Close() }()
-
-	names, nameErr := rows.Columns()
-	if nameErr != nil {
-		return nil, nil, nameErr
-	}
-
-	read := []map[string]any{}
-	for rows.Next() {
-		values, scanErr := db.ScanRow(rows, len(names))
-		if scanErr != nil {
-			return nil, nil, scanErr
-		}
-		row := map[string]any{}
-		for at, name := range names {
-			row[name] = values[at]
-		}
-		read = append(read, row)
-	}
-	return read, names, rows.Err()
-}
-
 // ExplainQuery returns the plan as the server writes it, asked for in the form this
 // server takes.
 func (session *mysqlSession) ExplainQuery(
@@ -484,13 +293,13 @@ func (session *mysqlSession) ExplainQuery(
 	if err := db.RefuseSeveralPlans(statement, session.Support.Dialect.Syntax); err != nil {
 		return db.QueryPlan{}, err
 	}
-	giveBack, waitErr := session.mainQueue.Take(ctx)
+	giveBack, waitErr := session.MainQueue.Take(ctx)
 	if waitErr != nil {
 		return db.QueryPlan{}, db.WrapDatabaseError(waitErr)
 	}
 	defer giveBack()
 
-	if err := session.reopenBrokenConnection(ctx); err != nil {
+	if err := session.ReopenBrokenConnection(ctx); err != nil {
 		return db.QueryPlan{}, err
 	}
 	// Planning requires the original statement without the session row cap.
@@ -499,11 +308,10 @@ func (session *mysqlSession) ExplainQuery(
 	}
 
 	// An analyzed plan runs the statement, so it uses the connection of the user.
-	rows, err := session.connection.QueryContext(
+	rows, err := session.Connection.QueryContext(
 		ctx, session.flavour.BuildExplainStatement(statement, analyze))
 	if err != nil {
-		session.markTransactionFailed(err)
-		session.markBroken(ctx, err)
+		session.RecordFailure(ctx, err)
 		return db.QueryPlan{}, db.WrapDatabaseError(err)
 	}
 	defer func() { _ = rows.Close() }()
@@ -520,103 +328,11 @@ func (session *mysqlSession) ExplainQuery(
 	return plan, nil
 }
 
-// runPlain runs a statement of the client itself, which binds nothing and returns nothing.
-func (session *mysqlSession) runPlain(ctx context.Context, statement string) error {
-	_, err := session.connection.ExecContext(ctx, statement)
-	session.markBroken(ctx, err)
-	return err
-}
-
-func (session *mysqlSession) BeginTransaction(ctx context.Context) error {
-	giveBack, waitErr := session.mainQueue.Take(ctx)
-	if waitErr != nil {
-		return db.WrapDatabaseError(waitErr)
-	}
-	defer giveBack()
-
-	if err := session.reopenBrokenConnection(ctx); err != nil {
-		return err
-	}
-	if err := session.runPlain(ctx, "start transaction"); err != nil {
-		return db.WrapDatabaseError(err)
-	}
-	session.transaction.WriteState(db.TransactionOpen)
-	return nil
-}
-
-func (session *mysqlSession) CommitTransaction(ctx context.Context) error {
-	giveBack, waitErr := session.mainQueue.Take(ctx)
-	if waitErr != nil {
-		return db.WrapDatabaseError(waitErr)
-	}
-	defer giveBack()
-
-	if err := session.reopenBrokenConnection(ctx); err != nil {
-		return err
-	}
-	if err := session.runPlain(ctx, "commit"); err != nil {
-		return db.WrapDatabaseError(err)
-	}
-	session.transaction.WriteState(db.TransactionNone)
-	return nil
-}
-
-func (session *mysqlSession) RollbackTransaction(ctx context.Context) error {
-	giveBack, waitErr := session.mainQueue.Take(ctx)
-	if waitErr != nil {
-		return db.WrapDatabaseError(waitErr)
-	}
-	defer giveBack()
-
-	if err := session.reopenBrokenConnection(ctx); err != nil {
-		return err
-	}
-	if err := session.runPlain(ctx, "rollback"); err != nil {
-		return db.WrapDatabaseError(err)
-	}
-	session.transaction.WriteState(db.TransactionNone)
-	return nil
-}
-
-func (session *mysqlSession) ApplyChanges(ctx context.Context, changes []db.Change) error {
-	giveBack, waitErr := session.mainQueue.Take(ctx)
-	if waitErr != nil {
-		return db.WrapDatabaseError(waitErr)
-	}
-	defer giveBack()
-
-	if err := session.reopenBrokenConnection(ctx); err != nil {
-		return err
-	}
-	return db.ApplyChangesInTransaction(ctx, changes, db.ChangeApplication{
-		JoinsUserTransaction: session.transaction.ReadState() == db.TransactionOpen,
-		Begin: func(ctx context.Context) error {
-			return session.runPlain(ctx, "start transaction")
-		},
-		Commit:   func(ctx context.Context) error { return session.runPlain(ctx, "commit") },
-		Rollback: func(ctx context.Context) error { return session.runPlain(ctx, "rollback") },
-		Apply: func(ctx context.Context, change db.Change) error {
-			statement, err := db.ReadChangeStatement(change)
-			if err != nil {
-				return err
-			}
-			_, execErr := session.connection.ExecContext(ctx, statement.SQL, statement.Params...)
-			session.markBroken(ctx, execErr)
-			return execErr
-		},
-		CountMatches: db.BuildGuardCounter(
-			func(ctx context.Context, sql string, params ...any) db.ScanOneRow {
-				return session.connection.QueryRowContext(ctx, sql, params...)
-			}),
-		ReportFailed: session.markTransactionFailed,
-	})
-}
-
 func (session *mysqlSession) ListActivity(ctx context.Context) ([]db.Activity, error) {
 	if !session.Support.Capabilities.HasServerSessions {
 		return nil, db.NewUnsupportedError("list sessions")
 	}
-	rows, _, err := session.readNamedRows(ctx, listMysqlActivitySQL)
+	rows, _, err := session.ReadNamedRows(ctx, listMysqlActivitySQL)
 	if err != nil {
 		return nil, err
 	}
@@ -637,7 +353,7 @@ func (session *mysqlSession) ListLockWaits(ctx context.Context) ([]db.LockWait, 
 	if !session.Support.Capabilities.ReportsLockWaits || session.flavour.ListLockWaitsStatement == "" {
 		return nil, db.NewUnsupportedError("report lock waits")
 	}
-	rows, _, err := session.readNamedRows(ctx, session.flavour.ListLockWaitsStatement)
+	rows, _, err := session.ReadNamedRows(ctx, session.flavour.ListLockWaitsStatement)
 	if err != nil {
 		return nil, err
 	}
@@ -662,7 +378,7 @@ func (session *mysqlSession) ReadServerLoad(ctx context.Context) (db.ServerLoad,
 	if !session.Support.Capabilities.ReportsServerLoad {
 		return db.ServerLoad{}, db.NewUnsupportedError("report server load")
 	}
-	rows, _, err := session.readNamedRows(ctx, readMysqlServerLoadSQL)
+	rows, _, err := session.ReadNamedRows(ctx, readMysqlServerLoadSQL)
 	if err != nil {
 		return db.ServerLoad{}, err
 	}
@@ -687,7 +403,7 @@ func (session *mysqlSession) CancelBackend(
 	if statement == "" {
 		return false, db.NewUnsupportedError("stop another session")
 	}
-	side, err := session.side.Read()
+	side, err := session.Side.Read()
 	if err != nil {
 		return false, err
 	}
@@ -710,7 +426,7 @@ func (session *mysqlSession) CancelRunningQuery(ctx context.Context) (bool, erro
 	if statement == "" {
 		return false, db.NewUnsupportedError("cancel a running statement")
 	}
-	side, err := session.side.Read()
+	side, err := session.Side.Read()
 	if err != nil {
 		return false, err
 	}
@@ -718,41 +434,6 @@ func (session *mysqlSession) CancelRunningQuery(ctx context.Context) (bool, erro
 		return false, execErr
 	}
 	return true, nil
-}
-
-// Ping checks the catalog connection outside transactions. Transactional checks use the user connection and skip busy connections.
-func (session *mysqlSession) Ping(ctx context.Context) error {
-	runner, err := session.resolveCatalogRunner()
-	if err != nil {
-		return err
-	}
-	if session.transaction.ReadState() != db.TransactionNone {
-		giveBack, free := session.mainQueue.TryTake()
-		if !free {
-			return nil
-		}
-		defer giveBack()
-	}
-	_, execErr := runner.ExecContext(ctx, "select 1")
-	return execErr
-}
-
-// closeWait is the time limit for waiting to close the connection.
-const closeWait = 5 * time.Second
-
-// The user connection is one socket the driver takes no second caller on.
-func (session *mysqlSession) Close() error {
-	ctx, stop := context.WithTimeout(context.Background(), closeWait)
-	defer stop()
-	if side, opened := session.side.Find(); opened {
-		_ = side.Close()
-	}
-	if giveBack, waitErr := session.mainQueue.Take(ctx); waitErr == nil {
-		defer giveBack()
-	}
-	err := session.connection.Close()
-	_ = session.pool.Close()
-	return err
 }
 
 // mysqlAdapter opens a connection on a MySQL-protocol server.
@@ -803,24 +484,53 @@ func (adapter *mysqlAdapter) Connect(
 		serverVersion = written
 	}
 
-	return &mysqlSession{
+	session := &mysqlSession{
 		rollsBackOnTimeout: readRollsBackOnTimeout(ctx, connection),
-		SessionFacts: db.SessionFacts{
-			Descriptor: db.SessionDescriptor{
-				Profile: profile, ServerVersion: serverVersion,
-				// A MySQL schema is a database. The connected one is the default.
-				DefaultSchema: profile.Database,
+		Session: sqlbase.Session{
+			SessionFacts: db.SessionFacts{
+				Descriptor: db.SessionDescriptor{
+					Profile: profile, ServerVersion: serverVersion,
+					// A MySQL schema is a database. The connected one is the default.
+					DefaultSchema: profile.Database,
+				},
+				Support: adapter.support,
 			},
-			Support: adapter.support,
+			Connection: connection, Pool: pool,
+			Side: db.NewSideConnection(func() (*sql.DB, error) {
+				return openMysqlPool(profile, password)
+			}, nil),
+			MainQueue: db.NewCallQueue(),
 		},
-		flavour:    adapter.flavour,
-		connection: connection, pool: pool, threadID: threadID,
-		profile: profile, password: password,
-		side: db.NewSideConnection(func() (*sql.DB, error) {
-			return openMysqlPool(profile, password)
-		}, nil),
-		mainQueue: db.NewCallQueue(),
-	}, nil
+		flavour:  adapter.flavour,
+		threadID: threadID,
+		profile:  profile, password: password,
+	}
+	session.Hooks = sqlbase.Hooks{
+		BeginStatement:         "start transaction",
+		PrepareConnection:      session.prepareReopenedConnection,
+		IsDriverBroken:         isDriverBroken,
+		StopAbandonedStatement: session.stopAbandonedStatement,
+		ReportFailure: func(_ context.Context, err error) {
+			session.markTransactionFailed(err)
+		},
+		WrapTransactionError: db.WrapDatabaseError,
+		PrepareStream: func(ctx context.Context) error {
+			// The row cap of a page would cut the export short.
+			return session.applySelectLimit(ctx, -1)
+		},
+		ReadStreamColumns: readStreamColumns,
+	}
+	return session, nil
+}
+
+// readStreamColumns returns the columns of a streamed result and the reader of one row.
+func readStreamColumns(
+	rows *sql.Rows,
+) ([]db.ResultColumn, func(*sql.Rows) ([]any, error), error) {
+	columns, _, err := buildMysqlColumns(rows)
+	return columns, func(rows *sql.Rows) ([]any, error) {
+		return db.ScanRow(rows, len(columns))
+	}, err
 }
 
 // prepareUserConnection makes the user connection read-only for a read-only profile, and

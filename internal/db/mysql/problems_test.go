@@ -133,9 +133,9 @@ func TestTheServerRollsBackOnADeadlockAndOnATimeoutOnlyWhereItSaysSo(t *testing.
 	} {
 		t.Run(held.name, func(t *testing.T) {
 			session := &mysqlSession{rollsBackOnTimeout: held.rollsBackTimeout}
-			session.transaction.WriteState(db.TransactionOpen)
+			session.Transaction.WriteState(db.TransactionOpen)
 			session.markTransactionFailed(held.err)
-			if answered := session.transaction.ReadState(); answered != held.want {
+			if answered := session.Transaction.ReadState(); answered != held.want {
 				t.Errorf("the state reads %q, wanted %q", answered, held.want)
 			}
 		})

@@ -42,10 +42,10 @@ func TestAFailedPlanSettingOpensTheConnectionAgain(t *testing.T) {
 	defer func() { _ = session.Close() }()
 
 	var processID int
-	if err := session.connection.QueryRowContext(ctx, "select @@spid").Scan(&processID); err != nil {
+	if err := session.Connection.QueryRowContext(ctx, "select @@spid").Scan(&processID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := session.connection.ExecContext(ctx, "set showplan_text on"); err != nil {
+	if _, err := session.Connection.ExecContext(ctx, "set showplan_text on"); err != nil {
 		t.Fatal(err)
 	}
 	killer, err := openSqlserverPool(profile, password)

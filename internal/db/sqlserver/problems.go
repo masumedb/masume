@@ -33,6 +33,11 @@ func describeFailure(err error) string {
 	return db.DescribeError(err)
 }
 
+// wrapFailure wraps a driver error with the server message.
+func wrapFailure(err error) error {
+	return db.WrapDatabaseMessage(describeFailure(err), err)
+}
+
 // ReadStatementProblem returns the fault of a statement out of the rows the analyzer wrote.
 // A statement the user is still typing is not a fault.
 func ReadStatementProblem(

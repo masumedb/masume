@@ -12,7 +12,7 @@ import (
 // nothing. The catalog views of the server are of one database, so the list is of that
 // database.
 func (session *sqlserverSession) ListSchemas(ctx context.Context) ([]string, error) {
-	rows, _, err := session.readNamedRows(ctx, listSchemasSQL)
+	rows, _, err := session.ReadNamedRows(ctx, listSchemasSQL)
 	if err != nil {
 		return nil, err
 	}
@@ -26,7 +26,7 @@ func (session *sqlserverSession) ListSchemas(ctx context.Context) ([]string, err
 }
 
 func (session *sqlserverSession) ListTables(ctx context.Context) ([]db.TableRef, error) {
-	rows, _, err := session.readNamedRows(ctx, listTablesSQL)
+	rows, _, err := session.ReadNamedRows(ctx, listTablesSQL)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +42,7 @@ func (session *sqlserverSession) ListTables(ctx context.Context) ([]db.TableRef,
 }
 
 func (session *sqlserverSession) ListRoles(ctx context.Context) ([]db.DbRole, error) {
-	rows, _, err := session.readNamedRows(ctx, listRolesSQL)
+	rows, _, err := session.ReadNamedRows(ctx, listRolesSQL)
 	if err != nil {
 		return nil, err
 	}
@@ -58,19 +58,19 @@ func (session *sqlserverSession) ListRoles(ctx context.Context) ([]db.DbRole, er
 func (session *sqlserverSession) ListSchemaObjects(
 	ctx context.Context,
 ) ([]db.SchemaObject, error) {
-	routineRows, _, err := session.readNamedRows(ctx, listRoutinesSQL)
+	routineRows, _, err := session.ReadNamedRows(ctx, listRoutinesSQL)
 	if err != nil {
 		return nil, db.WrapDatabaseOperation("reading the routines", err)
 	}
-	sequenceRows, _, sequenceErr := session.readNamedRows(ctx, listSequencesSQL)
+	sequenceRows, _, sequenceErr := session.ReadNamedRows(ctx, listSequencesSQL)
 	if sequenceErr != nil {
 		return nil, db.WrapDatabaseOperation("reading the sequences", sequenceErr)
 	}
-	typeRows, _, typeErr := session.readNamedRows(ctx, listTypesSQL)
+	typeRows, _, typeErr := session.ReadNamedRows(ctx, listTypesSQL)
 	if typeErr != nil {
 		return nil, db.WrapDatabaseOperation("reading the types", typeErr)
 	}
-	triggerRows, _, triggerErr := session.readNamedRows(ctx, listTriggersSQL)
+	triggerRows, _, triggerErr := session.ReadNamedRows(ctx, listTriggersSQL)
 	if triggerErr != nil {
 		return nil, db.WrapDatabaseOperation("reading the triggers", triggerErr)
 	}
@@ -126,11 +126,11 @@ func (session *sqlserverSession) DescribeTable(
 	ctx context.Context, table db.TableRef,
 ) (db.TableDetail, error) {
 	target := session.Support.Dialect.BuildQualifiedName(table.Qualified())
-	columnRows, _, err := session.readNamedRows(ctx, describeColumnsSQL, target)
+	columnRows, _, err := session.ReadNamedRows(ctx, describeColumnsSQL, target)
 	if err != nil {
 		return db.TableDetail{}, err
 	}
-	keyRows, _, keyErr := session.readNamedRows(ctx, describeForeignKeysSQL, target)
+	keyRows, _, keyErr := session.ReadNamedRows(ctx, describeForeignKeysSQL, target)
 	if keyErr != nil {
 		return db.TableDetail{}, keyErr
 	}
@@ -162,7 +162,7 @@ func (session *sqlserverSession) DescribeTable(
 func (session *sqlserverSession) ListRelationships(
 	ctx context.Context,
 ) ([]db.Relationship, error) {
-	rows, _, err := session.readNamedRows(ctx, listRelationshipsSQL)
+	rows, _, err := session.ReadNamedRows(ctx, listRelationshipsSQL)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +180,7 @@ func (session *sqlserverSession) ListIndexes(
 	ctx context.Context, table db.TableRef,
 ) ([]db.IndexDetail, error) {
 	target := session.Support.Dialect.BuildQualifiedName(table.Qualified())
-	rows, _, err := session.readNamedRows(ctx, listIndexesSQL, target)
+	rows, _, err := session.ReadNamedRows(ctx, listIndexesSQL, target)
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +202,7 @@ func (session *sqlserverSession) ListConstraints(
 	ctx context.Context, table db.TableRef,
 ) ([]db.ConstraintDetail, error) {
 	target := session.Support.Dialect.BuildQualifiedName(table.Qualified())
-	rows, _, err := session.readNamedRows(ctx, listConstraintsSQL, target)
+	rows, _, err := session.ReadNamedRows(ctx, listConstraintsSQL, target)
 	if err != nil {
 		return nil, err
 	}
@@ -255,7 +255,7 @@ func (session *sqlserverSession) BuildObjectDDL(
 func (session *sqlserverSession) readObjectDefinition(
 	ctx context.Context, named, target string,
 ) ([]string, error) {
-	rows, _, err := session.readNamedRows(ctx, readObjectDefinitionSQL, target)
+	rows, _, err := session.ReadNamedRows(ctx, readObjectDefinitionSQL, target)
 	if err != nil {
 		return nil, err
 	}

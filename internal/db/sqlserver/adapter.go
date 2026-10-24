@@ -3,35 +3,23 @@ package sqlserver
 import (
 	"context"
 	"database/sql"
-	"database/sql/driver"
 	"strings"
 	"time"
 
 	"github.com/masumedb/masume/internal/cfg"
 	"github.com/masumedb/masume/internal/core"
 	"github.com/masumedb/masume/internal/db"
-	"github.com/masumedb/masume/internal/query/statement"
+	"github.com/masumedb/masume/internal/db/sqlbase"
 	"github.com/masumedb/masume/internal/query/syntax"
 )
 
 // sqlserverSession is one session on a SQL Server.
 type sqlserverSession struct {
 	db.NoSequences
-	db.SessionFacts
+	sqlbase.Session
 
-	connection *sql.Conn
-	pool       *sql.DB
-	side       *db.SideConnection[*sql.DB]
 	// True where the connection may read the statement counters of the server.
 	holdsStatementStats bool
-	// True where the connection cannot take another statement. A stopped statement leaves
-	// the socket of this driver unusable.
-	broken      bool
-	transaction db.TransactionMark
-
-	// mainQueue serializes user connection calls. The single-connection catalog pool
-	// serializes its own calls.
-	mainQueue *db.CallQueue
 }
 
 // Capabilities returns engine support plus statement statistics availability from the
@@ -42,30 +30,26 @@ func (session *sqlserverSession) Capabilities() core.Capabilities {
 	return held
 }
 
-func (session *sqlserverSession) ReadTransactionState() db.TransactionState {
-	return session.transaction.ReadState()
-}
-
 // readServerTransaction reads the transaction state of the server back after a failure.
 // An uncommittable transaction takes no further statement, and a statement of its own can
 // have rolled the whole transaction back.
 func (session *sqlserverSession) readServerTransaction(ctx context.Context) {
-	if session.transaction.ReadState() == db.TransactionNone {
+	if session.Transaction.ReadState() == db.TransactionNone {
 		return
 	}
-	held, stop := context.WithTimeout(context.WithoutCancel(ctx), stateWait)
+	held, stop := context.WithTimeout(context.WithoutCancel(ctx), sqlbase.StateWait)
 	defer stop()
 
 	var state int64
-	if session.connection.QueryRowContext(
+	if session.Connection.QueryRowContext(
 		held, "select xact_state() as state").Scan(&state) != nil {
 		return
 	}
 	switch state {
 	case transactionUncommittable:
-		session.transaction.MarkFailed()
+		session.Transaction.MarkFailed()
 	case transactionNone:
-		session.transaction.WriteState(db.TransactionNone)
+		session.Transaction.WriteState(db.TransactionNone)
 	}
 }
 
@@ -75,114 +59,17 @@ const (
 	transactionNone          = 0
 )
 
-// markBroken records a connection that cannot take another statement, and opens it again at
-// once. A statement the client stopped leaves the socket unusable, and so does a connection
-// the server closed. The statement of the user has failed already, so the wait belongs to
-// this call and not to the next one, which carries a time limit of its own.
-func (session *sqlserverSession) markBroken(ctx context.Context, err error) {
-	if !db.IsBrokenConnection(ctx, err) {
-		return
-	}
-	session.dropConnection(ctx)
-}
-
-// dropConnection records the connection as broken, and opens it again at once if no
-// transaction is open.
-func (session *sqlserverSession) dropConnection(ctx context.Context) {
-	session.broken = true
-	if session.transaction.ReadState() != db.TransactionNone {
-		// The next call reports the transaction that was lost with the connection.
-		return
-	}
-	// A connection that does not open now is opened by the next call.
-	_ = session.reopenBrokenConnection(ctx)
-}
-
-// reopenBrokenConnection opens the user connection again. A transaction is lost with the
-// connection, so one that was open is reported instead of carried on.
-func (session *sqlserverSession) reopenBrokenConnection(ctx context.Context) error {
-	if !session.broken {
-		return nil
-	}
-	lost := session.transaction.ReadState() != db.TransactionNone
-	session.transaction.WriteState(db.TransactionNone)
-
-	// The pool takes the old connection back and hands it out again, because a driver does
-	// not always report one as bad. This marks it bad itself, so the pool drops it and the
-	// connection that follows is a new one. The call takes a time limit of its own: the one
-	// of the statement it failed in is spent.
-	_ = session.connection.Raw(func(any) error { return driver.ErrBadConn })
-	_ = session.connection.Close()
-	held, stop := context.WithTimeout(context.WithoutCancel(ctx), reopenWait)
-	defer stop()
-	opened, err := session.pool.Conn(held)
-	if err != nil {
-		return db.WrapDatabaseMessage(
-			db.BuildConnectMessage(session.Descriptor.Profile, err), err)
-	}
-	session.connection = opened
-	session.broken = false
-	if lost {
-		return db.NewDatabaseError("the connection closed and the transaction was lost")
-	}
-	return nil
-}
-
-// stateWait is the time limit for one call the client makes after a failure.
-const stateWait = 5 * time.Second
-
-// reopenWait is the time limit for opening the connection again after a failure.
-const reopenWait = 15 * time.Second
-
-// queryRunner is what a catalog read needs of a connection or a pool.
-type queryRunner interface {
-	QueryContext(ctx context.Context, sql string, params ...any) (*sql.Rows, error)
-	ExecContext(ctx context.Context, sql string, params ...any) (sql.Result, error)
-}
-
-// resolveCatalogRunner uses the user connection during a transaction and the catalog pool
-// otherwise.
-func (session *sqlserverSession) resolveCatalogRunner() (queryRunner, error) {
-	if session.transaction.ReadState() != db.TransactionNone {
-		return session.connection, nil
-	}
-	side, err := session.side.Read()
-	if err != nil {
-		return nil, err
-	}
-	return side, nil
-}
-
-// holdCatalogPool reserves the user connection for transactional catalog reads and returns
-// a release callback.
-func (session *sqlserverSession) holdCatalogPool(
-	ctx context.Context,
-) (queryRunner, func(), error) {
-	runner, err := session.resolveCatalogRunner()
-	if err != nil {
-		return nil, nil, err
-	}
-	if session.transaction.ReadState() == db.TransactionNone {
-		return runner, func() {}, nil
-	}
-	giveBack, waitErr := session.mainQueue.Take(ctx)
-	if waitErr != nil {
-		return nil, nil, waitErr
-	}
-	return runner, giveBack, nil
-}
-
 func (session *sqlserverSession) RunQuery(
 	ctx context.Context, sql string, rowLimit int, params []any,
 ) (db.QueryResult, error) {
 	startedAt := time.Now()
-	giveBack, waitErr := session.mainQueue.Take(ctx)
+	giveBack, waitErr := session.MainQueue.Take(ctx)
 	if waitErr != nil {
 		return db.QueryResult{}, db.WrapDatabaseError(waitErr)
 	}
 	defer giveBack()
 
-	if err := session.reopenBrokenConnection(ctx); err != nil {
+	if err := session.ReopenBrokenConnection(ctx); err != nil {
 		return db.QueryResult{}, err
 	}
 
@@ -197,10 +84,9 @@ func (session *sqlserverSession) RunQuery(
 		batch += rowCountProbe
 	}
 
-	answered, err := session.connection.QueryContext(ctx, batch, params...)
+	answered, err := session.Connection.QueryContext(ctx, batch, params...)
 	if err != nil {
-		session.markBroken(ctx, err)
-		session.readServerTransaction(ctx)
+		session.RecordFailure(ctx, err)
 		return db.QueryResult{}, db.WrapDatabaseMessage(describeFailure(err), err)
 	}
 	defer func() { _ = answered.Close() }()
@@ -208,8 +94,7 @@ func (session *sqlserverSession) RunQuery(
 	// The last result set of the batch is the one the pane shows.
 	read, columns, readErr := readLastResultSet(answered, db.ReadOverscanRowLimit(rowLimit))
 	if readErr != nil {
-		session.markBroken(ctx, readErr)
-		session.readServerTransaction(ctx)
+		session.RecordFailure(ctx, readErr)
 		return db.QueryResult{}, db.WrapDatabaseMessage(describeFailure(readErr), readErr)
 	}
 
@@ -224,7 +109,7 @@ func (session *sqlserverSession) RunQuery(
 			Elapsed: result.Elapsed, Command: result.Command,
 		})
 	}
-	session.markTransactionFromStatement(sql)
+	session.MarkTransactionFromStatement(sql)
 	return result, nil
 }
 
@@ -237,12 +122,6 @@ func readAffected(rows [][]any) (int64, bool) {
 		return 0, false
 	}
 	return db.ReadNonNegativeCount(rows[0][0]), true
-}
-
-// markTransactionFromStatement updates transaction state after statements from the editor.
-func (session *sqlserverSession) markTransactionFromStatement(sql string) {
-	session.transaction.ApplyStatementEffect(
-		statement.ResolveTransactionEffect(sql, session.Support.Dialect.Syntax))
 }
 
 func (session *sqlserverSession) ReadPage(
@@ -266,103 +145,11 @@ func (session *sqlserverSession) CheckStatement(
 		db.HoldsSeveralCommands(sql, session.Support.Dialect.Syntax) {
 		return db.StatementProblem{}, false
 	}
-	rows, _, err := session.readNamedRows(ctx, describeStatementSQL, sql)
+	rows, _, err := session.ReadNamedRows(ctx, describeStatementSQL, sql)
 	if err != nil || len(rows) == 0 {
 		return db.StatementProblem{}, false
 	}
 	return ReadStatementProblem(sql, rows)
-}
-
-// StreamQuery reads a batch at a time, so an export never holds the whole relation.
-func (session *sqlserverSession) StreamQuery(
-	ctx context.Context, sql string, params []any, batchSize int,
-	onBatch func(rows [][]any, columns []db.ResultColumn) error,
-) (int64, error) {
-	if err := db.RefuseSeveralCommands(sql, session.Support.Dialect.Syntax); err != nil {
-		return 0, err
-	}
-	giveBack, waitErr := session.mainQueue.Take(ctx)
-	if waitErr != nil {
-		return 0, waitErr
-	}
-	defer giveBack()
-
-	if err := session.reopenBrokenConnection(ctx); err != nil {
-		return 0, err
-	}
-
-	rows, err := session.connection.QueryContext(ctx, sql, params...)
-	if err != nil {
-		session.markBroken(ctx, err)
-		session.readServerTransaction(ctx)
-		return 0, db.WrapDatabaseMessage(describeFailure(err), err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	columns, reader, columnErr := buildSqlserverColumns(rows)
-	if columnErr != nil {
-		return 0, columnErr
-	}
-	if columns == nil {
-		return 0, nil
-	}
-
-	batcher := db.NewRowBatcher(batchSize, onBatch)
-	for rows.Next() {
-		values, scanErr := reader.readRow(rows)
-		if scanErr != nil {
-			return batcher.CountRows(), scanErr
-		}
-		if batchErr := batcher.AddRow(values, columns); batchErr != nil {
-			return batcher.CountRows(), batchErr
-		}
-	}
-	if rows.Err() != nil {
-		session.markBroken(ctx, rows.Err())
-		session.readServerTransaction(ctx)
-		return batcher.CountRows(), db.WrapDatabaseMessage(describeFailure(rows.Err()), rows.Err())
-	}
-	if batchErr := batcher.FlushRows(columns); batchErr != nil {
-		return batcher.CountRows(), batchErr
-	}
-	return batcher.CountRows(), nil
-}
-
-// readNamedRows reads a catalog result as rows keyed by column name, and returns the order
-// the server named them in.
-func (session *sqlserverSession) readNamedRows(
-	ctx context.Context, sql string, params ...any,
-) ([]map[string]any, []string, error) {
-	runner, giveBack, err := session.holdCatalogPool(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer giveBack()
-
-	rows, queryErr := runner.QueryContext(ctx, sql, params...)
-	if queryErr != nil {
-		return nil, nil, queryErr
-	}
-	defer func() { _ = rows.Close() }()
-
-	names, nameErr := rows.Columns()
-	if nameErr != nil {
-		return nil, nil, nameErr
-	}
-
-	read := []map[string]any{}
-	for rows.Next() {
-		values, scanErr := db.ScanRow(rows, len(names))
-		if scanErr != nil {
-			return nil, nil, scanErr
-		}
-		row := map[string]any{}
-		for at, name := range names {
-			row[name] = values[at]
-		}
-		read = append(read, row)
-	}
-	return read, names, rows.Err()
 }
 
 // ExplainQuery returns the plan the server writes as rows. SHOWPLAN_ALL estimates the plan,
@@ -373,26 +160,25 @@ func (session *sqlserverSession) ExplainQuery(
 	if err := db.RefuseSeveralPlans(sql, session.Support.Dialect.Syntax); err != nil {
 		return db.QueryPlan{}, err
 	}
-	giveBack, waitErr := session.mainQueue.Take(ctx)
+	giveBack, waitErr := session.MainQueue.Take(ctx)
 	if waitErr != nil {
 		return db.QueryPlan{}, db.WrapDatabaseError(waitErr)
 	}
 	defer giveBack()
 
-	if err := session.reopenBrokenConnection(ctx); err != nil {
+	if err := session.ReopenBrokenConnection(ctx); err != nil {
 		return db.QueryPlan{}, err
 	}
 
 	setting := planSetting(analyze)
-	if _, err := session.connection.ExecContext(ctx, "set "+setting+" on"); err != nil {
+	if _, err := session.Connection.ExecContext(ctx, "set "+setting+" on"); err != nil {
 		return db.QueryPlan{}, db.WrapDatabaseMessage(describeFailure(err), err)
 	}
 	defer session.stopPlanSetting(ctx, setting)
 
-	rows, err := session.connection.QueryContext(ctx, sql)
+	rows, err := session.Connection.QueryContext(ctx, sql)
 	if err != nil {
-		session.markBroken(ctx, err)
-		session.readServerTransaction(ctx)
+		session.RecordFailure(ctx, err)
 		return db.QueryPlan{}, db.WrapDatabaseMessage(describeFailure(err), err)
 	}
 	defer func() { _ = rows.Close() }()
@@ -413,111 +199,15 @@ func (session *sqlserverSession) ExplainQuery(
 // stopPlanSetting turns the plan setting off again, whatever the statement did. The setting
 // stays on the connection until it does.
 func (session *sqlserverSession) stopPlanSetting(ctx context.Context, setting string) {
-	held, stop := context.WithTimeout(context.WithoutCancel(ctx), stateWait)
+	held, stop := context.WithTimeout(context.WithoutCancel(ctx), sqlbase.StateWait)
 	defer stop()
-	if _, err := session.connection.ExecContext(held, "set "+setting+" off"); err != nil {
-		session.dropConnection(ctx)
+	if _, err := session.Connection.ExecContext(held, "set "+setting+" off"); err != nil {
+		session.DropConnection(ctx)
 	}
-}
-
-// runPlain runs a statement of the client itself, which binds nothing and returns nothing.
-func (session *sqlserverSession) runPlain(ctx context.Context, sql string) error {
-	_, err := session.connection.ExecContext(ctx, sql)
-	session.markBroken(ctx, err)
-	return err
-}
-
-func (session *sqlserverSession) BeginTransaction(ctx context.Context) error {
-	giveBack, waitErr := session.mainQueue.Take(ctx)
-	if waitErr != nil {
-		return db.WrapDatabaseError(waitErr)
-	}
-	defer giveBack()
-
-	if err := session.reopenBrokenConnection(ctx); err != nil {
-		return err
-	}
-	if err := session.runPlain(ctx, "begin transaction"); err != nil {
-		return db.WrapDatabaseMessage(describeFailure(err), err)
-	}
-	session.transaction.WriteState(db.TransactionOpen)
-	return nil
-}
-
-func (session *sqlserverSession) CommitTransaction(ctx context.Context) error {
-	giveBack, waitErr := session.mainQueue.Take(ctx)
-	if waitErr != nil {
-		return db.WrapDatabaseError(waitErr)
-	}
-	defer giveBack()
-
-	if err := session.reopenBrokenConnection(ctx); err != nil {
-		return err
-	}
-	if err := session.runPlain(ctx, "commit"); err != nil {
-		return db.WrapDatabaseMessage(describeFailure(err), err)
-	}
-	session.transaction.WriteState(db.TransactionNone)
-	return nil
-}
-
-func (session *sqlserverSession) RollbackTransaction(ctx context.Context) error {
-	giveBack, waitErr := session.mainQueue.Take(ctx)
-	if waitErr != nil {
-		return db.WrapDatabaseError(waitErr)
-	}
-	defer giveBack()
-
-	if err := session.reopenBrokenConnection(ctx); err != nil {
-		return err
-	}
-	if err := session.runPlain(ctx, "rollback"); err != nil {
-		return db.WrapDatabaseMessage(describeFailure(err), err)
-	}
-	session.transaction.WriteState(db.TransactionNone)
-	return nil
-}
-
-func (session *sqlserverSession) ApplyChanges(ctx context.Context, changes []db.Change) error {
-	giveBack, waitErr := session.mainQueue.Take(ctx)
-	if waitErr != nil {
-		return db.WrapDatabaseError(waitErr)
-	}
-	defer giveBack()
-
-	if err := session.reopenBrokenConnection(ctx); err != nil {
-		return err
-	}
-
-	return db.ApplyChangesInTransaction(ctx, changes, db.ChangeApplication{
-		JoinsUserTransaction: session.transaction.ReadState() == db.TransactionOpen,
-		Begin: func(ctx context.Context) error {
-			return session.runPlain(ctx, "begin transaction")
-		},
-		Commit:   func(ctx context.Context) error { return session.runPlain(ctx, "commit") },
-		Rollback: func(ctx context.Context) error { return session.runPlain(ctx, "rollback") },
-		Apply: func(ctx context.Context, change db.Change) error {
-			held, err := db.ReadChangeStatement(change)
-			if err != nil {
-				return err
-			}
-			_, execErr := session.connection.ExecContext(ctx, held.SQL, held.Params...)
-			if execErr == nil {
-				return nil
-			}
-			session.markBroken(ctx, execErr)
-			return db.WrapDatabaseMessage(describeFailure(execErr), execErr)
-		},
-		CountMatches: db.BuildGuardCounter(
-			func(ctx context.Context, sql string, params ...any) db.ScanOneRow {
-				return session.connection.QueryRowContext(ctx, sql, params...)
-			}),
-		ReportFailed: func(error) { session.readServerTransaction(ctx) },
-	})
 }
 
 func (session *sqlserverSession) ListActivity(ctx context.Context) ([]db.Activity, error) {
-	rows, _, err := session.readNamedRows(ctx, listActivitySQL)
+	rows, _, err := session.ReadNamedRows(ctx, listActivitySQL)
 	if err != nil {
 		return nil, err
 	}
@@ -538,7 +228,7 @@ func (session *sqlserverSession) ListActivity(ctx context.Context) ([]db.Activit
 
 // ListLockWaits returns every session waiting for a lock another session holds.
 func (session *sqlserverSession) ListLockWaits(ctx context.Context) ([]db.LockWait, error) {
-	rows, _, err := session.readNamedRows(ctx, listLockWaitsSQL)
+	rows, _, err := session.ReadNamedRows(ctx, listLockWaitsSQL)
 	if err != nil {
 		return nil, err
 	}
@@ -563,7 +253,7 @@ func (session *sqlserverSession) ListLockWaits(ctx context.Context) ([]db.LockWa
 // ReadServerLoad returns the connections of the server, its connection limit and the time
 // it started.
 func (session *sqlserverSession) ReadServerLoad(ctx context.Context) (db.ServerLoad, error) {
-	rows, _, err := session.readNamedRows(ctx, readServerLoadSQL)
+	rows, _, err := session.ReadNamedRows(ctx, readServerLoadSQL)
 	if err != nil {
 		return db.ServerLoad{}, err
 	}
@@ -588,7 +278,7 @@ func (session *sqlserverSession) ListSlowStatements(
 	if !session.holdsStatementStats {
 		return nil, db.NewUnsupportedError("report slow statements")
 	}
-	rows, _, err := session.readNamedRows(ctx, listSlowStatementsSQL, limit)
+	rows, _, err := session.ReadNamedRows(ctx, listSlowStatementsSQL, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -615,7 +305,7 @@ func (session *sqlserverSession) CancelBackend(
 	if !terminate {
 		return false, db.NewUnsupportedError("cancel one statement of another session")
 	}
-	side, err := session.side.Read()
+	side, err := session.Side.Read()
 	if err != nil {
 		return false, err
 	}
@@ -628,41 +318,6 @@ func (session *sqlserverSession) CancelBackend(
 // CancelRunningQuery is refused, because the driver cancels through the context.
 func (session *sqlserverSession) CancelRunningQuery(context.Context) (bool, error) {
 	return false, db.NewUnsupportedError("cancel a running statement")
-}
-
-// Ping checks the catalog connection outside transactions. Transactional checks use the
-// user connection and skip busy connections.
-func (session *sqlserverSession) Ping(ctx context.Context) error {
-	runner, err := session.resolveCatalogRunner()
-	if err != nil {
-		return err
-	}
-	if session.transaction.ReadState() != db.TransactionNone {
-		giveBack, free := session.mainQueue.TryTake()
-		if !free {
-			return nil
-		}
-		defer giveBack()
-	}
-	_, execErr := runner.ExecContext(ctx, "select 1")
-	return execErr
-}
-
-// closeWait is the time limit for waiting to close the connection.
-const closeWait = 5 * time.Second
-
-func (session *sqlserverSession) Close() error {
-	ctx, stop := context.WithTimeout(context.Background(), closeWait)
-	defer stop()
-	if side, opened := session.side.Find(); opened {
-		_ = side.Close()
-	}
-	if giveBack, waitErr := session.mainQueue.Take(ctx); waitErr == nil {
-		defer giveBack()
-	}
-	err := session.connection.Close()
-	_ = session.pool.Close()
-	return err
 }
 
 // sqlserverAdapter opens a connection on a SQL Server.
@@ -692,21 +347,41 @@ func (adapter *sqlserverAdapter) Connect(
 			db.BuildConnectMessage(profile, connectionErr), connectionErr)
 	}
 
-	return &sqlserverSession{
-		SessionFacts: db.SessionFacts{
-			Descriptor: db.SessionDescriptor{
-				Profile: profile, ServerVersion: readServerVersion(ctx, connection),
-				DefaultSchema: readDefaultSchema(ctx, connection),
+	session := &sqlserverSession{
+		Session: sqlbase.Session{
+			SessionFacts: db.SessionFacts{
+				Descriptor: db.SessionDescriptor{
+					Profile: profile, ServerVersion: readServerVersion(ctx, connection),
+					DefaultSchema: readDefaultSchema(ctx, connection),
+				},
+				Support: adapter.support,
 			},
-			Support: adapter.support,
+			Connection: connection, Pool: pool,
+			Side: db.NewSideConnection(func() (*sql.DB, error) {
+				return openSqlserverPool(profile, password)
+			}, nil),
+			MainQueue: db.NewCallQueue(),
 		},
-		connection: connection, pool: pool,
 		holdsStatementStats: readsStatementStats(ctx, connection),
-		side: db.NewSideConnection(func() (*sql.DB, error) {
-			return openSqlserverPool(profile, password)
-		}, nil),
-		mainQueue: db.NewCallQueue(),
-	}, nil
+	}
+	session.Hooks = sqlbase.Hooks{
+		BeginStatement: "begin transaction",
+		ReportFailure: func(ctx context.Context, _ error) {
+			session.readServerTransaction(ctx)
+		},
+		WrapTransactionError: wrapFailure,
+		WrapStatementError:   wrapFailure,
+		ReadStreamColumns:    readStreamColumns,
+	}
+	return session, nil
+}
+
+// readStreamColumns returns the columns of a streamed result and the reader of one row.
+func readStreamColumns(
+	rows *sql.Rows,
+) ([]db.ResultColumn, func(*sql.Rows) ([]any, error), error) {
+	columns, reader, err := buildSqlserverColumns(rows)
+	return columns, reader.readRow, err
 }
 
 // readServerVersion returns the version of the server, as it writes it itself.

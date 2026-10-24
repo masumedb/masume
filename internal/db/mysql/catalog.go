@@ -12,7 +12,7 @@ import (
 // database of the server where it names none.
 func (session *mysqlSession) ListSchemas(ctx context.Context) ([]string, error) {
 	statement, params := buildMysqlSchemasSQL(session.profile.Database)
-	rows, _, err := session.readNamedRows(ctx, statement, params...)
+	rows, _, err := session.ReadNamedRows(ctx, statement, params...)
 	if err != nil {
 		return nil, err
 	}
@@ -27,7 +27,7 @@ func (session *mysqlSession) ListSchemas(ctx context.Context) ([]string, error) 
 
 func (session *mysqlSession) ListTables(ctx context.Context) ([]db.TableRef, error) {
 	statement, params := buildMysqlTablesSQL(session.profile.Database)
-	rows, _, err := session.readNamedRows(ctx, statement, params...)
+	rows, _, err := session.ReadNamedRows(ctx, statement, params...)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func (session *mysqlSession) ListTables(ctx context.Context) ([]db.TableRef, err
 }
 
 func (session *mysqlSession) ListRoles(ctx context.Context) ([]db.DbRole, error) {
-	rows, _, err := session.readNamedRows(ctx, listMysqlRolesSQL)
+	rows, _, err := session.ReadNamedRows(ctx, listMysqlRolesSQL)
 	if err != nil {
 		return nil, err
 	}
@@ -61,12 +61,12 @@ func (session *mysqlSession) ListRoles(ctx context.Context) ([]db.DbRole, error)
 
 func (session *mysqlSession) ListSchemaObjects(ctx context.Context) ([]db.SchemaObject, error) {
 	routineStatement, routineParams := buildMysqlRoutinesSQL(session.profile.Database)
-	routineRows, _, err := session.readNamedRows(ctx, routineStatement, routineParams...)
+	routineRows, _, err := session.ReadNamedRows(ctx, routineStatement, routineParams...)
 	if err != nil {
 		return nil, db.WrapDatabaseOperation("reading the routines", err)
 	}
 	triggerStatement, triggerParams := buildMysqlTriggersSQL(session.profile.Database)
-	triggerRows, _, triggerErr := session.readNamedRows(
+	triggerRows, _, triggerErr := session.ReadNamedRows(
 		ctx, triggerStatement, triggerParams...)
 	if triggerErr != nil {
 		return nil, db.WrapDatabaseOperation("reading the triggers", triggerErr)
@@ -111,7 +111,7 @@ func (session *mysqlSession) BuildObjectDDL(
 			string(ReadRoutineKind(object.Identity)) + " " + target
 	}
 
-	rows, _, err := session.readNamedRows(ctx, statement)
+	rows, _, err := session.ReadNamedRows(ctx, statement)
 	if err != nil {
 		return nil, err
 	}
@@ -128,12 +128,12 @@ func (session *mysqlSession) BuildObjectDDL(
 func (session *mysqlSession) DescribeTable(
 	ctx context.Context, table db.TableRef,
 ) (db.TableDetail, error) {
-	columnRows, _, err := session.readNamedRows(
+	columnRows, _, err := session.ReadNamedRows(
 		ctx, describeMysqlColumnsSQL, table.Schema, table.Name)
 	if err != nil {
 		return db.TableDetail{}, err
 	}
-	keyRows, _, keyErr := session.readNamedRows(
+	keyRows, _, keyErr := session.ReadNamedRows(
 		ctx, describeMysqlForeignKeysSQL, table.Schema, table.Name)
 	if keyErr != nil {
 		return db.TableDetail{}, keyErr
@@ -166,7 +166,7 @@ func (session *mysqlSession) DescribeTable(
 
 func (session *mysqlSession) ListRelationships(ctx context.Context) ([]db.Relationship, error) {
 	statement, params := buildMysqlRelationshipsSQL(session.profile.Database)
-	rows, _, err := session.readNamedRows(ctx, statement, params...)
+	rows, _, err := session.ReadNamedRows(ctx, statement, params...)
 	if err != nil {
 		return nil, err
 	}
@@ -183,7 +183,7 @@ func (session *mysqlSession) ListRelationships(ctx context.Context) ([]db.Relati
 func (session *mysqlSession) ListIndexes(
 	ctx context.Context, table db.TableRef,
 ) ([]db.IndexDetail, error) {
-	rows, _, err := session.readNamedRows(ctx, listMysqlIndexesSQL, table.Schema, table.Name)
+	rows, _, err := session.ReadNamedRows(ctx, listMysqlIndexesSQL, table.Schema, table.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -204,7 +204,7 @@ func (session *mysqlSession) ListIndexes(
 func (session *mysqlSession) ListConstraints(
 	ctx context.Context, table db.TableRef,
 ) ([]db.ConstraintDetail, error) {
-	rows, _, err := session.readNamedRows(
+	rows, _, err := session.ReadNamedRows(
 		ctx, listMysqlConstraintsSQL, table.Schema, table.Name)
 	if err != nil {
 		return nil, err
@@ -232,7 +232,7 @@ func (session *mysqlSession) BuildTableDDL(
 		word = "table"
 	}
 	target := session.Support.Dialect.BuildQualifiedName(table.Qualified())
-	rows, _, err := session.readNamedRows(ctx, "show create "+word+" "+target)
+	rows, _, err := session.ReadNamedRows(ctx, "show create "+word+" "+target)
 	if err != nil {
 		return nil, err
 	}
