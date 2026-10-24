@@ -979,16 +979,7 @@ func (model *Model) chooseOverlayRow(
 		return model, nil
 
 	case app.OverlayBuilderTables:
-		tables := model.filterBuilderTables(*overlay)
-		if overlay.List.Cursor >= len(tables) || !tab.BuildsQuery() {
-			return model, nil
-		}
-		picked, found := findBuilderTable(
-			connection.Catalog.Tables, tables[overlay.List.Cursor].ID)
-		if !found {
-			return model, nil
-		}
-		return model.addBuilderTable(connection, tab, picked)
+		return model.chooseBuilderTableRow(connection, tab, overlay)
 
 	case app.OverlayNotebooks:
 		return model.openNotebookRow(connection, overlay, inNewTab)
@@ -997,14 +988,7 @@ func (model *Model) chooseOverlayRow(
 		return model.openDiagramBox(connection, overlay)
 
 	case app.OverlayWritePlan:
-		blocker, found := findOpenableBlocker(overlay.Plan)
-		if !found {
-			return model, nil
-		}
-		model.answerNothing(overlay)
-		connection.CloseEveryOverlay()
-		return model.openFilteredTable(connection, blocker.Relation.Schema,
-			blocker.Relation.Name, core.FilterStep{Kind: core.FilterRaw, Text: blocker.Referencing})
+		return model.openWritePlanBlocker(connection, overlay)
 
 	case app.OverlaySaved:
 		queries := model.filterSaved(*overlay)
@@ -1041,48 +1025,14 @@ func (model *Model) chooseOverlayRow(
 		return model.runCopy(connection, tab, chosen)
 
 	case app.OverlayActionMenu:
-		actions := model.filterMenu(*overlay)
-		if overlay.List.Cursor >= len(actions) {
-			return model, nil
-		}
-		chosen := actions[overlay.List.Cursor].ID
-		connection.CloseEveryOverlay()
-		if strings.HasPrefix(chosen, dataMatchPrefix) {
-			return model.openDataMatch(connection, chosen)
-		}
-		if strings.HasPrefix(chosen, cellKindPrefix) ||
-			strings.HasPrefix(chosen, newCellKindPrefix) {
-			return model.applyCellKind(connection, tab, chosen)
-		}
-		if strings.HasPrefix(chosen, policyTransactionPrefix) ||
-			strings.HasPrefix(chosen, policyErrorPrefix) {
-			return model.applyNotebookPolicy(connection, tab, chosen)
-		}
-		action, known := FindActionID(chosen)
-		if !known {
-			return model, nil
-		}
-		scope := overlay.Scope
-		if scope == "" {
-			scope = cfg.ScopeGrid
-		}
-		if _, held := FindAction(scope, action); !held {
-			scope = cfg.ScopeGlobal
-		}
-		return model.runAction(connection, tab, Match{Action: action, Scope: scope})
+		return model.chooseActionMenuRow(connection, tab, overlay)
 
 	case app.OverlayColumns:
 		applyColumns(connection, tab, *overlay)
 		return model, nil
 
 	case app.OverlayValueFilter:
-		kept := overlay.Kept
-		columnIndex := overlay.Cell.ColumnIndex
-		available := len(overlay.Values)
-		connection.CloseEveryOverlay()
-		tab.Screen = present.ApplyValueFilter(tab.Screen, columnIndex, kept, available)
-		tab.GridRow = 0
-		return model, nil
+		return model.applyValueFilterCard(connection, tab, overlay)
 
 	case app.OverlayThemePicker:
 		choices := model.filterThemes(*overlay)
@@ -1094,36 +1044,128 @@ func (model *Model) chooseOverlayRow(
 		return model.keepTheme(connection, name)
 
 	case app.OverlayActivity:
-		sessions := app.ListShownSessions(overlay.Sessions, overlay.View)
-		if overlay.List.Cursor >= len(sessions) {
-			return model, nil
-		}
-		statement := sessions[overlay.List.Cursor].Query
-		if strings.TrimSpace(statement) == "" {
-			connection.Show("no statement is available for this session")
-			return model, nil
-		}
-		connection.CloseEveryOverlay()
-		return model.loadSQL(connection, tab, statement, inNewTab)
+		return model.loadSessionStatement(connection, tab, overlay, inNewTab)
 
 	case app.OverlayPrompt:
 		return model.answerPrompt(connection, tab, *overlay)
 
 	case app.OverlayConfirm:
-		// Enter cancels a destructive question. Only the key of the yes button confirms it.
-		if overlay.Destructive {
-			model.answerNothing(overlay)
-			connection.CloseOverlay()
-			return model, nil
-		}
-		answer := overlay.Answers.Answer
-		connection.CloseOverlay()
-		return model, model.runAnswer(answer, true)
+		return model.answerConfirmCard(connection, overlay)
 
 	case app.OverlayCellEdit:
 		return model.saveCell(connection, tab, *overlay)
 	}
 	return model, nil
+}
+
+// chooseBuilderTableRow adds the table under the cursor to the query builder.
+func (model *Model) chooseBuilderTableRow(
+	connection *app.Connection, tab *app.Tab, overlay *app.Overlay,
+) (tea.Model, tea.Cmd) {
+	tables := model.filterBuilderTables(*overlay)
+	if overlay.List.Cursor >= len(tables) || !tab.BuildsQuery() {
+		return model, nil
+	}
+	picked, found := findBuilderTable(
+		connection.Catalog.Tables, tables[overlay.List.Cursor].ID)
+	if !found {
+		return model, nil
+	}
+	return model.addBuilderTable(connection, tab, picked)
+}
+
+// openWritePlanBlocker opens the blocking table, filtered to the referencing rows.
+func (model *Model) openWritePlanBlocker(
+	connection *app.Connection, overlay *app.Overlay,
+) (tea.Model, tea.Cmd) {
+	blocker, found := findOpenableBlocker(overlay.Plan)
+	if !found {
+		return model, nil
+	}
+	model.answerNothing(overlay)
+	connection.CloseEveryOverlay()
+	return model.openFilteredTable(connection, blocker.Relation.Schema,
+		blocker.Relation.Name, core.FilterStep{Kind: core.FilterRaw, Text: blocker.Referencing})
+}
+
+// chooseActionMenuRow runs the row under the cursor of an action menu.
+func (model *Model) chooseActionMenuRow(
+	connection *app.Connection, tab *app.Tab, overlay *app.Overlay,
+) (tea.Model, tea.Cmd) {
+	actions := model.filterMenu(*overlay)
+	if overlay.List.Cursor >= len(actions) {
+		return model, nil
+	}
+	chosen := actions[overlay.List.Cursor].ID
+	connection.CloseEveryOverlay()
+	if strings.HasPrefix(chosen, dataMatchPrefix) {
+		return model.openDataMatch(connection, chosen)
+	}
+	if strings.HasPrefix(chosen, cellKindPrefix) ||
+		strings.HasPrefix(chosen, newCellKindPrefix) {
+		return model.applyCellKind(connection, tab, chosen)
+	}
+	if strings.HasPrefix(chosen, policyTransactionPrefix) ||
+		strings.HasPrefix(chosen, policyErrorPrefix) {
+		return model.applyNotebookPolicy(connection, tab, chosen)
+	}
+	action, known := FindActionID(chosen)
+	if !known {
+		return model, nil
+	}
+	scope := overlay.Scope
+	if scope == "" {
+		scope = cfg.ScopeGrid
+	}
+	if _, held := FindAction(scope, action); !held {
+		scope = cfg.ScopeGlobal
+	}
+	return model.runAction(connection, tab, Match{Action: action, Scope: scope})
+}
+
+// applyValueFilterCard keeps the rows of the values the card has ticked.
+func (model *Model) applyValueFilterCard(
+	connection *app.Connection, tab *app.Tab, overlay *app.Overlay,
+) (tea.Model, tea.Cmd) {
+	kept := overlay.Kept
+	columnIndex := overlay.Cell.ColumnIndex
+	available := len(overlay.Values)
+	connection.CloseEveryOverlay()
+	tab.Screen = present.ApplyValueFilter(tab.Screen, columnIndex, kept, available)
+	tab.GridRow = 0
+	return model, nil
+}
+
+// loadSessionStatement writes the statement of the session under the cursor into a tab.
+func (model *Model) loadSessionStatement(
+	connection *app.Connection, tab *app.Tab, overlay *app.Overlay, inNewTab bool,
+) (tea.Model, tea.Cmd) {
+	sessions := app.ListShownSessions(overlay.Sessions, overlay.View)
+	if overlay.List.Cursor >= len(sessions) {
+		return model, nil
+	}
+	statement := sessions[overlay.List.Cursor].Query
+	if strings.TrimSpace(statement) == "" {
+		connection.Show("no statement is available for this session")
+		return model, nil
+	}
+	connection.CloseEveryOverlay()
+	return model.loadSQL(connection, tab, statement, inNewTab)
+}
+
+// answerConfirmCard answers a question with Enter.
+func (model *Model) answerConfirmCard(
+	connection *app.Connection, overlay *app.Overlay,
+) (tea.Model, tea.Cmd) {
+	// Enter cancels a destructive question. Only the key of the yes button confirms it.
+	if overlay.Destructive {
+		model.answerNothing(overlay)
+		connection.CloseOverlay()
+		return model, nil
+	}
+	answer := overlay.Answers.Answer
+	connection.CloseOverlay()
+	return model, model.runAnswer(answer, true)
 }
 
 // loadSQL writes a statement into this tab, or into a new one.
