@@ -12,6 +12,9 @@ func describeColumnSource(column ColumnDetail, dialect *query.Dialect) string {
 	if column.IsIdentityAlways {
 		return dialect.IdentityClause
 	}
+	if column.IsIdentityByDefault {
+		return dialect.IdentityByDefaultClause
+	}
 	if column.IsGenerated {
 		if !column.HasDefault || dialect.RenderGeneratedColumn == nil {
 			return ""

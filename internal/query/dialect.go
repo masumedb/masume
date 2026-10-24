@@ -113,6 +113,9 @@ type Dialect struct {
 	// IdentityClause is what a CREATE TABLE writes after the type of a column the server
 	// numbers itself. A dialect that leaves it unset writes none.
 	IdentityClause string
+	// IdentityByDefaultClause is what a CREATE TABLE writes after the type of a column the
+	// server numbers where an INSERT leaves it out. A dialect that leaves it unset writes none.
+	IdentityByDefaultClause string
 	// RenderGeneratedColumn writes what a CREATE TABLE puts after the type of a column the
 	// server computes from that expression. A dialect that leaves it unset writes none.
 	RenderGeneratedColumn func(expression string) string

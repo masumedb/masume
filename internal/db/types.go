@@ -76,6 +76,9 @@ type ColumnDetail struct {
 	// statement overrides that. A PostgreSQL GENERATED ALWAYS identity and a SQL Server
 	// IDENTITY are both this.
 	IsIdentityAlways bool
+	// The server numbers this column where an INSERT leaves it out. A PostgreSQL GENERATED
+	// BY DEFAULT identity is this.
+	IsIdentityByDefault bool
 	// Only an enum column has these.
 	Choices []string
 }
