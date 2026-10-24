@@ -101,21 +101,6 @@ command         = "ssh -N -L 15432:db.internal:5432 jump.example.com"
 command_timeout = 10
 wait_for_port   = 15432
 
-[ui]
-icons               = "plain"
-theme               = "ayu-dark"
-hide_system_schemas = true
-key_hints           = "full"
-timezone            = "server"
-wrap_lines          = false
-notify_after        = 10
-
-[keys]
-preset = "default"
-
-[notebooks]
-paths = []
-
 # Notebook directories. The list always holds <project root>/.masume/notebooks and
 # $XDG_STATE_HOME/masume/notebooks. See docs/notebooks.md.
 #
@@ -143,7 +128,7 @@ paths = []
 #
 # [profile.a-name]
 # engine               = "postgres"   # postgres mysql sqlserver clickhouse sqlite mongodb redis
-#                                     # timescale redshift neon supabase mariadb tidb
+#                                     # cockroach timescale redshift neon supabase mariadb tidb
 #                                     # planetscale aurora-mysql aurora-postgres
 #                                     # turso azure-sql documentdb
 #                                     # yugabyte cassandra scylladb
@@ -153,7 +138,7 @@ paths = []
 # user                 = "you"
 # auth                 = "password"   # password command prompt keyring secret
 # The default auth is secret when secret is set, otherwise command when password_command is set, otherwise password.
-# auth = "password" reads password_env. A password key in this file is ignored.
+# With auth "password", masume reads password_env. A password key in this file is ignored.
 # password_env         = "PGPASSWORD" # read the password from this environment variable
 # password_command     = "pass db/shop"   # read the password from the output of this command
 # secret               = "work"       # read the password from this [secret] store
@@ -167,11 +152,11 @@ paths = []
 # sslrootcert          = "~/.certs/rds-ca.pem"   # certificate authority bundle. without it the system trust store applies
 # sslcert              = "~/.certs/client.pem"   # client certificate the server asks for
 # sslkey               = "~/.certs/client.key"   # private key of sslcert. set with sslcert
-# direct_connection    = false        # mongodb only. true connects to host only, without replica set discovery
+# direct_connection    = false        # mongodb and documentdb. true connects to host only, without replica set discovery
 # statement_timeout_ms = 0            # time limit per statement. 0 uses the server default
 # keepalive_s          = 30           # seconds between connection checks. 0 disables the keepalive
 # page_size            = 200          # rows the grid loads per page
-# host = "socket" or a path connects over a unix socket.
+# A host of "socket" or a path connects over a unix socket.
 # postgres takes the socket directory, mysql the socket file.
 # ssh_host             = "ssh.example.com"   # ssh server host. set to open a tunnel
 # ssh_port             = 22
@@ -192,8 +177,7 @@ paths = []
 # Environment defaults apply to absent file settings. Changing env in the form does not change confirmation.
 # Undo covers eligible single updates, deletes and truncates. Captured target rows exclude cascades and trigger effects.
 # A later undo can overwrite newer values. Grid changes and imports retain no undo. See docs/configuration.md for eligibility and failures.
-# Unset TLS uses prefer on PostgreSQL, MySQL, MariaDB, CockroachDB, TimescaleDB, TiDB, Aurora MySQL and Aurora PostgreSQL, require on Redshift, Neon, Supabase, PlanetScale, Turso, Azure SQL Database and Amazon DocumentDB, and none on MongoDB.
-# MongoDB allow and prefer use TLS without an unencrypted fallback. SQLite ignores TLS.
+# Each engine has its own default sslmode and its own allow and prefer behaviour. See docs/configuration.md#tls.
 # Relative SQLite paths in a project file use the project directory. Other relative SQLite paths use the startup directory.
 
 # [ui]
@@ -296,242 +280,19 @@ paths = []
 # env_test     = "#e0af68"
 # env_prod     = "#f7768e"
 
-# Key bindings by scope, with default preset chords. A configured action replaces the preset binding.
-# Unlisted actions retain the preset binding. An empty list removes the binding.
+# Key bindings by scope. A configured action replaces the preset binding. Unlisted actions
+# retain the preset binding. An empty list removes the binding. docs/keys.md lists every
+# scope, action and default chord.
 #
 # [keys]
 # preset = "default"
 #
-# [keys.global]   # handled in every pane
-# activate-tab         = ["meta+digit"]
-# ai-fix-error         = ["ctrl+h"]
-# begin-transaction    = ["ctrl+b"]
-# cancel-query         = ["ctrl+x"]
-# close-connection     = ["ctrl+w"]
-# close-tab            = ["meta+w"]
-# commit-transaction   = ["ctrl+l"]
-# explain              = ["ctrl+e"]
-# explain-analyze      = ["ctrl+y"]
-# export-csv           = ["ctrl+s"]
-# export-json          = ["ctrl+g"]
-# flip-split-view      = ["meta+shift+v"]
-# focus-editor         = ["meta+p e"]
-# focus-next-pane      = ["tab"]
-# focus-other-side     = ["meta+p v"]
-# focus-previous-pane  = ["shift+tab"]
-# focus-result         = ["meta+p r"]
-# focus-sidebar        = ["meta+p s"]
-# name-tab             = ["meta+t"]
-# new-query-tab        = ["meta+n"]
-# next-connection      = ["}", "meta+right"]
-# next-page            = ["ctrl+f"]
-# next-statement       = ["'"]
-# next-tab             = ["]", "meta+down"]
-# next-view            = ["."]
-# open-picker          = ["ctrl+n"]
-# previous-connection  = ["{", "meta+left"]
-# previous-statement   = [";"]
-# previous-tab         = ["[", "meta+up"]
-# previous-view        = [","]
-# refresh-objects      = ["f5"]
-# reopen-tab           = ["meta+shift+w"]
-# reveal-sql           = ["meta+e"]
-# rollback-transaction = ["ctrl+u"]
-# run-at-cursor        = ["ctrl+r"]
-# run-batch            = ["meta+r"]
-# save-query           = ["ctrl+p"]
-# select-view          = ["digit"]
-# send-to-ai           = ["meta+i"]
-# show-activity        = ["meta+o a"]
-# show-ai-chat         = ["ctrl+i"]
-# show-help            = ["?"]
-# show-history         = ["ctrl+t"]
-# show-palette         = ["ctrl+k"]
-# show-saved           = ["ctrl+q"]
-# show-themes          = ["meta+o t"]
-# toggle-autocommit    = ["ctrl+o"]
-# toggle-result        = ["meta+d"]
-# toggle-sidebar       = ["meta+s"]
-# toggle-split-view    = ["meta+v"]
-# undo-write           = ["meta+u"]
+# [keys.global]
+# refresh-objects = []
+# run-at-cursor   = ["ctrl+r", "f5"]
 #
-# [keys.grid]   # the rows of the result
-# add-sort-column    = ["shift+s"]
-# clear-rewrites     = ["c"]
-# copy-csv           = ["shift+c c"]
-# copy-inserts       = ["shift+c i"]
-# copy-json          = ["shift+c j"]
-# copy-markdown      = ["shift+c m"]
-# copy-menu          = ["y"]
-# count-rows         = ["t"]
-# cursor-down        = ["down"]
-# cursor-first-row   = ["home"]
-# cursor-last-row    = ["end"]
-# cursor-left        = ["left"]
-# cursor-page-down   = ["pagedown"]
-# cursor-page-up     = ["pageup"]
-# cursor-right       = ["right"]
-# cursor-up          = ["up"]
-# discard-changes    = ["shift+x"]
-# duplicate-row      = ["shift+d"]
-# edit-cell          = ["e"]
-# exclude-cell       = ["x"]
-# filter-by-cell     = ["f"]
-# filter-by-values   = ["shift+f"]
-# filter-where       = ["w"]
-# follow-foreign-key = ["g"]
-# freeze-columns     = ["z"]
-# go-to-column       = ["a"]
-# insert-row         = ["n"]
-# open-menu          = ["m"]
-# open-row           = ["return"]
-# pop-filter         = ["u"]
-# redo-change        = ["ctrl+shift+z", "shift+z"]
-# review-changes     = ["p"]
-# search-columns     = ["/"]
-# sort-column        = ["s"]
-# toggle-delete      = ["d"]
-# toggle-masking     = ["shift+m"]
-# undo-change        = ["ctrl+z"]
-# view-cell          = ["v"]
-#
-# [keys.document]   # the document tree
-# clear-rewrites   = ["c"]
-# copy-path        = ["shift+y"]
-# copy-value       = ["y"]
-# count-rows       = ["t"]
-# cursor-down      = ["down"]
-# cursor-first-row = ["home"]
-# cursor-last-row  = ["end"]
-# cursor-page-down = ["pagedown"]
-# cursor-page-up   = ["pageup"]
-# cursor-up        = ["up"]
-# fold-row         = ["left"]
-# open-node        = ["return"]
-# pop-filter       = ["u"]
-# search-columns   = ["/"]
-# unfold-row       = ["right"]
-#
-# [keys.plan]   # the plan of a statement
-# ai-check-plan   = ["i"]
-# copy-plan       = ["y"]
-# toggle-raw-plan = ["r"]
-#
-# [keys.tree]   # the object tree
-# cursor-down           = ["down"]
-# cursor-first-row      = ["home"]
-# cursor-last-row       = ["end"]
-# cursor-page-down      = ["pagedown"]
-# cursor-page-up        = ["pageup"]
-# cursor-up             = ["up"]
-# describe-table        = ["i"]
-# filter-tree           = ["/"]
-# fold-row              = ["left"]
-# object-menu           = ["m"]
-# open-in-new-tab       = ["o"]
-# open-node             = ["return"]
-# toggle-favourite      = ["f"]
-# toggle-system-schemas = ["h"]
-# unfold-row            = ["right"]
-#
-# [keys.editor]   # the statement, while the caret is in it
-# caret-down           = ["down", "shift+down"]
-# caret-left           = ["left", "shift+left"]
-# caret-line-end       = ["end", "shift+end"]
-# caret-line-start     = ["home", "shift+home"]
-# caret-page-down      = ["pagedown", "shift+pagedown"]
-# caret-page-up        = ["pageup", "shift+pageup"]
-# caret-right          = ["right", "shift+right"]
-# caret-text-end       = ["ctrl+end", "ctrl+shift+end"]
-# caret-text-start     = ["ctrl+home", "ctrl+shift+home"]
-# caret-up             = ["up", "shift+up"]
-# caret-word-left      = ["ctrl+left", "ctrl+shift+left"]
-# caret-word-right     = ["ctrl+right", "ctrl+shift+right"]
-# comment-lines        = ["meta+c"]
-# delete-back          = ["backspace"]
-# delete-forward       = ["delete"]
-# delete-word-back     = ["ctrl+backspace", "meta+backspace"]
-# delete-word-forward  = ["ctrl+delete", "meta+delete"]
-# find-in-statement    = ["meta+f"]
-# format-sql           = ["ctrl+d"]
-# indent-lines         = ["meta+]"]
-# next-match           = ["f3"]
-# next-problem         = ["f8"]
-# open-line            = ["return"]
-# outdent-lines        = ["meta+["]
-# paste-text           = ["ctrl+v"]
-# previous-match       = ["shift+f3"]
-# redo-edit            = ["ctrl+shift+z", "meta+z"]
-# select-all           = ["ctrl+a"]
-# undo-edit            = ["ctrl+z"]
-#
-# [keys.notebook]   # the cell list of a notebook tab
-# add-cell-above       = ["a"]
-# add-cell-below       = ["b"]
-# copy-cell            = ["y"]
-# cursor-down          = ["down", "j"]
-# cursor-first-row     = ["home"]
-# cursor-last-row      = ["end"]
-# cursor-up            = ["up", "k"]
-# cut-cell             = ["x"]
-# delete-cell          = ["d d"]
-# edit-cell-source     = ["return"]
-# mark-cell            = ["space"]
-# move-cell-down       = ["J"]
-# move-cell-up         = ["K"]
-# name-cell            = ["t"]
-# paste-cell           = ["p"]
-# redo-cell-change     = ["Z"]
-# run-cell             = ["r"]
-# run-from-cell        = ["R"]
-# run-marked-cells     = ["m"]
-# set-cell-kind        = ["c"]
-# toggle-cell-output   = ["o"]
-# toggle-every-output  = ["O"]
-# undo-cell-change     = ["u"]
-#
-# [keys.list]   # any list with its own cursor
-# choose-row       = ["return"]
-# cursor-down      = ["down"]
-# cursor-first-row = ["home"]
-# cursor-last-row  = ["end"]
-# cursor-page-down = ["pagedown"]
-# cursor-page-up   = ["pageup"]
-# cursor-up        = ["up"]
-#
-# [keys.dialog]   # the active dialog card
-# answer-no         = ["n"]
-# answer-yes        = ["y"]
-# apply-changes     = ["ctrl+y"]
-# close             = ["escape"]
-# copy-value        = ["ctrl+a", "y"]
-# delete-connection = ["d"]
-# discard-changes   = ["x"]
-# edit-connection   = ["e"]
-# insert-ai-sql     = ["ctrl+j"]
-# keep-all-values   = ["a"]
-# keep-only-value   = ["o"]
-# list-secondary    = ["ctrl+d"]
-# new-ai-chat       = ["ctrl+l"]
-# new-connection    = ["n"]
-# next-turn         = ["ctrl+n"]
-# open-in-new-tab   = ["meta+return"]
-# prettify-json     = ["ctrl+f"]
-# previous-turn     = ["ctrl+p"]
-# replace-in-statement = ["ctrl+r"]   # in the find field, replace the matches instead of marking them
-# run-with-values   = ["ctrl+r"]
-# save-cell         = ["ctrl+s"]
-# save-form         = ["ctrl+s"]
-# scroll-back       = ["pageup"]
-# scroll-forward    = ["pagedown"]
-# set-default       = ["ctrl+d"]
-# set-empty         = ["ctrl+e"]
-# set-null          = ["ctrl+l"]
-# show-ai-chats     = ["ctrl+o"]
-# stop-ai-reply     = ["ctrl+x"]
-# test-connection   = ["ctrl+t"]
-# toggle-value      = ["space"]
-# write-export      = ["ctrl+s"]
+# [keys.grid]
+# copy-menu = ["alt+y"]
 
 # The version masume wrote the file at. masume adds what a newer version brings to an older
 # file. See docs/configuration.md#file-version.
@@ -593,7 +354,7 @@ paths = []
 # command = "npx"
 # args    = ["-y", "@zed-industries/claude-code-acp"]
 # model   = "haiku"                   # default sonnet haiku. Empty keeps the model of the agent.
-# env     = []                        # extra environment, as NAME=VALUE. An empty value clears one.
+# env     = ["CLAUDECODE="]           # extra environment, as NAME=VALUE. An empty value clears one.
 #
 # [ai.agents.opencode]
 # command = "opencode"

@@ -31,17 +31,17 @@ Every change must pass this command. It needs no server:
 mise run check
 ```
 
-The gate checks gofmt formatting, import grouping, `go vet`, staticcheck, errcheck, deadcode, and known vulnerabilities through govulncheck. It also runs the full untagged test suite with the race detector. Formatting checks report errors without editing source files.
+The gate checks gofmt formatting, import grouping, `go vet`, staticcheck, errcheck, deadcode, the GoReleaser configuration, the npm package script, and known vulnerabilities through govulncheck. It also runs the full untagged test suite with the race detector. Formatting checks report errors without editing source files.
 
-CI has separate lint, vulnerability, test, build, and integration jobs. The lint job checks formatting, imports, vet, staticcheck, and errcheck. CI does not run deadcode. The race suite runs on Linux and macOS.
+CI has separate lint, vulnerability, test, build, Windows, and integration jobs. The lint job checks formatting, imports, vet, staticcheck, errcheck, and the GoReleaser configuration. CI does not run deadcode or the npm package check. The race suite runs on Linux and macOS.
 
-The build job runs the binary's version and help commands on Linux. It also cross-builds Linux ARM64, macOS AMD64, and macOS ARM64.
+The build job runs the binary's version and help commands on Linux. It also cross-builds Linux ARM64, macOS AMD64, macOS ARM64, Windows AMD64, and Windows ARM64. The Windows job runs `go vet`, builds the binary, and runs its version and help commands on Windows.
 
 You can also run the steps separately:
 
 ```sh
 mise run fmt          # format the source and group the imports
-mise run lint         # formatting, imports, vet, staticcheck, errcheck, deadcode
+mise run lint         # formatting, imports, vet, staticcheck, errcheck, deadcode, release-check, packaging-check
 mise run test         # the test suite
 mise run race         # the test suite with the race detector
 mise run vuln         # govulncheck
@@ -59,19 +59,21 @@ mise run test-integration-full   # start the servers, run the tests, stop the se
 
 CI runs three integration combinations:
 
-| Combination | PostgreSQL | MySQL protocol | MongoDB |
-| --- | --- | --- | --- |
-| Current | 18 | MySQL 8.4 | 8 |
-| Oldest supported | 14 | MySQL 8.0 | 8 |
-| MariaDB | 18 | MariaDB 11 | 8 |
+| Combination | PostgreSQL | MySQL protocol | SQL Server | ClickHouse |
+| --- | --- | --- | --- | --- |
+| Current | 18 | MySQL 8.4 | 2022 | 25.8 |
+| Oldest supported | 14 | MySQL 8.0 | 2019 | 24.8 |
+| MariaDB | 18 | MariaDB 11 | 2022 | 25.8 |
 
-Every combination includes MongoDB standalone, authenticated, and single-member replica-set deployments. SQLite tests use temporary files without a server.
+Every combination uses the `compose.yaml` images of CockroachDB, Cassandra, Redis, libSQL, and MongoDB 8.2. MongoDB runs as standalone, authenticated, and single-member replica-set deployments. SQLite tests use temporary files without a server.
 
 This command selects the oldest-supported combination:
 
 ```sh
 MASUME_TEST_POSTGRES_IMAGE=postgres:14-alpine \
 MASUME_TEST_MYSQL_IMAGE=mysql:8.0 \
+MASUME_TEST_SQLSERVER_IMAGE=mcr.microsoft.com/mssql/server:2019-latest \
+MASUME_TEST_CLICKHOUSE_IMAGE=clickhouse/clickhouse-server:24.8-alpine \
   mise run test-integration-full
 ```
 
@@ -80,12 +82,13 @@ MASUME_TEST_MYSQL_IMAGE=mysql:8.0 \
 They use the postgres container, the schema in `vhs/seed.sql`, and the notebook in `vhs/notebook.masume.md`:
 
 ```sh
-mise run demo           # vhs/demo.mp4, the README recording
-mise run demo-notebook  # vhs/notebook.mp4, the notebook recording
+mise run demo           # vhs/demo.mp4
+mise run demo-notebook  # vhs/notebook.mp4
 mise run shots          # the screenshots in vhs/shots
+mise run shot-chat      # vhs/shots/20-ai-chat.png, needs opencode with a signed-in account
 ```
 
-All three need Docker and install VHS, ttyd, and FFmpeg through mise when they run. `vhs/config.toml` contains the glyph settings, which need a Nerd Font. Rebuild captures when a change affects the displayed content.
+The README shows `vhs/demo.gif`. No task writes it. All four tasks need Docker and install VHS, ttyd, and FFmpeg through mise when they run. `vhs/config.toml` contains the glyph settings, which need a Nerd Font. Rebuild captures when a change affects the displayed content.
 
 ## Code style
 
@@ -119,7 +122,7 @@ The whole tree follows one style. Read a file next to the one you change.
 ## Commits and pull requests
 
 - One commit per idea. Keep a rename or a move in its own commit.
-- The subject is one imperative line under 72 characters, without a prefix or full stop: `read MariaDB statement plans`.
+- The subject is one imperative line under 72 characters, without a full stop. A defect fix has the prefix `fix:`, as in `fix: redial a dropped SSH tunnel`. Other commits have no prefix, as in `read MariaDB statement plans`.
 - The body contains facts about behavior and verification, without design rationale or conversation references.
 - A rename updates every reference in the same commit.
 - Fill in the pull request template. Tick only the boxes for checks you ran.

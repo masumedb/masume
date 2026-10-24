@@ -57,11 +57,13 @@ scoop install masumedb/masume
 
 Update: `scoop update` then `scoop update masume`
 
-**Script** (installs to `~/.local/bin`)
+**Script** (Linux and macOS, installs to `~/.local/bin`)
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/masumedb/masume/master/install.sh | sh
 ```
+
+`MASUME_INSTALL_DIR` is the install directory, and `MASUME_VERSION` is the release tag, such as `v0.0.9`. The default is the latest release. The script checks the archive against `checksums.txt`.
 
 Update: run the script again. masume does not update itself.
 
@@ -101,6 +103,13 @@ mise run install
 Update: `git pull`, then `mise run install`.
 
 The packages and archives are on the [releases page](https://github.com/masumedb/masume/releases/latest). For an archive, unpack the `tar.gz`, or the `zip` on Windows, and put `masume` on the PATH.
+
+Each release has a `checksums.txt` with the SHA-256 sum of every file, and a build provenance attestation for the archives, the packages and `checksums.txt`:
+
+```sh
+sha256sum -c checksums.txt --ignore-missing
+gh attestation verify masume_<version>_linux_<arch>.tar.gz --repo masumedb/masume
+```
 
 ## Quick start
 
@@ -230,33 +239,35 @@ See [headless mode](docs/headless.md) for formats, exit codes, dump, restore, sc
 masume                                   open the client
 masume TARGET                            open a connection, postgres://you@host/shop
 masume --profile NAME                    open a user or project profile
-masume --detect                          open detected container and pod databases
+masume --detect                          open the picker with detected container and pod databases
 masume run [TARGET | -p NAME] STATEMENT  run statements
 masume nb run [TARGET | -p NAME] FILE    run a notebook
 masume dump [TARGET | -p NAME] FILE      dump schema and data
 masume restore [TARGET | -p NAME] FILE   restore a dump
 masume diff SOURCE TARGET                compare the schemas of two connections
-masume --mcp                             serve allowed MCP profiles
-masume --mcp --profile NAME              serve one allowed MCP profile
+masume FILE.masume.md                    open a notebook file
+masume --mcp                             serve allowed profiles over JSON-RPC on stdio
+masume --mcp --profile NAME              serve one allowed profile
 masume --mcp --check                     check enabled MCP profiles
-masume --version                         print the version
+masume --version, -v                     print the version
+masume --help, -h                        print the help
 ```
 
-A URL query key without a profile key of its own is passed to the driver. See [connection targets](docs/usage.md#connection-targets) and [driver options](docs/configuration.md#driver-options).
+Each command takes `--help`. A URL query key without a profile key of its own is passed to the driver. See [connection targets](docs/usage.md#connection-targets), [driver options](docs/configuration.md#driver-options), and [headless mode](docs/headless.md).
 
 ## Docs
 
 | Page | About |
 | --- | --- |
 | [User guide](docs/usage.md) | Workflows, navigation, editing, data transfer, and troubleshooting |
-| [Notebooks](docs/notebooks.md) | Cells, charts, run policy, the file format, and `masume nb run` |
+| [Notebooks](docs/notebooks.md) | Cells, charts, run policy, and the file format |
 | [Configuration](docs/configuration.md) | Settings, defaults, profiles, and password sources |
-| [Engines](docs/engines.md) | Protocols and capabilities |
+| [Engines](docs/engines.md) | Protocols, capabilities, ports, and data tools |
 | [Keys](docs/keys.md) | Default bindings, scopes, and overrides |
 | [Themes](docs/themes.md) | Built-in and custom themes |
 | [AI chat](docs/ai.md) | Providers, tools, and data sent to the provider |
 | [MCP server](docs/mcp.md) | Tools, limits, and write confirmation |
-| [Headless mode](docs/headless.md) | `masume run` for scripts and CI |
+| [Headless mode](docs/headless.md) | `masume run`, `nb run`, `dump`, `restore`, and `diff` for scripts and CI |
 | [Security](SECURITY.md) | Storage, data sharing, and protection limits |
 
 ## Contributing

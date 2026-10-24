@@ -37,7 +37,7 @@ masume --profile shop-prod
 
 | Form | Accepted values |
 | --- | --- |
-| A URL | Supported schemes: `postgres`, `postgresql`, `mysql`, `mariadb`, `cockroachdb`, `yugabytedb`, `redshift`, `sqlserver`, `mssql`, `clickhouse`, `cassandra`, `scylla`, `libsql`, `redis`, `rediss`, `mongodb`, `mongodb+srv` |
+| A URL | A scheme from the URL scheme column of [data tools](engines.md#data-tools) |
 | A connection string | `key=value` pairs: `engine`, `host`, `hostaddr`, `port`, `dbname`, `database`, `user`, `password`, `sslmode`, `sslrootcert`, `sslcert`, `sslkey`. The default engine is `postgres` |
 | A file path | A SQLite path ending in `.db`, `.db3`, `.sqlite` or `.sqlite3`. A file with another extension must have a SQLite header. `:memory:` is also accepted |
 
@@ -122,7 +122,7 @@ Completion opens while typing, and `Ctrl+Space` opens it for the word under the 
 
 Completion lists the columns of the statement at the caret, the columns of the result on screen, and the catalog relations, routines and schemas. A term matches a candidate at its start or anywhere inside it. A term of three or more letters with the same first letter also matches by its letters in order: `plat` matches `placed_at`.
 
-Shift with a movement key extends the selection. `Ctrl+A` selects all editor text. `Ctrl+C` copies and keeps the selection. A second `Ctrl+C` quits, after a confirmation for staged changes and open transactions. With a transaction open, the confirmation offers `Ctrl+L` to commit and quit, or a rollback and quit. `Ctrl+D` formats SQL and keeps the caret on the same token. `Alt+C` toggles line comments. `Alt+[` or `Alt+]` changes indentation. `Alt+L` wraps long lines, or scrolls them again. While lines wrap, Up and Down move one screen row.
+Shift with a movement key extends the selection. `Ctrl+A` selects all editor text. `Ctrl+C` copies and keeps the selection. A second `Ctrl+C` quits, after a confirmation for staged changes and open transactions. With a transaction open, the confirmation offers `Ctrl+L` to commit and quit, or a rollback and quit. The commit on quit has a time limit of 30 seconds. `Ctrl+D` formats SQL and keeps the caret on the same token. `Alt+C` toggles line comments. `Alt+[` or `Alt+]` changes indentation. `Alt+L` wraps long lines, or scrolls them again. While lines wrap, Up and Down move one screen row.
 
 `Alt+F` opens Find. Enter applies the search. The row under the field shows the match count as the term is typed. `Alt+W` matches whole words only. `F3` and `Shift+F3` select the next or previous match. The search matches plain substrings, including matches inside longer names.
 
@@ -131,6 +131,8 @@ To replace, type the search term in Find and press `Ctrl+R`. Then type the repla
 Search and replacement cover the whole editor buffer, including other statements, comments, and strings. A lowercase term matches either case. A term with a capital letter matches that case only. If lowercasing changes the byte length of the text, matching uses the original case.
 
 `F8` moves to the next reported SQL error. Editor undo is `Ctrl+Z`. Redo is `Ctrl+Shift+Z` or `Alt+Z`.
+
+When a failed statement has an unknown table or column name that is close to a catalog name, the error shows `did you mean NAME?`. `Alt+A` writes that name over the unknown name in the editor.
 
 ## Running SQL
 
@@ -155,7 +157,7 @@ Quitting clears the report. Inside tmux this needs `set -g allow-passthrough on`
 
 A read-only profile rejects writes. Other profiles can confirm writes and show a write plan. Check the SQL and the affected rows before accepting. See [write guards](configuration.md#profiles) and [write plans](configuration.md#write-plans).
 
-`Ctrl+X` cancels the running query and stops a running export. Cancellation depends on the engine. Amazon DocumentDB, Cassandra, PlanetScale, Redis, and Turso cannot cancel a statement. On these engines the key is hidden, and the run spinner has the note `this engine cannot stop a running statement`. `Ctrl+C` copies or quits.
+`Ctrl+X` cancels the running query, a running grid write, a running begin, commit or rollback, and a running export. The status bar shows `running` and the operation while it runs. Cancellation depends on the engine. Amazon DocumentDB, Cassandra, PlanetScale, Redis, and Turso cannot cancel a statement. On these engines the key is hidden, and the run spinner has the note `this engine cannot stop a running statement`. `Ctrl+C` copies or quits.
 
 ## Transactions
 
@@ -182,7 +184,7 @@ Table tabs show Data, Columns, Indexes, Constraints, DDL, and Plan where support
 
 Tree appears when a result contains documents or structured values. Left and Right collapse and expand nodes. Enter opens a node. `y` copies the value. `Shift+Y` copies its path. `/`, `u`, and `c` search and reset as in the grid.
 
-In Data, the arrow keys move between cells. `v` opens the full cell value. Enter opens the full row. `g` follows a foreign key. `a` finds a column by name. `z` freezes or unfreezes the current column at the left.
+In Data, the arrow keys move between cells. `v` opens the full cell value. Enter opens the full row. `g` follows a foreign key. `a` finds a column by name. `z` freezes or unfreezes the current column at the left. `Alt+Shift+Left` and `Alt+Shift+Right` move the current column.
 
 A binary value longer than 32 bytes shows its first 32 bytes in hex and its size, as in `\x89504e47… (4.2MB)`. The cell viewer, the row viewer, copies, and exports use the whole value.
 
@@ -236,7 +238,7 @@ An active screen filter turns off automatic paging in both Data and Tree. `Ctrl+
 
 ## Editing rows
 
-Grid writes need a writable profile, a single identifiable table, loaded column metadata, and a primary key. Updates and deletes need every primary-key column in the result. Joins and other results without a single table cannot be edited. Views, materialized views, and generated columns are not editable through the grid.
+Grid writes need a writable profile, a single identifiable table, loaded column metadata, and a primary key. On a read-only profile, `e`, `d`, `D` and `n` stage nothing and show `this connection is read-only; grid writes need a writable profile`. Updates and deletes need every primary-key column in the result. Joins and other results without a single table cannot be edited. Views, materialized views, and generated columns are not editable through the grid.
 
 | Key | Staged operation |
 | --- | --- |
@@ -288,7 +290,7 @@ Result JSON exports and copies keep JSON nulls and native numbers and booleans. 
 
 ## Importing files
 
-In the explorer, select a table, press `m`, and choose Import a file. The schema menu imports into a new table. Cassandra and ScyllaDB import into an existing table only. Imports support every SQL engine, and MongoDB as described in [MongoDB import](#mongodb-import). Read-only connections reject imports.
+In the explorer, select a table, press `m`, and choose Import a file. The schema menu imports into a new table. Cassandra and ScyllaDB import into an existing table only. [Data tools](engines.md#data-tools) lists the engines with import. MongoDB and Amazon DocumentDB import documents, as described in [MongoDB import](#mongodb-import). Read-only connections reject imports.
 
 ![The import form](../vhs/shots/18-import-form.png)
 
@@ -317,6 +319,8 @@ The import skips rows that fail local validation. Accepted rows can still fail o
 
 Imports reject an open transaction. Each import starts a transaction and tries to commit the accepted rows together. A batch has at most 1000 rows, and some engines use smaller batches. A write failure rolls back the transaction, and a rollback error appears on the card.
 
+ClickHouse, Cassandra, and ScyllaDB have no transactions. On these engines the import writes the batches one after another, and Cassandra and ScyllaDB write one `INSERT` per row. After a failure, the rows of the earlier batches stay written. A table that the import created is dropped after a failure.
+
 Rollback depends on engine and table support. MySQL-family DDL can commit implicitly. Nontransactional tables cannot roll back writes. An import that creates a table is not always all-or-nothing.
 
 Imports keep no undo and do not use `write_plan`. The input must be UTF-8: CSV, a JSON array of objects, or newline-delimited JSON objects.
@@ -343,13 +347,13 @@ In the explorer, select a schema, press `m`, and choose Dump the schema. The for
 
 During a dump, the card shows a progress bar of the tables written, the table being read, and the rows written so far. During a restore, the card counts the statements that ran. Esc stops either one.
 
-A dump contains the types, sequences, and functions of the schema, then its tables and their rows, the views on them, and its triggers. Each table comes after the tables that its foreign keys reference. Roles, grants, and owners are not written. Rows are read in batches, and a large table is never held in memory whole. The file is written next to the target, moved over the target at the end, and readable only by its owner.
+A dump contains the types, sequences, and functions of the schema, then its tables and their rows, the views on them, and its triggers. On PostgreSQL the types are enum, domain, composite, and range types, and a dump with rows sets each sequence to its current value with `setval`. Each table comes after the tables that its foreign keys reference. Roles, grants, and owners are not written. Rows are read in batches, and a large table is never held in memory whole. The file is written next to the target, moved over the target at the end, and readable only by its owner.
 
 The table menu dumps one table with the types and sequences it uses, without the other objects and the views of the schema. The dump creates each of those types and sequences only where it is missing, and never drops one.
 
 To run a `.sql` file, select a schema, press `m`, and choose Restore a dump. Pick the file, then press Enter. The statements run on the open connection, one at a time and in file order, like editor statements. With autocommit off, masume opens one transaction and leaves it open for an explicit commit. A failure stops the run, and the card shows the failed statement. With autocommit on, the writes of the earlier statements stay. Restore rejects an open transaction and a read-only connection. Restored statements are not added to the query history.
 
-Dump and restore need an engine that reports object definitions. See [engine support](engines.md). `masume dump` and `masume restore` do the same in [headless mode](headless.md#dump-and-restore).
+[Data tools](engines.md#data-tools) lists the engines with dump and restore. `masume dump` and `masume restore` do the same in [headless mode](headless.md#dump-and-restore).
 
 ## Schema compare
 
@@ -393,7 +397,7 @@ On the next connect, masume restores each tab with its query text or notebook te
 
 Each side shows one tab of any open connection. The keys, the explorer, the tab row, and the status bar apply to the side with the focus. The tab row marks the tab of the other side, and the titles of the other side are muted. While the two sides show two connections, each side shows its connection name before its title.
 
-`Alt+P V` moves the focus to the other side. `Alt+P M`, or Move to the other side in the tab menu, moves the tab with the focus to the other side; a tab already there swaps places with it. A tab dragged from the tab row onto a side shows on that side. `Tab` and `Shift+Tab` step through the explorer, the panes of the left side, and the panes of the right side. Selecting a tab or a connection that the other side shows moves the focus to that side. A new tab opens on the side with the focus.
+`Alt+P v` moves the focus to the other side. `Alt+P m`, or Move to the other side in the tab menu, moves the tab with the focus to the other side; a tab already there swaps places with it. A tab dragged from the tab row onto a side shows on that side. `Tab` and `Shift+Tab` step through the explorer, the panes of the left side, and the panes of the right side. Selecting a tab or a connection that the other side shows moves the focus to that side. A new tab opens on the side with the focus.
 
 The menu of a table in the explorer (`m` or a right-click) starts with Open, Open in new tab, and Open in split view. Open in split view shows the table on the other side and moves the focus there. Where the view is not split, it opens the split with the tab on screen on the left.
 
@@ -429,7 +433,7 @@ The builder writes one flat select. For a subquery, a union, a window function, 
 
 `Alt+O a` opens Server activity. The dashboard refreshes about every two seconds. It has panels for sessions, load, blocking, and slow statements.
 
-Panels depend on engine support and server permissions. MySQL load values need access to `performance_schema`. MySQL has no blocking or slow-statement panel. The PostgreSQL slow-statement panel needs a working `pg_stat_statements` extension, checked at connection time. Slow statements are ordered by mean execution time, highest first, within the current database. Unsupported and failed optional panels are hidden.
+Panels depend on engine support and server permissions. MySQL load values need access to `performance_schema`. MySQL has no slow-statement panel. The PostgreSQL slow-statement panel needs a working `pg_stat_statements` extension, checked at connection time. Slow statements are ordered by mean execution time, highest first, within the current database. Unsupported and failed optional panels are hidden.
 
 The session list keeps the order the server returns. `s` sorts it by the next column: pid, state, time, user@app, statement, then the order of the server again. `S` reverses the sort, and a click on a column name sorts by that column, or reverses it on a second click. Time sorts the longest first. `i` hides the idle sessions, and the summary counts them. A session idle inside a transaction stays listed. The selection stays on its session through every refresh.
 
@@ -506,7 +510,7 @@ A change rewrites only the table of its row. Every line outside that table stays
 - Right-click an object, a cell, a header, a tab, a connection, or the editor for a context menu.
 - Middle-click a tab or click its close mark to close the tab. The usual close confirmation applies.
 - Drag a tab along the tab row to move it. `Alt+Shift+Up` and `Alt+Shift+Down` move the active tab.
-- Drag a tab onto the panes to show it on one side of the split view. The side under the pointer is tinted. With the split view closed, the drop opens it, with the tab on the side it was dropped on. `Alt+P M` moves the active tab to the other side.
+- Drag a tab onto the panes to show it on one side of the split view. The side under the pointer is tinted. With the split view closed, the drop opens it, with the tab on the side it was dropped on. `Alt+P m` moves the active tab to the other side.
 - In an ER diagram, click a box to focus it. Double-click it to open the table. The wheel scrolls the diagram, and `Shift` with the wheel pans it sideways.
 - Click a key hint, a button, or a menu entry to run its action. Release off a button to cancel.
 - A key press hides the hover highlight until the mouse moves.
@@ -521,3 +525,13 @@ A change rewrites only the table of its row. Every line outside that table stays
 - The client rejects grid editing: check the status message, the primary key, the selected columns, the relation kind, and the profile access mode.
 - A connection or the configuration fails: read the error and Config problems in the palette. See [configuration](configuration.md) and [engines](engines.md).
 - Symbols or colors are unreadable: set ASCII icons or another [theme](themes.md) in the [interface configuration](configuration.md#interface).
+- `the known hosts file PATH is unreadable`: add the SSH server with `ssh-keyscan ssh.example.com >> ~/.ssh/known_hosts`, or set `ssh_known_hosts`. See [SSH tunnel](configuration.md#ssh-tunnel).
+- `the ssh key PATH has a passphrase`: set `ssh_key_passphrase_env`, or add the key to the SSH agent with `ssh-add`.
+- `the ssh tunnel found no login`: set `ssh_key` or `ssh_password_env`, or start an SSH agent.
+- `x509: certificate signed by unknown authority` with `verify-ca` or `verify-full`: set `sslrootcert` to the CA bundle of the server. See [certificate files](configuration.md#certificate-files).
+- `cannot read the certificate authority PATH` or `PATH contains no PEM certificate`: check the path and the PEM file in `sslrootcert`.
+- `this machine has no keyring masume can use`: on Linux, start a Secret Service provider such as GNOME Keyring or KWallet. Otherwise use `password_env`, `password_command`, or a secret store. See [passwords](configuration.md#passwords).
+- `masume mcp: profile "NAME" is not listed under [mcp] profiles`: add the profile to `[mcp] profiles` in the user configuration file. See [MCP server](mcp.md#allowed-profiles).
+- An MCP profile shows `unreachable`: the profile needs a password prompt. Set `password_env`, `password_command`, or a secret store, or save the password in the keyring from the client.
+- An MCP client does not see a project profile: the server reads the `.masume.toml` of the working directory of the client. See [config files](mcp.md#config-files).
+- A behaviour changed after an update: the [releases page](https://github.com/masumedb/masume/releases) lists the changes of each release.

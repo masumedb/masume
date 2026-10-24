@@ -26,8 +26,8 @@ Most capabilities are static defaults. The interface shows an action only when i
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | aurora-mysql | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
 | aurora-postgres | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
-| cassandra | no | no | no | no | no | no | no | no | yes | yes |
 | azure-sql | yes | yes | yes | yes | yes | yes | no | yes | yes | yes |
+| cassandra | no | no | no | no | no | no | no | no | yes | yes |
 | clickhouse | yes | no | no | yes | yes | no | yes | yes | yes | yes |
 | cockroach | yes | yes | yes | yes | yes | yes | no | yes | yes | yes |
 | documentdb | yes | yes | yes | no | yes | no | no | yes | no | no |
@@ -69,7 +69,7 @@ On MongoDB, the transaction and atomic staged-change flags come from the deploym
 | Write previews | Every SQL engine except ClickHouse and Cassandra. Not MongoDB |
 | Read-only mode | Every engine except TiDB. Client-only on MongoDB, Amazon DocumentDB, SQL Server, Azure SQL Database, Redis, Cassandra, ScyllaDB and Turso |
 | Atomic staged changes | Every engine except ClickHouse, which has no transactions. Set after connection on MongoDB |
-| Statement statistics | Off on every engine until connection. Then on for CockroachDB, and set after an extension check on the rest of the PostgreSQL family, a permission check on SQL Server, and a query log check on ClickHouse |
+| Statement statistics | Off on every engine until connection. Then on for CockroachDB, and set after an extension check on the rest of the PostgreSQL family except Redshift, a permission check on SQL Server, and a query log check on ClickHouse. Never on Redshift |
 
 ## Dashboard metrics
 
@@ -100,13 +100,13 @@ ClickHouse statement statistics come from `system.query_log`, which the server m
 
 SQL Server statement statistics come from `sys.dm_exec_query_stats` and need the VIEW SERVER STATE permission. masume reads the view once when the session opens and shows the panel if the read succeeds. SQL Server load metrics do not include the PostgreSQL counters, cache hit rate, or replication lag.
 
-MySQL-family load metrics do not include PostgreSQL counters, cache hit rate, replication lag, or statement statistics. MariaDB's `performance_schema.global_status` table needs version 10.5.2 or later and the Performance Schema. The adapter does not read MySQL lock relationships.
+MySQL-family load metrics do not include PostgreSQL counters, cache hit rate, replication lag, or statement statistics. MariaDB's `performance_schema.global_status` table needs version 10.5.2 or later and the Performance Schema.
 
 The static flags do not check every statistics view, extension setting, or permission. A missing dependency can cause a dashboard error.
 
 ## Read-only access
 
-On a read-only profile, the client rejects every statement it recognizes as a write. PostgreSQL-family sessions also set read-only mode on the server. MySQL and MariaDB use `SET SESSION TRANSACTION READ ONLY`. SQLite opens existing files with `mode=ro`. ClickHouse uses `SET readonly = 2`, which rejects writes but still accepts the settings the driver sends. MongoDB, Amazon DocumentDB, SQL Server, Azure SQL Database, Redis, Cassandra and ScyllaDB have client-only checks.
+On a read-only profile, the client rejects every statement it recognizes as a write. PostgreSQL-family sessions also set read-only mode on the server. MySQL and MariaDB use `SET SESSION TRANSACTION READ ONLY`. SQLite opens existing files with `mode=ro`, and has a client-only check on `:memory:`. ClickHouse uses `SET readonly = 2`, which rejects writes but still accepts the settings the driver sends. MongoDB, Amazon DocumentDB, SQL Server, Azure SQL Database, Redis, Cassandra and ScyllaDB have client-only checks.
 
 The libSQL server does not support `mode=ro`, so a read-only Turso profile has a client-only check.
 
@@ -118,55 +118,67 @@ When an agent sends a statement that the client classifies as a read, the statem
 
 Database permissions apply separately from the client checks.
 
-## Default port and TLS
+## Default ports
 
-| Engine | Port | Default `sslmode` |
-| --- | --- | --- |
-| aurora-mysql | 3306 | `prefer` |
-| aurora-postgres | 5432 | `prefer` |
-| cassandra | 9042 | unset; no TLS |
-| clickhouse | 9000 | unset; no TLS |
-| cockroach | 26257 | `prefer` |
-| documentdb | 27017 | `require` |
-| mariadb | 3306 | `prefer` |
-| mongodb | 27017 | unset; no TLS |
-| mysql | 3306 | `prefer` |
-| neon | 5432 | `require` |
-| planetscale | 3306 | `require` |
-| postgres | 5432 | `prefer` |
-| redis | 6379 | unset; no TLS |
-| redshift | 5439 | `require` |
-| scylladb | 9042 | unset; no TLS |
-| sqlite | none | none |
-| azure-sql | 1433 | `require` |
-| sqlserver | 1433 | unset; encrypts the login only |
-| supabase | 5432 | `require` |
-| tidb | 4000 | `prefer` |
-| timescale | 5432 | `prefer` |
-| turso | 443 | `require` |
-| yugabyte | 5433 | `prefer` |
+| Engine | Port |
+| --- | --- |
+| aurora-mysql | 3306 |
+| aurora-postgres | 5432 |
+| azure-sql | 1433 |
+| cassandra | 9042 |
+| clickhouse | 9000 |
+| cockroach | 26257 |
+| documentdb | 27017 |
+| mariadb | 3306 |
+| mongodb | 27017 |
+| mysql | 3306 |
+| neon | 5432 |
+| planetscale | 3306 |
+| postgres | 5432 |
+| redis | 6379 |
+| redshift | 5439 |
+| scylladb | 9042 |
+| sqlite | none |
+| sqlserver | 1433 |
+| supabase | 5432 |
+| tidb | 4000 |
+| timescale | 5432 |
+| turso | 443 |
+| yugabyte | 5433 |
 
-Most PostgreSQL-family and MySQL-family engines with an unset `sslmode` behave as `prefer`.
+See [TLS](configuration.md#tls) for the default `sslmode` of each engine, and [profiles](configuration.md#profiles) for the other profile keys.
 
-For PostgreSQL-family and MySQL-family engines, `allow` and `prefer` permit unencrypted fallback. `require` uses TLS without certificate verification. `verify-ca` checks the certificate chain. `verify-full` also checks the host name. Verification uses `sslrootcert` if set, otherwise the system trust roots.
+## Data tools
 
-ClickHouse is different: the native protocol does not negotiate TLS. Unset, `allow`, and `prefer` connect without encryption. `require` encrypts without certificate verification. `verify-ca` and `verify-full` verify the certificate. Encrypted ClickHouse listens on a separate port, 9440 by default.
+The object menu shows a tool only on the engines marked `yes`. A URL with a listed scheme opens a [connection target](usage.md#connection-targets) on that engine. An engine without a scheme needs a profile, a keyword connection string with `engine`, or, for SQLite, a file path.
 
-SQL Server is different. Azure SQL Database accepts only encrypted sessions, and its default is `require`. On SQL Server, unset, `allow`, and `prefer` encrypt the login only, and the rest of the session is unencrypted. `disable` encrypts nothing. `require` encrypts the whole session without certificate verification. `verify-ca` and `verify-full` verify the certificate.
+| Engine | URL scheme | Import | Dump and restore | Schema compare | ALTER script |
+| --- | --- | --- | --- | --- | --- |
+| aurora-mysql | | yes | yes | yes | yes |
+| aurora-postgres | | yes | yes | yes | yes |
+| azure-sql | | yes | yes | yes | yes |
+| cassandra | `cassandra` | existing tables | yes | yes | no |
+| clickhouse | `clickhouse` | yes | yes | yes | no |
+| cockroach | `cockroachdb` | yes | yes | yes | yes |
+| documentdb | | yes, documents | no | no | no |
+| mariadb | `mariadb` | yes | yes | yes | yes |
+| mongodb | `mongodb`, `mongodb+srv` | yes, documents | no | no | no |
+| mysql | `mysql` | yes | yes | yes | yes |
+| neon | | yes | yes | yes | yes |
+| planetscale | | yes | yes | yes | yes |
+| postgres | `postgres`, `postgresql` | yes | yes | yes | yes |
+| redis | `redis`, `rediss` | no | no | no | no |
+| redshift | `redshift` | yes | yes | yes | yes |
+| scylladb | `scylla` | existing tables | yes | yes | no |
+| sqlite | | yes | yes | yes | yes |
+| sqlserver | `sqlserver`, `mssql` | yes | yes | yes | yes |
+| supabase | | yes | yes | yes | yes |
+| tidb | | yes | yes | yes | yes |
+| timescale | | yes | yes | yes | yes |
+| turso | `libsql` | yes | yes | yes | yes |
+| yugabyte | `yugabytedb` | yes | yes | yes | yes |
 
-For Cassandra and ScyllaDB, unset or `disable` uses no TLS. Every other mode uses TLS, and `verify-ca` and `verify-full` check the certificate.
-
-For Redis, unset or `disable` uses no TLS. Every other mode uses TLS. A `rediss://` target sets `verify-full`.
-
-Amazon DocumentDB accepts only encrypted connections, and its default is `require`.
-
-For MongoDB, unset or `disable` uses no TLS. Explicit `allow`, `prefer`, and `require` use TLS without certificate verification and without unencrypted fallback. MongoDB also supports `verify-ca` and `verify-full`.
-
-For Turso, `disable` opens `ws://`, and every other mode opens `wss://`. A hosted database accepts only TLS. Turso connections verify against the system trust store and ignore the certificate files.
-
-Every other engine reads `sslrootcert`, `sslcert`, and `sslkey`. `sslrootcert` replaces the system trust roots for `verify-ca` and `verify-full`. The client key pair is sent in every mode that encrypts. See [Certificate files](configuration.md#certificate-files).
-
-See [profiles](configuration.md#profiles) for the other profile keys. Connection targets do not forward native URL options. See [connection targets](usage.md#connection-targets).
+See [importing files](usage.md#importing-files), [dump and restore](usage.md#dump-and-restore), and [schema compare](usage.md#schema-compare).
 
 ## MongoDB
 
@@ -231,7 +243,7 @@ Streaming drops a field that first appears after the first batch and reports an 
 
 Amazon DocumentDB, the `documentdb` engine, uses the same wire protocol and calls. The cluster accepts only encrypted connections, so its default `sslmode` is `require`. A cluster in a VPC with no public route needs an SSH tunnel or a bastion. Transactions need engine version 4.0 or later. As on MongoDB, the session checks the deployment at connect.
 
-Set `user` only for authenticated MongoDB connections. Without a user, no credentials are sent. The profile fields are the only authentication settings, and native URL query options cannot add others.
+Set `user` only for authenticated MongoDB connections. Without a user, no credentials are sent. A driver option such as `authMechanism` sets the authentication mechanism. See [driver options](configuration.md#driver-options).
 
 ## SQL Server
 
@@ -271,7 +283,7 @@ An import writes into an existing table only, with one `INSERT` per row and no t
 
 Cassandra has no read-only session, so only the client enforces a read-only profile. The dashboard has no panels.
 
-ScyllaDB, the `scylladb` engine with the `scylla://` scheme, uses the same protocol and CQL. The tree also hides `system_replicated_keys` and `audit`, which ScyllaDB reserves in addition to the Cassandra system keyspaces.
+ScyllaDB, the `scylladb` engine with the `scylla://` scheme, uses the same protocol and CQL. The tree also hides `system_replicated_keys`, `system_distributed_everywhere` and `audit`, which ScyllaDB reserves in addition to the Cassandra system keyspaces.
 
 ## Redis
 

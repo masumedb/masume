@@ -14,6 +14,14 @@ masume --mcp --check
 
 Protocol messages go to stdout. Startup reports and errors go to stderr, usually with the prefix `masume mcp: `. `--check` result lines and some argument help have no prefix.
 
+`--profile NAME` and `--profile=NAME` are the only profile forms; `-p` is an unknown argument with `--mcp`. `masume --mcp` never migrates an old config file; see [file version](configuration.md#file-version).
+
+| Code | Meaning |
+| --- | --- |
+| `0` | The client closed the stream, or `--check` connected every profile |
+| `1` | `--profile` is not listed under `[mcp] profiles`, or `--check` found no profile or a failed connection |
+| `2` | Unknown argument, or `--profile` without a name |
+
 ## Allowed profiles
 
 `[mcp] profiles` is empty by default. An empty list serves no profile.
@@ -25,9 +33,9 @@ profiles = ["shop"]
 
 `--profile=shop` limits the server to `shop`, which must be an allowed profile. Access settings still apply. The connection tools then have no `profile` argument. Without `--profile`, every connection tool needs the argument, even when only one profile is allowed.
 
-`list_profiles` returns profiles with effective access above `off`. It shows names, engines, targets, configured databases, environments, descriptions, and access levels. A profile that needs a password prompt can appear as `unreachable`.
+`list_profiles` returns profiles with effective access above `off`. It shows names, engines, targets, configured databases, environments, descriptions, and access levels. A profile that needs a password prompt also has an `unreachable` field with the reason.
 
-`--check` connects the same profiles and lists their tables. Exit status `1` means there was no profile to check or a connection failed. Exit status `0` means every checked profile connected.
+`--check` connects the same profiles and writes one line per profile to stderr: `ok` with the table count, or `FAILED` with the error.
 
 ## Config files
 
@@ -253,7 +261,7 @@ Results are unmasked. Schema definitions, plans, errors, rows, and undo statemen
 
 `$XDG_STATE_HOME/masume/mcp.log` records MCP traffic. Tool arguments and results are truncated after 500 Unicode characters. The log rotates at 2,000,000 bytes and keeps one `.1` backup. The `initialize` entry shows whether the client supports elicitation. See [SECURITY.md](../SECURITY.md#diagnostic-logs).
 
-Every `run_query` call, failed calls included, is also saved in query history. `Ctrl+T` opens that history in the terminal client.
+Every `run_query` call that runs a statement, failed statements included, is also saved in query history. A refused call is not saved. `Ctrl+T` opens that history in the terminal client.
 
 ## Testing
 

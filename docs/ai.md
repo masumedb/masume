@@ -19,6 +19,8 @@ These are the default keys. See [keys.md](keys.md) for other bindings.
 | `Ctrl+X` | Stop the reply, reject a pending statement, and keep the text already received |
 | `Ctrl+L` | Start a new conversation |
 | `Ctrl+O` | Open the conversation list |
+| `Ctrl+P`, `Ctrl+N` | Go to the previous or the next turn |
+| `PageUp`, `PageDown` | Scroll a page back or forward |
 | `Ctrl+D` in the list | Remove the selected conversation |
 | `Ctrl+A` | Copy the last reply to the clipboard |
 | `Ctrl+J` | Insert the last statement from the conversation into the editor, without running it |
@@ -76,7 +78,8 @@ default_agent = "claude"
 
 [ai.agents.claude]
 command = "npx"
-args    = ["@zed-industries/claude-code-acp"]
+args    = ["-y", "@zed-industries/claude-code-acp"]
+env     = ["CLAUDECODE="]
 ```
 
 masume runs the command as a child process and exchanges JSON-RPC messages with it over stdin and stdout. The protocol version is 1.
@@ -120,7 +123,7 @@ An agent asks permission before it runs a tool it does not know. masume allows i
 
 `grok` sends requests to `/chat/completions` on `https://api.x.ai/v1`. `base_url` sets another address.
 
-`openai_compatible` sends requests to `/chat/completions` on any server with the OpenAI chat endpoint, including Ollama, LM Studio, llama.cpp and vLLM. It has no default address, so `base_url` is required. `model` is a model name on that server. `api_key` is optional. A request has an `Authorization` header only when `api_key` or `api_key_env` has a key.
+`openai_compatible` sends requests to `/chat/completions` on any server with the OpenAI chat endpoint, including Ollama, LM Studio, llama.cpp and vLLM. It has no default address, so `base_url` or `base_url_env` is required. `model` is a model name on that server. `api_key` is optional. A request has an `Authorization` header only when `api_key` or `api_key_env` has a key.
 
 | Server | `base_url` |
 | --- | --- |
@@ -188,7 +191,7 @@ MongoDB `describe_table` samples up to 100 documents per collection and returns 
 
 ## Confirmation and limits
 
-The chat asks for confirmation before every `run_query` call, reads included, and ignores `confirm_writes`. It also asks before `explain_query` on a statement classified as a write. `plan_write` needs no confirmation.
+The chat asks for confirmation before every `run_query` call, reads included, and ignores `confirm_writes`. It also asks before `explain_query` on a statement classified as a write. `plan_write` needs no confirmation. On a read-only profile, the chat refuses a statement classified as a write without a question, and the model receives `this connection is read-only; the statements were not sent`.
 
 A statement the chat classifies as a read runs inside a read-only transaction where the engine has one, so a routine it calls cannot write. A read that opens or ends a transaction, such as `COMMIT`, is refused there. See [read-only access](engines.md#read-only-access).
 
@@ -216,7 +219,7 @@ The provider or gateway receives the system prompt, the tool schemas, questions,
 
 The history file stores conversations and their editor contexts: up to 50 conversations per profile and 100 messages per conversation. These limits do not apply to the current conversation in memory. The conversation title is the first question, truncated at 90 characters.
 
-Every `run_query` call, failed calls included, is also saved in query history. `Ctrl+T` opens query history.
+Every `run_query` call that runs a statement, failed statements included, is also saved in query history. A refused call is not saved. `Ctrl+T` opens query history.
 
 `$XDG_STATE_HOME/masume/ai-chat.log` records chat traffic. Tool arguments and results are truncated after 500 Unicode characters. The log rotates at 2,000,000 bytes and keeps one `.1` backup. See [SECURITY.md](../SECURITY.md#diagnostic-logs).
 

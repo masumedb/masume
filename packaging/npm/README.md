@@ -1,6 +1,6 @@
 # masume
 
-A database client for the terminal. PostgreSQL, MySQL, SQL Server, ClickHouse, SQLite and MongoDB, with an SQL editor, notebooks, an AI chat and an MCP server.
+A database client for the terminal, with an SQL editor, notebooks, an AI chat and an MCP server. PostgreSQL, MySQL, MariaDB, SQL Server, ClickHouse, SQLite, Cassandra, ScyllaDB, Redis, MongoDB, and hosted services. See the [engine list](https://github.com/masumedb/masume/blob/master/docs/engines.md#protocols).
 
 See the [project README](https://github.com/masumedb/masume#readme) for the full description, the screenshots and the configuration.
 

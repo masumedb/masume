@@ -173,33 +173,7 @@ The prompt asks the model for one fenced block per query, each with a `-- name` 
 
 ## Headless mode
 
-`masume nb run FILE` runs a notebook and writes the results. Profiles, timeouts, and the read-only check work as in [headless mode](headless.md).
-
-```
-masume nb run .masume/notebooks/revenue-review.masume.md \
-  -p shop --param day=2026-09-01 -f markdown > review.md
-```
-
-| Argument | Meaning |
-| --- | --- |
-| `-p`, `--profile NAME` | Profile for the run |
-| `-f`, `--format FORMAT` | `table`, `csv`, `json` or `markdown` |
-| `-l`, `--limit ROWS` | Output cap per statement |
-| `--param NAME=VALUE` | Parameter value. Overrides the parameter cell |
-| `--only CELL` | Runs only the cell with that id. Repeat for more cells |
-| `--explain` | Writes a JSON plan of every statement and runs none of them |
-| `--allow-writes` | Runs the cells that write |
-
-Headless runs have no write confirmation, no write plan, and no undo. A write cell needs `--allow-writes`.
-
-| Code | Meaning |
-| --- | --- |
-| `0` | Success |
-| `1` | A cell failed, or a write cell ran without `--allow-writes` |
-| `2` | Argument, input file, password, or connection failure |
-| `3` | A cell writes and the profile is read-only |
-
-`markdown` writes the whole notebook as one report. It includes the prose, the statements, the rows of every cell as tables, and the charts as blocks of text. A masked column stays masked. See [headless notebooks](headless.md#notebooks).
+`masume nb run FILE` runs a notebook and writes the results, with no write confirmation, no write plan, and no undo. A write cell needs `--allow-writes`. See [headless notebooks](headless.md#notebooks) for the arguments and the exit codes.
 
 ## MCP
 

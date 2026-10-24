@@ -2,7 +2,7 @@
 
 Default bindings and their configuration names. The [user guide](usage.md) describes the workflows.
 
-`?` outside text entry opens help at the section for the focused pane. `Ctrl+K` opens the command palette. Help shows the current bindings of every configurable action, including overrides. Keys that a pane or field handles itself, such as `Tab`, `Esc`, and the Shift selection keys, are fixed. Help lists them by name. The palette searches commands by name.
+`?` outside text entry opens help at the section for the focused pane. `Ctrl+K` opens the command palette. Help shows the current bindings of every configurable action, including overrides. Keys without an action, such as `Ctrl+C` and the keys of the file picker, are fixed. Help lists them by name. The palette searches commands by name.
 
 ## Scopes
 
@@ -61,6 +61,19 @@ Every registered action has a default binding. Some palette operations have no r
 Each card uses only its own actions, so two rows in this table can share a key without a conflict.
 
 `Tab` from the last field of a form, or from a list, moves to the card buttons. `Tab`, `Shift+Tab`, Left and Right move between buttons, and `Enter` or `Space` runs the focused one. A destructive question opens with the focus on cancel.
+
+On the notebooks card, `new-connection`, `edit-connection` and `delete-connection` add, rename and delete a notebook.
+
+The file picker has fixed keys:
+
+| Key | Action |
+| --- | --- |
+| Up, Down, `k`, `j`, `Ctrl+P`, `Ctrl+N` | Move the cursor |
+| PageUp, PageDown, `K`, `J` | Move one page |
+| Home, End, `g`, `G` | Go to the first or the last row |
+| Left, Backspace, `h` | Open the parent directory |
+| Right, `l` | Open the directory under the cursor |
+| Enter | Open the directory, or choose the file |
 
 | Action | Key |
 | --- | --- |

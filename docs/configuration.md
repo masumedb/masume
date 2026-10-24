@@ -43,7 +43,7 @@ Most unknown keys are ignored without a report. The exceptions include unknown a
 version = 1
 ```
 
-When the file version is below the current version, masume adds the tables that the newer versions introduced and changes nothing else. Before the first change, masume copies the file to `config.toml.bak.N`, where `N` is the old version. A file at or above the current version is left unchanged.
+When the file version is below the current version, the client adds the tables that the newer versions introduced and changes nothing else. Before the first change, the client copies the file to `config.toml.bak.N`, where `N` is the old version. A file at or above the current version is left unchanged. `masume --mcp` and the headless commands never migrate the file.
 
 | Version | Adds |
 | --- | --- |
@@ -71,8 +71,8 @@ mode     = "write"
 | `host` | required | The connection form default is `127.0.0.1`. A path or `socket` means a unix socket; see [Unix socket](#unix-socket). Ignored for SQLite |
 | `port` | per engine | Server port |
 | `other_hosts` | | PostgreSQL and MongoDB families. More servers as `host:port`, such as `["db2:5432"]`. PostgreSQL tries them in order after `host`. MongoDB takes every host as a seed. Not allowed with `ssh_host` or `srv` |
-| `database` | required, except on MySQL-protocol engines | Database name, SQLite file path, or Redis database number |
-| `user` | required if the engine needs one | Ignored for SQLite. Optional for Redis and MongoDB |
+| `database` | required, except on MySQL-protocol engines and Turso | Database name, SQLite file path, or Redis database number |
+| `user` | required on the PostgreSQL, MySQL and SQL Server families and ClickHouse | Database user. Ignored for SQLite. Optional for Redis, MongoDB, Amazon DocumentDB, Cassandra, ScyllaDB and Turso |
 | `auth` | `secret` if `secret` is set; otherwise `command` if `password_command` is set; otherwise `password` | Password source: `prompt`, `keyring`, `command`, `secret` or `password`. See [Passwords](#passwords) |
 | `password_env` | | Environment variable with the password. Used when `auth` is `password` |
 | `password_command` | | Shell command; the first line of stdout is the password. Used when `auth` is `command` |
@@ -121,15 +121,29 @@ Headless commands use `statement_timeout_ms`, `mode`, `page_size`, and `command`
 
 ### TLS
 
-Redshift, Neon, Supabase, PlanetScale, Turso, Azure SQL Database, and Amazon DocumentDB default to `require`. Other PostgreSQL-family and MySQL-family engines default to TLS with an unencrypted fallback. MongoDB defaults to no TLS. SQLite does not use TLS.
-
 | Mode | Behaviour |
 | --- | --- |
 | `disable` | No TLS |
-| `allow`, `prefer` | TLS, no certificate check. PostgreSQL and MySQL can fall back to an unencrypted connection. MongoDB has no fallback |
+| `allow`, `prefer` | Per engine, see the table below |
 | `require` | TLS, no certificate check |
 | `verify-ca` | TLS, verify the CA without the host name |
 | `verify-full` | TLS, verify the CA and the host name |
+
+| Engines | Default `sslmode` | `allow`, `prefer` |
+| --- | --- | --- |
+| Amazon DocumentDB | `require` | TLS, no certificate check, no unencrypted fallback |
+| Aurora MySQL, MariaDB, MySQL, TiDB | unset, the same as `prefer` | TLS, no certificate check, unencrypted fallback |
+| Aurora PostgreSQL, CockroachDB, PostgreSQL, TimescaleDB, YugabyteDB | unset, the same as `prefer` | TLS, no certificate check, unencrypted fallback |
+| Azure SQL Database | `require` | Login encrypted, rest of the session unencrypted |
+| Cassandra, Redis, ScyllaDB | unset, no TLS | TLS, no certificate check |
+| ClickHouse | unset, the same as `prefer` | No TLS |
+| MongoDB | unset, no TLS | TLS, no certificate check, no unencrypted fallback |
+| Neon, PlanetScale, Redshift, Supabase | `require` | TLS, no certificate check, unencrypted fallback |
+| SQL Server | unset, the same as `prefer` | Login encrypted, rest of the session unencrypted |
+| SQLite | none | none |
+| Turso | `require` | `wss://` |
+
+ClickHouse with TLS listens on a separate port, 9440 by default. A `rediss://` target sets `verify-full`. Turso opens `ws://` with `disable` and `wss://` in every other mode, and verifies the server against the system trust store.
 
 A profile with an unknown non-empty `sslmode` is skipped and reported. In the connection form, the `sslmode` field cycles through the modes, and `default` means the engine default.
 
@@ -153,7 +167,7 @@ sslkey      = "~/.certs/client.key"
 
 A leading `~` expands to the home directory. If masume cannot read a file, the connection fails and the error shows the path. The same happens for a bundle with no PEM certificate.
 
-PostgreSQL-family, MySQL-family, SQL Server, ClickHouse, MongoDB, Redis, Cassandra, and ScyllaDB engines read the three keys. Turso connects over `wss://` with the system trust store and ignores all three. SQLite uses no TLS. With `disable` or a unix socket there is no TLS, and the files are not used.
+PostgreSQL-family, MySQL-family, SQL Server, ClickHouse, MongoDB, Redis, Cassandra, and ScyllaDB engines read the three keys. Turso ignores all three. SQLite uses no TLS. With `disable` or a unix socket there is no TLS, and the files are not used.
 
 The connection form has a `tls files` toggle. Set it to `on`, and the form shows the three fields. Set it to `off`, and saving removes all three keys from the profile.
 
@@ -315,6 +329,8 @@ or a [secret] store
 
 `masume run` and `masume --mcp` cannot prompt. A password must come from a non-interactive source. Saving a profile removes an existing `password` assignment from that profile block.
 
+When the client opens a lost connection again, it reads the password again from `password_env`, `password_command`, the secret store or the keyring. A password typed at the prompt is reused.
+
 ### Keyring
 
 On Linux, masume uses the Secret Service API over D-Bus, which GNOME Keyring and KWallet provide. macOS uses Keychain. Windows uses Credential Manager. Keyring entries use the service name `masume` and the profile name.
@@ -436,7 +452,11 @@ Authentication order: `ssh_key`, then `ssh_password_env`, then the agent on `$SS
 
 Host key verification is strict. An unknown host key or a missing known hosts file fails the connection, and the error shows the path. Use `ssh-keyscan` to add a host key.
 
-TLS certificates are verified against `host`, so `sslmode = "verify-full"` works through the tunnel. A tunneled MongoDB connection is a direct connection; masume does not use other replica set members.
+TLS certificates are verified against `host`, so `sslmode = "verify-full"` works through the tunnel. A tunneled MongoDB connection is a direct connection; masume does not use other replica set members. A tunneled Cassandra or ScyllaDB connection sends every request to `host`, and does not use the other nodes.
+
+Turso through a tunnel needs `sslmode = "disable"`. With TLS, the connection fails with `a TLS connection cannot go through an ssh tunnel; set sslmode to disable`.
+
+masume sends an SSH keepalive request every 15 seconds. A server that does not answer within 15 seconds is disconnected. The next database connection through the tunnel opens a new SSH connection.
 
 The connection form has an `ssh tunnel` toggle. Set it to `on`, and the form shows the SSH fields and writes them to the profile. `Ctrl+T` tests the connection through the tunnel. Set it to `off`, and saving removes every `ssh_` key from the profile.
 
@@ -466,7 +486,7 @@ masume tries a TCP connection to `host:wait_for_port` until it succeeds or the t
 ```toml
 [ui]
 icons               = "plain"
-theme               = "tokyonight"
+theme               = "ayu-dark"
 hide_system_schemas = true
 key_hints           = "full"
 timezone            = "server"
@@ -628,6 +648,8 @@ Each table under `[keys]` is a scope. An entry binds an action to one chord or t
 | `plan` | The query plan tree |
 | `notebook` | The cell list of a notebook tab |
 | `document` | Document tree of result rows |
+| `definition` | The DDL view and the compare view |
+| `builder` | The diagram of a query builder tab |
 | `list` | Any list inside a card: the history, the saved queries, the palette |
 | `dialog` | A question card, and the connection picker |
 
@@ -681,7 +703,8 @@ The config file has tables for `claude`, `codex`, `gemini` and `opencode`. A tab
 ```toml
 [ai.agents.claude]
 command = "npx"
-args    = ["@zed-industries/claude-code-acp"]
+args    = ["-y", "@zed-industries/claude-code-acp"]
+env     = ["CLAUDECODE="]
 
 [ai.agents.opencode]
 command = "opencode"
@@ -690,7 +713,7 @@ args    = ["acp"]
 
 | Key | Type | Default | Meaning |
 | --- | --- | --- | --- |
-| `command` | string | required, except for built-in agents | Program that serves the Agent Client Protocol on stdin and stdout. An agent without one is reported and skipped |
+| `command` | string | required | Program that serves the Agent Client Protocol on stdin and stdout. An agent without one is reported and skipped |
 | `args` | list of strings | empty | Arguments for `command` |
 | `model` | string | empty | Agent model, from the agent's model list. Empty means the model set in the agent's own configuration |
 | `env` | list of strings | empty | Extra environment variables for the child process, as `NAME=VALUE`, added to the masume environment. An entry with an empty value replaces the inherited value |
@@ -720,7 +743,7 @@ See [mcp.md](mcp.md) for tools and write confirmation.
 
 ## Notebooks
 
-`[notebooks]` adds directories to the notebook list. The list always includes `<project root>/.masume/notebooks` and `$XDG_STATE_HOME/masume/notebooks`.
+`[notebooks]` adds directories to the notebook list. The list always includes `<project root>/.masume/notebooks` and `$XDG_STATE_HOME/masume/notebooks`. A relative path resolves against the startup directory.
 
 ```toml
 [notebooks]

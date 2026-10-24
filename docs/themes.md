@@ -7,7 +7,7 @@
 theme = "tokyonight"
 ```
 
-The value is the theme file name without `.toml`. `ayu-dark` is the default and the fallback parent.
+The value is the theme file name without `.toml`. `ayu-dark` is the default and the fallback parent. An unknown name is reported under **Config problems** in the palette, and the client uses `ayu-dark`.
 
 ## Built-in themes
 

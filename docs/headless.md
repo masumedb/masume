@@ -6,7 +6,7 @@
 masume run -p shop-prod -f json 'select count(*) from orders'
 ```
 
-A target, `--profile`, and `$DATABASE_URL` follow the same rules as in the client. See [connection targets](usage.md#connection-targets).
+A target, `--profile`, and `$DATABASE_URL` follow the same rules as in the client. See [connection targets](usage.md#connection-targets). `masume diff` reads no `$DATABASE_URL` and needs both sides.
 
 ## Arguments
 
@@ -201,22 +201,36 @@ page_size    = 50000
 
 ## Notebooks
 
-`masume nb run FILE` runs a notebook file. Profiles, timeouts, and the read-only check work as in `masume run`. A write cell needs `--allow-writes`.
+`masume nb run` runs a notebook file. Profiles, timeouts, and the read-only check work as in `masume run`. See the [notebook guide](notebooks.md) for the file format.
 
 ```sh
-masume nb run reports/revenue-review.masume.md -p shop --param day=2026-09-01 -f markdown
+masume nb run reports/revenue-review.masume.md -p shop --param day=2026-09-01 -f markdown > review.md
 ```
 
-`--only CELL` runs one cell by id. `--explain` writes a JSON plan for every statement and runs none of them. `-f markdown` writes the whole notebook with the rows of each cell.
+```text
+masume nb run [TARGET] FILE
+```
+
+| Argument | Meaning |
+| --- | --- |
+| `TARGET` | Connection URL, keyword connection string, or existing SQLite file. Without a target, use `--profile` or `$DATABASE_URL` |
+| `FILE` | Notebook file |
+| `-p`, `--profile NAME` | User or project profile |
+| `-f`, `--format FORMAT` | `table` by default, or `csv`, `json`, `ndjson`, or `markdown` |
+| `-l`, `--limit ROWS` | Output cap per statement |
+| `--param NAME=VALUE` | Parameter value. Overrides the parameter cell |
+| `--only CELL` | Run only the cell with that id. Repeat for more cells |
+| `--explain` | Write a JSON plan of every statement and run none of them |
+| `--allow-writes` | Run the cells that write |
+
+A profile that is not in the `profiles` list of the front matter still runs, with a warning on stderr. `markdown` writes the whole notebook as one report: the prose, the statements, the rows of every cell as tables, and the charts as blocks of text. A masked column stays masked.
 
 | Code | Meaning |
 | --- | --- |
 | `0` | Success |
-| `1` | A cell failed, or a write cell ran without `--allow-writes` |
-| `2` | Argument, input file, password, or connection failure |
+| `1` | A cell failed, a write cell ran without `--allow-writes`, the notebook has no cell, or the format is `xlsx` or `parquet` |
+| `2` | Argument, input file, password, or connection failure, an `--only` id that no cell has, or a front matter that cannot be read |
 | `3` | A cell writes and the profile is read-only |
-
-See the [notebook guide](notebooks.md#headless-mode).
 
 ## Dump and restore
 
@@ -224,6 +238,7 @@ See the [notebook guide](notebooks.md#headless-mode).
 
 ```sh
 masume dump -p shop --schema public --drop shop.sql
+masume dump -p shop -c 'schema only' schema.sql
 masume dump -p shop - | gzip > shop.sql.gz
 masume restore -p shop-staging shop.sql
 ```
@@ -238,13 +253,11 @@ masume restore [TARGET] FILE
 | `FILE` | Dump file. `-` is stdout for a dump and stdin for a restore |
 | `-p`, `--profile NAME` | User or project profile |
 | `-s`, `--schema NAME` | Schema to dump. Default: the default schema of the connection |
-| `-t`, `--table NAME` | One table, as `name` or `schema.name`. Repeat for more tables. With `-t`, the dump has the types and sequences the tables use, and no functions, views, or triggers. It creates each of those types and sequences only where it is missing, and never drops one |
-| `-c`, `--content WHAT` | `schema and rows` by default, or `schema only` or `rows only` |
+| `-t`, `--table NAME` | One table, as `name` or `schema.name`. Repeat for more tables. The dump then has the tables and the types and sequences they use, as the table menu writes it |
+| `-c`, `--content WHAT` | `schema and rows` by default, or `schema only` or `rows only`. A value with a space needs quotes |
 | `--drop` | Add a `DROP … IF EXISTS` for each object the dump creates |
 
-A dump contains the types, sequences, and functions of the schema, then its tables with their rows, the views over them, and its triggers. Each table comes after the tables its foreign keys reference. Roles, grants, and owners are left out. A dump only reads, so a read-only profile can dump.
-
-Neither command works on an engine that reports no definitions, such as MongoDB.
+A dump only reads, so a read-only profile can dump. [Data tools](engines.md#data-tools) lists the engines with dump and restore.
 
 A restore runs each statement on its own, in file order, with no wrapping transaction. At the first failure it stops, reports the failed statement and the number of statements run before it, and exits with code `1`. A read-only profile exits with code `3` before any statement is sent.
 
@@ -288,7 +301,7 @@ orders
 
 `+` is only in the target, `-` is only in the source, and `~` is in both with a different definition. The schema name is removed from defaults and definitions before the compare. Column order, comments, grants, and owners are not compared.
 
-The ALTER script is written for the PostgreSQL and MySQL families, SQL Server, and SQLite, with both connections of one family. It drops constraints, indexes, views, and tables, then creates tables, adds, changes and drops columns, and creates indexes, constraints, foreign keys, and views. A changed view or index is dropped and created again. Where the source schema is not the schema of the connection, a PostgreSQL script runs in one transaction with `SET LOCAL search_path`, and a MySQL script starts with `USE` and ends with a `USE` of the connection database. A change to an identity or generated column on PostgreSQL or SQL Server is not written; the script lists it in a comment at the top. MySQL tables, columns, and views are copied from `SHOW CREATE` on the target. On SQL Server and SQLite, the source schema must be the default schema of the connection. On SQL Server, a column change drops and adds the column default, and the indexes and constraints that use the column. On SQLite, a table with a changed column or constraint is created again from the target definition and the rows of the shared columns are copied; the script runs with `foreign_keys` off and `legacy_alter_table` on. A dropped column or table loses its data.
+The ALTER script is written for the PostgreSQL and MySQL families, SQL Server, and SQLite, with both connections of one family. It drops constraints, indexes, views, and tables, then creates tables, adds, changes and drops columns, and creates indexes, constraints, foreign keys, and views. A changed view or index is dropped and created again. Where the source schema is not the schema of the connection, a PostgreSQL script runs in one transaction with `SET LOCAL search_path`, and a MySQL script starts with `USE` and ends with a `USE` of the connection database. On PostgreSQL the script adds, drops, and changes an identity column, `ALWAYS` or `BY DEFAULT`. A change to a generated column on PostgreSQL, or to an identity or generated column on SQL Server, is not written; the script lists it in a comment at the top. MySQL tables, columns, and views are copied from `SHOW CREATE` on the target. On SQL Server and SQLite, the source schema must be the default schema of the connection. On SQL Server, a column change drops and adds the column default, and the indexes and constraints that use the column. On SQLite, a table with a changed column or constraint is created again from the target definition and the rows of the shared columns are copied; the script runs with `foreign_keys` off and `legacy_alter_table` on. A dropped column or table loses its data.
 
 | Code | `diff` |
 | --- | --- |

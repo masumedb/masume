@@ -10,7 +10,7 @@ Reports must not contain passwords, private host names, or real data.
 
 ## Supported versions
 
-Before the first tagged release, fixes target `master`. After releases begin, only the latest release receives fixes. There is no long-term support branch.
+Only the latest release receives fixes. There is no long-term support branch.
 
 ## Stored data
 
@@ -93,17 +93,7 @@ MCP loads project profiles from its process working directory. The global MCP li
 
 masume is not a sandbox. Statement classification and confirmation cannot prove that an operation has no side effects. Use database accounts with only the required permissions.
 
-`mode = "read-only"` rejects recognized writes in the client. Additional protection depends on the engine:
-
-| Engine | Additional protection |
-| --- | --- |
-| PostgreSQL family | Default read-only transactions on the main session |
-| MySQL family, except TiDB | Read-only transactions on the main session |
-| SQLite | Read-only opening for disk files; client checks alone for `:memory:` |
-| MongoDB | Client checks only; no server read-only session setting |
-| TiDB | Explicit read-only profiles fail to connect |
-
-MCP requests read-only mode for effective read-only access when the engine supports that profile mode. On TiDB, MCP read-only access alone uses client classification without a server read-only session.
+`mode = "read-only"` rejects recognized writes in the client. The server protection of each engine, and the TiDB limits, are in [read-only access](docs/engines.md#read-only-access).
 
 Database functions, extensions, and engine features can reach files, networks, or other databases within their permissions. A statement classified as a read can have side effects. Server read-only settings also have engine-specific limits.
 
@@ -113,7 +103,7 @@ Database functions, extensions, and engine features can reach files, networks, o
 
 Profile timeouts depend on engine and operation support. AI and MCP execution timeouts apply to `run_query`, not every database tool or confirmation wait. Cancellation can fail or leave a statement active. A timeout does not prove that a write had no effect.
 
-TLS behavior depends on the engine and `sslmode`. Verify certificate and host checks for the selected engine in [engines.md](docs/engines.md). `sslrootcert` verifies a server whose authority is not in the system trust store, and `sslcert` with `sslkey` sends a client certificate.
+TLS behavior depends on the engine and `sslmode`. Verify certificate and host checks for the selected engine in [TLS](docs/configuration.md#tls). `sslrootcert` verifies a server whose authority is not in the system trust store, and `sslcert` with `sslkey` sends a client certificate.
 
 ## Confirmation
 
