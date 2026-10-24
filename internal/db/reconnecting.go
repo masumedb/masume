@@ -172,6 +172,14 @@ func (session *ReconnectingSession) ListSchemaObjects(
 	return held.ListSchemaObjects(ctx)
 }
 
+func (session *ReconnectingSession) ListSequenceValues(
+	ctx context.Context,
+) ([]SequenceValue, error) {
+	held, done := session.hold()
+	defer done()
+	return held.ListSequenceValues(ctx)
+}
+
 func (session *ReconnectingSession) ListRelationships(
 	ctx context.Context,
 ) ([]Relationship, error) {

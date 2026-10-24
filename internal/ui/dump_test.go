@@ -52,6 +52,10 @@ func (session *dumpSession) ListRelationships(context.Context) ([]db.Relationshi
 	return nil, nil
 }
 
+func (session *dumpSession) ListSequenceValues(context.Context) ([]db.SequenceValue, error) {
+	return nil, nil
+}
+
 func (session *dumpSession) BuildObjectDDL(
 	context.Context, db.SchemaObject,
 ) ([]string, error) {

@@ -101,6 +101,7 @@ type Server interface {
 	BuildTableDDL(ctx context.Context, table db.TableRef) ([]string, error)
 	DescribeTable(ctx context.Context, table db.TableRef) (db.TableDetail, error)
 	BuildObjectDDL(ctx context.Context, object db.SchemaObject) ([]string, error)
+	ListSequenceValues(ctx context.Context) ([]db.SequenceValue, error)
 	StreamQuery(
 		ctx context.Context, sql string, params []any, batchSize int,
 		onBatch func(rows [][]any, columns []db.ResultColumn) error,
@@ -349,6 +350,11 @@ func Write(
 		report.Tables++
 		report.report(options, len(plan.Tables), table.Name)
 	}
+	if options.Content.WritesRows() {
+		if valueErr := writeSequenceValues(ctx, server, writer, plan); valueErr != nil {
+			return report, valueErr
+		}
+	}
 	if !options.Content.WritesSchema() {
 		return report, writer.close()
 	}
@@ -485,6 +491,46 @@ func writeTable(
 		writer.writeLine(dialect.SwitchIdentityInsert(dialect, target, false))
 	}
 	return writer.err
+}
+
+// writeSequenceValues sets each sequence of the plan, and each sequence a table of the plan
+// owns, to its current value.
+func writeSequenceValues(
+	ctx context.Context, server Server, writer *sqlWriter, plan Plan,
+) error {
+	values, err := server.ListSequenceValues(ctx)
+	if err != nil {
+		return err
+	}
+	written := false
+	for _, value := range values {
+		if !isPlannedSequence(plan, value) {
+			continue
+		}
+		if !written {
+			writer.writeLine("")
+			written = true
+		}
+		writer.writeLine(value.Statement)
+	}
+	return writer.err
+}
+
+// isPlannedSequence is true for a sequence the plan creates, and for a sequence a table of
+// the plan owns.
+func isPlannedSequence(plan Plan, value db.SequenceValue) bool {
+	for _, table := range plan.Tables {
+		if table.Schema == value.Table.Schema && table.Name == value.Table.Name {
+			return true
+		}
+	}
+	for _, object := range plan.Before {
+		if object.Kind == db.ObjectSequence &&
+			object.Schema == value.Schema && object.Name == value.Name {
+			return true
+		}
+	}
+	return false
 }
 
 // buildRowRead returns the read of the rows of a table. A column the server computes from

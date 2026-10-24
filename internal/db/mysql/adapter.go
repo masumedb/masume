@@ -18,6 +18,7 @@ import (
 )
 
 type mysqlSession struct {
+	db.NoSequences
 	db.NoServerLoad
 	db.SessionFacts
 

@@ -26,6 +26,7 @@ type fakeServer struct {
 	// objectDDL is the definition of each object, by name.
 	objectDDL     map[string][]string
 	relationships []db.Relationship
+	sequences     []db.SequenceValue
 	columns       []db.ResultColumn
 	// detail is the columns of each table, by name.
 	detail map[string]db.TableDetail
@@ -60,6 +61,10 @@ func (server *fakeServer) ListSchemaObjects(context.Context) ([]db.SchemaObject,
 
 func (server *fakeServer) ListRelationships(context.Context) ([]db.Relationship, error) {
 	return server.relationships, nil
+}
+
+func (server *fakeServer) ListSequenceValues(context.Context) ([]db.SequenceValue, error) {
+	return server.sequences, nil
 }
 
 func (server *fakeServer) BuildObjectDDL(
@@ -506,5 +511,44 @@ func TestWriteOpensAndClosesTheIdentityInsertOfTheServer(t *testing.T) {
 	insert := strings.Index(text, "insert into [public].[orders]")
 	if on < 0 || off < 0 || insert < on || insert > off {
 		t.Errorf("the dump wrote\n%s", text)
+	}
+}
+
+func TestWriteSetsTheSequencesAfterTheRows(t *testing.T) {
+	server := buildServer()
+	server.sequences = []db.SequenceValue{
+		{Schema: "public", Name: "order_seq",
+			Statement: "SELECT pg_catalog.setval('public.order_seq', 7, true);"},
+		{Schema: "public", Name: "orders_id_seq",
+			Table:     query.QualifiedName{Schema: "public", Name: "orders"},
+			Statement: "SELECT pg_catalog.setval('public.orders_id_seq', 2, true);"},
+		{Schema: "audit", Name: "other_seq",
+			Statement: "SELECT pg_catalog.setval('audit.other_seq', 3, true);"},
+	}
+	written := &strings.Builder{}
+	if _, err := dump.Write(context.Background(), server, dump.Options{
+		Schema: "public", Content: dump.ContentAll,
+	}, written); err != nil {
+		t.Fatal(err)
+	}
+	text := written.String()
+	for _, wanted := range []string{"'public.order_seq', 7", "'public.orders_id_seq', 2"} {
+		at := strings.Index(text, wanted)
+		if at < 0 || at < strings.LastIndex(text, "insert into") {
+			t.Errorf("the dump sets no %q after the rows:\n%s", wanted, text)
+		}
+	}
+	if strings.Contains(text, "audit.other_seq") {
+		t.Errorf("the dump sets a sequence of another schema:\n%s", text)
+	}
+
+	schemaOnly := &strings.Builder{}
+	if _, err := dump.Write(context.Background(), server, dump.Options{
+		Schema: "public", Content: dump.ContentSchema,
+	}, schemaOnly); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(schemaOnly.String(), "setval") {
+		t.Errorf("a dump without rows sets a sequence:\n%s", schemaOnly.String())
 	}
 }

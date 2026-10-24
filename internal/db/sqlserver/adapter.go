@@ -16,6 +16,7 @@ import (
 
 // sqlserverSession is one session on a SQL Server.
 type sqlserverSession struct {
+	db.NoSequences
 	db.SessionFacts
 
 	connection *sql.Conn

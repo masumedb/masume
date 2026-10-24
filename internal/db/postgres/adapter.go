@@ -526,6 +526,27 @@ func (session *postgresSession) ListSchemaObjects(ctx context.Context) ([]db.Sch
 	return objects, nil
 }
 
+func (session *postgresSession) ListSequenceValues(
+	ctx context.Context,
+) ([]db.SequenceValue, error) {
+	rows, err := session.readRows(ctx, listSequenceValuesSQL)
+	if err != nil {
+		return nil, err
+	}
+	values := make([]db.SequenceValue, 0, len(rows))
+	for _, row := range rows {
+		values = append(values, db.SequenceValue{
+			Schema: db.ReadAnyText(row["schema"]), Name: db.ReadAnyText(row["name"]),
+			Table: query.QualifiedName{
+				Schema: db.ReadAnyText(row["table_schema"]),
+				Name:   db.ReadAnyText(row["table_name"]),
+			},
+			Statement: db.ReadAnyText(row["statement"]),
+		})
+	}
+	return values, nil
+}
+
 // BuildObjectDDL asks Postgres for the definition of the object, which it prints itself.
 func (session *postgresSession) BuildObjectDDL(
 	ctx context.Context, object db.SchemaObject,

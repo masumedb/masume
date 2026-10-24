@@ -167,6 +167,9 @@ var listSchemaObjectsSQL = `
     join pg_namespace n on n.oid = c.relnamespace
    where c.relkind = 'S'
      and ` + buildSystemSchemaFilter("n.nspname") + `
+     and not exists (select 1 from pg_depend d
+                      where d.classid = 'pg_class'::regclass and d.objid = c.oid
+                        and d.deptype = 'i')
   union all
   select n.nspname, t.typname, 'type',
          case t.typtype when 'e' then 'enum' when 'c' then 'composite' when 'd' then 'domain'
@@ -187,6 +190,36 @@ var listSchemaObjectsSQL = `
    where not tg.tgisinternal
      and ` + buildSystemSchemaFilter("n.nspname") + `
   order by 1, 3, 2
+`
+
+// A restore can give the sequence of an identity column another name, so its statement finds
+// the sequence through the column.
+var listSequenceValuesSQL = `
+  select n.nspname as schema,
+         s.relname as name,
+         coalesce(tn.nspname, '') as table_schema,
+         coalesce(t.relname, '')  as table_name,
+         format('SELECT pg_catalog.setval(%s, %s, %s);',
+                case when d.deptype = 'i'
+                     then format('pg_catalog.pg_get_serial_sequence(%L, %L)',
+                                 quote_ident(tn.nspname) || '.' || quote_ident(t.relname),
+                                 a.attname)
+                     else quote_literal(quote_ident(n.nspname) || '.' || quote_ident(s.relname))
+                end,
+                coalesce(pg_sequence_last_value(s.oid), q.seqstart),
+                (pg_sequence_last_value(s.oid) is not null)::text) as statement
+    from pg_class s
+    join pg_namespace n on n.oid = s.relnamespace
+    join pg_sequence q  on q.seqrelid = s.oid
+    left join pg_depend d
+      on d.classid = 'pg_class'::regclass and d.objid = s.oid
+     and d.refclassid = 'pg_class'::regclass and d.deptype in ('a', 'i')
+    left join pg_class t      on t.oid = d.refobjid
+    left join pg_namespace tn on tn.oid = t.relnamespace
+    left join pg_attribute a  on a.attrelid = d.refobjid and a.attnum = d.refobjsubid
+   where s.relkind = 'S'
+     and ` + buildSystemSchemaFilter("n.nspname") + `
+   order by n.nspname, s.relname
 `
 
 const listIndexesSQL = `

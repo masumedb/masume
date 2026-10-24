@@ -19,6 +19,7 @@ import (
 
 // clickhouseSession is one session on a ClickHouse.
 type clickhouseSession struct {
+	db.NoSequences
 	db.SessionFacts
 	// The server holds no transaction of the user.
 	db.NoUserTransactions

@@ -2,13 +2,20 @@ package db
 
 import "context"
 
-type PlainCatalog struct{}
+type PlainCatalog struct {
+	NoSequences
+}
 
 func (PlainCatalog) ListRoles(context.Context) ([]DbRole, error) { return nil, nil }
 
 func (PlainCatalog) ListSchemaObjects(context.Context) ([]SchemaObject, error) { return nil, nil }
 
 func (PlainCatalog) ListRelationships(context.Context) ([]Relationship, error) { return nil, nil }
+
+// NoSequences is the fallback for engines without sequences.
+type NoSequences struct{}
+
+func (NoSequences) ListSequenceValues(context.Context) ([]SequenceValue, error) { return nil, nil }
 
 type NoUserTransactions struct{}
 

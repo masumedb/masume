@@ -21,6 +21,7 @@ const connectTimeout = 15 * time.Second
 
 // cassandraSession is one open session on a Cassandra cluster.
 type cassandraSession struct {
+	db.NoSequences
 	db.NoUserTransactions
 	db.NoServerSessions
 	db.SessionFacts

@@ -282,6 +282,17 @@ type SchemaObject struct {
 	Identity string
 }
 
+// SequenceValue is the current value of one sequence.
+type SequenceValue struct {
+	Schema string
+	Name   string
+	// Table is the table with the column that owns the sequence. It is empty for a sequence
+	// no column owns.
+	Table query.QualifiedName
+	// Statement sets the sequence to its current value.
+	Statement string
+}
+
 // DbRole is a role or a user on the server.
 type DbRole struct {
 	Name   string
@@ -358,6 +369,7 @@ type CatalogReader interface {
 	ListConstraints(ctx context.Context, table TableRef) ([]ConstraintDetail, error)
 	BuildTableDDL(ctx context.Context, table TableRef) ([]string, error)
 	BuildObjectDDL(ctx context.Context, object SchemaObject) ([]string, error)
+	ListSequenceValues(ctx context.Context) ([]SequenceValue, error)
 }
 
 // QueryRunner runs what the user wrote and reads the answer back, a page or a batch at a
