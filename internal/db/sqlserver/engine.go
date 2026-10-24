@@ -114,6 +114,16 @@ var Dialect = &query.Dialect{
 		return fmt.Sprintf("drop %s %s;", ReadRoutineKind(identity),
 			dialect.BuildQualifiedName(query.QualifiedName{Schema: schema, Name: name}))
 	},
+	CreateIfMissing: func(
+		dialect *query.Dialect, kind, schema, name string, lines []string,
+	) []string {
+		if kind != string(db.ObjectSequence) {
+			return lines
+		}
+		target := dialect.QuoteTextLiteral(
+			dialect.BuildQualifiedName(query.QualifiedName{Schema: schema, Name: name}))
+		return append([]string{"IF OBJECT_ID(" + target + ", 'SO') IS NULL"}, lines...)
+	},
 }
 
 // Support is everything known about a SQL Server before a connection exists.

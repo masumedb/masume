@@ -15,7 +15,6 @@ import (
 
 // sqlserverSession is one session on a SQL Server.
 type sqlserverSession struct {
-	db.NoSequences
 	sqlbase.Session
 
 	// True where the connection may read the statement counters of the server.

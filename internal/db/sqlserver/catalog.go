@@ -2,6 +2,7 @@ package sqlserver
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	"github.com/masumedb/masume/internal/db"
@@ -242,13 +243,93 @@ func (session *sqlserverSession) BuildTableDDL(
 }
 
 // BuildObjectDDL returns the statement that made the object, which the server keeps for a
-// routine, a trigger and a view.
+// routine, a trigger and a view. The statement of a sequence is built from the catalog.
 func (session *sqlserverSession) BuildObjectDDL(
 	ctx context.Context, object db.SchemaObject,
 ) ([]string, error) {
-	target := query.QualifiedName{Schema: object.Schema, Name: object.Name}
-	return session.readObjectDefinition(ctx, string(object.Kind)+" "+object.Name,
-		session.Support.Dialect.BuildQualifiedName(target))
+	target := session.Support.Dialect.BuildQualifiedName(
+		query.QualifiedName{Schema: object.Schema, Name: object.Name})
+	if object.Kind == db.ObjectSequence {
+		return session.buildSequenceDDL(ctx, object.Name, target)
+	}
+	return session.readObjectDefinition(ctx, string(object.Kind)+" "+object.Name, target)
+}
+
+// buildSequenceDDL builds the CREATE SEQUENCE of one sequence from the catalog.
+func (session *sqlserverSession) buildSequenceDDL(
+	ctx context.Context, name, target string,
+) ([]string, error) {
+	rows, _, err := session.ReadNamedRows(ctx, readSequenceSQL, target)
+	if err != nil {
+		return nil, err
+	}
+	if len(rows) == 0 {
+		return db.BuildMissingDefinition(string(db.ObjectSequence) + " " + name), nil
+	}
+	row := rows[0]
+	dataType := db.ReadAnyText(row["type_name"])
+	if row["precision"] != nil {
+		dataType += "(" + db.ReadAnyText(row["precision"]) + ", 0)"
+	}
+	cycle := "NO CYCLE"
+	if readFlag(row["is_cycling"]) {
+		cycle = "CYCLE"
+	}
+	cache := "NO CACHE"
+	if readFlag(row["is_cached"]) {
+		cache = "CACHE"
+		if row["cache_size"] != nil {
+			cache += " " + db.ReadAnyText(row["cache_size"])
+		}
+	}
+	return []string{
+		"CREATE SEQUENCE " + target,
+		"  AS " + dataType,
+		"  START WITH " + db.ReadAnyText(row["start_value"]),
+		"  INCREMENT BY " + db.ReadAnyText(row["increment"]),
+		"  MINVALUE " + db.ReadAnyText(row["minimum_value"]),
+		"  MAXVALUE " + db.ReadAnyText(row["maximum_value"]),
+		"  " + cycle,
+		"  " + cache,
+	}, nil
+}
+
+// ListSequenceValues returns a RESTART for each sequence named. A table owns no sequence on
+// SQL Server.
+func (session *sqlserverSession) ListSequenceValues(
+	ctx context.Context, sequences, _ []query.QualifiedName,
+) ([]db.SequenceValue, error) {
+	if len(sequences) == 0 {
+		return nil, nil
+	}
+	probe, _, err := session.ReadNamedRows(ctx, hasLastUsedValueSQL)
+	if err != nil {
+		return nil, err
+	}
+	hasLastUsedValue := len(probe) > 0 && probe[0]["length"] != nil
+	rows, _, err := session.ReadNamedRows(ctx, buildListSequenceValuesSQL(hasLastUsedValue))
+	if err != nil {
+		return nil, err
+	}
+	values := []db.SequenceValue{}
+	for _, row := range rows {
+		named := query.QualifiedName{
+			Schema: db.ReadAnyText(row["schema"]), Name: db.ReadAnyText(row["name"]),
+		}
+		if !slices.Contains(sequences, named) {
+			continue
+		}
+		target := session.Support.Dialect.BuildQualifiedName(named)
+		statement := "ALTER SEQUENCE " + target + " RESTART WITH " +
+			db.ReadAnyText(row["restart_value"]) + ";"
+		if readFlag(row["is_exhausted"]) {
+			statement += "\nSELECT NEXT VALUE FOR " + target + ";"
+		}
+		values = append(values, db.SequenceValue{
+			Schema: named.Schema, Name: named.Name, Statement: statement,
+		})
+	}
+	return values, nil
 }
 
 // readObjectDefinition reads the stored statement of one object back.

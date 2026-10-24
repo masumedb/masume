@@ -8,6 +8,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -865,4 +866,159 @@ func TestPostgresDumpSkipsASequenceTheUserCannotRead(t *testing.T) {
 			t.Errorf("the dump sets %s:\n%s", unread, written)
 		}
 	}
+}
+
+var dropSqlserverSequenceSchema = []string{
+	"drop table if exists masume_sequence.tickets",
+	"drop sequence if exists masume_sequence.ticket_number",
+	"drop sequence if exists masume_sequence.spent_number",
+	"drop sequence if exists masume_sequence.round_number",
+	"drop schema if exists masume_sequence",
+}
+
+var sqlserverSequenceSchema = []string{
+	"create schema masume_sequence",
+	`create sequence masume_sequence.ticket_number as bigint
+  start with 100 increment by 5 minvalue 1 maxvalue 1000000 no cycle cache 20`,
+	`create sequence masume_sequence.spent_number as tinyint
+  start with 1 increment by 1 minvalue 1 maxvalue 2 no cycle no cache`,
+	`create sequence masume_sequence.round_number as decimal(9, 0)
+  start with 2 increment by 1 minvalue 1 maxvalue 3 cycle no cache`,
+	`create table masume_sequence.tickets (
+  id   bigint not null default (next value for masume_sequence.ticket_number) primary key,
+  note varchar(20) not null
+)`,
+	"insert into masume_sequence.tickets (note) values ('first'), ('second'), ('third')",
+	"select next value for masume_sequence.spent_number",
+	"select next value for masume_sequence.spent_number",
+	"select next value for masume_sequence.round_number",
+	"select next value for masume_sequence.round_number",
+}
+
+const sqlserverRestoreDatabase = "masume_sequence_copy"
+
+// openEmptySqlserverDatabase creates a database with the masume_sequence schema alone and
+// opens a session on it. The database is dropped when the test ends.
+func openEmptySqlserverDatabase(t *testing.T, setup db.Session) db.Session {
+	t.Helper()
+	dropDatabase := "if db_id('" + sqlserverRestoreDatabase + "') is not null begin " +
+		"alter database " + sqlserverRestoreDatabase +
+		" set single_user with rollback immediate; " +
+		"drop database " + sqlserverRestoreDatabase + "; end"
+	dbtest.RunStatements(t, setup, dropDatabase, "create database "+sqlserverRestoreDatabase)
+	t.Cleanup(func() {
+		_, _ = setup.RunQuery(context.Background(), dropDatabase, dbtest.ReadEverything, nil)
+	})
+
+	profile, password := dbtest.BuildProfile(t, dbtest.Sqlserver)
+	profile.Database = sqlserverRestoreDatabase
+	ctx, stop := context.WithTimeout(context.Background(), 30*time.Second)
+	defer stop()
+	session, err := engines.CreateAdapters().Open(ctx, profile, password)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = session.Close() })
+	dbtest.RunStatements(t, session, "create schema masume_sequence")
+	return session
+}
+
+// runSqlserverRestore runs the dump into the session, and fails the test with the dump text.
+func runSqlserverRestore(t *testing.T, session db.Session, path string) {
+	t.Helper()
+	run, err := dump.RunFile(context.Background(), session, path, session.Dialect().Syntax)
+	if err != nil {
+		written, _ := os.ReadFile(path)
+		t.Fatalf("the restore answered %v after %d statements:\n%s",
+			err, run.Statements, written)
+	}
+}
+
+// checkSqlserverSequencesContinue inserts a ticket and reads each sequence once more.
+func checkSqlserverSequencesContinue(t *testing.T, session db.Session, holdsAll bool) {
+	t.Helper()
+	dbtest.RunStatements(t, session,
+		"insert into masume_sequence.tickets (note) values ('fourth')")
+	wanted := map[string]int64{
+		"select max(id) from masume_sequence.tickets":         115,
+		"select count(*) from masume_sequence.tickets":        4,
+		"select next value for masume_sequence.ticket_number": 120,
+	}
+	if holdsAll {
+		wanted["select next value for masume_sequence.round_number"] = 1
+	}
+	for sql, number := range wanted {
+		if held := readNumber(t, session, sql); held != number {
+			t.Errorf("%s: %d, want %d", sql, held, number)
+		}
+	}
+	if !holdsAll {
+		return
+	}
+	if _, err := session.RunQuery(context.Background(),
+		"select next value for masume_sequence.spent_number",
+		dbtest.ReadEverything, nil); err == nil {
+		t.Error("the spent sequence returned another value")
+	}
+}
+
+// A SQL Server dump creates each sequence in front of the tables that use it, and the next
+// value of each sequence follows the last value of the source.
+func TestSqlserverDumpRestoresTheSequencesIntoAnEmptyDatabase(t *testing.T) {
+	session := dbtest.Open(t, dbtest.Sqlserver)
+	dbtest.RunStatements(t, session,
+		append(slices.Clone(dropSqlserverSequenceSchema), sqlserverSequenceSchema...)...)
+	t.Cleanup(func() {
+		for _, sql := range dropSqlserverSequenceSchema {
+			_, _ = session.RunQuery(context.Background(), sql, dbtest.ReadEverything, nil)
+		}
+	})
+
+	for _, dropsFirst := range []bool{false, true} {
+		path, report := writeDump(t, session, dump.Options{
+			Schema: "masume_sequence", Content: dump.ContentAll, DropsFirst: dropsFirst,
+		})
+		if report.Tables != 1 || report.Objects != 3 || report.Rows != 3 {
+			t.Fatalf("report: %+v, want one table, three objects and three rows", report)
+		}
+		written, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, line := range []string{"AS decimal(9, 0)", "CACHE 20", "NO CACHE"} {
+			if !strings.Contains(string(written), line) {
+				t.Errorf("the dump holds no %q:\n%s", line, written)
+			}
+		}
+		copied := openEmptySqlserverDatabase(t, session)
+		runSqlserverRestore(t, copied, path)
+		checkSqlserverSequencesContinue(t, copied, true)
+	}
+}
+
+// A dump of a named SQL Server table holds the sequence the table uses, and it runs again
+// into a database that holds that sequence.
+func TestSqlserverTableDumpRestoresTheSequenceItUses(t *testing.T) {
+	session := dbtest.Open(t, dbtest.Sqlserver)
+	dbtest.RunStatements(t, session,
+		append(slices.Clone(dropSqlserverSequenceSchema), sqlserverSequenceSchema...)...)
+	t.Cleanup(func() {
+		for _, sql := range dropSqlserverSequenceSchema {
+			_, _ = session.RunQuery(context.Background(), sql, dbtest.ReadEverything, nil)
+		}
+	})
+
+	path, report := writeDump(t, session, dump.Options{
+		Schema: "masume_sequence", Content: dump.ContentAll, DropsFirst: true,
+		Tables: []db.TableRef{
+			{Schema: "masume_sequence", Name: "tickets", Kind: db.RelationTable},
+		},
+	})
+	if report.Tables != 1 || report.Objects != 1 || report.Rows != 3 {
+		t.Fatalf("report: %+v, want one table, one object and three rows", report)
+	}
+	copied := openEmptySqlserverDatabase(t, session)
+	runSqlserverRestore(t, copied, path)
+	runSqlserverRestore(t, copied, path)
+	checkSqlserverSequencesContinue(t, copied, false)
 }

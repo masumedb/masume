@@ -192,6 +192,64 @@ var listSequencesSQL = `
    order by schema_name(schema_id), name
 `
 
+// object_definition() returns NULL for a sequence.
+const readSequenceSQL = `
+  select type_name(s.user_type_id) as type_name,
+         case when s.user_type_id = s.system_type_id
+               and type_name(s.system_type_id) in ('decimal', 'numeric')
+              then convert(varchar(2), s.precision) end as precision,
+         convert(varchar(40), cast(s.start_value as decimal(38, 0))) as start_value,
+         convert(varchar(40), cast(s.increment as decimal(38, 0))) as increment,
+         convert(varchar(40), cast(s.minimum_value as decimal(38, 0))) as minimum_value,
+         convert(varchar(40), cast(s.maximum_value as decimal(38, 0))) as maximum_value,
+         s.is_cycling as is_cycling,
+         s.is_cached as is_cached,
+         convert(varchar(11), s.cache_size) as cache_size
+    from sys.sequences s
+   where s.object_id = object_id(@p1)
+`
+
+// buildListSequenceValuesSQL returns the next value of each sequence. An exhausted sequence
+// has no value left before its bound. SQL Server 2016 has no last_used_value, and there a
+// sequence counts as used.
+func buildListSequenceValuesSQL(hasLastUsedValue bool) string {
+	unused := "1 = 0"
+	if hasLastUsedValue {
+		unused = "s.last_used_value is null"
+	}
+	return strings.ReplaceAll(listSequenceValuesTemplate, "{unused}", unused)
+}
+
+const hasLastUsedValueSQL = `select col_length('sys.sequences', 'last_used_value') as [length]`
+
+var listSequenceValuesTemplate = `
+  select schema_name(s.schema_id) as [schema],
+         s.name as [name],
+         convert(varchar(40), case
+           when {unused} then v.start_value
+           when v.is_exhausted = 0 then v.current_value + v.increment
+           when s.is_cycling = 0 then v.current_value
+           when v.increment > 0 then v.minimum_value
+           else v.maximum_value
+         end) as restart_value,
+         case when not ({unused}) and s.is_cycling = 0 and v.is_exhausted = 1
+              then 1 else 0 end as is_exhausted
+    from sys.sequences s
+   cross apply (select cast(s.start_value as decimal(38, 0)) as start_value,
+                       cast(s.increment as decimal(38, 0)) as increment,
+                       cast(s.minimum_value as decimal(38, 0)) as minimum_value,
+                       cast(s.maximum_value as decimal(38, 0)) as maximum_value,
+                       cast(s.current_value as decimal(38, 0)) as current_value) c
+   cross apply (select c.start_value, c.increment, c.minimum_value, c.maximum_value,
+                       c.current_value,
+                       case when s.is_exhausted = 1
+                              or (c.increment > 0 and c.current_value > c.maximum_value - c.increment)
+                              or (c.increment < 0 and c.current_value < c.minimum_value - c.increment)
+                            then 1 else 0 end as is_exhausted) v
+   where lower(schema_name(s.schema_id)) not in ` + systemSchemaList + `
+   order by schema_name(s.schema_id), s.name
+`
+
 var listTypesSQL = `
   select schema_name(schema_id) as [schema],
          name as [name],
