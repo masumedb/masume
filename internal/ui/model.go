@@ -452,7 +452,7 @@ func (model *Model) readMessage(message tea.Msg) (tea.Model, tea.Cmd) {
 	case formTestedMsg:
 		if model.form != nil {
 			if held.Problem == "" {
-				model.form.Test, model.form.Message = TestPassed, ""
+				model.form.Test, model.form.Message = TestPassed, held.ServerVersion
 			} else {
 				model.form.Test, model.form.Message = TestFailed, held.Problem
 			}

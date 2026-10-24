@@ -88,7 +88,8 @@ func (form *FormState) BuildProfile() (cfg.Profile, error) {
 
 // formTestedMsg returns one test of the form.
 type formTestedMsg struct {
-	Problem string
+	Problem       string
+	ServerVersion string
 }
 
 // testFormConnection opens the profile the form describes and closes it again, so a wrong
@@ -109,8 +110,9 @@ func testFormConnection(adapters engines.Adapters, profile cfg.Profile, password
 		if err != nil {
 			return formTestedMsg{Problem: db.DescribeError(err)}
 		}
+		version := session.Describe().ServerVersion
 		_ = session.Close()
-		return formTestedMsg{}
+		return formTestedMsg{ServerVersion: version}
 	}
 }
 
@@ -572,7 +574,11 @@ func (model *Model) renderForm() string {
 	case TestRunning:
 		lines = append(lines, model.styles.Accent().Render("testing…"))
 	case TestPassed:
-		lines = append(lines, paintText(model.styles.Theme.Success, nil, "ok · "+form.Message))
+		passed := "ok"
+		if form.Message != "" {
+			passed += " · " + present.SafeText(form.Message)
+		}
+		lines = append(lines, paintText(model.styles.Theme.Success, nil, passed))
 	case TestFailed:
 		for _, line := range messageLines {
 			lines = append(lines, model.styles.Error().Render(line))

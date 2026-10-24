@@ -9,6 +9,19 @@ import (
 	"github.com/masumedb/masume/internal/cfg"
 )
 
+// A passed test shows the server version.
+func TestAPassedTestOfTheFormShowsTheServerVersion(t *testing.T) {
+	model := buildOfflineModel(t, 160, 48)
+	model.form = NewFormState(buildPromptingProfile("shop"), true, nil)
+	model.screen = ScreenEditingConnection
+
+	model.Update(formTestedMsg{ServerVersion: "PostgreSQL 17.2"})
+
+	if drawn := stripEscapes(model.renderForm()); !strings.Contains(drawn, "ok · PostgreSQL 17.2") {
+		t.Errorf("the form does not show the server version:\n%s", drawn)
+	}
+}
+
 // The user is the only source of a prompt password, so a test of the form asks for one as
 // opening a connection does. A test that reads no password reaches the server without one
 // and reports a refusal the connection itself never hits.
