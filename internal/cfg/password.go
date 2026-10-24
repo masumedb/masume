@@ -8,13 +8,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/masumedb/masume/internal/proc"
 	"github.com/masumedb/masume/internal/secret"
 )
 
 // Password sources include memory, environment variables, commands, and the system keyring.
 
 // passwordCommandTimeout is the password command time limit.
-const passwordCommandTimeout = 30 * time.Second
+var passwordCommandTimeout = 30 * time.Second
 
 // readFirstLine returns the first output line without its line ending.
 func readFirstLine(output string) string {
@@ -33,6 +34,9 @@ func runPasswordCommand(source, name, written string) (string, error) {
 	// The command has no terminal input.
 	command := buildShellCommand(ctx, written)
 	command.Stdin = nil
+	proc.LeadGroup(command)
+	command.Cancel = func() error { return proc.KillGroup(command) }
+	command.WaitDelay = time.Second
 	printed, err := command.Output()
 
 	if ctx.Err() != nil {
