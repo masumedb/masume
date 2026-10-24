@@ -32,9 +32,15 @@ func BuildSource(profile cfg.Profile, password string) (string, error) {
 	if profile.SSLMode == core.SSLDisable {
 		scheme = "ws"
 	}
-	host := profile.Host
-	if profile.Port > 0 {
-		host = net.JoinHostPort(host, strconv.Itoa(profile.Port))
+	// The libSQL driver checks the certificate against the host in the URL, which is the
+	// local end of the tunnel.
+	if scheme == "wss" && profile.DialHost != "" {
+		return "", errors.New("a TLS connection cannot go through an ssh tunnel; set sslmode to disable")
+	}
+	dialHost, dialPort := profile.DialAddress()
+	host := dialHost
+	if dialPort > 0 {
+		host = net.JoinHostPort(host, strconv.Itoa(dialPort))
 	}
 
 	query := url.Values{}

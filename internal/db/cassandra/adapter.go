@@ -3,6 +3,8 @@ package cassandra
 import (
 	"context"
 	"fmt"
+	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -259,6 +261,15 @@ func readDriverReason(written string) string {
 	return written
 }
 
+// routeThroughTunnel maps the address of every node to the tunnel. gocql reads the node
+// addresses from the cluster and dials them directly.
+func routeThroughTunnel(cluster *gocql.ClusterConfig, tunnelHost string, tunnelPort int) {
+	tunnelAddress := net.ParseIP(tunnelHost)
+	cluster.DisableInitialHostLookup = true
+	cluster.AddressTranslator = gocql.AddressTranslatorFunc(
+		func(net.IP, int) (net.IP, int) { return tunnelAddress, tunnelPort })
+}
+
 // cassandraAdapter opens a session on a Cassandra cluster.
 type cassandraAdapter struct{ support db.EngineSupport }
 
@@ -270,7 +281,11 @@ func NewAdapter(support db.EngineSupport) db.Adapter {
 func (adapter *cassandraAdapter) Connect(
 	ctx context.Context, profile cfg.Profile, password string,
 ) (db.Session, error) {
-	cluster := gocql.NewCluster(fmt.Sprintf("%s:%d", profile.Host, profile.Port))
+	dialHost, dialPort := profile.DialAddress()
+	cluster := gocql.NewCluster(net.JoinHostPort(dialHost, strconv.Itoa(dialPort)))
+	if profile.DialHost != "" {
+		routeThroughTunnel(cluster, dialHost, dialPort)
+	}
 	cluster.Keyspace = profile.Database
 	// The driver writes its own faults to standard error, which would land on the screen
 	// the client draws.

@@ -32,6 +32,14 @@ func TestBuildSourceWritesTheWebsocketURL(t *testing.T) {
 			wanted:  "ws://127.0.0.1:8080",
 		},
 		{
+			name: "a server behind an ssh tunnel",
+			profile: cfg.Profile{
+				Host: "libsql.internal", Port: 8080, SSLMode: core.SSLDisable,
+				DialHost: "127.0.0.1", DialPort: 40123,
+			},
+			wanted: "ws://127.0.0.1:40123",
+		},
+		{
 			name:    "an IPv6 address",
 			profile: cfg.Profile{Host: "::1", Port: 8080, SSLMode: core.SSLDisable},
 			wanted:  "ws://[::1]:8080",
@@ -54,6 +62,16 @@ func TestBuildSourceWritesTheWebsocketURL(t *testing.T) {
 func TestBuildSourceRefusesAProfileWithoutAHost(t *testing.T) {
 	if _, err := turso.BuildSource(cfg.Profile{}, "a-token"); err == nil {
 		t.Error("a profile without a host answered no error")
+	}
+}
+
+func TestBuildSourceRefusesTLSThroughAnSSHTunnel(t *testing.T) {
+	profile := cfg.Profile{
+		Host: "shop-acme.turso.io", Port: 443, SSLMode: core.SSLRequire,
+		DialHost: "127.0.0.1", DialPort: 40123,
+	}
+	if _, err := turso.BuildSource(profile, "a-token"); err == nil {
+		t.Error("a TLS source through an ssh tunnel answered no error")
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"net"
 	"regexp"
 	"slices"
 	"strconv"
@@ -558,7 +559,8 @@ func (adapter *redisAdapter) Connect(
 		}
 		options = parsed
 	}
-	options.Addr = fmt.Sprintf("%s:%d", profile.Host, profile.Port)
+	dialHost, dialPort := profile.DialAddress()
+	options.Addr = net.JoinHostPort(dialHost, strconv.Itoa(dialPort))
 	options.Username, options.Password, options.DB = profile.User, password, index
 	// A profile that names no mode connects in the clear, as a Redis client does.
 	tlsConfig, tlsErr := db.BuildPolicyTLS(
