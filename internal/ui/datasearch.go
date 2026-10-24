@@ -115,7 +115,7 @@ func (model *Model) readDataSearch(answered dataSearchMsg) (tea.Model, tea.Cmd) 
 	}
 	connection.Open(app.Overlay{
 		Kind: app.OverlayActionMenu, Title: " " + answered.Text + " in " + answered.Schema + " ",
-		Draft: app.NewEditorBuffer("", 0), Actions: actions,
+		Draft: app.NewEditorBuffer("", 0), Actions: actions, Placeholder: "filter tables",
 	})
 	return model, nil
 }

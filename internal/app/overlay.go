@@ -365,6 +365,8 @@ type Overlay struct {
 	Prompt PromptKind
 	// The input hint below the prompt.
 	Hint string
+	// The filter placeholder of a menu. Empty is the default placeholder.
+	Placeholder string
 }
 
 // The panels the dashboard folds.

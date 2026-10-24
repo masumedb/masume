@@ -62,3 +62,24 @@ func TestDataSearchOpensTheMatchedTableFiltered(t *testing.T) {
 		t.Error("the frame has no summary of the search")
 	}
 }
+
+// The field of the search and the filter of its matches each name what they take.
+func TestDataSearchLabelsItsFields(t *testing.T) {
+	model := buildOfflineModel(t, 120, 30)
+	connection := app.NewConnection(&searchSession{offlineSession: &offlineSession{}}, nil, true)
+	model.connections.open(connection)
+	model.connections.focus(1)
+
+	model.openDataSearch(connection, "public")
+	if drawn := stripEscapes(model.render()); !strings.Contains(drawn, "search text") {
+		t.Errorf("the search card has no label for its field:\n%s", drawn)
+	}
+
+	_, command := model.searchData(connection, "ada")
+	for _, message := range drainCommand(command) {
+		model.Update(message)
+	}
+	if drawn := stripEscapes(model.render()); !strings.Contains(drawn, "filter tables") {
+		t.Errorf("the list of matches has no label for its filter:\n%s", drawn)
+	}
+}

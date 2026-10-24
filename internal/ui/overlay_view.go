@@ -1101,7 +1101,10 @@ func (model *Model) renderMenu(overlay app.Overlay, width int) string {
 		title = " " + title + " "
 	}
 	placeholder := "filter actions"
-	if overlay.Kind == app.OverlayCopyMenu {
+	switch {
+	case overlay.Placeholder != "":
+		placeholder = overlay.Placeholder
+	case overlay.Kind == app.OverlayCopyMenu:
 		placeholder = "filter formats"
 	}
 	text := model.buildCardKeys(overlay.Kind, keyScene{overlay: overlay})
@@ -2395,6 +2398,7 @@ var promptPlaceholders = map[app.PromptKind]string{
 	app.PromptNotebookRename: "name",
 	app.PromptNotebookReport: "path for the report",
 	app.PromptAiNotebook:     "subject of the notebook",
+	app.PromptDataSearch:     "search text",
 }
 
 // describePromptPlaceholder returns what the field of a card takes while it is empty.
