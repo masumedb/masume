@@ -1,8 +1,11 @@
 package ui
 
 import (
+	"context"
 	"testing"
+	"time"
 
+	"github.com/masumedb/masume/internal/ai"
 	"github.com/masumedb/masume/internal/app"
 )
 
@@ -44,5 +47,39 @@ func TestShuttingDownStopsEveryChat(t *testing.T) {
 
 	if !stopped {
 		t.Error("the program ended and a chat was left asking")
+	}
+}
+
+// streamingResponder writes text until its run is cancelled.
+type streamingResponder struct{}
+
+func (streamingResponder) Describe() string { return "stream" }
+
+func (streamingResponder) Reply(
+	ctx context.Context, _ ai.Request, hooks ai.RunHooks,
+) (ai.RunResult, error) {
+	for ctx.Err() == nil {
+		hooks.AppendText("x")
+	}
+	return ai.RunResult{}, ctx.Err()
+}
+
+func TestCancelledChatEndsWithAFullChannel(t *testing.T) {
+	events := make(chan app.ChatEvent, 1)
+	ctx, stop := context.WithCancel(context.Background())
+	ended := make(chan struct{})
+	go func() {
+		runChatReply(ctx, chatRun{
+			responder: streamingResponder{}, events: events, close: func() {},
+		})
+		close(ended)
+	}()
+	<-events
+	stop()
+
+	select {
+	case <-ended:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the cancelled chat still waits to send an event")
 	}
 }

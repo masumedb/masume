@@ -117,11 +117,13 @@ func (model *Model) resolveChatSteps() int {
 func askAgentToAct(ctx context.Context, held chatRun, title, detail string) bool {
 	ai.LogEvent("> asking to act: " + title)
 	allowed := make(chan bool, 1)
-	held.events <- app.ChatEvent{
+	if !sendChatEvent(ctx, held.events, app.ChatEvent{
 		Run: held.run, Kind: app.ChatRunAsked, Allowed: allowed,
 		Ask: app.PendingRun{
 			Summary: title + " on " + string(held.profile.Environment), SQL: detail,
 		},
+	}) {
+		return false
 	}
 
 	select {

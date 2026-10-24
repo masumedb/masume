@@ -66,7 +66,7 @@ func TestTheAgentIsHandedTheToolsOfTheChat(t *testing.T) {
 	useChatAgent(model)
 	connection := model.Active()
 	run, events := connection.Chat.Begin(func() {})
-	deps := model.buildChatToolDeps(connection, run, events)
+	deps := model.buildChatToolDeps(t.Context(), connection, run, events)
 
 	tools := mcp.BuildTools(mcp.BindConnection(deps))
 	held, closeSource, err := model.openChatResponder(connection, "masume/offline", tools)

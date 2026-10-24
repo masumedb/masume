@@ -92,7 +92,7 @@ func (model *Model) sendChatMessage(
 	id := model.ActiveID()
 	ctx, stop := context.WithCancel(context.Background())
 	run, events := chat.Begin(stop)
-	deps := model.buildChatToolDeps(connection, run, events)
+	deps := model.buildChatToolDeps(ctx, connection, run, events)
 	// One tool list answers the question, whether a provider or an agent reads it.
 	tools := mcp.BuildTools(mcp.BindConnection(deps))
 
@@ -173,7 +173,7 @@ func readStatementLanguage(session db.SessionInfo) ai.StatementLanguage {
 // buildChatToolDeps returns what the tools of the chat reach. The relations are read once, so
 // the goroutine of the run touches nothing the screen writes.
 func (model *Model) buildChatToolDeps(
-	connection *app.Connection, run int, events chan app.ChatEvent,
+	ctx context.Context, connection *app.Connection, run int, events chan app.ChatEvent,
 ) agent.ToolDeps {
 	session := connection.Session
 	autocommit := connection.Autocommit
@@ -189,9 +189,9 @@ func (model *Model) buildChatToolDeps(
 		Tables:       func() []db.TableRef { return tables },
 		WritePlanOff: connection.Profile().WritePlan == cfg.PlanOff,
 		MarkTableDescribed: func(table db.TableRef, detail db.TableDetail) {
-			events <- app.ChatEvent{
+			sendChatEvent(ctx, events, app.ChatEvent{
 				Run: run, Kind: app.ChatTableRead, Table: table, Detail: detail,
-			}
+			})
 		},
 		Runner: agent.StatementRunner{
 			// A chat returns with figures, not with a page of rows.
@@ -241,10 +241,10 @@ func (model *Model) buildChatToolDeps(
 			},
 			ReportRun: func(report agent.StatementReport) {
 				if held.kept.IsHeld() {
-					events <- app.ChatEvent{
+					sendChatEvent(ctx, events, app.ChatEvent{
 						Run: run, Kind: app.ChatUndoKept,
 						Text: report.SQL, Undo: held.kept,
-					}
+					})
 				}
 				held.undo, held.kept = writeplan.UndoPlan{}, writeplan.Undo{}
 				err := log.Record(hist.HistoryEntry{
@@ -253,9 +253,9 @@ func (model *Model) buildChatToolDeps(
 					HasRowCount: report.HasRowCount, ErrorMessage: report.ErrorMessage,
 				})
 				if err != nil {
-					events <- app.ChatEvent{
+					sendChatEvent(ctx, events, app.ChatEvent{
 						Run: run, Kind: app.ChatHistoryFailed, Problem: err.Error(),
-					}
+					})
 				}
 			},
 		},
@@ -327,8 +327,10 @@ func askChatToRun(
 	}
 
 	allowed := make(chan bool, 1)
-	question.events <- app.ChatEvent{
+	if !sendChatEvent(ctx, question.events, app.ChatEvent{
 		Run: question.run, Kind: app.ChatRunAsked, Allowed: allowed, Ask: pending,
+	}) {
+		return agent.RunPermission{Refusal: refusedByUser}
 	}
 
 	select {
@@ -411,20 +413,22 @@ func runChatReply(ctx context.Context, held chatRun) {
 
 	result, err := held.responder.Reply(ctx, held.request, ai.RunHooks{
 		StartTextBlock: func() {
-			held.events <- app.ChatEvent{Run: held.run, Kind: app.ChatTextStarted}
+			sendChatEvent(ctx, held.events,
+				app.ChatEvent{Run: held.run, Kind: app.ChatTextStarted})
 		},
 		AppendText: func(delta string) {
-			held.events <- app.ChatEvent{
+			sendChatEvent(ctx, held.events, app.ChatEvent{
 				Run: held.run, Kind: app.ChatTextArrived, Text: delta,
-			}
+			})
 		},
 		StartToolStep: func(label string) {
-			held.events <- app.ChatEvent{
+			sendChatEvent(ctx, held.events, app.ChatEvent{
 				Run: held.run, Kind: app.ChatStepStarted, Text: label,
-			}
+			})
 		},
 		FinishToolStep: func() {
-			held.events <- app.ChatEvent{Run: held.run, Kind: app.ChatStepFinished}
+			sendChatEvent(ctx, held.events,
+				app.ChatEvent{Run: held.run, Kind: app.ChatStepFinished})
 		},
 		CallTool: func(
 			callCtx context.Context, name string, input map[string]any,
@@ -458,5 +462,15 @@ func runChatReply(ctx context.Context, held chatRun) {
 		ai.LogEvent("< usage: " + strconv.Itoa(usage.InputTokens) + " in (" +
 			strconv.Itoa(usage.CachedInputTokens) + " cached), " + strconv.Itoa(usage.OutputTokens) + " out")
 	}
-	held.events <- ended
+	sendChatEvent(ctx, held.events, ended)
+}
+
+// sendChatEvent sends the event, and returns false where the run is cancelled first.
+func sendChatEvent(ctx context.Context, events chan<- app.ChatEvent, event app.ChatEvent) bool {
+	select {
+	case events <- event:
+		return true
+	case <-ctx.Done():
+		return false
+	}
 }

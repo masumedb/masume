@@ -73,7 +73,7 @@ func (held *liveWorkspace) runScriptedChat(
 	ctx, stop := context.WithCancel(context.Background())
 	t.Cleanup(stop)
 	run, events := connection.Chat.Begin(stop)
-	deps := held.model.buildChatToolDeps(connection, run, events)
+	deps := held.model.buildChatToolDeps(ctx, connection, run, events)
 	tools := mcp.BuildTools(mcp.BindConnection(deps))
 	go runChatReply(ctx, chatRun{
 		responder: responder,

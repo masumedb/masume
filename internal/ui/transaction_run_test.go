@@ -322,7 +322,7 @@ func TestRunQueryReadPathsBeginManualTransactions(t *testing.T) {
 					command = model.startExport(connection, tab, exportPath,
 						buildExportOverlay(exportPath, result.ExportJSON, true))
 				case "chat":
-					toolDeps := model.buildChatToolDeps(connection, 1, make(chan app.ChatEvent, 10))
+					toolDeps := model.buildChatToolDeps(context.Background(), connection, 1, make(chan app.ChatEvent, 10))
 					connection.Autocommit = !autocommit
 					command = func() tea.Msg {
 						_, err := toolDeps.Runner.RunStatement(context.Background(), "insert into entries values (1)", 100)
