@@ -267,6 +267,8 @@ CQL has no `EXPLAIN`, no join, no user transaction, and no `OFFSET`. Each page a
 
 The grid stores an edited cell as text, and the driver marshals a value by its Go type. Each value is therefore converted to its column type before binding, with separate forms for decimal, uuid, timestamp, and integer columns.
 
+An import writes into an existing table only, with one `INSERT` per row and no transaction. A new table needs a primary key, which a file does not define.
+
 Cassandra has no read-only session, so only the client enforces a read-only profile. The dashboard has no panels.
 
 ScyllaDB, the `scylladb` engine with the `scylla://` scheme, uses the same protocol and CQL. The tree also hides `system_replicated_keys` and `audit`, which ScyllaDB reserves in addition to the Cassandra system keyspaces.

@@ -88,6 +88,8 @@ type Capabilities struct {
 	SortsRead      bool
 	TruncatesTable bool
 	WritesDDL      bool
+	// True if a new table needs a primary key that an import cannot read from a file.
+	NeedsTableKey bool
 	// True if SQL writes support affected row and relation previews.
 	PlansWrites bool
 	// True if a connection supports read-only mode. TiDB accepts the statement but does not enforce the mode.
@@ -261,6 +263,7 @@ var cassandraCapabilities = Capabilities{
 	SortsRead:      false,
 	TruncatesTable: true,
 	WritesDDL:      true,
+	NeedsTableKey:  true,
 	// A write returns no count of the rows it changed.
 	PlansWrites: false,
 	// The server has no read-only session, so this client blocks the write.

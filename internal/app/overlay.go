@@ -574,6 +574,9 @@ var schemaActions = []MenuAction{
 // objectActionNeeds is the server capability check for each restricted action.
 var objectActionNeeds = map[string]func(core.Capabilities) bool{
 	ObjectTruncate: func(capabilities core.Capabilities) bool { return capabilities.TruncatesTable },
+	ObjectImportNewTable: func(capabilities core.Capabilities) bool {
+		return !capabilities.NeedsTableKey
+	},
 }
 
 // BuildObjectActions returns the actions of a tree node.

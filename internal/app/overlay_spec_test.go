@@ -50,6 +50,22 @@ func TestBuildObjectActionsOffersImportAndSearchOnADocumentServer(t *testing.T) 
 	}
 }
 
+func TestBuildObjectActionsDropsImportIntoNewTableWhereItNeedsAKey(t *testing.T) {
+	node := present.TreeNode{Kind: present.NodeSchema, Schema: "shop"}
+	for _, needsKey := range []bool{false, true} {
+		actions := app.BuildObjectActions(node, core.Capabilities{WritesDDL: true, NeedsTableKey: needsKey})
+		offered := false
+		for _, action := range actions {
+			if action.ID == app.ObjectImportNewTable {
+				offered = true
+			}
+		}
+		if offered == needsKey {
+			t.Errorf("a server that needs a key %v offers the import into a new table: %v", needsKey, offered)
+		}
+	}
+}
+
 func TestBuildObjectActionsDropsTruncateWhereTheServerCannot(t *testing.T) {
 	node := present.TreeNode{Kind: present.NodeTable, Table: db.TableRef{
 		Name: "orders", Kind: db.RelationTable,

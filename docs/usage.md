@@ -288,7 +288,7 @@ Result JSON exports and copies keep JSON nulls and native numbers and booleans. 
 
 ## Importing files
 
-In the explorer, select a table, press `m`, and choose Import a file. The schema menu imports into a new table. Imports support PostgreSQL-family, MySQL-family, and SQLite engines, and MongoDB as described in [MongoDB import](#mongodb-import). Read-only connections reject imports.
+In the explorer, select a table, press `m`, and choose Import a file. The schema menu imports into a new table. Cassandra and ScyllaDB import into an existing table only. Imports support every SQL engine, and MongoDB as described in [MongoDB import](#mongodb-import). Read-only connections reject imports.
 
 ![The import form](../vhs/shots/18-import-form.png)
 
