@@ -28,7 +28,7 @@ func (model *Model) openFormFilePicker(field cfg.FormField) tea.Cmd {
 	if directory := findPathDirectory(model.form.Draft.Text); directory != "" {
 		picker.Directory = directory
 	}
-	model.formPicker = &formPickerState{
+	model.form.filePicker = &formPickerState{
 		field: field.Key, label: field.Label, picker: picker,
 	}
 	model.layout.formRows = rowsHit{}
@@ -51,7 +51,7 @@ func findPathDirectory(written string) string {
 
 // closeFormFilePicker returns to the form without changing the field.
 func (model *Model) closeFormFilePicker() {
-	model.formPicker = nil
+	model.form.filePicker = nil
 }
 
 // readFormPickerKey hands a press to the picker of the form. A press bound to one of the
@@ -96,10 +96,10 @@ func (model *Model) runFormPickerButton(action ActionID) (tea.Model, tea.Cmd) {
 // readFormPickerMessage hands a message to the picker of the form, which reads a directory
 // with a command of its own.
 func (model *Model) readFormPickerMessage(message tea.Msg) (tea.Model, tea.Cmd, bool) {
-	held := model.formPicker
-	if held == nil || model.form == nil {
+	if model.form == nil || model.form.filePicker == nil {
 		return model, nil, false
 	}
+	held := model.form.filePicker
 
 	picker, command, path := held.picker.Update(message)
 	held.picker = picker
@@ -131,7 +131,7 @@ func picksFormFile(scene keyScene) bool {
 
 // renderFormPicker draws the card the file of one field is chosen in.
 func (model *Model) renderFormPicker() string {
-	held := model.formPicker
+	held := model.form.filePicker
 	cardWidth := present.ResolveCardWidth(widestFormCard, narrowestFormCard, model.width)
 	lines := model.buildPickerLines(&held.picker, cardWidth-present.CardChrome)
 

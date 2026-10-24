@@ -98,8 +98,6 @@ type Model struct {
 	keys cfg.KeySettings
 	// The connection form, which is a screen of its own.
 	form *FormState
-	// The file picker the connection form has open on one of its fields.
-	formPicker *formPickerState
 
 	connections openConnections
 	// The done or error report of the last run, kept until the next key press or click.

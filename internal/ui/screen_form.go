@@ -41,6 +41,8 @@ type FormState struct {
 	Message string
 	// BadField is the key of the field the last failure is about, or empty.
 	BadField string
+	// The file picker the connection form has open on one of its fields.
+	filePicker *formPickerState
 }
 
 // NewFormState opens the form on a profile, or on a blank one for a new connection.
@@ -84,6 +86,64 @@ func (form *FormState) focusField(key string) {
 func (form *FormState) BuildProfile() (cfg.Profile, error) {
 	form.keepField()
 	return cfg.BuildProfileFromFields(form.Fields, form.Source, form.Editing)
+}
+
+// runFieldAction moves between the fields or steps the value of a choice. It returns true
+// where the action belonged to the fields.
+func (form *FormState) runFieldAction(action ActionID) bool {
+	switch action {
+	case ActionNextField, ActionChooseRow:
+		form.StepField(1)
+		return true
+	case ActionPreviousField:
+		form.StepField(-1)
+		return true
+	case ActionPreviousValue:
+		return form.StepChoice(-1)
+	case ActionNextValue:
+		return form.StepChoice(1)
+	}
+	return false
+}
+
+// typeKey types one press into the field under the caret.
+func (form *FormState) typeKey(key tea.Key) {
+	switch key.Code {
+	case tea.KeyLeft:
+		form.Draft.MoveCaret(-1, false)
+		return
+	case tea.KeyRight:
+		form.Draft.MoveCaret(1, false)
+		return
+	case tea.KeyBackspace:
+		form.Draft.DeleteBackward()
+		form.keepField()
+		return
+	case tea.KeyDelete:
+		form.Draft.DeleteForward()
+		form.keepField()
+		return
+	}
+
+	if key.Text != "" && !key.Mod.Contains(uv.ModCtrl) && !key.Mod.Contains(uv.ModAlt) {
+		form.Draft.Insert(key.Text)
+		form.keepField()
+	}
+}
+
+// paste inserts pasted text into the field under the caret.
+func (form *FormState) paste(pasted string) {
+	// A pasted connection string fills the whole form, so it takes the place of the field
+	// rather than joining what the field already holds.
+	if _, isURL := cfg.ParseConnectionURL(strings.TrimSpace(pasted)); isURL {
+		form.Draft = app.NewEditorBuffer(
+			strings.TrimSpace(pasted), len(strings.TrimSpace(pasted)))
+		form.keepField()
+		form.openField()
+		return
+	}
+	form.Draft.Insert(pasted)
+	form.keepField()
 }
 
 // formTestedMsg returns one test of the form.
@@ -138,7 +198,7 @@ func (model *Model) readFormKey(key tea.Key) (tea.Model, tea.Cmd) {
 		return model, nil
 	}
 
-	if model.formPicker != nil {
+	if form.filePicker != nil {
 		return model.readFormPickerKey(key)
 	}
 	if taken, next, command := model.readButtonKey(key, cardFields{
@@ -167,45 +227,11 @@ func (model *Model) readFormKey(key tea.Key) (tea.Model, tea.Cmd) {
 				return model, model.openFormFilePicker(field)
 			}
 		}
-		switch match.Action {
-		case ActionNextField, ActionChooseRow:
-			form.StepField(1)
+		if form.runFieldAction(match.Action) {
 			return model, nil
-		case ActionPreviousField:
-			form.StepField(-1)
-			return model, nil
-		case ActionPreviousValue:
-			if form.StepChoice(-1) {
-				return model, nil
-			}
-		case ActionNextValue:
-			if form.StepChoice(1) {
-				return model, nil
-			}
 		}
 	}
-
-	switch key.Code {
-	case tea.KeyLeft:
-		form.Draft.MoveCaret(-1, false)
-		return model, nil
-	case tea.KeyRight:
-		form.Draft.MoveCaret(1, false)
-		return model, nil
-	case tea.KeyBackspace:
-		form.Draft.DeleteBackward()
-		form.keepField()
-		return model, nil
-	case tea.KeyDelete:
-		form.Draft.DeleteForward()
-		form.keepField()
-		return model, nil
-	}
-
-	if key.Text != "" && !key.Mod.Contains(uv.ModCtrl) && !key.Mod.Contains(uv.ModAlt) {
-		form.Draft.Insert(key.Text)
-		form.keepField()
-	}
+	form.typeKey(key)
 	return model, nil
 }
 
@@ -215,18 +241,7 @@ func (model *Model) pasteIntoForm(written string) (tea.Model, tea.Cmd) {
 	if form == nil || model.confirm != nil {
 		return model, nil
 	}
-	pasted := flattenPaste(written)
-	// A pasted connection string fills the whole form, so it takes the place of the field
-	// rather than joining what the field already holds.
-	if _, isURL := cfg.ParseConnectionURL(strings.TrimSpace(pasted)); isURL {
-		form.Draft = app.NewEditorBuffer(
-			strings.TrimSpace(pasted), len(strings.TrimSpace(pasted)))
-		form.keepField()
-		form.openField()
-		return model, nil
-	}
-	form.Draft.Insert(pasted)
-	form.keepField()
+	form.paste(flattenPaste(written))
 	return model, nil
 }
 
@@ -497,7 +512,7 @@ const (
 
 // renderForm draws the connection form: one row per field, and how the last test went.
 func (model *Model) renderForm() string {
-	if model.formPicker != nil {
+	if model.form.filePicker != nil {
 		return model.renderFormPicker()
 	}
 	form := model.form

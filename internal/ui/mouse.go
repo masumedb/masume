@@ -538,7 +538,7 @@ func (model *Model) runButton(held buttonHit, scope cfg.KeyScope, action ActionI
 	case ScreenPickingProfile:
 		return model.runPickerAction(match)
 	case ScreenEditingConnection:
-		if model.formPicker != nil {
+		if model.form != nil && model.form.filePicker != nil {
 			return model.runFormPickerButton(action)
 		}
 		if model.form == nil {
@@ -588,7 +588,7 @@ func (model *Model) runWorkspaceButton(match Match) (tea.Model, tea.Cmd) {
 func (model *Model) pressForm(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 	// The file picker covers the rows of the form, so a press belongs to the picker and
 	// never to what it hides.
-	if model.form == nil || model.formPicker != nil {
+	if model.form == nil || model.form.filePicker != nil {
 		return model, nil
 	}
 	if field, step, onMark := findChoiceMark(

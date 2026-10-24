@@ -40,11 +40,11 @@ func TestTheFormOpensAFilePickerOnACertificateField(t *testing.T) {
 		if command == nil {
 			t.Errorf("%s opened the picker without reading a directory", field)
 		}
-		if model.formPicker == nil {
+		if model.form.filePicker == nil {
 			t.Fatalf("%s did not open the picker", field)
 		}
-		if model.formPicker.field != field {
-			t.Errorf("the picker fills %q, wanted %q", model.formPicker.field, field)
+		if model.form.filePicker.field != field {
+			t.Errorf("the picker fills %q, wanted %q", model.form.filePicker.field, field)
 		}
 	}
 }
@@ -56,7 +56,7 @@ func TestTheFormStepsOnFromAFieldWithoutAFile(t *testing.T) {
 
 	held, _ := model.readFormKey(tea.Key{Code: tea.KeyEnter})
 	model = held.(*Model)
-	if model.formPicker != nil {
+	if model.form.filePicker != nil {
 		t.Fatal("the host field opened a file picker")
 	}
 	if model.form.Cursor == before {
@@ -75,12 +75,12 @@ func TestTheFilePickerOpensInTheDirectoryOfTheField(t *testing.T) {
 
 	held, _ := model.readFormKey(tea.Key{Code: tea.KeyEnter})
 	model = held.(*Model)
-	if model.formPicker == nil {
+	if model.form.filePicker == nil {
 		t.Fatal("the field did not open the picker")
 	}
-	if model.formPicker.picker.Directory != directory {
+	if model.form.filePicker.picker.Directory != directory {
 		t.Errorf("the picker stands in %q, wanted %q",
-			model.formPicker.picker.Directory, directory)
+			model.form.filePicker.picker.Directory, directory)
 	}
 }
 
@@ -130,7 +130,7 @@ func TestTheFilePickerLeavesTheFieldOnEscape(t *testing.T) {
 
 	held, _ = model.readFormKey(tea.Key{Code: tea.KeyEscape})
 	model = held.(*Model)
-	if model.formPicker != nil {
+	if model.form.filePicker != nil {
 		t.Fatal("escape left the picker open")
 	}
 	if model.screen != ScreenEditingConnection {
