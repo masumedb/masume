@@ -673,33 +673,39 @@ func (model *Model) renderDraftRows(
 	held := buffer.Lines()
 	caretLine, caretColumn := buffer.CaretPosition()
 	offset := scrollTo(caretLine, 0, rows, len(held))
+	columnOffset := 0
+	if look.Focused {
+		caretCells := present.MeasureText(present.SafeText(held[caretLine][:caretColumn]))
+		columnOffset = max(caretCells+1-width, 0)
+	}
+	selectFrom, selectTo := buffer.SelectionRange()
+	selects := look.Focused && buffer.HasSelection()
+	lineFrom := 0
+	for at := 0; at < offset; at++ {
+		lineFrom += len(held[at]) + 1
+	}
 
 	drawn := make([]string, 0, rows)
 	for at := offset; at < len(held) && len(drawn) < rows; at++ {
-		drawn = append(drawn, model.renderDraftRow(
-			held[at], width, look, at == caretLine, caretColumn))
+		if !look.Focused {
+			// The field holds what the server sent, so what is drawn from it is made safe
+			// first. The buffer keeps the value as it stands, because a save writes it back.
+			drawn = append(drawn, padStyledOn(paintText(look.Ink, look.Ground,
+				present.TruncateText(present.SafeText(held[at]), width)), width, look.Ground))
+			continue
+		}
+		line := codeLine{
+			text: held[at], width: width, columnOffset: columnOffset,
+			caretColumn: caretColumn, showCaret: at == caretLine,
+		}
+		if selects {
+			line.selectFrom, line.selectTo = resolveLineSelection(
+				selectFrom-lineFrom, selectTo-lineFrom, len(held[at]))
+		}
+		drawn = append(drawn, model.renderCodeLineOn(look.Ground, line))
+		lineFrom += len(held[at]) + 1
 	}
 	return append(drawn, buildBlankRows(look.Ground, width, rows-len(drawn))...)
-}
-
-// renderDraftRow draws one line of a draft, with the caret on its cell where it stands on this
-// line.
-func (model *Model) renderDraftRow(
-	line string, width int, look FieldLook, holdsCaret bool, caretColumn int,
-) string {
-	theme := model.styles.Theme
-	// The field holds what the server sent, so what is drawn from it is made safe first.
-	// The buffer keeps the value as it stands, because a save writes it back.
-	line = present.SafeText(line)
-	if !holdsCaret || !look.Focused {
-		return padStyledOn(paintText(look.Ink, look.Ground,
-			present.TruncateText(line, width)), width, look.Ground)
-	}
-
-	head, under, tail := splitAtCaret(line, len([]rune(line[:min(caretColumn, len(line))])))
-	return padStyledOn(truncateStyled(paintText(look.Ink, look.Ground, head)+
-		paintText(theme.OnAccent, theme.Accent, under)+
-		paintText(look.Ink, look.Ground, tail), width), width, look.Ground)
 }
 
 // splitAtCaret returns the text before the caret, the character under it and the text after

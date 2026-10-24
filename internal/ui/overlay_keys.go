@@ -1696,14 +1696,27 @@ func (model *Model) readOverlayField(
 			return model, nil
 		}
 	case tea.KeyHome:
-		if !model.jumpChatEnd(connection, overlay, -1) {
+		switch {
+		case model.jumpChatEnd(connection, overlay, -1):
+		case multiline:
+			buffer.MoveToLineStart(false)
+		default:
 			buffer.MoveToStart(false)
 		}
 		return model, nil
 	case tea.KeyEnd:
-		if !model.jumpChatEnd(connection, overlay, 1) {
+		switch {
+		case model.jumpChatEnd(connection, overlay, 1):
+		case multiline:
+			buffer.MoveToLineEnd(false)
+		default:
 			buffer.MoveToEnd(false)
 		}
+		return model, nil
+	}
+	if _, selectsAll := model.keymap.MatchOnly(
+		key, []ActionID{ActionSelectAll}, cfg.ScopeEditor); selectsAll && multiline {
+		buffer.SelectAll()
 		return model, nil
 	}
 
