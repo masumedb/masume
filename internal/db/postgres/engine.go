@@ -59,20 +59,10 @@ var Dialect = &query.Dialect{
 	DropSchema: func(dialect *query.Dialect, schema string) string {
 		return "drop schema " + dialect.QuoteIdentifier(schema) + " restrict;"
 	},
-	// A PostgreSQL array is written as `{…}` inside a string, and each element that holds
-	// a comma, a quote or a backslash is quoted inside it.
-	RenderList: func(dialect *query.Dialect, texts []string) string {
-		written := make([]string, 0, len(texts))
-		for _, text := range texts {
-			if text == "NULL" {
-				written = append(written, text)
-				continue
-			}
-			held := strings.ReplaceAll(text, `\`, `\\`)
-			written = append(written, `"`+strings.ReplaceAll(held, `"`, `\"`)+`"`)
-		}
-		return dialect.QuoteTextLiteral("{" + strings.Join(written, ",") + "}")
+	RenderList: func(dialect *query.Dialect, elements []query.ListElement) string {
+		return dialect.QuoteTextLiteral(buildArrayText(elements))
 	},
+	ListText: buildArrayText,
 	DropTrigger: func(dialect *query.Dialect, schema, name, table string) string {
 		target := dialect.BuildQualifiedName(query.QualifiedName{Schema: schema, Name: table})
 		return "drop trigger " + dialect.QuoteIdentifier(name) + " on " + target + ";"
@@ -148,4 +138,19 @@ func BuildSupport(engine core.Engine) db.EngineSupport {
 		Language:   language.SQL,
 		Compose:    db.NewSQLComposer(dialect),
 	}
+}
+
+// buildArrayText writes a PostgreSQL array as `{…}`. Every element except a null is quoted,
+// and a quote or a backslash inside it is escaped.
+func buildArrayText(elements []query.ListElement) string {
+	written := make([]string, 0, len(elements))
+	for _, element := range elements {
+		if element.IsNull {
+			written = append(written, "NULL")
+			continue
+		}
+		held := strings.ReplaceAll(element.Text, `\`, `\\`)
+		written = append(written, `"`+strings.ReplaceAll(held, `"`, `\"`)+`"`)
+	}
+	return "{" + strings.Join(written, ",") + "}"
 }

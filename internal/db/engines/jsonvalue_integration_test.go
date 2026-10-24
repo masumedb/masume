@@ -91,3 +91,48 @@ func TestApplyChangesBindsAListToACQLCollection(t *testing.T) {
 		t.Errorf("tags reads %s", tags)
 	}
 }
+
+func TestApplyChangesWritesAListIntoAPostgresArray(t *testing.T) {
+	session := dbtest.Open(t, dbtest.Postgres)
+	ctx := context.Background()
+	dbtest.RunStatements(t, session, "drop table if exists masume_json_value",
+		"create table masume_json_value (id integer primary key, names text[], counts int[])")
+	t.Cleanup(func() {
+		_, _ = session.RunQuery(ctx, "drop table if exists masume_json_value", dbtest.ReadEverything, nil)
+	})
+	shape, err := session.RunQuery(ctx, "select * from masume_json_value", dbtest.ReadEverything, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pending := core.NewPendingChanges()
+	pending.Inserts = append(pending.Inserts, map[string]any{
+		"id":     float64(1),
+		"names":  []any{"a", `say "hi"`, nil, "NULL"},
+		"counts": []any{float64(3), nil, float64(4)},
+	})
+	changes, err := session.Composer().BuildChanges(db.ChangeTarget{
+		Table:   db.TableRef{Schema: session.Describe().DefaultSchema, Name: "masume_json_value", Kind: db.RelationTable},
+		Columns: shape.Columns,
+	}, pending)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := session.ApplyChanges(ctx, changes); err != nil {
+		t.Fatalf("the insert failed: %v", err)
+	}
+	read, err := session.RunQuery(ctx,
+		"select names::text, counts::text, names[3] is null from masume_json_value", dbtest.ReadEverything, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if names := fmt.Sprint(read.Rows[0][0]); names != `{a,"say \"hi\"",NULL,"NULL"}` {
+		t.Errorf("names reads %s", names)
+	}
+	if counts := fmt.Sprint(read.Rows[0][1]); counts != "{3,NULL,4}" {
+		t.Errorf("counts reads %s", counts)
+	}
+	if read.Rows[0][2] != true {
+		t.Errorf("the third name is %v, wanted NULL", read.Rows[0][2])
+	}
+}

@@ -310,12 +310,17 @@ func buildDeleteChunks(
 }
 
 // resolveInsertValue writes a JSON object or array of a new row as JSON text, unless the
-// driver binds it to a collection column.
-func resolveInsertValue(value any, dialect *query.Dialect) (any, error) {
+// driver binds it to a collection column. A list for an array column is written as the
+// array text of the server.
+func resolveInsertValue(value any, column query.ResultColumn, dialect *query.Dialect) (any, error) {
 	switch value.(type) {
 	case map[string]any, []any:
 		if dialect.BindsCollections {
 			return value, nil
+		}
+		if _, isList := value.([]any); isList && dialect.ListText != nil &&
+			strings.HasSuffix(column.DescribeType(), "[]") {
+			return dialect.ListText(readListElements(value)), nil
 		}
 		written, err := json.Marshal(value)
 		if err != nil {
@@ -327,9 +332,8 @@ func resolveInsertValue(value any, dialect *query.Dialect) (any, error) {
 }
 
 // BuildInsertStatement builds an INSERT from a column-value map. Omitted columns use server defaults.
-func BuildInsertStatement(
-	table query.QualifiedName, values map[string]any, dialect *query.Dialect,
-) (query.BoundStatement, error) {
+func BuildInsertStatement(target WriteTarget, values map[string]any) (query.BoundStatement, error) {
+	table, dialect := target.Table, target.Dialect
 	if len(values) == 0 {
 		return query.BoundStatement{}, core.NewEditError("give at least one column a value")
 	}
@@ -340,12 +344,16 @@ func BuildInsertStatement(
 	}
 	slices.Sort(names)
 
-	target := dialect.BuildQualifiedName(table)
+	qualified := dialect.BuildQualifiedName(table)
 	quoted := make([]string, 0, len(names))
 	placeholders := make([]string, 0, len(names))
 	bound := query.NewBoundValues(dialect, 1)
 	for _, name := range names {
-		value, err := resolveInsertValue(values[name], dialect)
+		var column query.ResultColumn
+		if at := findColumnIndex(target.Columns, name); at >= 0 {
+			column = target.Columns[at]
+		}
+		value, err := resolveInsertValue(values[name], column, dialect)
 		if err != nil {
 			return query.BoundStatement{}, err
 		}
@@ -355,7 +363,7 @@ func BuildInsertStatement(
 
 	return query.BoundStatement{
 		SQL: fmt.Sprintf("insert into %s (%s) values (%s)",
-			target, strings.Join(quoted, ", "), strings.Join(placeholders, ", ")),
+			qualified, strings.Join(quoted, ", "), strings.Join(placeholders, ", ")),
 		Params: bound.Params,
 		Description: fmt.Sprintf("insert into %s (%s)",
 			table.Name, strings.Join(names, ", ")),
@@ -391,7 +399,7 @@ func BuildChangeStatements(
 
 	// Inserts require no row count check.
 	for _, values := range pending.Inserts {
-		statement, err := BuildInsertStatement(target.Table, values, target.Dialect)
+		statement, err := BuildInsertStatement(target, values)
 		if err != nil {
 			return nil, err
 		}

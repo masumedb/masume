@@ -12,26 +12,28 @@ import (
 	"github.com/masumedb/masume/internal/query"
 )
 
-// nullListElement is the element of a list that holds no value, as every server writes it.
-const nullListElement = "NULL"
-
 // renderList writes a list value the way this server reads one back. A server with no list
 // type holds none, and the value is written as text instead.
 func renderList(value any, dialect *query.Dialect, dataType string) (string, bool) {
 	if core.IsDocumentType(dataType) || !core.IsListValue(value) {
 		return "", false
 	}
+	return dialect.BuildRenderedList(readListElements(value))
+}
+
+// readListElements returns the elements of a list value as text.
+func readListElements(value any) []query.ListElement {
 	held := reflect.ValueOf(value)
-	texts := make([]string, 0, held.Len())
+	elements := make([]query.ListElement, 0, held.Len())
 	for at := range held.Len() {
 		element := held.Index(at).Interface()
 		if element == nil {
-			texts = append(texts, nullListElement)
+			elements = append(elements, query.ListElement{IsNull: true})
 			continue
 		}
-		texts = append(texts, core.FormatCell(element, ""))
+		elements = append(elements, query.ListElement{Text: core.FormatCell(element, "")})
 	}
-	return dialect.BuildRenderedList(texts)
+	return elements
 }
 
 // Predicate is a filter as SQL for one server, with its bind values.

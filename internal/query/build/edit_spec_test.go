@@ -166,10 +166,9 @@ func TestBuildUpdateStatementMatchesEveryColumnWithNoKey(t *testing.T) {
 }
 
 func TestBuildInsertStatementBindsEveryValueAndOrdersTheColumns(t *testing.T) {
-	answered, err := build.BuildInsertStatement(
-		query.QualifiedName{Schema: "public", Name: "orders"},
-		map[string]any{"customer": "ada", "total": "12.50"},
-		postgres.Dialect)
+	answered, err := build.BuildInsertStatement(build.WriteTarget{
+		Table: query.QualifiedName{Schema: "public", Name: "orders"}, Dialect: postgres.Dialect,
+	}, map[string]any{"customer": "ada", "total": "12.50"})
 	if err != nil {
 		t.Fatalf("the insert answered %v", err)
 	}
@@ -189,8 +188,9 @@ func TestBuildInsertStatementBindsEveryValueAndOrdersTheColumns(t *testing.T) {
 }
 
 func TestBuildInsertStatementRefusesARowWithNoValue(t *testing.T) {
-	_, err := build.BuildInsertStatement(
-		query.QualifiedName{Name: "orders"}, map[string]any{}, postgres.Dialect)
+	_, err := build.BuildInsertStatement(build.WriteTarget{
+		Table: query.QualifiedName{Name: "orders"}, Dialect: postgres.Dialect,
+	}, map[string]any{})
 	if err == nil {
 		t.Error("an insert with no column was built")
 	}
@@ -525,6 +525,10 @@ func TestRenderLiteralWritesTheFormOfEachServer(t *testing.T) {
 		{"a list holding a quote", postgres.Dialect, []any{`a"b`}, "text[]",
 			`'{"a\"b"}'`},
 		{"an empty list", postgres.Dialect, []any{}, "text[]", `'{}'`},
+		{"a list holding a null and the text NULL", postgres.Dialect, []any{nil, "NULL"},
+			"text[]", `'{NULL,"NULL"}'`},
+		{"a clickhouse list holding a null and the text NULL", clickhouse.Dialect,
+			[]any{nil, "NULL"}, "Array(Nullable(String))", "[NULL,'NULL']"},
 		{"a clickhouse list", clickhouse.Dialect, []any{"one", "two"}, "Array(String)",
 			"['one','two']"},
 		{"a list on a server that holds none", mysql.Dialect, []any{"one"}, "json",

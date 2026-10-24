@@ -73,14 +73,14 @@ var Dialect = &query.Dialect{
 	},
 	// A ClickHouse schema is a database, so a drop removes the database.
 	// A ClickHouse array is written as `[…]`, and each element as a literal of its own.
-	RenderList: func(dialect *query.Dialect, texts []string) string {
-		written := make([]string, 0, len(texts))
-		for _, text := range texts {
-			if text == "NULL" {
-				written = append(written, text)
+	RenderList: func(dialect *query.Dialect, elements []query.ListElement) string {
+		written := make([]string, 0, len(elements))
+		for _, element := range elements {
+			if element.IsNull {
+				written = append(written, "NULL")
 				continue
 			}
-			written = append(written, dialect.QuoteTextLiteral(text))
+			written = append(written, dialect.QuoteTextLiteral(element.Text))
 		}
 		return "[" + strings.Join(written, ",") + "]"
 	},

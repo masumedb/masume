@@ -93,10 +93,12 @@ type Dialect struct {
 	// RenderTime writes a moment as the text of a literal of the column type. A dialect
 	// that leaves it unset writes the moment in UTC without an offset.
 	RenderTime func(held time.Time, dataType string) string
-	// RenderList writes a list value as a literal this server reads back. The texts are
-	// the elements as they were read. A dialect that leaves it unset holds no list type,
-	// and the list is written as JSON text.
-	RenderList func(dialect *Dialect, texts []string) string
+	// RenderList writes a list value as a literal this server reads back. A dialect that
+	// leaves it unset holds no list type, and the list is written as JSON text.
+	RenderList func(dialect *Dialect, elements []ListElement) string
+	// ListText writes a list value as the text of a bound value of an array column. A
+	// dialect that leaves it unset binds a list as JSON text.
+	ListText func(elements []ListElement) string
 	// SelectSchema writes the statement that makes a schema the default for the
 	// statements after it. A dialect that leaves it unset needs none, because its
 	// definitions name their schema themselves.
@@ -255,13 +257,20 @@ func (dialect *Dialect) BuildRenderedBytes(hex string) (string, bool) {
 	return dialect.RenderBytes(hex), true
 }
 
+// ListElement is one element of a list value as text. IsNull is true for an element
+// without a value.
+type ListElement struct {
+	Text   string
+	IsNull bool
+}
+
 // BuildRenderedList writes a list value as a literal, and reports whether this server holds
 // a list type at all.
-func (dialect *Dialect) BuildRenderedList(texts []string) (string, bool) {
+func (dialect *Dialect) BuildRenderedList(elements []ListElement) (string, bool) {
 	if dialect.RenderList == nil {
 		return "", false
 	}
-	return dialect.RenderList(dialect, texts), true
+	return dialect.RenderList(dialect, elements), true
 }
 
 // BuildSelectSchema writes the statement that makes a schema the default. It is empty for a
