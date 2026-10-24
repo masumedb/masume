@@ -1358,13 +1358,15 @@ func (model *Model) readCatalogAnswer(answered catalogReadMsg) (tea.Model, tea.C
 		return model, nil
 	}
 
-	connection.Catalog.Problem = ""
-	connection.Catalog.Schemas = answered.Schemas
-	connection.Catalog.Tables = answered.Tables
-	connection.Catalog.Objects = answered.Objects
-	connection.Catalog.Roles = answered.Roles
-	connection.Catalog.Details = map[string]present.TableDetailState{}
-	connection.SeedTree()
+	model.keepTreeCursor(connection, func() {
+		connection.Catalog.Problem = ""
+		connection.Catalog.Schemas = answered.Schemas
+		connection.Catalog.Tables = answered.Tables
+		connection.Catalog.Objects = answered.Objects
+		connection.Catalog.Roles = answered.Roles
+		connection.Catalog.Details = map[string]present.TableDetailState{}
+		connection.SeedTree()
+	})
 	switch {
 	case answered.PartProblem != "":
 		connection.ShowError(answered.PartProblem)
@@ -1445,9 +1447,11 @@ func (model *Model) readMarksAnswer(answered marksReadMsg) (tea.Model, tea.Cmd) 
 	if !found {
 		return model, nil
 	}
-	connection.Marks.Favourites = answered.Favourites
-	connection.Marks.Recent = answered.Recent
-	connection.SeedTree()
+	model.keepTreeCursor(connection, func() {
+		connection.Marks.Favourites = answered.Favourites
+		connection.Marks.Recent = answered.Recent
+		connection.SeedTree()
+	})
 	return model, nil
 }
 

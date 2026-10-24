@@ -1342,7 +1342,9 @@ func (model *Model) runTreeAction(
 	case ActionCursorLastRow:
 		connection.Tree.Cursor = clamp(count-1, count)
 	case ActionToggleSystemSchemas:
-		connection.Tree.HideSystemSchemas = !connection.Tree.HideSystemSchemas
+		model.keepTreeCursor(connection, func() {
+			connection.Tree.HideSystemSchemas = !connection.Tree.HideSystemSchemas
+		})
 	case ActionFilterTree:
 		row, found := model.treeRowAt(connection, rows)
 		connection.Tree.Filtering = true
@@ -1386,7 +1388,9 @@ func (model *Model) runTreeAction(
 		if !marks {
 			return model, nil
 		}
-		connection.Marks.ToggleFavourite(favourite)
+		model.keepTreeCursor(connection, func() {
+			connection.Marks.ToggleFavourite(favourite)
+		})
 		return model, keepMarks(
 			model.ActiveID(), model.log, connection.Profile().Name, favourite)
 	case ActionObjectMenu:
@@ -1436,7 +1440,9 @@ func (model *Model) toggleFold(
 		// Asking again retries a read that failed.
 		return model, readTableDetail(id, connection.Session, row.Node.Table)
 	case present.NodeSchema:
-		connection.Marks.VisitSchema(row.Node.Schema, time.Now())
+		model.keepTreeCursor(connection, func() {
+			connection.Marks.VisitSchema(row.Node.Schema, time.Now())
+		})
 		return model, keepVisit(
 			model.ActiveID(), model.log, connection.Profile().Name, row.Node.Schema)
 	}
@@ -1493,6 +1499,22 @@ func (model *Model) focusTreeRow(connection *app.Connection, id string) {
 	for at, row := range model.treeRows(connection) {
 		if row.ID == id {
 			connection.Tree.Cursor, connection.Tree.Rolled = at, false
+			return
+		}
+	}
+}
+
+// keepTreeCursor runs a change to the rows of the tree, and puts the cursor back on the row
+// it was on.
+func (model *Model) keepTreeCursor(connection *app.Connection, change func()) {
+	held, found := model.treeRowAt(connection, model.treeRows(connection))
+	change()
+	if !found {
+		return
+	}
+	for at, row := range model.treeRows(connection) {
+		if row.ID == held.ID {
+			connection.Tree.Cursor = at
 			return
 		}
 	}
