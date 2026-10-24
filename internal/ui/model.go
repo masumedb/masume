@@ -102,10 +102,8 @@ type Model struct {
 	outcome *tea.ProgramStatus
 	// The status last sent through tmux.
 	reported *tea.ProgramStatus
-	// The result the grid compares other results with.
-	pinned  *pinnedResult
-	rowDiff rowDiffCache
-	search  dataSearchState
+	compare  resultCompare
+	search   dataSearchState
 
 	runs runBatches
 	// A question a screen without a connection asks, which holds its own answer.

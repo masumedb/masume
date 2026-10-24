@@ -20,6 +20,52 @@ type pinnedResult struct {
 	Truncated bool
 }
 
+// resultCompare is the pinned result and the last compare with it.
+type resultCompare struct {
+	// The result the grid compares other results with.
+	pinned  *pinnedResult
+	rowDiff rowDiffCache
+}
+
+// pinResult pins the active result of the tab, and returns false where the tab has none.
+func (compare *resultCompare) pinResult(tab *app.Tab) (*pinnedResult, bool) {
+	side, truncated, found := readResultSide(tab)
+	if !found {
+		return nil, false
+	}
+	id := 1
+	if compare.pinned != nil {
+		id = compare.pinned.ID + 1
+	}
+	label := describeResultLabel(tab)
+	compare.pinned = &pinnedResult{ID: id, Label: label, Side: side, Truncated: truncated}
+	return compare.pinned, true
+}
+
+// resolveRowDiff compares the active result with the pinned one.
+func (compare *resultCompare) resolveRowDiff(tab *app.Tab) app.PaneContent {
+	side, _, found := readResultSide(tab)
+	if compare.pinned == nil || !found {
+		return app.PaneContent{Kind: app.DataIdle, Reason: "pin a result first"}
+	}
+	active := tab.Results.Active()
+	cache := &compare.rowDiff
+	if cache.resultID != active.ID || cache.revision != active.Revision ||
+		cache.rows != len(side.Rows) || cache.pinnedID != compare.pinned.ID {
+		*cache = rowDiffCache{
+			resultID: active.ID, revision: active.Revision, rows: len(side.Rows),
+			pinnedID: compare.pinned.ID, diff: resultdiff.Compare(compare.pinned.Side, side),
+		}
+	}
+	if len(cache.diff.Columns) == 0 {
+		return app.PaneContent{
+			Kind:   app.DataIdle,
+			Reason: "the pinned result " + compare.pinned.Label + " and this result have no column in common",
+		}
+	}
+	return app.PaneContent{Kind: app.DataRowDiff, RowDiff: cache.diff}
+}
+
 // rowDiffCache is the last compare and the results it was made from.
 type rowDiffCache struct {
 	resultID, revision, rows, pinnedID int
@@ -51,23 +97,17 @@ func describeResultLabel(tab *app.Tab) string {
 }
 
 func (model *Model) pinResult(connection *app.Connection, tab *app.Tab) (tea.Model, tea.Cmd) {
-	side, truncated, found := readResultSide(tab)
+	pinned, found := model.compare.pinResult(tab)
 	if !found {
 		return model, nil
 	}
-	id := 1
-	if model.pinned != nil {
-		id = model.pinned.ID + 1
-	}
-	label := describeResultLabel(tab)
-	model.pinned = &pinnedResult{ID: id, Label: label, Side: side, Truncated: truncated}
-	connection.Show("result pinned: " + present.FormatCountOf(int64(len(side.Rows)), "row", "rows") +
-		" of " + label)
+	connection.Show("result pinned: " +
+		present.FormatCountOf(int64(len(pinned.Side.Rows)), "row", "rows") + " of " + pinned.Label)
 	return model, nil
 }
 
 func (model *Model) compareWithPinned(connection *app.Connection, tab *app.Tab) (tea.Model, tea.Cmd) {
-	if model.pinned == nil {
+	if model.compare.pinned == nil {
 		connection.Show("pin a result first")
 		return model, nil
 	}
@@ -78,30 +118,6 @@ func (model *Model) compareWithPinned(connection *app.Connection, tab *app.Tab) 
 	tab.View = app.ViewCompare
 	tab.DetailOffset = 0
 	return model, nil
-}
-
-// resolveRowDiff compares the active result with the pinned one.
-func (model *Model) resolveRowDiff(tab *app.Tab) app.PaneContent {
-	side, _, found := readResultSide(tab)
-	if model.pinned == nil || !found {
-		return app.PaneContent{Kind: app.DataIdle, Reason: "pin a result first"}
-	}
-	active := tab.Results.Active()
-	cache := &model.rowDiff
-	if cache.resultID != active.ID || cache.revision != active.Revision ||
-		cache.rows != len(side.Rows) || cache.pinnedID != model.pinned.ID {
-		*cache = rowDiffCache{
-			resultID: active.ID, revision: active.Revision, rows: len(side.Rows),
-			pinnedID: model.pinned.ID, diff: resultdiff.Compare(model.pinned.Side, side),
-		}
-	}
-	if len(cache.diff.Columns) == 0 {
-		return app.PaneContent{
-			Kind:   app.DataIdle,
-			Reason: "the pinned result " + model.pinned.Label + " and this result have no column in common",
-		}
-	}
-	return app.PaneContent{Kind: app.DataRowDiff, RowDiff: cache.diff}
 }
 
 // summaryLine is one line above the rows of a compare, and its ink.
@@ -119,8 +135,8 @@ func (model *Model) buildRowDiffSummary(tab *app.Tab, diff resultdiff.Diff) []su
 	if len(diff.Key) > 0 {
 		match = "matched by " + strings.Join(diff.Key, ", ")
 	}
-	lines := []summaryLine{{text: "pinned: " + model.pinned.Label + ", " +
-		present.FormatCountOf(int64(len(model.pinned.Side.Rows)), "row", "rows") +
+	lines := []summaryLine{{text: "pinned: " + model.compare.pinned.Label + ", " +
+		present.FormatCountOf(int64(len(model.compare.pinned.Side.Rows)), "row", "rows") +
 		" · here: " + describeResultLabel(tab) + ", " +
 		present.FormatCountOf(int64(len(side.Rows)), "row", "rows") + " · " + match, ink: theme.Text}}
 
@@ -140,7 +156,7 @@ func (model *Model) buildRowDiffSummary(tab *app.Tab, diff resultdiff.Diff) []su
 		strconv.Itoa(diff.Count(resultdiff.ChangeRemoved)) + " removed · ~" +
 		strconv.Itoa(diff.Count(resultdiff.ChangeAltered)) + " changed · " +
 		strconv.Itoa(diff.Same) + " same"
-	if truncated || model.pinned.Truncated {
+	if truncated || model.compare.pinned.Truncated {
 		counts += " · loaded rows only"
 	}
 	return append(lines, summaryLine{text: counts, ink: theme.Text})

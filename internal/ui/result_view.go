@@ -168,8 +168,8 @@ func (model *Model) describeResultTitle(
 	if drawn == app.ViewData {
 		subtitle = model.describeDataTitle(tab)
 	}
-	if drawn == app.ViewCompare && model.pinned != nil {
-		subtitle = "compare with " + model.pinned.Label
+	if drawn == app.ViewCompare && model.compare.pinned != nil {
+		subtitle = "compare with " + model.compare.pinned.Label
 	}
 	if drawn == app.ViewPlan && tab.ViewData.Kind == app.DataPlan {
 		subtitle = "plan · estimated"
@@ -1093,7 +1093,7 @@ func (model *Model) resolveViewContent(tab *app.Tab, drawn app.ResultView) app.P
 	case app.ViewStatistics:
 		return app.PaneContent{Kind: app.DataStatistics, Statistics: buildStatistics(tab)}
 	case app.ViewCompare:
-		return model.resolveRowDiff(tab)
+		return model.compare.resolveRowDiff(tab)
 	case app.ViewFields:
 		active := tab.Results.Active()
 		if active == nil || active.State.Kind != app.QuerySucceeded {
