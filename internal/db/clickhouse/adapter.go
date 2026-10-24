@@ -187,7 +187,8 @@ func (session *clickhouseSession) runOne(
 	id := buildQueryID()
 	release := session.holdRunningID(id)
 	defer release()
-	held := buildStatementContext(ctx, id)
+	held, stopStatement := context.WithCancel(buildStatementContext(ctx, id))
+	defer stopStatement()
 
 	if !ReadsRows(command) {
 		if _, err := session.connection.ExecContext(held, written, params...); err != nil {
@@ -205,10 +206,18 @@ func (session *clickhouseSession) runOne(
 	}
 	defer func() { _ = rows.Close() }()
 
-	read, columns, readErr := readClickhouseRows(rows, db.ReadOverscanRowLimit(rowLimit))
+	wanted := db.ReadOverscanRowLimit(rowLimit)
+	read, columns, readErr := readClickhouseRows(rows, wanted)
 	if readErr != nil {
 		session.noteFailedStatement(ctx)
 		return db.QueryResult{}, db.WrapDatabaseMessage(describeFailure(readErr), readErr)
+	}
+	if rowLimit >= 0 && len(read) >= wanted && rows.Next() {
+		// clickhouse-go reads every remaining block on Close. A cancelled context ends the
+		// statement on the server, and the driver drops the connection.
+		stopStatement()
+		_ = rows.Close()
+		session.noteFailedStatement(ctx)
 	}
 	return db.BuildCappedResult(db.CappedRead{
 		Rows: read, RowLimit: rowLimit, Columns: columns,

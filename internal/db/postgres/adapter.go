@@ -16,6 +16,7 @@ import (
 	"github.com/masumedb/masume/internal/db"
 	"github.com/masumedb/masume/internal/query"
 	"github.com/masumedb/masume/internal/query/result"
+	"github.com/masumedb/masume/internal/query/statement"
 )
 
 // postgresSession is one session on a PostgreSQL-protocol server, built from its engine
@@ -180,6 +181,7 @@ func (session *postgresSession) runOn(
 	columns := session.readResultColumns(rows.FieldDescriptions())
 	wanted := db.ReadOverscanRowLimit(rowLimit)
 	read := [][]any{}
+	stopped := false
 	for rows.Next() {
 		values, valueErr := rows.Values()
 		if valueErr != nil {
@@ -187,18 +189,25 @@ func (session *postgresSession) runOn(
 		}
 		read = append(read, values)
 		if rowLimit >= 0 && len(read) >= wanted {
+			stopped = true
 			break
 		}
 	}
+	// pgx reads every remaining row on Close. A cancel request ends the read on the server.
+	cancelled := stopped && rows.Next() && session.canCancelRead(ctx, connection, sql) &&
+		connection.PgConn().CancelRequest(ctx) == nil
 	rows.Close()
 	// pgx reports a cancelled or timed-out fetch on rows.Err after the row loop.
-	if rows.Err() != nil {
-		return db.QueryResult{}, rows.Err()
+	if err := rows.Err(); err != nil && !(cancelled && isQueryCanceled(err)) {
+		return db.QueryResult{}, err
 	}
 	placeInSessionZone(connection, columns, read)
 
 	tag := rows.CommandTag()
 	command := readCommandName(tag.String())
+	if cancelled && command == "" {
+		command = "SELECT"
+	}
 	result := db.BuildCappedResult(db.CappedRead{
 		Rows: read, RowLimit: rowLimit, Columns: columns,
 		Elapsed: time.Since(startedAt), Command: command,
@@ -210,6 +219,35 @@ func (session *postgresSession) runOn(
 	}
 	return result, nil
 }
+
+// canCancelRead is true for a read that a cancel request can end without harm: a statement
+// that only reads, outside a transaction block or inside the read-only unit of
+// db.RunGuardedRead. A cancel inside any other transaction block aborts that transaction.
+func (session *postgresSession) canCancelRead(
+	ctx context.Context, connection *pgx.Conn, sql string,
+) bool {
+	flavour := session.Support.Dialect.Syntax
+	if !statement.ReturnsRowsToClient(sql, flavour) ||
+		statement.ResolveWriteRisk(sql, flavour) != statement.RiskNone {
+		return false
+	}
+	switch connection.PgConn().TxStatus() {
+	case 'I':
+		return true
+	case 'T':
+		return connection == session.connection && db.IsInReadOnlyUnit(ctx)
+	}
+	return false
+}
+
+// isQueryCanceled is true for the error of a statement a cancel request ended.
+func isQueryCanceled(err error) bool {
+	serverErr, is := errors.AsType[*pgconn.PgError](err)
+	return is && serverErr.Code == queryCanceledCode
+}
+
+// queryCanceledCode is the SQLSTATE of a statement a cancel request ended.
+const queryCanceledCode = "57014"
 
 // runBatch executes statements through the simple protocol and returns the final result. Rows beyond the limit are discarded.
 func (session *postgresSession) runBatch(

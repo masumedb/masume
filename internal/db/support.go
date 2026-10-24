@@ -215,7 +215,7 @@ func RunGuardedRead(
 		return QueryResult{}, err
 	}
 
-	result, err := run(ctx)
+	result, err := run(context.WithValue(ctx, readOnlyUnitKey{}, true))
 	closing, stop := context.WithTimeout(context.WithoutCancel(ctx), readOnlyUnitWait)
 	defer stop()
 	if _, closeErr := session.RunQuery(closing, unit.Close, 1, nil); closeErr != nil &&
@@ -223,6 +223,15 @@ func RunGuardedRead(
 		return QueryResult{}, closeErr
 	}
 	return result, err
+}
+
+type readOnlyUnitKey struct{}
+
+// IsInReadOnlyUnit is true for the context of a read that RunGuardedRead runs inside the
+// read-only unit it opened.
+func IsInReadOnlyUnit(ctx context.Context) bool {
+	inside, _ := ctx.Value(readOnlyUnitKey{}).(bool)
+	return inside
 }
 
 // RunStatement is how a session runs one statement, which is all paging and counting
