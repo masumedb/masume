@@ -73,7 +73,7 @@ func RenderTableDDL(
 
 	secondary := make([]IndexDetail, 0, len(indexes))
 	for _, index := range indexes {
-		if !index.IsPrimary {
+		if !index.IsPrimary && !isConstraintIndex(index, constraints) {
 			secondary = append(secondary, index)
 		}
 	}
@@ -84,4 +84,18 @@ func RenderTableDDL(
 		}
 	}
 	return lines
+}
+
+// isConstraintIndex is true for the index the server builds for a primary key, a unique or
+// an exclusion constraint. The index has the name of its constraint.
+func isConstraintIndex(index IndexDetail, constraints []ConstraintDetail) bool {
+	for _, constraint := range constraints {
+		switch constraint.Kind {
+		case ConstraintPrimaryKey, ConstraintUnique, ConstraintExclusion:
+			if constraint.Name == index.Name {
+				return true
+			}
+		}
+	}
+	return false
 }
