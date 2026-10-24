@@ -526,6 +526,18 @@ func (model *Model) runOverlayAction(
 		overlay.List.Rolled = false
 	}
 
+	if handled, held, command := model.runOverlayListAction(
+		connection, tab, overlay, match, count); handled {
+		return true, held, command
+	}
+	return model.runOverlayKindAction(connection, tab, overlay, match)
+}
+
+// runOverlayListAction runs an action every list card shares: a move of the cursor, a
+// choice of the row and a step between fields. It reports whether the action was one.
+func (model *Model) runOverlayListAction(
+	connection *app.Connection, tab *app.Tab, overlay *app.Overlay, match Match, count int,
+) (bool, tea.Model, tea.Cmd) {
 	switch match.Action {
 	case ActionClose:
 		model.cancelOverlay(connection, overlay)
@@ -596,231 +608,307 @@ func (model *Model) runOverlayAction(
 		held, command := model.chooseOverlayRow(connection, tab, overlay, chooseInNewTab)
 		return true, held, command
 	}
+	return false, model, nil
+}
 
+// runOverlayKindAction runs an action that belongs to one kind of card. It reports whether
+// the action belonged to this card.
+func (model *Model) runOverlayKindAction(
+	connection *app.Connection, tab *app.Tab, overlay *app.Overlay, match Match,
+) (bool, tea.Model, tea.Cmd) {
 	switch overlay.Kind {
 	case app.OverlayConfirm, app.OverlayWritePlan:
-		switch match.Action {
-		case ActionAnswerYes:
-			answer := overlay.Answers.Answer
-			// The question closes and the card it was asked over returns.
-			connection.CloseOverlay()
-			return true, model, model.runAnswer(answer, true)
-		case ActionAnswerNo:
-			model.answerNothing(overlay)
-			connection.CloseOverlay()
-			return true, model, nil
-		}
-
+		return model.runQuestionCardAction(connection, overlay, match)
 	case app.OverlayChanges:
-		switch match.Action {
-		case ActionToggleStatements:
-			overlay.ShowsStatements = !overlay.ShowsStatements
-			overlay.List.Offset = 0
-			return true, model, nil
-		case ActionApplyChanges:
-			connection.CloseEveryOverlay()
-			held, command := model.applyStagedChanges(connection, tab)
-			return true, held, command
-		case ActionDiscardChanges:
-			connection.CloseEveryOverlay()
-			held, command := model.requestDiscardChanges(connection, tab)
-			return true, held, command
-		}
-
+		return model.runChangesCardAction(connection, tab, overlay, match)
 	case app.OverlayRowDetail:
-		switch match.Action {
-		case ActionCopyValue:
-			value, column, found := readRowDetailField(*overlay)
-			if !found {
-				return true, model, nil
-			}
-			overlay.Notice = "copied"
-			return true, model, model.keepOnClipboard(
-				present.FormatForViewer(value, column.DataType))
-		case ActionFollowForeignKey:
-			value, column, found := readRowDetailField(*overlay)
-			if !found {
-				return true, model, nil
-			}
-			target, points := build.FindForeignKeyTarget(tab.Target.ForeignKeys, column.Name)
-			if !points {
-				overlay.Notice = column.Name + " has no foreign key"
-				return true, model, nil
-			}
-			connection.CloseEveryOverlay()
-			held, command := model.openFilteredTable(connection, target.Schema, target.Table,
-				core.BuildCellFilter(target.Column, value, false))
-			return true, held, command
-		case ActionEditCell:
-			shape := model.buildGridShape(connection, tab)
-			at := slices.Index(shape.RowIndexes, overlay.Window.Index)
-			if at < 0 {
-				return true, model, nil
-			}
-			tab.GridRow, tab.GridColumn = at, clamp(overlay.List.Cursor, len(shape.Columns))
-			connection.CloseEveryOverlay()
-			held, command := model.editCell(connection, tab, shape)
-			return true, held, command
-		}
-
+		return model.runRowDetailCardAction(connection, tab, overlay, match)
 	case app.OverlayCell:
-		// The viewer only reads, so the key that selects all means "copy this value".
-		// The card stays open and says what it did.
-		if match.Action == ActionCopyValue {
-			written := present.FormatForViewer(overlay.Cell.Value, overlay.Cell.Column.DataType)
-			overlay.Notice = "copied"
-			return true, model, model.keepOnClipboard(written)
-		}
-
+		return model.runCellViewerAction(overlay, match)
 	case app.OverlayCellEdit:
-		switch match.Action {
-		case ActionSaveCell:
-			held, command := model.saveCell(connection, tab, *overlay)
-			return true, held, command
-		case ActionPrettifyJSON:
-			if len(overlay.Cell.Choices) > 0 ||
-				!present.IsJSONType(overlay.Cell.Column.DataType) {
-				return true, model, nil
-			}
-			written, isJSON := present.PrettifyJSON(overlay.Draft.Text)
-			if !isJSON {
-				overlay.Notice = "not valid JSON"
-				return true, model, nil
-			}
-			overlay.Draft.SetText(written)
-			overlay.Notice = "JSON formatted"
-			return true, model, nil
-		case ActionSetNull:
-			held, command := model.stageCellValue(
-				connection, tab, *overlay, core.CellValue{Kind: core.CellNull})
-			return true, held, command
-		case ActionSetEmpty:
-			held, command := model.stageCellValue(
-				connection, tab, *overlay, core.CellValue{Kind: core.CellEmpty})
-			return true, held, command
-		case ActionSetDefault:
-			held, command := model.stageCellValue(
-				connection, tab, *overlay, core.CellValue{Kind: core.CellDefault})
-			return true, held, command
-		}
-
+		return model.runCellEditorAction(connection, tab, overlay, match)
 	case app.OverlayParameters:
-		switch match.Action {
-		case ActionRunWithValues:
-			return true, model, model.answerParameters(connection, overlay)
-		case ActionPrettifyJSON:
-			written, isJSON := present.PrettifyJSON(overlay.Draft.Text)
-			if !isJSON {
-				overlay.Notice = "not valid JSON"
-				return true, model, nil
-			}
-			overlay.Draft.SetText(written)
-			overlay.Notice = "JSON formatted"
-			return true, model, nil
-		}
-
+		return model.runParametersCardAction(connection, overlay, match)
 	case app.OverlayValueFilter, app.OverlayColumns:
-		switch match.Action {
-		case ActionToggleValue:
-			if overlay.List.Cursor < len(overlay.Values) {
-				value := overlay.Values[overlay.List.Cursor].Value
-				if overlay.Kept[value] {
-					delete(overlay.Kept, value)
-				} else {
-					overlay.Kept[value] = true
-				}
-			}
-			return true, model, nil
-		case ActionKeepAllValues:
-			for _, value := range overlay.Values {
-				overlay.Kept[value.Value] = true
-			}
-			return true, model, nil
-		case ActionKeepOnlyValue:
-			if overlay.List.Cursor < len(overlay.Values) {
-				overlay.Kept = map[string]bool{overlay.Values[overlay.List.Cursor].Value: true}
-			}
-			return true, model, nil
-		}
-
+		return model.runValueListCardAction(overlay, match)
 	case app.OverlayImport:
 		if match.Action == ActionSaveForm {
 			held, command := model.advanceImport(connection, overlay)
 			return true, held, command
 		}
-
 	case app.OverlayChart:
 		if match.Action == ActionSaveForm {
 			held, command := model.applyChartForm(connection, tab, *overlay)
 			return true, held, command
 		}
-
 	case app.OverlayExport:
 		if match.Action == ActionWriteExport {
 			held, command := model.writeExport(connection, tab, *overlay)
 			return true, held, command
 		}
-
 	case app.OverlaySaved:
 		if match.Action == ActionListSecondary {
 			held, command := model.deleteSavedQuery(connection, overlay)
 			return true, held, command
 		}
-
 	case app.OverlayNotebooks:
-		switch match.Action {
-		case ActionEditConnection:
-			held, command := model.renameNotebookRow(connection, overlay)
-			return true, held, command
-		case ActionNewConnection:
-			connection.CloseEveryOverlay()
-			held, command := model.openNewNotebook(connection)
-			return true, held, command
-		case ActionDeleteConnection:
-			held, command := model.deleteNotebookRow(connection, overlay)
-			return true, held, command
-		}
-
+		return model.runNotebookListCardAction(connection, overlay, match)
 	case app.OverlayActivity:
-		switch match.Action {
-		case ActionFoldRow, ActionUnfoldRow:
-			// Every panel folds together, because the cursor stands in the session list
-			// and not on a panel, so there is no one panel the key could mean.
-			for _, panel := range app.DashboardPanels {
-				overlay.View.FoldPanel(panel, match.Action == ActionFoldRow)
+		return model.runActivityCardAction(connection, overlay, match)
+	}
+	return false, model, nil
+}
+
+// runQuestionCardAction runs an action of a question or of the write plan. It reports whether
+// the action belonged to the card.
+func (model *Model) runQuestionCardAction(
+	connection *app.Connection, overlay *app.Overlay, match Match,
+) (bool, tea.Model, tea.Cmd) {
+	switch match.Action {
+	case ActionAnswerYes:
+		answer := overlay.Answers.Answer
+		// The question closes and the card it was asked over returns.
+		connection.CloseOverlay()
+		return true, model, model.runAnswer(answer, true)
+	case ActionAnswerNo:
+		model.answerNothing(overlay)
+		connection.CloseOverlay()
+		return true, model, nil
+	}
+	return false, model, nil
+}
+
+// runChangesCardAction runs an action of the card of staged changes. It reports whether the
+// action belonged to the card.
+func (model *Model) runChangesCardAction(
+	connection *app.Connection, tab *app.Tab, overlay *app.Overlay, match Match,
+) (bool, tea.Model, tea.Cmd) {
+	switch match.Action {
+	case ActionToggleStatements:
+		overlay.ShowsStatements = !overlay.ShowsStatements
+		overlay.List.Offset = 0
+		return true, model, nil
+	case ActionApplyChanges:
+		connection.CloseEveryOverlay()
+		held, command := model.applyStagedChanges(connection, tab)
+		return true, held, command
+	case ActionDiscardChanges:
+		connection.CloseEveryOverlay()
+		held, command := model.requestDiscardChanges(connection, tab)
+		return true, held, command
+	}
+	return false, model, nil
+}
+
+// runRowDetailCardAction runs an action of the row detail card. It reports whether the action
+// belonged to the card.
+func (model *Model) runRowDetailCardAction(
+	connection *app.Connection, tab *app.Tab, overlay *app.Overlay, match Match,
+) (bool, tea.Model, tea.Cmd) {
+	switch match.Action {
+	case ActionCopyValue:
+		value, column, found := readRowDetailField(*overlay)
+		if !found {
+			return true, model, nil
+		}
+		overlay.Notice = "copied"
+		return true, model, model.keepOnClipboard(
+			present.FormatForViewer(value, column.DataType))
+	case ActionFollowForeignKey:
+		value, column, found := readRowDetailField(*overlay)
+		if !found {
+			return true, model, nil
+		}
+		target, points := build.FindForeignKeyTarget(tab.Target.ForeignKeys, column.Name)
+		if !points {
+			overlay.Notice = column.Name + " has no foreign key"
+			return true, model, nil
+		}
+		connection.CloseEveryOverlay()
+		held, command := model.openFilteredTable(connection, target.Schema, target.Table,
+			core.BuildCellFilter(target.Column, value, false))
+		return true, held, command
+	case ActionEditCell:
+		shape := model.buildGridShape(connection, tab)
+		at := slices.Index(shape.RowIndexes, overlay.Window.Index)
+		if at < 0 {
+			return true, model, nil
+		}
+		tab.GridRow, tab.GridColumn = at, clamp(overlay.List.Cursor, len(shape.Columns))
+		connection.CloseEveryOverlay()
+		held, command := model.editCell(connection, tab, shape)
+		return true, held, command
+	}
+	return false, model, nil
+}
+
+// runCellViewerAction runs an action of the cell viewer. It reports whether the action
+// belonged to the card.
+func (model *Model) runCellViewerAction(
+	overlay *app.Overlay, match Match,
+) (bool, tea.Model, tea.Cmd) {
+	// The viewer only reads, so the key that selects all means "copy this value".
+	// The card stays open and says what it did.
+	if match.Action == ActionCopyValue {
+		written := present.FormatForViewer(overlay.Cell.Value, overlay.Cell.Column.DataType)
+		overlay.Notice = "copied"
+		return true, model, model.keepOnClipboard(written)
+	}
+	return false, model, nil
+}
+
+// runCellEditorAction runs an action of the cell editor. It reports whether the action
+// belonged to the card.
+func (model *Model) runCellEditorAction(
+	connection *app.Connection, tab *app.Tab, overlay *app.Overlay, match Match,
+) (bool, tea.Model, tea.Cmd) {
+	switch match.Action {
+	case ActionSaveCell:
+		held, command := model.saveCell(connection, tab, *overlay)
+		return true, held, command
+	case ActionPrettifyJSON:
+		if len(overlay.Cell.Choices) > 0 ||
+			!present.IsJSONType(overlay.Cell.Column.DataType) {
+			return true, model, nil
+		}
+		written, isJSON := present.PrettifyJSON(overlay.Draft.Text)
+		if !isJSON {
+			overlay.Notice = "not valid JSON"
+			return true, model, nil
+		}
+		overlay.Draft.SetText(written)
+		overlay.Notice = "JSON formatted"
+		return true, model, nil
+	case ActionSetNull:
+		held, command := model.stageCellValue(
+			connection, tab, *overlay, core.CellValue{Kind: core.CellNull})
+		return true, held, command
+	case ActionSetEmpty:
+		held, command := model.stageCellValue(
+			connection, tab, *overlay, core.CellValue{Kind: core.CellEmpty})
+		return true, held, command
+	case ActionSetDefault:
+		held, command := model.stageCellValue(
+			connection, tab, *overlay, core.CellValue{Kind: core.CellDefault})
+		return true, held, command
+	}
+	return false, model, nil
+}
+
+// runParametersCardAction runs an action of the parameters card. It reports whether the action
+// belonged to the card.
+func (model *Model) runParametersCardAction(
+	connection *app.Connection, overlay *app.Overlay, match Match,
+) (bool, tea.Model, tea.Cmd) {
+	switch match.Action {
+	case ActionRunWithValues:
+		return true, model, model.answerParameters(connection, overlay)
+	case ActionPrettifyJSON:
+		written, isJSON := present.PrettifyJSON(overlay.Draft.Text)
+		if !isJSON {
+			overlay.Notice = "not valid JSON"
+			return true, model, nil
+		}
+		overlay.Draft.SetText(written)
+		overlay.Notice = "JSON formatted"
+		return true, model, nil
+	}
+	return false, model, nil
+}
+
+// runValueListCardAction runs an action of the value filter or of the column list. It reports
+// whether the action belonged to the card.
+func (model *Model) runValueListCardAction(
+	overlay *app.Overlay, match Match,
+) (bool, tea.Model, tea.Cmd) {
+	switch match.Action {
+	case ActionToggleValue:
+		if overlay.List.Cursor < len(overlay.Values) {
+			value := overlay.Values[overlay.List.Cursor].Value
+			if overlay.Kept[value] {
+				delete(overlay.Kept, value)
+			} else {
+				overlay.Kept[value] = true
 			}
-			return true, model, nil
 		}
-		switch match.Action {
-		case ActionSortSessions:
-			changeSessionView(overlay, func(view *app.DashboardView) { view.StepSessionSort() })
-			return true, model, nil
-		case ActionReverseSort:
-			changeSessionView(overlay, func(view *app.DashboardView) {
-				if view.SortBy != app.ActivityByServer {
-					view.Descending = !view.Descending
-				}
-			})
-			return true, model, nil
-		case ActionToggleIdle:
-			changeSessionView(overlay, func(view *app.DashboardView) {
-				view.HidesIdle = !view.HidesIdle
-			})
-			return true, model, nil
+		return true, model, nil
+	case ActionKeepAllValues:
+		for _, value := range overlay.Values {
+			overlay.Kept[value.Value] = true
 		}
-		sessions := app.ListShownSessions(overlay.Sessions, overlay.View)
-		if overlay.List.Cursor >= len(sessions) {
-			return false, model, nil
+		return true, model, nil
+	case ActionKeepOnlyValue:
+		if overlay.List.Cursor < len(overlay.Values) {
+			overlay.Kept = map[string]bool{overlay.Values[overlay.List.Cursor].Value: true}
 		}
-		session := sessions[overlay.List.Cursor]
-		switch match.Action {
-		case ActionStopSession:
-			held, command := model.askStopBackend(connection, session, stopStatement)
-			return true, held, command
-		case ActionListSecondary:
-			held, command := model.askStopBackend(connection, session, endSession)
-			return true, held, command
+		return true, model, nil
+	}
+	return false, model, nil
+}
+
+// runNotebookListCardAction runs an action of the notebook list. It reports whether the action
+// belonged to the card.
+func (model *Model) runNotebookListCardAction(
+	connection *app.Connection, overlay *app.Overlay, match Match,
+) (bool, tea.Model, tea.Cmd) {
+	switch match.Action {
+	case ActionEditConnection:
+		held, command := model.renameNotebookRow(connection, overlay)
+		return true, held, command
+	case ActionNewConnection:
+		connection.CloseEveryOverlay()
+		held, command := model.openNewNotebook(connection)
+		return true, held, command
+	case ActionDeleteConnection:
+		held, command := model.deleteNotebookRow(connection, overlay)
+		return true, held, command
+	}
+	return false, model, nil
+}
+
+// runActivityCardAction runs an action of the server activity card. It reports whether the
+// action belonged to the card.
+func (model *Model) runActivityCardAction(
+	connection *app.Connection, overlay *app.Overlay, match Match,
+) (bool, tea.Model, tea.Cmd) {
+	switch match.Action {
+	case ActionFoldRow, ActionUnfoldRow:
+		// Every panel folds together, because the cursor stands in the session list
+		// and not on a panel, so there is no one panel the key could mean.
+		for _, panel := range app.DashboardPanels {
+			overlay.View.FoldPanel(panel, match.Action == ActionFoldRow)
 		}
+		return true, model, nil
+	}
+	switch match.Action {
+	case ActionSortSessions:
+		changeSessionView(overlay, func(view *app.DashboardView) { view.StepSessionSort() })
+		return true, model, nil
+	case ActionReverseSort:
+		changeSessionView(overlay, func(view *app.DashboardView) {
+			if view.SortBy != app.ActivityByServer {
+				view.Descending = !view.Descending
+			}
+		})
+		return true, model, nil
+	case ActionToggleIdle:
+		changeSessionView(overlay, func(view *app.DashboardView) {
+			view.HidesIdle = !view.HidesIdle
+		})
+		return true, model, nil
+	}
+	sessions := app.ListShownSessions(overlay.Sessions, overlay.View)
+	if overlay.List.Cursor >= len(sessions) {
+		return false, model, nil
+	}
+	session := sessions[overlay.List.Cursor]
+	switch match.Action {
+	case ActionStopSession:
+		held, command := model.askStopBackend(connection, session, stopStatement)
+		return true, held, command
+	case ActionListSecondary:
+		held, command := model.askStopBackend(connection, session, endSession)
+		return true, held, command
 	}
 	return false, model, nil
 }
