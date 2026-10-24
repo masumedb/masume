@@ -350,41 +350,6 @@ func (model *Model) readMessage(message tea.Msg) (tea.Model, tea.Cmd) {
 	model.frame.held = false
 
 	switch held := message.(type) {
-	case tea.WindowSizeMsg:
-		model.width, model.height = held.Width, held.Height
-		return model, nil
-
-	case terminalColorsWaitedMsg:
-		model.terminal.waiting = false
-		return model, nil
-
-	// The ground and the ink arrive on their own where the terminal reports a change of
-	// its theme, and the slots of its palette change with them, so those are asked for
-	// again whenever one of these is new.
-	case tea.BackgroundColorMsg:
-		if !model.terminal.keepGround(held.Color) {
-			return model, nil
-		}
-		model.applyTerminalColors()
-		return model, model.askTerminalPaletteAgain()
-
-	case tea.ForegroundColorMsg:
-		if !model.terminal.keepInk(held.Color) {
-			return model, nil
-		}
-		model.applyTerminalColors()
-		return model, model.askTerminalPaletteAgain()
-
-	// A palette slot arrives in an answer no message of the engine covers, so the raw
-	// sequence is read here.
-	case uv.UnknownOscEvent:
-		slot, reported, answered := readPaletteAnswer(held)
-		if !answered || !model.terminal.keepSlot(slot, reported) {
-			return model, nil
-		}
-		model.applyTerminalColors()
-		return model, nil
-
 	case tea.MouseClickMsg:
 		return model.readMouse(held)
 
@@ -397,50 +362,6 @@ func (model *Model) readMessage(message tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.MouseReleaseMsg:
 		return model.readMouseRelease(held)
 
-	// A wake carries no work: it is asked for so a mark that has run out is taken off the
-	// frame at the moment it runs out, and not at the next turn of the wheel.
-	case wakeMsg:
-		return model, model.continueAnimation()
-
-	case tea.FocusMsg:
-		model.terminalBlurred = false
-		return model, nil
-
-	case tea.BlurMsg:
-		model.terminalBlurred = true
-		return model, nil
-
-	case tickMsg:
-		model.spinnerAt++
-		for _, connection := range model.connections.all() {
-			connection.DropStaleNotice(time.Time(held))
-		}
-		return model, tea.Batch(
-			tick(model.resolveTickWait()), model.askTerminalAgain(time.Time(held)),
-			model.refreshDashboard(time.Time(held)))
-
-	case formTestedMsg:
-		if model.form != nil {
-			if held.Problem == "" {
-				model.form.Test, model.form.Message = TestPassed, held.ServerVersion
-			} else {
-				model.form.Test, model.form.Message = TestFailed, held.Problem
-			}
-		}
-		return model, nil
-
-	case agentModelsRead:
-		return model.keepAgentModels(held)
-
-	case transactionRanMsg:
-		return model.readTransactionAnswer(held)
-
-	case cancelledMsg:
-		return model.readCancelAnswer(held)
-
-	case stoppedBackendMsg:
-		return model.readStopBackendAnswer(held)
-
 	case tea.KeyPressMsg:
 		model.frame.pointerIdle = true
 		return model.readKey(held.Key())
@@ -450,150 +371,235 @@ func (model *Model) readMessage(message tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.PasteMsg:
 		model.frame.pointerIdle = true
 		return model.readPaste(held.Content)
-
-	case connectedMsg:
-		return model.readConnected(held)
-
-	case catalogReadMsg:
-		return model.readCatalogAnswer(held)
-
-	case diagramMsg:
-		return model.readDiagramAnswer(held)
-
-	case importReadMsg:
-		return model.readImportAnswer(held)
-
-	case importCheckedMsg:
-		return model.readImportCheck(held)
-
-	case importRanMsg:
-		return model.readImportRun(held)
-
-	case progressMsg:
-		return model.readProgress(held)
-
-	case dumpWrittenMsg:
-		return model.readDumpWritten(held)
-
-	case restoreRanMsg:
-		return model.readRestoreRan(held)
-
-	case healthDueMsg:
-		return model.readHealthDue(held)
-
-	case healthCheckedMsg:
-		return model.readHealthChecked(held)
-
-	case reconnectedMsg:
-		return model.readReconnected(held)
-
-	case checkDueMsg:
-		return model.readCheckDue(held)
-
-	case checkedMsg:
-		return model.readChecked(held)
-
-	case chatEventsMsg:
-		return model.readChatEvents(held)
-
-	case chatClosedMsg:
-		return model.readChatClosed(held)
-
-	case tableDetailMsg:
-		return model.readTableDetailAnswer(held)
-
-	case builderTableMsg:
-		return model.readBuilderTableAnswer(held)
-
-	case queryRanMsg:
-		return model.readQueryAnswer(held)
-
-	case pageReadMsg:
-		return model.readPageAnswer(held)
-
-	case countedMsg:
-		return model.readCountAnswer(held)
-
-	case planReadMsg:
-		return model.readPlanAnswer(held)
-
-	case relationViewMsg:
-		return model.readRelationViewAnswer(held)
-
-	case compareScriptMsg:
-		return model.readCompareScript(held)
-
-	case dataSearchMsg:
-		return model.readDataSearch(held)
-
-	case definitionCopiedMsg:
-		return model.readDefinitionCopied(held)
-
-	case changesAppliedMsg:
-		return model.readChangesAnswer(held)
-
-	case writePlanBuiltMsg:
-		return model.readWritePlanAnswer(held)
-
-	case quitCommittedMsg:
-		return model.readQuitCommitted(held)
-
-	case stagedPlanBuiltMsg:
-		return model.readStagedPlanAnswer(held)
-
-	case undoWrittenMsg:
-		return model.readUndoAnswer(held)
-
-	case historyReadMsg:
-		return model.readHistoryAnswer(held)
-
-	case savedReadMsg:
-		return model.readSavedAnswer(held)
-
-	case notebooksReadMsg:
-		return model.readNotebooksAnswer(held)
-
-	case notebookReadMsg:
-		return model.readNotebookAnswer(held)
-
-	case notebookWrittenMsg:
-		return model.readNotebookWritten(held)
-
-	case notebookReportWrittenMsg:
-		return model.readNotebookReportWritten(held)
-
-	case notebookRemovedMsg:
-		return model.readNotebookRemoved(held)
-
-	case notebookRenamedMsg:
-		return model.readNotebookRenamed(held)
-
-	case activityReadMsg:
-		return model.readActivityAnswer(held)
-
-	case marksReadMsg:
-		return model.readMarksAnswer(held)
-
-	case exportWrittenMsg:
-		return model.readExportAnswer(held)
-
-	case historyWrittenMsg:
-		return model.readHistoryWritten(held)
-
-	case savedQueryRemovedMsg:
-		return model.readSavedQueryRemoved(held)
-
-	case conversationKeptMsg:
-		return model.readConversationKept(held)
 	}
 
-	if held, command, taken := model.readFormPickerMessage(message); taken {
-		return held, command
-	}
-	if held, command, taken := model.readPickerMessage(message); taken {
-		return held, command
+	for _, read := range []func(tea.Msg) (tea.Model, tea.Cmd, bool){
+		model.readTerminalMessage, model.readConnectionMessage, model.readQueryMessage,
+		model.readFileMessage, model.readChatMessage, model.readFormPickerMessage,
+		model.readPickerMessage,
+	} {
+		if held, command, taken := read(message); taken {
+			return held, command
+		}
 	}
 	return model, nil
+}
+
+// readTerminalMessage reads a message of the terminal: its size, its colours, its focus and
+// the beats of the clock.
+func (model *Model) readTerminalMessage(message tea.Msg) (tea.Model, tea.Cmd, bool) {
+	switch held := message.(type) {
+	case tea.WindowSizeMsg:
+		model.width, model.height = held.Width, held.Height
+		return model, nil, true
+
+	case terminalColorsWaitedMsg:
+		model.terminal.waiting = false
+		return model, nil, true
+
+	// The ground and the ink arrive on their own where the terminal reports a change of
+	// its theme, and the slots of its palette change with them, so those are asked for
+	// again whenever one of these is new.
+	case tea.BackgroundColorMsg:
+		if !model.terminal.keepGround(held.Color) {
+			return model, nil, true
+		}
+		model.applyTerminalColors()
+		return model, model.askTerminalPaletteAgain(), true
+
+	case tea.ForegroundColorMsg:
+		if !model.terminal.keepInk(held.Color) {
+			return model, nil, true
+		}
+		model.applyTerminalColors()
+		return model, model.askTerminalPaletteAgain(), true
+
+	// A palette slot arrives in an answer no message of the engine covers, so the raw
+	// sequence is read here.
+	case uv.UnknownOscEvent:
+		slot, reported, answered := readPaletteAnswer(held)
+		if !answered || !model.terminal.keepSlot(slot, reported) {
+			return model, nil, true
+		}
+		model.applyTerminalColors()
+		return model, nil, true
+
+	// A wake carries no work: it is asked for so a mark that has run out is taken off the
+	// frame at the moment it runs out, and not at the next turn of the wheel.
+	case wakeMsg:
+		return model, model.continueAnimation(), true
+
+	case tea.FocusMsg:
+		model.terminalBlurred = false
+		return model, nil, true
+
+	case tea.BlurMsg:
+		model.terminalBlurred = true
+		return model, nil, true
+
+	case tickMsg:
+		model.spinnerAt++
+		for _, connection := range model.connections.all() {
+			connection.DropStaleNotice(time.Time(held))
+		}
+		return model, tea.Batch(
+			tick(model.resolveTickWait()), model.askTerminalAgain(time.Time(held)),
+			model.refreshDashboard(time.Time(held))), true
+	}
+	return model, nil, false
+}
+
+// readConnectionMessage reads an answer about a connection: its opening, its health, its
+// transaction and its sessions.
+func (model *Model) readConnectionMessage(message tea.Msg) (tea.Model, tea.Cmd, bool) {
+	var next tea.Model
+	var command tea.Cmd
+	switch held := message.(type) {
+	case formTestedMsg:
+		if model.form != nil {
+			if held.Problem == "" {
+				model.form.Test, model.form.Message = TestPassed, held.ServerVersion
+			} else {
+				model.form.Test, model.form.Message = TestFailed, held.Problem
+			}
+		}
+		next = model
+	case connectedMsg:
+		next, command = model.readConnected(held)
+	case catalogReadMsg:
+		next, command = model.readCatalogAnswer(held)
+	case healthDueMsg:
+		next, command = model.readHealthDue(held)
+	case healthCheckedMsg:
+		next, command = model.readHealthChecked(held)
+	case reconnectedMsg:
+		next, command = model.readReconnected(held)
+	case checkDueMsg:
+		next, command = model.readCheckDue(held)
+	case checkedMsg:
+		next, command = model.readChecked(held)
+	case transactionRanMsg:
+		next, command = model.readTransactionAnswer(held)
+	case cancelledMsg:
+		next, command = model.readCancelAnswer(held)
+	case stoppedBackendMsg:
+		next, command = model.readStopBackendAnswer(held)
+	case activityReadMsg:
+		next, command = model.readActivityAnswer(held)
+	case marksReadMsg:
+		next, command = model.readMarksAnswer(held)
+	default:
+		return model, nil, false
+	}
+	return next, command, true
+}
+
+// readQueryMessage reads an answer about a statement, a table or a staged change.
+func (model *Model) readQueryMessage(message tea.Msg) (tea.Model, tea.Cmd, bool) {
+	var next tea.Model
+	var command tea.Cmd
+	switch held := message.(type) {
+	case queryRanMsg:
+		next, command = model.readQueryAnswer(held)
+	case pageReadMsg:
+		next, command = model.readPageAnswer(held)
+	case countedMsg:
+		next, command = model.readCountAnswer(held)
+	case planReadMsg:
+		next, command = model.readPlanAnswer(held)
+	case relationViewMsg:
+		next, command = model.readRelationViewAnswer(held)
+	case tableDetailMsg:
+		next, command = model.readTableDetailAnswer(held)
+	case builderTableMsg:
+		next, command = model.readBuilderTableAnswer(held)
+	case diagramMsg:
+		next, command = model.readDiagramAnswer(held)
+	case compareScriptMsg:
+		next, command = model.readCompareScript(held)
+	case dataSearchMsg:
+		next, command = model.readDataSearch(held)
+	case definitionCopiedMsg:
+		next, command = model.readDefinitionCopied(held)
+	case changesAppliedMsg:
+		next, command = model.readChangesAnswer(held)
+	case writePlanBuiltMsg:
+		next, command = model.readWritePlanAnswer(held)
+	case quitCommittedMsg:
+		next, command = model.readQuitCommitted(held)
+	case stagedPlanBuiltMsg:
+		next, command = model.readStagedPlanAnswer(held)
+	case undoWrittenMsg:
+		next, command = model.readUndoAnswer(held)
+	default:
+		return model, nil, false
+	}
+	return next, command, true
+}
+
+// readFileMessage reads an answer about a file: an import, a dump, an export, the history,
+// the saved statements and the notebooks.
+func (model *Model) readFileMessage(message tea.Msg) (tea.Model, tea.Cmd, bool) {
+	var next tea.Model
+	var command tea.Cmd
+	switch held := message.(type) {
+	case importReadMsg:
+		next, command = model.readImportAnswer(held)
+	case importCheckedMsg:
+		next, command = model.readImportCheck(held)
+	case importRanMsg:
+		next, command = model.readImportRun(held)
+	case progressMsg:
+		next, command = model.readProgress(held)
+	case dumpWrittenMsg:
+		next, command = model.readDumpWritten(held)
+	case restoreRanMsg:
+		next, command = model.readRestoreRan(held)
+	case exportWrittenMsg:
+		next, command = model.readExportAnswer(held)
+	case historyReadMsg:
+		next, command = model.readHistoryAnswer(held)
+	case historyWrittenMsg:
+		next, command = model.readHistoryWritten(held)
+	case savedReadMsg:
+		next, command = model.readSavedAnswer(held)
+	case savedQueryRemovedMsg:
+		next, command = model.readSavedQueryRemoved(held)
+	case notebooksReadMsg:
+		next, command = model.readNotebooksAnswer(held)
+	case notebookReadMsg:
+		next, command = model.readNotebookAnswer(held)
+	case notebookWrittenMsg:
+		next, command = model.readNotebookWritten(held)
+	case notebookReportWrittenMsg:
+		next, command = model.readNotebookReportWritten(held)
+	case notebookRemovedMsg:
+		next, command = model.readNotebookRemoved(held)
+	case notebookRenamedMsg:
+		next, command = model.readNotebookRenamed(held)
+	default:
+		return model, nil, false
+	}
+	return next, command, true
+}
+
+// readChatMessage reads an answer of the chat or of an agent.
+func (model *Model) readChatMessage(message tea.Msg) (tea.Model, tea.Cmd, bool) {
+	var next tea.Model
+	var command tea.Cmd
+	switch held := message.(type) {
+	case chatEventsMsg:
+		next, command = model.readChatEvents(held)
+	case chatClosedMsg:
+		next, command = model.readChatClosed(held)
+	case conversationKeptMsg:
+		next, command = model.readConversationKept(held)
+	case agentModelsRead:
+		next, command = model.keepAgentModels(held)
+	default:
+		return model, nil, false
+	}
+	return next, command, true
 }
 
 // applyTerminalColors hands the theme what the terminal reported about itself.
