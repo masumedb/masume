@@ -222,9 +222,6 @@ func (model *Model) focusProfile(name string) {
 	model.picker.focusProfile(model.profiles, name)
 }
 
-// renderPicker draws the connections of the config file and of the project file, one row
-// each. The screen draws its own rows, because a row holds parts that each keep their own
-// width.
 // measureLongestEngineName returns the columns the longest engine name of the list takes.
 func measureLongestEngineName(profiles []cfg.Profile) int {
 	longest := 0
@@ -250,14 +247,23 @@ func (model *Model) renderPickerFilter(cardWidth, count int) string {
 		" / ", model.picker.filtersList())
 }
 
-func (model *Model) renderPicker() string {
-	theme := model.styles.Theme
-	profiles := model.shownProfiles()
-	rows := model.shownPickerRows()
+// pickerColumns is the width of the card and of each column of a profile row.
+type pickerColumns struct {
+	cardWidth    int
+	nameWidth    int
+	sourceWidth  int
+	engineWidth  int
+	targetWidth  int
+	targetWidest int
+}
+
+// measurePickerColumns returns the widths of the card and of its columns on a screen of this
+// width.
+func measurePickerColumns(profiles []cfg.Profile, screenWidth int) pickerColumns {
 	// The source column stands empty where no connection comes from a project file, so a
 	// user without one loses no room to it.
 	sourceWidth := 0
-	if slices.ContainsFunc(model.profiles, func(profile cfg.Profile) bool {
+	if slices.ContainsFunc(profiles, func(profile cfg.Profile) bool {
 		return profile.ProjectFile != ""
 	}) {
 		sourceWidth = pickerSourceWidth
@@ -265,7 +271,7 @@ func (model *Model) renderPicker() string {
 	// The columns are measured over every profile, filtered out ones included, so no
 	// column moves while the filter changes.
 	nameWidth, targetWidest, descriptionWidest := narrowestPickerName, 0, 0
-	for _, profile := range model.profiles {
+	for _, profile := range profiles {
 		nameWidth = max(nameWidth,
 			pickerIndentWidth*countGroupLevels(profile.Group)+present.MeasureText(profile.Name))
 		targetWidest = max(targetWidest, present.MeasureText(cfg.DescribeProfileTarget(profile)))
@@ -274,23 +280,37 @@ func (model *Model) renderPicker() string {
 	nameWidth = min(nameWidth, pickerNameWidth)
 	fixedWidth := pickerChrome + pickerOpenWidth + nameWidth + pickerEnvWidth +
 		pickerModeWidth + sourceWidth + pickerGap*3
-	wanted := fixedWidth + measureLongestEngineName(model.profiles) + pickerGap + targetWidest
+	wanted := fixedWidth + measureLongestEngineName(profiles) + pickerGap + targetWidest
 	if descriptionWidest > 0 {
 		wanted += pickerGap + descriptionWidest
 	}
 	cardWidth := present.ResolveCardWidth(
-		min(max(wanted, widestPickerCard), widestPickerContent), narrowestPickerCard, model.width)
+		min(max(wanted, widestPickerCard), widestPickerContent), narrowestPickerCard, screenWidth)
 	// The engine column is as wide as the longest engine name of every profile, filtered
 	// out ones included, so no column moves while the filter changes. It stands only where
 	// the target keeps its own room beside it.
 	room := cardWidth - fixedWidth
-	engineWidth := measureLongestEngineName(model.profiles)
+	engineWidth := measureLongestEngineName(profiles)
 	if room-engineWidth-pickerGap < pickerTargetWidth {
 		engineWidth = 0
 	} else {
 		room -= engineWidth + pickerGap
 	}
-	targetWidth := max(room, pickerTargetWidth)
+	return pickerColumns{
+		cardWidth: cardWidth, nameWidth: nameWidth, sourceWidth: sourceWidth,
+		engineWidth: engineWidth, targetWidth: max(room, pickerTargetWidth),
+		targetWidest: targetWidest,
+	}
+}
+
+// renderPicker draws the connections of the config file and of the project file, one row
+// each. The screen draws its own rows, because a row holds parts that each keep their own
+// width.
+func (model *Model) renderPicker() string {
+	profiles := model.shownProfiles()
+	rows := model.shownPickerRows()
+	columns := measurePickerColumns(model.profiles, model.width)
+	cardWidth := columns.cardWidth
 
 	// The filter field and a blank row stand above the list.
 	lines := []string{model.renderPickerFilter(cardWidth, len(profiles)), ""}
@@ -308,14 +328,7 @@ func (model *Model) renderPicker() string {
 	// Where the rows land on the screen, so a press opens the row it looks like. The card
 	// stands in the middle of everything under the title bar, with a blank row inside its
 	// border.
-	problemLines := []string{}
-	if model.picker.problem != "" {
-		problemLines = append(problemLines, "")
-		problemLines = append(problemLines, present.WrapWords(model.picker.problem, cardWidth-4)...)
-	}
-	for _, problem := range describePickerProblems(model.problems) {
-		problemLines = append(problemLines, present.WrapWords(problem, cardWidth-4)...)
-	}
+	problemLines := model.buildPickerProblemLines(cardWidth)
 	cardRows := len(rows) + len(lines) + pickerCardChrome + len(problemLines)
 	if model.connections.count() > 0 {
 		cardRows++
@@ -338,67 +351,7 @@ func (model *Model) renderPicker() string {
 			lines = append(lines, model.renderPickerGroup(pickerRow, selected, cardWidth))
 			continue
 		}
-		profile := pickerRow.profile
-		indent := strings.Repeat(" ", pickerIndentWidth*pickerRow.depth)
-		name := present.FitText(indent+profile.Name, nameWidth)
-		environment := present.FitText(string(profile.Environment), pickerEnvWidth)
-		mode := "  "
-		if profile.AccessMode == cfg.AccessReadOnly {
-			mode = "ro"
-		}
-		source := ""
-		if profile.ProjectFile != "" {
-			source = "project"
-		}
-		// The description takes up to half of the room, and the target the rest. A path is
-		// cut at its start, which keeps the file name.
-		description := ""
-		shownTarget := targetWidth
-		if profile.Description != "" && targetWidth > 2*pickerTargetWidth {
-			description = present.TruncateText(profile.Description,
-				max(targetWidth-targetWidest-pickerGap, targetWidth/2-pickerGap))
-			shownTarget = targetWidth - present.MeasureText(description) - pickerGap
-		}
-		target := present.TruncateText(cfg.DescribeProfileTarget(profile), shownTarget)
-		if core.OpensFile(profile.Engine) {
-			target = present.TruncatePath(cfg.DescribeProfileTarget(profile), shownTarget)
-		}
-
-		row := lipgloss.NewStyle().Background(theme.Panel)
-		nameStyle := model.styles.Ink().Background(theme.Panel)
-		envStyle := lipgloss.NewStyle().
-			Foreground(model.styles.EnvironmentColor(profile.Environment)).Background(theme.Panel)
-		modeStyle := model.styles.Muted().Background(theme.Panel)
-		targetStyle := model.styles.Faint().Background(theme.Panel)
-
-		if selected {
-			row = row.Background(theme.Accent)
-			ink := lipgloss.NewStyle().Foreground(theme.OnAccent).Background(theme.Accent)
-			nameStyle, envStyle, modeStyle, targetStyle = ink, ink, ink, ink
-		}
-
-		open := " "
-		if model.isProfileOpen(profile.Name) {
-			open = model.icons.Icon(cfg.IconDot)
-		}
-
-		// One line, not five columns, which would share the width and cut every name short.
-		written := modeStyle.Render(present.FitText(open, pickerOpenWidth)) +
-			nameStyle.Render(name+" ") + envStyle.Render(environment+" ") +
-			modeStyle.Render(mode+" ")
-		if sourceWidth > 0 {
-			written += modeStyle.Render(present.FitText(source, sourceWidth))
-		}
-		if engineWidth > 0 {
-			written += modeStyle.Render(
-				present.FitText(string(profile.Engine), engineWidth) + " ")
-		}
-		if description != "" {
-			target = present.PadText(target, shownTarget+pickerGap)
-		}
-		written += targetStyle.Render(target) + modeStyle.Render(description)
-		lines = append(lines, row.Width(cardWidth-2).Render(
-			nameStyle.Render(model.buildRowGutter(selected))+written))
+		lines = append(lines, model.renderPickerProfile(pickerRow, selected, columns))
 	}
 
 	// A config file the client could not read leaves the list empty, so the card says what
@@ -424,6 +377,89 @@ func (model *Model) renderPicker() string {
 	}
 
 	return model.renderCard(" connections ", cardWidth, lines, plainCard)
+}
+
+// buildPickerProblemLines returns the problem of the last attempt and the faults of the
+// config, wrapped to the card.
+func (model *Model) buildPickerProblemLines(cardWidth int) []string {
+	problemLines := []string{}
+	if model.picker.problem != "" {
+		problemLines = append(problemLines, "")
+		problemLines = append(problemLines, present.WrapWords(model.picker.problem, cardWidth-4)...)
+	}
+	for _, problem := range describePickerProblems(model.problems) {
+		problemLines = append(problemLines, present.WrapWords(problem, cardWidth-4)...)
+	}
+	return problemLines
+}
+
+// renderPickerProfile draws the row of one profile.
+func (model *Model) renderPickerProfile(
+	profileRow pickerRow, selected bool, columns pickerColumns,
+) string {
+	theme := model.styles.Theme
+	targetWidth := columns.targetWidth
+	profile := profileRow.profile
+	indent := strings.Repeat(" ", pickerIndentWidth*profileRow.depth)
+	name := present.FitText(indent+profile.Name, columns.nameWidth)
+	environment := present.FitText(string(profile.Environment), pickerEnvWidth)
+	mode := "  "
+	if profile.AccessMode == cfg.AccessReadOnly {
+		mode = "ro"
+	}
+	source := ""
+	if profile.ProjectFile != "" {
+		source = "project"
+	}
+	// The description takes up to half of the room, and the target the rest. A path is
+	// cut at its start, which keeps the file name.
+	description := ""
+	shownTarget := targetWidth
+	if profile.Description != "" && targetWidth > 2*pickerTargetWidth {
+		description = present.TruncateText(profile.Description,
+			max(targetWidth-columns.targetWidest-pickerGap, targetWidth/2-pickerGap))
+		shownTarget = targetWidth - present.MeasureText(description) - pickerGap
+	}
+	target := present.TruncateText(cfg.DescribeProfileTarget(profile), shownTarget)
+	if core.OpensFile(profile.Engine) {
+		target = present.TruncatePath(cfg.DescribeProfileTarget(profile), shownTarget)
+	}
+
+	row := lipgloss.NewStyle().Background(theme.Panel)
+	nameStyle := model.styles.Ink().Background(theme.Panel)
+	envStyle := lipgloss.NewStyle().
+		Foreground(model.styles.EnvironmentColor(profile.Environment)).Background(theme.Panel)
+	modeStyle := model.styles.Muted().Background(theme.Panel)
+	targetStyle := model.styles.Faint().Background(theme.Panel)
+
+	if selected {
+		row = row.Background(theme.Accent)
+		ink := lipgloss.NewStyle().Foreground(theme.OnAccent).Background(theme.Accent)
+		nameStyle, envStyle, modeStyle, targetStyle = ink, ink, ink, ink
+	}
+
+	open := " "
+	if model.isProfileOpen(profile.Name) {
+		open = model.icons.Icon(cfg.IconDot)
+	}
+
+	// One line, not five columns, which would share the width and cut every name short.
+	written := modeStyle.Render(present.FitText(open, pickerOpenWidth)) +
+		nameStyle.Render(name+" ") + envStyle.Render(environment+" ") +
+		modeStyle.Render(mode+" ")
+	if columns.sourceWidth > 0 {
+		written += modeStyle.Render(present.FitText(source, columns.sourceWidth))
+	}
+	if columns.engineWidth > 0 {
+		written += modeStyle.Render(
+			present.FitText(string(profile.Engine), columns.engineWidth) + " ")
+	}
+	if description != "" {
+		target = present.PadText(target, shownTarget+pickerGap)
+	}
+	written += targetStyle.Render(target) + modeStyle.Render(description)
+	return row.Width(columns.cardWidth - 2).Render(
+		nameStyle.Render(model.buildRowGutter(selected)) + written)
 }
 
 const pickerIndentWidth = 2
