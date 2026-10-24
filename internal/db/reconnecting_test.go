@@ -32,15 +32,17 @@ func (session *stubSession) Close() error {
 
 // stubAdapter opens the sessions this test names, in order.
 type stubAdapter struct {
-	opens []*stubSession
-	err   error
-	calls int
+	opens     []*stubSession
+	err       error
+	calls     int
+	passwords []string
 }
 
 func (adapter *stubAdapter) Connect(
-	_ context.Context, _ cfg.Profile, _ string,
+	_ context.Context, _ cfg.Profile, password string,
 ) (Session, error) {
 	adapter.calls++
+	adapter.passwords = append(adapter.passwords, password)
 	if adapter.err != nil {
 		return nil, adapter.err
 	}
@@ -84,6 +86,48 @@ func TestReconnectReplacesTheSession(t *testing.T) {
 	done()
 	if held != Session(second) {
 		t.Error("the new session is not the one every call goes to")
+	}
+}
+
+func TestReconnectRunsThePasswordCommandAgain(t *testing.T) {
+	profile := buildProfile(time.Second)
+	profile.Auth = cfg.AuthCommand
+	profile.PasswordCommand = "printf fresh-token"
+	first := &stubSession{profile: profile}
+	adapter := &stubAdapter{opens: []*stubSession{{profile: profile}}}
+
+	session, _ := FindReconnectable(MakeReconnectable(first, adapter, "expired-token"))
+	session.Reconnect(context.Background())
+	if len(adapter.passwords) != 1 || adapter.passwords[0] != "fresh-token" {
+		t.Errorf("the reconnect sent the passwords %q, wanted fresh-token", adapter.passwords)
+	}
+}
+
+func TestReconnectUsesTheHeldPasswordWhenTheCommandFails(t *testing.T) {
+	profile := buildProfile(time.Second)
+	profile.Auth = cfg.AuthCommand
+	profile.PasswordCommand = "exit 1"
+	first := &stubSession{profile: profile}
+	adapter := &stubAdapter{opens: []*stubSession{{profile: profile}}}
+
+	session, _ := FindReconnectable(MakeReconnectable(first, adapter, "held"))
+	outcome := session.Reconnect(context.Background())
+	if !outcome.Reconnected || len(adapter.passwords) != 1 || adapter.passwords[0] != "held" {
+		t.Errorf("the reconnect sent the passwords %q and answered %+v, wanted held",
+			adapter.passwords, outcome)
+	}
+}
+
+func TestReconnectReusesATypedPassword(t *testing.T) {
+	profile := buildProfile(time.Second)
+	profile.Auth = cfg.AuthPrompt
+	first := &stubSession{profile: profile}
+	adapter := &stubAdapter{opens: []*stubSession{{profile: profile}}}
+
+	session, _ := FindReconnectable(MakeReconnectable(first, adapter, "typed"))
+	session.Reconnect(context.Background())
+	if len(adapter.passwords) != 1 || adapter.passwords[0] != "typed" {
+		t.Errorf("the reconnect sent the passwords %q, wanted typed", adapter.passwords)
 	}
 }
 

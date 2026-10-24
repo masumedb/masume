@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/masumedb/masume/internal/cfg"
 	"github.com/masumedb/masume/internal/core"
 	"github.com/masumedb/masume/internal/query"
 	"github.com/masumedb/masume/internal/query/language"
@@ -97,13 +98,18 @@ func (session *ReconnectingSession) Reconnect(ctx context.Context) ReconnectOutc
 	profile := old.session.Describe().Profile
 	session.guard.Unlock()
 
-	fresh, err := session.adapter.Connect(ctx, profile, session.password)
+	password, resolveErr := session.resolvePassword(profile)
+	fresh, err := session.adapter.Connect(ctx, profile, password)
 
 	session.guard.Lock()
 	session.reconnecting = false
 	if err != nil {
 		session.guard.Unlock()
-		return ReconnectOutcome{TransactionLost: lost, Problem: DescribeError(err)}
+		problem := DescribeError(err)
+		if resolveErr != nil {
+			problem += "; the password source failed: " + DescribeError(resolveErr)
+		}
+		return ReconnectOutcome{TransactionLost: lost, Problem: problem}
 	}
 	session.inner = &heldSession{session: fresh}
 	old.retired = true
@@ -114,6 +120,20 @@ func (session *ReconnectingSession) Reconnect(ctx context.Context) ReconnectOutc
 		_ = old.session.Close()
 	}
 	return ReconnectOutcome{Reconnected: true, TransactionLost: lost}
+}
+
+// resolvePassword reads the password again from a source that needs no user, such as a
+// command that prints a short-lived token. A password the user typed is reused, and so is
+// the held password where the source fails or returns nothing.
+func (session *ReconnectingSession) resolvePassword(profile cfg.Profile) (string, error) {
+	if profile.Auth == cfg.AuthPrompt {
+		return session.password, nil
+	}
+	password, err := cfg.ResolveProfilePassword(profile)
+	if err != nil || password == "" {
+		return session.password, err
+	}
+	return password, nil
 }
 
 func (session *ReconnectingSession) Describe() SessionDescriptor {
