@@ -83,6 +83,12 @@ func (session *sqlserverSession) markBroken(ctx context.Context, err error) {
 	if !db.IsBrokenConnection(ctx, err) {
 		return
 	}
+	session.dropConnection(ctx)
+}
+
+// dropConnection records the connection as broken, and opens it again at once if no
+// transaction is open.
+func (session *sqlserverSession) dropConnection(ctx context.Context) {
 	session.broken = true
 	if session.transaction.ReadState() != db.TransactionNone {
 		// The next call reports the transaction that was lost with the connection.
@@ -409,7 +415,9 @@ func (session *sqlserverSession) ExplainQuery(
 func (session *sqlserverSession) stopPlanSetting(ctx context.Context, setting string) {
 	held, stop := context.WithTimeout(context.WithoutCancel(ctx), stateWait)
 	defer stop()
-	_, _ = session.connection.ExecContext(held, "set "+setting+" off")
+	if _, err := session.connection.ExecContext(held, "set "+setting+" off"); err != nil {
+		session.dropConnection(ctx)
+	}
 }
 
 // runPlain runs a statement of the client itself, which binds nothing and returns nothing.
