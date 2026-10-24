@@ -364,11 +364,15 @@ func (writer *scriptWriter) writeColumn(difference Difference, source, target Ta
 		writer.add(phaseAlterColumns, alter+"MODIFY COLUMN "+definition+";")
 		return nil
 	}
-	if from.IsGenerated != to.IsGenerated || from.IsIdentityAlways != to.IsIdentityAlways {
+	if from.IsGenerated != to.IsGenerated {
 		writer.notes = append(writer.notes, "not written: the identity or generation of "+
 			source.Table.Name+"."+difference.Name)
 	}
 	column := alter + "ALTER COLUMN " + name + " "
+	fromIdentity, toIdentity := resolveIdentity(from), resolveIdentity(to)
+	if fromIdentity != "" && toIdentity == "" {
+		writer.add(phaseAlterColumns, column+"DROP IDENTITY;")
+	}
 	if from.DataType != to.DataType {
 		writer.add(phaseAlterColumns, column+"TYPE "+to.DataType+";")
 	}
@@ -379,7 +383,7 @@ func (writer *scriptWriter) writeColumn(difference Difference, source, target Ta
 			writer.add(phaseAlterColumns, column+"SET NOT NULL;")
 		}
 	}
-	if !to.IsGenerated && !to.IsIdentityAlways &&
+	if !to.IsGenerated && toIdentity == "" &&
 		(from.HasDefault != to.HasDefault || from.DefaultValue != to.DefaultValue) {
 		if to.HasDefault {
 			writer.add(phaseAlterColumns, column+"SET DEFAULT "+to.DefaultValue+";")
@@ -387,7 +391,28 @@ func (writer *scriptWriter) writeColumn(difference Difference, source, target Ta
 			writer.add(phaseAlterColumns, column+"DROP DEFAULT;")
 		}
 	}
+	if toIdentity != "" && from.HasDefault && !from.IsGenerated {
+		writer.add(phaseAlterColumns, column+"DROP DEFAULT;")
+	}
+	if fromIdentity == "" && toIdentity != "" {
+		writer.add(phaseAlterColumns, column+"ADD GENERATED "+toIdentity+" AS IDENTITY;")
+	}
+	if fromIdentity != "" && toIdentity != "" && fromIdentity != toIdentity {
+		writer.add(phaseAlterColumns, column+"SET GENERATED "+toIdentity+";")
+	}
 	return nil
+}
+
+// resolveIdentity returns how the server numbers a PostgreSQL column: ALWAYS, BY DEFAULT, or
+// nothing for a column it does not number.
+func resolveIdentity(column db.ColumnDetail) string {
+	switch {
+	case column.IsIdentityAlways:
+		return "ALWAYS"
+	case column.IsIdentityByDefault:
+		return "BY DEFAULT"
+	}
+	return ""
 }
 
 // writeColumnDefinition returns the target column as a CREATE TABLE writes it. On MySQL it is

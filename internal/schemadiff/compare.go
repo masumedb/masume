@@ -154,6 +154,9 @@ func DescribeColumn(column db.ColumnDetail) string {
 	if column.IsIdentityAlways {
 		parts = append(parts, "identity")
 	}
+	if column.IsIdentityByDefault {
+		parts = append(parts, "identity by default")
+	}
 	return strings.Join(parts, " ")
 }
 
