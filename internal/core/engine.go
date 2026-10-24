@@ -104,13 +104,15 @@ type Capabilities struct {
 
 // EngineInfo is the engine metadata available before connection. Query support adds the dialect and language.
 type EngineInfo struct {
-	Engine        Engine
-	Family        Family
-	Capabilities  Capabilities
-	DefaultPort   int
-	OpensFile     bool
-	NeedsUser     bool
-	NeedsPassword bool
+	Engine       Engine
+	Family       Family
+	Capabilities Capabilities
+	DefaultPort  int
+	// The port of a profile that sets no port and encrypts; zero for DefaultPort.
+	DefaultTLSPort int
+	OpensFile      bool
+	NeedsUser      bool
+	NeedsPassword  bool
 	// True where the password belongs to the server and not to a named user, so a profile
 	// without a user can still have a password. Redis is the only one: `requirepass`
 	// has no user.
@@ -423,7 +425,8 @@ var engineRegistry = map[Engine]EngineInfo{
 	EngineClickhouse: {
 		Engine: EngineClickhouse, Family: FamilyClickhouse,
 		Capabilities: clickhouseCapabilities,
-		DefaultPort:  9000, NeedsUser: true, NeedsPassword: true, NeedsDatabase: true,
+		DefaultPort:  8123, DefaultTLSPort: 8443,
+		NeedsUser: true, NeedsPassword: true, NeedsDatabase: true,
 		URLSchemes: []string{"clickhouse"},
 		// The server holds the catalog twice: once as `system`, and once as the standard
 		// views under two names of one database. `default` holds tables of the user.
@@ -580,4 +583,17 @@ func NeedsDatabase(engine Engine) bool {
 // ResolveDefaultPort returns the default port of the engine.
 func ResolveDefaultPort(engine Engine) int {
 	return ResolveEngineInfo(engine).DefaultPort
+}
+
+// ResolveModeDefaultPort returns the default port of the engine in that SSL mode: the TLS
+// port of an engine that has one in a mode that encrypts, and the default port otherwise.
+func ResolveModeDefaultPort(engine Engine, mode SSLMode) int {
+	info := ResolveEngineInfo(engine)
+	switch ResolveSSLPolicy(mode) {
+	case PolicyEncryptOnly, PolicyVerifyCa, PolicyVerifyFull:
+		if info.DefaultTLSPort != 0 {
+			return info.DefaultTLSPort
+		}
+	}
+	return info.DefaultPort
 }

@@ -426,6 +426,50 @@ func TestServerAppliesStagedChanges(t *testing.T) {
 	}
 }
 
+// A staged edit of a table without a key matches the row on every column, an array of
+// UInt8 among them.
+func TestServerAppliesAStagedEditKeyedOnAByteArray(t *testing.T) {
+	session := openShop(t)
+	ctx := context.Background()
+	dbtest.RunStatements(t, session,
+		"create table shop.tagged (tag Array(UInt8), note String) engine = MergeTree order by tuple()",
+		"insert into shop.tagged values ([1, 2], 'old'), ([3], 'other')")
+	t.Cleanup(func() {
+		_, _ = session.RunQuery(context.Background(),
+			"drop table if exists shop.tagged", dbtest.ReadEverything, nil)
+	})
+	tagged := findTable(t, session, "tagged")
+
+	read, err := session.RunQuery(ctx,
+		"select tag, note from shop.tagged where note = 'old'", dbtest.ReadEverything, nil)
+	if err != nil {
+		t.Fatalf("the read answered %v", err)
+	}
+	pending := core.NewPendingChanges()
+	pending.Edits[core.BuildEditKey(0, 1)] = core.CellEdit{
+		RowIndex: 0, ColumnIndex: 1,
+		Value: core.CellValue{Kind: core.CellText, Text: "new"},
+	}
+	changes, buildErr := session.Composer().BuildChanges(db.ChangeTarget{
+		Table: tagged, Columns: read.Columns, Rows: read.Rows,
+	}, pending)
+	if buildErr != nil {
+		t.Fatalf("the change was not built: %v", buildErr)
+	}
+	if err := session.ApplyChanges(ctx, changes); err != nil {
+		t.Fatalf("the change answered %v", err)
+	}
+
+	after, afterErr := session.RunQuery(ctx,
+		"select note from shop.tagged where tag = [1, 2]", dbtest.ReadEverything, nil)
+	if afterErr != nil {
+		t.Fatalf("the read answered %v", afterErr)
+	}
+	if len(after.Rows) != 1 || after.Rows[0][0] != "new" {
+		t.Errorf("the change left %v", after.Rows)
+	}
+}
+
 // A staged delete of a row removes it, and the row is gone from the next read.
 func TestServerAppliesAStagedDelete(t *testing.T) {
 	session := openShop(t)
@@ -544,6 +588,38 @@ func TestServerStopsARunningStatement(t *testing.T) {
 	if _, err := session.RunQuery(
 		ctx, "select 1", dbtest.ReadEverything, nil); err != nil {
 		t.Errorf("the statement after the stopped one answered %v", err)
+	}
+}
+
+// A plan in the making is stopped like a statement. The server runs a scalar subquery while
+// it plans.
+func TestServerStopsARunningPlan(t *testing.T) {
+	session := openShop(t)
+	ctx := context.Background()
+
+	var group sync.WaitGroup
+	var planErr error
+	group.Add(1)
+	go func() {
+		defer group.Done()
+		_, planErr = session.ExplainQuery(ctx, "select (select sleep(3))", false)
+	}()
+
+	stopped := false
+	for at := 0; at < 20 && !stopped; at++ {
+		time.Sleep(100 * time.Millisecond)
+		held, err := session.CancelRunningQuery(ctx)
+		if err == nil && held {
+			stopped = true
+		}
+	}
+	group.Wait()
+
+	if !stopped {
+		t.Fatal("the plan was not stopped")
+	}
+	if planErr == nil {
+		t.Error("the stopped plan answered no error")
 	}
 }
 

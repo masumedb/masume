@@ -628,7 +628,9 @@ func ParseConnectionURL(text string) (ConnectionURL, bool) {
 	if hostList == "" || (database == "" && core.NeedsDatabase(engine)) {
 		return ConnectionURL{}, false
 	}
-	hosts, ports, hostErr := splitHostList(hostList, core.ResolveDefaultPort(engine))
+	sslMode := readURLQuery(parsed, sslKeys)
+	mode, _ := core.FindSSLMode(sslMode)
+	hosts, ports, hostErr := splitHostList(hostList, core.ResolveModeDefaultPort(engine, mode))
 	if hostErr != nil || (len(hosts) > 1 && !takesOtherHosts(engine)) {
 		return ConnectionURL{}, false
 	}
@@ -643,7 +645,6 @@ func ParseConnectionURL(text string) (ConnectionURL, bool) {
 		return ConnectionURL{}, false
 	}
 
-	sslMode := readURLQuery(parsed, sslKeys)
 	user := ""
 	if parsed.User != nil {
 		user = parsed.User.Username()

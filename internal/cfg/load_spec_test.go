@@ -211,3 +211,36 @@ group = " work / / shop "
 		t.Errorf("the group reads %q", profile.Group)
 	}
 }
+
+// A ClickHouse profile with TLS and no port takes the HTTPS port.
+func TestLoadConfigGivesATLSProfileTheTLSPort(t *testing.T) {
+	path := writeConfig(t, `
+[profile.secure]
+engine = "clickhouse"
+host = "localhost"
+database = "shop"
+user = "reader"
+sslmode = "require"
+
+[profile.plain]
+engine = "clickhouse"
+host = "localhost"
+database = "shop"
+user = "reader"
+
+[profile.set]
+engine = "clickhouse"
+host = "localhost"
+port = 9443
+database = "shop"
+user = "reader"
+sslmode = "verify-full"
+`)
+
+	loaded := cfg.LoadConfig(path)
+	for name, want := range map[string]int{"secure": 8443, "plain": 8123, "set": 9443} {
+		if port := findProfile(t, loaded, name).Port; port != want {
+			t.Errorf("%s reads port %d, wanted %d", name, port, want)
+		}
+	}
+}

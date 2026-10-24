@@ -2,11 +2,10 @@ package clickhouse
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
-
-	driver "github.com/ClickHouse/clickhouse-go/v2"
 
 	"github.com/masumedb/masume/internal/db"
 )
@@ -21,9 +20,45 @@ var serverFaultCodes = map[int32]bool{
 	210: true, 209: true, 202: true, 241: true, 159: true, 164: true,
 }
 
-// describeFailure returns the message of the server without the code the driver adds.
+// serverError is an error the server reported, with its code.
+type serverError struct {
+	Code    int32
+	Message string
+}
+
+func (reported *serverError) Error() string {
+	return fmt.Sprintf("code %d: %s", reported.Code, reported.Message)
+}
+
+// serverErrorText matches the text of an error answer:
+// `Code: 60. DB::Exception: Unknown table. (UNKNOWN_TABLE) (version 25.8.1.1 (official build))`.
+var serverErrorText = regexp.MustCompile(`(?s)^Code: (\d+)\. (.*?)(?:\. \([A-Z0-9_]+\))?(?: \(version .*\))?\s*$`)
+
+// parseServerError reads the code and the message out of an error answer of the server.
+func parseServerError(text string) (*serverError, bool) {
+	held := serverErrorText.FindStringSubmatch(strings.TrimSpace(text))
+	if held == nil {
+		return nil, false
+	}
+	code, err := strconv.ParseInt(held[1], 10, 32)
+	if err != nil {
+		return nil, false
+	}
+	return &serverError{Code: int32(code), Message: held[2]}, true
+}
+
+// findServerCode returns the code of an error the server reported.
+func findServerCode(err error) (int32, bool) {
+	var reported *serverError
+	if !errors.As(err, &reported) {
+		return 0, false
+	}
+	return reported.Code, true
+}
+
+// describeFailure returns the message of the server without its code.
 func describeFailure(err error) string {
-	var reported *driver.Exception
+	var reported *serverError
 	if errors.As(err, &reported) && reported.Message != "" {
 		return trimServerPrefix(reported.Message)
 	}
@@ -44,7 +79,7 @@ func trimServerPrefix(message string) string {
 // fault of the server itself is not a fault of the statement. The prefix is the text the
 // client wrote before the statement, which the place of the fault counts as well.
 func ReadStatementProblem(err error, prefix string) (db.StatementProblem, bool) {
-	var reported *driver.Exception
+	var reported *serverError
 	if !errors.As(err, &reported) || reported.Message == "" {
 		return db.StatementProblem{}, false
 	}

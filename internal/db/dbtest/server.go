@@ -8,7 +8,7 @@
 //	MASUME_TEST_MYSQL=mysql://root:secret@127.0.0.1:55306/shop
 //	MASUME_TEST_COCKROACH=cockroachdb://root@127.0.0.1:56257/shop
 //	MASUME_TEST_SQLSERVER=sqlserver://sa:Masume_2024@127.0.0.1:55433/shop
-//	MASUME_TEST_CLICKHOUSE=clickhouse://default:Masume_2024@127.0.0.1:55900/shop
+//	MASUME_TEST_CLICKHOUSE=clickhouse://default:Masume_2024@127.0.0.1:55901/shop
 //	MASUME_TEST_TURSO=libsql://127.0.0.1:55480
 //	MASUME_TEST_CASSANDRA=cassandra://127.0.0.1:55942/masume_test
 //	MASUME_TEST_REDIS=redis://127.0.0.1:55379/0
@@ -72,7 +72,7 @@ var (
 		Variable: "MASUME_TEST_SQLSERVER", Engine: core.EngineSqlserver, DefaultPort: 1433,
 	}
 	Clickhouse = Target{
-		Variable: "MASUME_TEST_CLICKHOUSE", Engine: core.EngineClickhouse, DefaultPort: 9000,
+		Variable: "MASUME_TEST_CLICKHOUSE", Engine: core.EngineClickhouse, DefaultPort: 8123,
 	}
 	Turso     = Target{Variable: "MASUME_TEST_TURSO", Engine: core.EngineTurso, DefaultPort: 443}
 	Redis     = Target{Variable: "MASUME_TEST_REDIS", Engine: core.EngineRedis, DefaultPort: 6379}

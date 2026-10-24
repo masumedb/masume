@@ -46,3 +46,23 @@ func TestServerRefusesAnOptionItDoesNotKnow(t *testing.T) {
 		t.Errorf("the error is %v", db.DescribeError(err))
 	}
 }
+
+func TestServerSendsAGzipAnswer(t *testing.T) {
+	profile, password := dbtest.BuildProfile(t, dbtest.Clickhouse)
+	profile.Options = map[string]string{"compress": "gzip"}
+	ctx, stop := context.WithTimeout(context.Background(), 30*time.Second)
+	defer stop()
+	session, err := engines.CreateAdapters().Open(ctx, profile, password)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = session.Close() }()
+
+	read, err := session.RunQuery(ctx,
+		"select getSetting('enable_http_compression') as compressed, count() as counted "+
+			"from numbers(100000)", dbtest.ReadEverything, nil)
+	if err != nil || len(read.Rows) != 1 || core.FormatCell(read.Rows[0][0], "") != "true" ||
+		core.FormatCell(read.Rows[0][1], "") != "100000" {
+		t.Errorf("the read answered %v: %v", read.Rows, err)
+	}
+}

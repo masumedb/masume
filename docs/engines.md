@@ -15,7 +15,7 @@ Engines in one protocol family share a driver. Catalogs, SQL features, permissio
 | RESP | Redis |
 | CQL | Cassandra, ScyllaDB |
 | TDS | SQL Server, Azure SQL Database |
-| ClickHouse native | ClickHouse |
+| ClickHouse HTTP | ClickHouse |
 | MongoDB wire | MongoDB, Amazon DocumentDB |
 
 ## Capabilities
@@ -106,7 +106,7 @@ The static flags do not check every statistics view, extension setting, or permi
 
 ## Read-only access
 
-On a read-only profile, the client rejects every statement it recognizes as a write. PostgreSQL-family sessions also set read-only mode on the server. MySQL and MariaDB use `SET SESSION TRANSACTION READ ONLY`. SQLite opens existing files with `mode=ro`, and has a client-only check on `:memory:`. ClickHouse uses `SET readonly = 2`, which rejects writes but still accepts the settings the driver sends. MongoDB, Amazon DocumentDB, SQL Server, Azure SQL Database, Redis, Cassandra and ScyllaDB have client-only checks.
+On a read-only profile, the client rejects every statement it recognizes as a write. PostgreSQL-family sessions also set read-only mode on the server. MySQL and MariaDB use `SET SESSION TRANSACTION READ ONLY`. SQLite opens existing files with `mode=ro`, and has a client-only check on `:memory:`. ClickHouse sends `readonly = 2` with every statement, which rejects writes but still accepts settings. MongoDB, Amazon DocumentDB, SQL Server, Azure SQL Database, Redis, Cassandra and ScyllaDB have client-only checks.
 
 The libSQL server does not support `mode=ro`, so a read-only Turso profile has a client-only check.
 
@@ -126,7 +126,7 @@ Database permissions apply separately from the client checks.
 | aurora-postgres | 5432 |
 | azure-sql | 1433 |
 | cassandra | 9042 |
-| clickhouse | 9000 |
+| clickhouse | 8123; 8443 with `require`, `verify-ca` or `verify-full` |
 | cockroach | 26257 |
 | documentdb | 27017 |
 | mariadb | 3306 |
@@ -310,9 +310,9 @@ The server sends no column types. A result column gets the type of its first val
 
 ## ClickHouse
 
-masume connects to ClickHouse over its native protocol; the default port is 9000. Each ClickHouse database is a schema, and the connected database is the default. The explorer shows only that database.
+masume connects to ClickHouse over its HTTP interface; the default port is 8123, and 8443 with TLS. A profile with the native protocol port 9000 or 9440 gets an error. Each ClickHouse database is a schema, and the connected database is the default. The explorer shows only that database.
 
-The protocol accepts one statement per call. A buffer of several statements runs them one at a time and returns the result of the last one. Such a buffer cannot bind values; `:name` parameters work only in a buffer with one statement.
+The HTTP interface accepts one statement per request. A buffer of several statements runs them one at a time and returns the result of the last one. Such a buffer cannot bind values; `:name` parameters work only in a buffer with one statement.
 
 The server has no user transactions and rejects begin, commit, and rollback. Staged changes are applied one at a time. If a change fails, the earlier changes stay, and the report shows the failed change.
 

@@ -2,13 +2,13 @@ package clickhouse
 
 import (
 	"context"
-	"database/sql"
-	stddriver "database/sql/driver"
+	"errors"
+	"io"
+	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
-
-	driver "github.com/ClickHouse/clickhouse-go/v2"
 
 	"github.com/masumedb/masume/internal/cfg"
 	"github.com/masumedb/masume/internal/core"
@@ -17,6 +17,27 @@ import (
 	"github.com/masumedb/masume/internal/query/syntax"
 )
 
+// The error codes of the server this client acts on.
+const (
+	codeSessionNotFound       = 372
+	codeSessionLocked         = 373
+	codeInvalidSessionTimeout = 374
+)
+
+// sessionTimeout is the idle time a server session lives, in seconds. It is the largest the
+// server takes by default.
+const sessionTimeout = "3600"
+
+// sessionLockWait is the time limit for waiting on a server session a stopped statement
+// still holds.
+const sessionLockWait = 5 * time.Second
+
+// sessionLockPoll is the time between two tries of a locked server session.
+const sessionLockPoll = 50 * time.Millisecond
+
+// stopWait is the time limit for stopping a statement on the server.
+const stopWait = 5 * time.Second
+
 // clickhouseSession is one session on a ClickHouse.
 type clickhouseSession struct {
 	db.NoSequences
@@ -24,25 +45,23 @@ type clickhouseSession struct {
 	// The server holds no transaction of the user.
 	db.NoUserTransactions
 
-	connection *sql.Conn
-	pool       *sql.DB
-	side       *db.SideConnection[*sql.DB]
-	// True where the server keeps the log this client reads statement counters from.
+	client *httpClient
+	// The server session that keeps the SET and USE statements of the user.
+	sessionID string
+	// The idle time of the server session, empty for the default of the server.
+	sessionTimeout string
+	// True where the server holds the log this client reads statement counters from.
 	holdsStatementStats bool
-	// True where the connection cannot take another statement. A stopped statement leaves
-	// the socket of this driver unusable.
-	broken bool
 
 	// The guard protects the id of the running statement and the ids of the activity list.
 	guard sync.Mutex
-	// The id of the statement the user connection runs now, which a stop needs.
+	// The id of the statement the user session runs now, which a stop needs.
 	runningID string
 	// The query the client listed at each row of the activity list. The server names a
 	// query by a text id, and the list of this client counts its rows instead.
 	listedIDs map[int64]string
 
-	// mainQueue serializes user connection calls. The single-connection catalog pool
-	// serializes its own calls.
+	// mainQueue serializes the calls of the user session.
 	mainQueue *db.CallQueue
 }
 
@@ -54,22 +73,7 @@ func (session *clickhouseSession) Capabilities() core.Capabilities {
 	return held
 }
 
-// queryRunner is what a catalog read needs of a connection or a pool.
-type queryRunner interface {
-	QueryContext(ctx context.Context, sql string, params ...any) (*sql.Rows, error)
-	ExecContext(ctx context.Context, sql string, params ...any) (sql.Result, error)
-}
-
-// readCatalogRunner returns the pool the catalog reads run on.
-func (session *clickhouseSession) readCatalogRunner() (queryRunner, error) {
-	side, err := session.side.Read()
-	if err != nil {
-		return nil, err
-	}
-	return side, nil
-}
-
-// holdRunningID records the statement the connection runs, and gives it back afterwards.
+// holdRunningID records the statement the session runs, and gives it back afterwards.
 func (session *clickhouseSession) holdRunningID(id string) func() {
 	session.guard.Lock()
 	session.runningID = id
@@ -83,61 +87,109 @@ func (session *clickhouseSession) holdRunningID(id string) func() {
 	}
 }
 
-// readRunningID returns the id of the statement the connection runs now.
+// readRunningID returns the id of the statement the session runs now.
 func (session *clickhouseSession) readRunningID() string {
 	session.guard.Lock()
 	defer session.guard.Unlock()
 	return session.runningID
 }
 
-// noteFailedStatement replaces the connection a statement failed on.
-//
-// A statement that ends before its answer does leaves the rest of that answer on the
-// socket, and the next statement of the user reads it instead of its own. This driver
-// reports such a connection in three ways and none of them reliably: a context that is
-// done, a bad connection, or the timeout of the socket it set from the deadline of the
-// call. So a failed statement replaces the connection, whatever the reason it failed for.
-func (session *clickhouseSession) noteFailedStatement(ctx context.Context) {
-	session.broken = true
-	// A connection that does not open now is opened by the next call.
-	_ = session.reopenBrokenConnection(ctx)
+// buildSideParams returns the parameters of a request outside the server session.
+func (session *clickhouseSession) buildSideParams() url.Values {
+	params := url.Values{}
+	if database := session.Descriptor.Profile.Database; database != "" {
+		params.Set("database", database)
+	}
+	return params
 }
 
-// reopenBrokenConnection opens the user connection again, with the settings the session
-// holds. The server keeps no transaction, so nothing of the user is lost with it.
-func (session *clickhouseSession) reopenBrokenConnection(ctx context.Context) error {
-	if !session.broken {
-		return nil
+// buildSessionParams returns the parameters of a request in the server session. A
+// read-only profile sends readonly = 2 with every statement: mode 2 refuses a write and
+// takes a setting.
+func (session *clickhouseSession) buildSessionParams(queryID string, check bool) url.Values {
+	params := url.Values{"session_id": {session.sessionID}}
+	if session.sessionTimeout != "" {
+		params.Set("session_timeout", session.sessionTimeout)
 	}
-	// The pool takes the old connection back and hands it out again, because a driver does
-	// not always report one as bad. This marks it bad itself, so the pool drops it and the
-	// connection that follows is a new one. The call takes a time limit of its own: the one
-	// of the statement it failed in is spent.
-	_ = session.connection.Raw(func(any) error { return stddriver.ErrBadConn })
-	_ = session.connection.Close()
-	held, stop := context.WithTimeout(context.WithoutCancel(ctx), reopenWait)
-	defer stop()
-	opened, err := session.pool.Conn(held)
-	if err != nil {
-		return db.WrapDatabaseMessage(
-			db.BuildConnectMessage(session.Descriptor.Profile, err), err)
+	if check {
+		params.Set("session_check", "1")
 	}
-	session.connection = opened
-	session.broken = false
+	if queryID != "" {
+		params.Set("query_id", queryID)
+	}
 	if session.Descriptor.Profile.AccessMode == cfg.AccessReadOnly {
-		if _, setErr := opened.ExecContext(held, readOnlyStatement); setErr != nil {
-			return db.WrapDatabaseMessage(describeFailure(setErr), setErr)
-		}
+		params.Set("readonly", "2")
 	}
-	return nil
+	params.Set("cancel_http_readonly_queries_on_client_close", "1")
+	return params
 }
 
-// buildStatementContext returns the context that carries the id of one statement.
-func buildStatementContext(ctx context.Context, id string) context.Context {
-	if id == "" {
-		return ctx
+// openServerSession opens the server session in the database of the profile.
+func (session *clickhouseSession) openServerSession(ctx context.Context) error {
+	opening := "select 1"
+	if database := session.Descriptor.Profile.Database; database != "" {
+		opening = "use " + session.Support.Dialect.QuoteIdentifier(database)
 	}
-	return driver.Context(ctx, driver.WithQueryID(id))
+	response, err := session.client.send(ctx, opening, session.buildSessionParams("", false))
+	if code, reported := findServerCode(err); reported && code == codeInvalidSessionTimeout &&
+		session.sessionTimeout != "" {
+		session.sessionTimeout = ""
+		return session.openServerSession(ctx)
+	}
+	if err != nil {
+		return err
+	}
+	return drainResult(response)
+}
+
+// sendInSession sends one statement in the server session. A session that expired opens
+// again in the database of the profile, and a session a stopped statement still holds is
+// tried again for a short time.
+func (session *clickhouseSession) sendInSession(
+	ctx context.Context, statement, queryID string,
+) (*http.Response, error) {
+	deadline := time.Now().Add(sessionLockWait)
+	reopened := false
+	for {
+		response, err := session.client.send(
+			ctx, statement, session.buildSessionParams(queryID, true))
+		code, reported := findServerCode(err)
+		switch {
+		case reported && code == codeSessionNotFound && !reopened:
+			reopened = true
+			if openErr := session.openServerSession(ctx); openErr != nil {
+				return nil, openErr
+			}
+			continue
+		case reported && code == codeSessionLocked && time.Now().Before(deadline):
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(sessionLockPoll):
+			}
+			continue
+		}
+		return response, err
+	}
+}
+
+// stopStatement stops a statement on the server after the client stopped reading it.
+func (session *clickhouseSession) stopStatement(ctx context.Context, id string) {
+	held, stop := context.WithTimeout(context.WithoutCancel(ctx), stopWait)
+	defer stop()
+	_, _ = session.killQuery(held, id)
+}
+
+// failStatement returns the error of a statement. A statement that failed on the client
+// side is stopped on the server.
+func (session *clickhouseSession) failStatement(ctx context.Context, id string, err error) error {
+	if ctx.Err() != nil {
+		err = ctx.Err()
+	}
+	if _, reported := findServerCode(err); !reported {
+		session.stopStatement(ctx, id)
+	}
+	return db.WrapDatabaseMessage(describeFailure(err), err)
 }
 
 func (session *clickhouseSession) RunQuery(
@@ -150,17 +202,13 @@ func (session *clickhouseSession) RunQuery(
 	}
 	defer giveBack()
 
-	if err := session.reopenBrokenConnection(ctx); err != nil {
-		return db.QueryResult{}, err
-	}
-
 	flavour := session.Support.Dialect.Syntax
 	statements := statement.SplitStatements(sql, flavour)
 	if len(statements) == 0 {
 		return db.QueryResult{}, nil
 	}
-	// The protocol takes one statement per call, so a buffer of several runs one at a time
-	// and the values of the user belong to a buffer that holds one.
+	// The server takes one statement per request, so a buffer of several runs one at a
+	// time and the values of the user belong to a buffer that holds one.
 	if len(statements) > 1 && len(params) > 0 {
 		return db.QueryResult{}, db.NewDatabaseError(
 			"only one statement at a time can bind values on this server")
@@ -184,43 +232,48 @@ func (session *clickhouseSession) runOne(
 ) (db.QueryResult, error) {
 	flavour := session.Support.Dialect.Syntax
 	command := syntax.ReadCommandWord(written, flavour)
-	id := buildQueryID()
+	bound, bindErr := bindParams(written, params)
+	if bindErr != nil {
+		return db.QueryResult{}, db.WrapDatabaseMessage(bindErr.Error(), bindErr)
+	}
+	id := buildClientID()
 	release := session.holdRunningID(id)
 	defer release()
-	held, stopStatement := context.WithCancel(buildStatementContext(ctx, id))
-	defer stopStatement()
 
+	response, err := session.sendInSession(ctx, bound, id)
+	if err != nil {
+		return db.QueryResult{}, session.failStatement(ctx, id, err)
+	}
 	if !ReadsRows(command) {
-		if _, err := session.connection.ExecContext(held, written, params...); err != nil {
-			session.noteFailedStatement(ctx)
-			return db.QueryResult{}, db.WrapDatabaseMessage(describeFailure(err), err)
+		if drainErr := drainResult(response); drainErr != nil {
+			return db.QueryResult{}, session.failStatement(ctx, id, drainErr)
 		}
 		// The server reports no count for a write, so the result names the command alone.
 		return db.QueryResult{Command: strings.ToUpper(command)}, nil
 	}
 
-	rows, err := session.connection.QueryContext(held, written, params...)
+	reader, err := openResult(response)
 	if err != nil {
-		session.noteFailedStatement(ctx)
-		return db.QueryResult{}, db.WrapDatabaseMessage(describeFailure(err), err)
+		return db.QueryResult{}, session.failStatement(ctx, id, err)
 	}
-	defer func() { _ = rows.Close() }()
-
+	defer reader.close()
 	wanted := db.ReadOverscanRowLimit(rowLimit)
-	read, columns, readErr := readClickhouseRows(rows, wanted)
+	read, readErr := reader.readRows(wanted)
 	if readErr != nil {
-		session.noteFailedStatement(ctx)
-		return db.QueryResult{}, db.WrapDatabaseMessage(describeFailure(readErr), readErr)
+		return db.QueryResult{}, session.failStatement(ctx, id, readErr)
 	}
-	if rowLimit >= 0 && len(read) >= wanted && rows.Next() {
-		// clickhouse-go reads every remaining block on Close. A cancelled context ends the
-		// statement on the server, and the driver drops the connection.
-		stopStatement()
-		_ = rows.Close()
-		session.noteFailedStatement(ctx)
+	if rowLimit >= 0 && len(read) >= wanted {
+		_, nextErr := reader.readRow()
+		switch {
+		case nextErr == nil:
+			reader.close()
+			session.stopStatement(ctx, id)
+		case !errors.Is(nextErr, io.EOF):
+			return db.QueryResult{}, session.failStatement(ctx, id, nextErr)
+		}
 	}
 	return db.BuildCappedResult(db.CappedRead{
-		Rows: read, RowLimit: rowLimit, Columns: columns,
+		Rows: read, RowLimit: rowLimit, Columns: reader.columns,
 		Command: strings.ToUpper(command),
 	}), nil
 }
@@ -251,13 +304,9 @@ func (session *clickhouseSession) CheckStatement(
 		return db.StatementProblem{}, false
 	}
 
-	side, err := session.side.Read()
-	if err != nil {
-		return db.StatementProblem{}, false
-	}
-	rows, planErr := side.QueryContext(ctx, planPrefix+trimmed)
+	response, planErr := session.client.send(ctx, planPrefix+trimmed, session.buildSideParams())
 	if planErr == nil {
-		_ = rows.Close()
+		_ = drainResult(response)
 		return db.StatementProblem{}, false
 	}
 	return ReadStatementProblem(planErr, planPrefix)
@@ -271,93 +320,90 @@ func (session *clickhouseSession) StreamQuery(
 	if err := db.RefuseSeveralCommands(sql, session.Support.Dialect.Syntax); err != nil {
 		return 0, err
 	}
+	bound, bindErr := bindParams(sql, params)
+	if bindErr != nil {
+		return 0, db.WrapDatabaseMessage(bindErr.Error(), bindErr)
+	}
 	giveBack, waitErr := session.mainQueue.Take(ctx)
 	if waitErr != nil {
 		return 0, waitErr
 	}
 	defer giveBack()
 
-	if err := session.reopenBrokenConnection(ctx); err != nil {
-		return 0, err
-	}
-
-	id := buildQueryID()
+	id := buildClientID()
 	release := session.holdRunningID(id)
 	defer release()
 
-	rows, err := session.connection.QueryContext(
-		buildStatementContext(ctx, id), sql, params...)
+	response, err := session.sendInSession(ctx, bound, id)
 	if err != nil {
-		session.noteFailedStatement(ctx)
-		return 0, db.WrapDatabaseMessage(describeFailure(err), err)
+		return 0, session.failStatement(ctx, id, err)
 	}
-	defer func() { _ = rows.Close() }()
-
-	columns, reader, columnErr := buildClickhouseColumns(rows)
-	if columnErr != nil {
-		return 0, columnErr
+	reader, err := openResult(response)
+	if err != nil {
+		return 0, session.failStatement(ctx, id, err)
 	}
-	if columns == nil {
+	defer reader.close()
+	if reader.columns == nil {
 		return 0, nil
 	}
 
 	batcher := db.NewRowBatcher(batchSize, onBatch)
-	for rows.Next() {
-		values, scanErr := reader.readRow(rows)
-		if scanErr != nil {
-			return batcher.CountRows(), scanErr
+	for {
+		values, readErr := reader.readRow()
+		if errors.Is(readErr, io.EOF) {
+			break
 		}
-		if batchErr := batcher.AddRow(values, columns); batchErr != nil {
+		if readErr != nil {
+			return batcher.CountRows(), session.failStatement(ctx, id, readErr)
+		}
+		if batchErr := batcher.AddRow(values, reader.columns); batchErr != nil {
+			reader.close()
+			session.stopStatement(ctx, id)
 			return batcher.CountRows(), batchErr
 		}
 	}
-	if rows.Err() != nil {
-		session.noteFailedStatement(ctx)
-		return batcher.CountRows(), rows.Err()
-	}
-	if batchErr := batcher.FlushRows(columns); batchErr != nil {
+	if batchErr := batcher.FlushRows(reader.columns); batchErr != nil {
 		return batcher.CountRows(), batchErr
 	}
 	return batcher.CountRows(), nil
 }
 
-// readNamedRows reads a catalog result as rows keyed by column name, and returns the order
-// the server named them in.
+// readNamedRows reads a catalog result outside the server session as rows keyed by column
+// name, and returns the order the server named them in.
 func (session *clickhouseSession) readNamedRows(
 	ctx context.Context, sql string, params ...any,
 ) ([]map[string]any, []string, error) {
-	runner, err := session.readCatalogRunner()
+	bound, err := bindParams(sql, params)
 	if err != nil {
 		return nil, nil, err
 	}
-	rows, queryErr := runner.QueryContext(ctx, sql, params...)
-	if queryErr != nil {
-		return nil, nil, queryErr
+	response, err := session.client.send(ctx, bound, session.buildSideParams())
+	if err != nil {
+		return nil, nil, err
 	}
-	defer func() { _ = rows.Close() }()
+	reader, err := openResult(response)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer reader.close()
+	values, err := reader.readRows(-1)
+	if err != nil {
+		return nil, nil, err
+	}
 
-	names, nameErr := rows.Columns()
-	if nameErr != nil {
-		return nil, nil, nameErr
+	names := make([]string, 0, len(reader.columns))
+	for _, column := range reader.columns {
+		names = append(names, column.Name)
 	}
-	_, reader, readerErr := buildClickhouseColumns(rows)
-	if readerErr != nil {
-		return nil, nil, readerErr
-	}
-
-	read := []map[string]any{}
-	for rows.Next() {
-		values, scanErr := reader.readRow(rows)
-		if scanErr != nil {
-			return nil, nil, scanErr
-		}
+	read := make([]map[string]any, 0, len(values))
+	for _, held := range values {
 		row := map[string]any{}
 		for at, name := range names {
-			row[name] = values[at]
+			row[name] = held[at]
 		}
 		read = append(read, row)
 	}
-	return read, names, rows.Err()
+	return read, names, nil
 }
 
 // ExplainQuery returns the plan of a read, which the server writes as one line per step.
@@ -377,26 +423,96 @@ func (session *clickhouseSession) ExplainQuery(
 	}
 	defer giveBack()
 
-	if err := session.reopenBrokenConnection(ctx); err != nil {
-		return db.QueryPlan{}, err
-	}
+	id := buildClientID()
+	release := session.holdRunningID(id)
+	defer release()
 
-	rows, err := session.connection.QueryContext(ctx, BuildExplainStatement(sql))
+	response, err := session.sendInSession(ctx, BuildExplainStatement(sql), id)
 	if err != nil {
-		session.noteFailedStatement(ctx)
-		return db.QueryPlan{}, db.WrapDatabaseMessage(describeFailure(err), err)
+		return db.QueryPlan{}, session.failStatement(ctx, id, err)
 	}
-	defer func() { _ = rows.Close() }()
-
-	read, columns, readErr := readClickhouseRows(rows, -1)
+	reader, err := openResult(response)
+	if err != nil {
+		return db.QueryPlan{}, session.failStatement(ctx, id, err)
+	}
+	defer reader.close()
+	read, readErr := reader.readRows(-1)
 	if readErr != nil {
-		return db.QueryPlan{}, db.WrapDatabaseMessage(describeFailure(readErr), readErr)
+		return db.QueryPlan{}, session.failStatement(ctx, id, readErr)
 	}
-	plan, built := BuildPlan(db.QueryResult{Columns: columns, Rows: read})
+	plan, built := BuildPlan(db.QueryResult{Columns: reader.columns, Rows: read})
 	if !built {
 		return db.QueryPlan{}, db.FailUnreadablePlan()
 	}
 	return plan, nil
+}
+
+// runInSession runs one statement of a staged change in the server session.
+func (session *clickhouseSession) runInSession(
+	ctx context.Context, sql string, params []any,
+) error {
+	bound, err := bindParams(sql, params)
+	if err != nil {
+		return db.WrapDatabaseMessage(err.Error(), err)
+	}
+	id := buildClientID()
+	response, err := session.sendInSession(ctx, bound, id)
+	if err == nil {
+		err = drainResult(response)
+	}
+	if err != nil {
+		return session.failStatement(ctx, id, err)
+	}
+	return nil
+}
+
+// firstValue is the first value of a result, which a guard reads as a count.
+type firstValue struct {
+	value any
+	err   error
+}
+
+func (held firstValue) Scan(targets ...any) error {
+	if held.err != nil {
+		return held.err
+	}
+	if len(targets) != 1 {
+		return db.NewDatabaseError("a guard reads one count")
+	}
+	counted, isCount := targets[0].(*int64)
+	if !isCount {
+		return db.NewDatabaseError("a guard reads one count")
+	}
+	*counted = db.ReadNonNegativeCount(held.value)
+	return nil
+}
+
+// readFirstValue runs a read in the server session and returns its first value.
+func (session *clickhouseSession) readFirstValue(
+	ctx context.Context, sql string, params ...any,
+) db.ScanOneRow {
+	bound, err := bindParams(sql, params)
+	if err != nil {
+		return firstValue{err: err}
+	}
+	id := buildClientID()
+	response, err := session.sendInSession(ctx, bound, id)
+	if err != nil {
+		return firstValue{err: session.failStatement(ctx, id, err)}
+	}
+	reader, err := openResult(response)
+	if err != nil {
+		return firstValue{err: session.failStatement(ctx, id, err)}
+	}
+	defer reader.close()
+	rows, err := reader.readRows(-1)
+	if err != nil {
+		return firstValue{err: session.failStatement(ctx, id, err)}
+	}
+	if len(rows) == 0 || len(rows[0]) == 0 {
+		return firstValue{err: db.NewDatabaseError("the guard returned no row")}
+	}
+	return firstValue{value: rows[0][0]}
 }
 
 // ApplyChanges applies changes in order. The server holds no transaction, so a change that
@@ -411,10 +527,6 @@ func (session *clickhouseSession) ApplyChanges(ctx context.Context, changes []db
 	}
 	defer giveBack()
 
-	if err := session.reopenBrokenConnection(ctx); err != nil {
-		return err
-	}
-
 	return db.ApplyChangesInTransaction(ctx, changes, db.ChangeApplication{
 		// Every change stands on its own, so nothing opens, commits or rolls back.
 		Begin:    func(context.Context) error { return nil },
@@ -425,17 +537,9 @@ func (session *clickhouseSession) ApplyChanges(ctx context.Context, changes []db
 			if err != nil {
 				return err
 			}
-			if _, execErr := session.connection.ExecContext(
-				ctx, held.SQL, held.Params...); execErr != nil {
-				session.noteFailedStatement(ctx)
-				return db.WrapDatabaseMessage(describeFailure(execErr), execErr)
-			}
-			return nil
+			return session.runInSession(ctx, held.SQL, held.Params)
 		},
-		CountMatches: db.BuildGuardCounter(
-			func(ctx context.Context, sql string, params ...any) db.ScanOneRow {
-				return session.connection.QueryRowContext(ctx, sql, params...)
-			}),
+		CountMatches: db.BuildGuardCounter(session.readFirstValue),
 		ReportFailed: func(error) {},
 	})
 }
@@ -551,53 +655,45 @@ func (session *clickhouseSession) CancelRunningQuery(ctx context.Context) (bool,
 	return session.killQuery(ctx, id)
 }
 
-// killQuery stops one statement of the server, named by its id.
+// killQuery stops one statement of the server, named by its id, outside the server session.
 func (session *clickhouseSession) killQuery(
 	ctx context.Context, id string,
 ) (bool, error) {
-	side, err := session.side.Read()
+	bound, err := bindParams(killQuerySQL, []any{id})
 	if err != nil {
 		return false, err
 	}
-	if _, execErr := side.ExecContext(ctx, killQuerySQL, id); execErr != nil {
-		return false, db.WrapDatabaseMessage(describeFailure(execErr), execErr)
+	response, err := session.client.send(ctx, bound, session.buildSideParams())
+	if err == nil {
+		err = drainResult(response)
+	}
+	if err != nil {
+		return false, db.WrapDatabaseMessage(describeFailure(err), err)
 	}
 	return true, nil
 }
 
-// Ping reads the catalog pool, which answers while the user connection is busy.
+// Ping runs a statement outside the server session, which answers while the session is
+// busy.
 func (session *clickhouseSession) Ping(ctx context.Context) error {
-	runner, err := session.readCatalogRunner()
+	response, err := session.client.send(ctx, "select 1", session.buildSideParams())
 	if err != nil {
 		return err
 	}
-	_, execErr := runner.ExecContext(ctx, "select 1")
-	return execErr
+	return drainResult(response)
 }
 
-// readOnlyStatement opens a session the server refuses every write on. Mode 2 refuses a
-// write and takes a setting; mode 1 refuses a setting as well, and the driver sends one for
-// every statement that carries a time limit.
-const readOnlyStatement = "set readonly = 2"
-
-// reopenWait is the time limit for opening the connection again after a failure.
-const reopenWait = 15 * time.Second
-
-// closeWait is the time limit for waiting to close the connection.
+// closeWait is the time limit for waiting to close the session.
 const closeWait = 5 * time.Second
 
 func (session *clickhouseSession) Close() error {
 	ctx, stop := context.WithTimeout(context.Background(), closeWait)
 	defer stop()
-	if side, opened := session.side.Find(); opened {
-		_ = side.Close()
-	}
 	if giveBack, waitErr := session.mainQueue.Take(ctx); waitErr == nil {
 		defer giveBack()
 	}
-	err := session.connection.Close()
-	_ = session.pool.Close()
-	return err
+	session.client.close()
+	return nil
 }
 
 // clickhouseAdapter opens a connection on a ClickHouse.
@@ -613,71 +709,58 @@ func NewAdapter(support db.EngineSupport) db.Adapter {
 func (adapter *clickhouseAdapter) Connect(
 	ctx context.Context, profile cfg.Profile, password string,
 ) (db.Session, error) {
-	if err := checkSettingNames(ctx, profile, password); err != nil {
-		return nil, db.WrapDatabaseMessage(db.BuildConnectMessage(profile, err), err)
-	}
-	pool, poolErr := openClickhousePool(profile, password)
-	if poolErr != nil {
-		return nil, db.WrapDatabaseMessage(
-			db.BuildConnectMessage(profile, poolErr), poolErr)
-	}
-
-	// One connection holds the settings of the session. The connection takes no deadline
-	// of the caller: this driver would set that deadline on the socket for the life of the
-	// connection, and every later statement would find it closed. The dial time limit of
-	// the driver bounds this call.
-	connection, connectionErr := pool.Conn(context.WithoutCancel(ctx))
-	if connectionErr != nil {
-		_ = pool.Close()
-		return nil, db.WrapDatabaseMessage(
-			db.BuildConnectMessage(profile, connectionErr), connectionErr)
-	}
-
 	fail := func(reason error) (db.Session, error) {
-		_ = connection.Close()
-		_ = pool.Close()
 		return nil, db.WrapDatabaseMessage(db.BuildConnectMessage(profile, reason), reason)
 	}
-	if profile.AccessMode == cfg.AccessReadOnly {
-		if _, err := connection.ExecContext(ctx, readOnlyStatement); err != nil {
-			return fail(err)
-		}
+	if err := checkPort(profile); err != nil {
+		return fail(err)
+	}
+	client, err := buildClient(profile, password)
+	if err != nil {
+		return fail(err)
+	}
+	if err := checkSettingNames(ctx, profile, password); err != nil {
+		client.close()
+		return fail(err)
 	}
 
-	return &clickhouseSession{
+	session := &clickhouseSession{
 		SessionFacts: db.SessionFacts{
 			Descriptor: db.SessionDescriptor{
-				Profile: profile, ServerVersion: readServerVersion(ctx, connection),
+				Profile: profile,
 				// A ClickHouse schema is a database. The connected one is the default.
 				DefaultSchema: profile.Database,
 			},
 			Support: adapter.support,
 		},
-		connection: connection, pool: pool,
-		holdsStatementStats: readsStatementStats(ctx, connection),
-		listedIDs:           map[int64]string{},
-		side: db.NewSideConnection(func() (*sql.DB, error) {
-			return openClickhousePool(profile, password)
-		}, nil),
-		mainQueue: db.NewCallQueue(),
-	}, nil
+		client: client, sessionID: buildClientID(), sessionTimeout: sessionTimeout,
+		listedIDs: map[int64]string{}, mainQueue: db.NewCallQueue(),
+	}
+	if err := session.openServerSession(ctx); err != nil {
+		client.close()
+		return fail(err)
+	}
+	session.Descriptor.ServerVersion = session.readServerVersion(ctx)
+	session.holdsStatementStats = session.readsStatementStats(ctx)
+	return session, nil
 }
 
 // readServerVersion returns the version of the server, as it writes it itself.
-func readServerVersion(ctx context.Context, connection *sql.Conn) string {
-	var written string
-	if connection.QueryRowContext(
-		ctx, "select version()").Scan(&written) != nil || written == "" {
+func (session *clickhouseSession) readServerVersion(ctx context.Context) string {
+	rows, _, err := session.readNamedRows(ctx, "select version() as version")
+	if err != nil || len(rows) == 0 {
 		return "unknown"
 	}
-	return written
+	if written := db.ReadAnyText(rows[0]["version"]); written != "" {
+		return written
+	}
+	return "unknown"
 }
 
 // readsStatementStats is true where the server keeps the log of the statements it ran.
-func readsStatementStats(ctx context.Context, connection *sql.Conn) bool {
-	var counted uint64
-	return connection.QueryRowContext(
-		ctx, "select count() from system.query_log limit 1").Scan(&counted) == nil
+func (session *clickhouseSession) readsStatementStats(ctx context.Context) bool {
+	_, _, err := session.readNamedRows(ctx, "select count() from system.query_log limit 1")
+	return err == nil
 }
 
 // Compile-time Session interface check.

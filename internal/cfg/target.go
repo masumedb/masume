@@ -156,6 +156,10 @@ func buildProfileFromURL(text string) (Profile, error) {
 
 	built := buildTargetProfile(engine)
 	built.Host = defaultTargetHost
+	if built.SSLMode, err = readTargetSSLMode(parsed, engine); err != nil {
+		return Profile{}, err
+	}
+	built.Port = core.ResolveModeDefaultPort(engine, built.SSLMode)
 	if hostList == "" {
 		hostList = parsed.Host
 	}
@@ -207,9 +211,6 @@ func buildProfileFromURL(text string) (Profile, error) {
 		return Profile{}, failTarget("the URL database is missing")
 	}
 
-	if built.SSLMode, err = readTargetSSLMode(parsed, engine); err != nil {
-		return Profile{}, err
-	}
 	files := readURLSSLFiles(parsed)
 	if reason := core.FindSSLFilesProblem(files); reason != "" {
 		return Profile{}, failTarget("%s", reason)
@@ -357,6 +358,7 @@ func buildProfileFromKeywords(text string) (Profile, error) {
 	if built.Host == "" {
 		built.Host = defaultTargetHost
 	}
+	built.Port = core.ResolveModeDefaultPort(engine, built.SSLMode)
 	if err := splitKeywordHosts(&built, writtenPorts); err != nil {
 		return Profile{}, err
 	}

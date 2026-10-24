@@ -4,14 +4,14 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/tls"
-	"database/sql"
 	"encoding/hex"
 	"fmt"
-	"maps"
+	"net"
+	"net/http"
+	"net/url"
 	"slices"
+	"strconv"
 	"time"
-
-	driver "github.com/ClickHouse/clickhouse-go/v2"
 
 	"github.com/masumedb/masume/internal/cfg"
 	"github.com/masumedb/masume/internal/core"
@@ -21,67 +21,122 @@ import (
 // clickhouseConnectTimeout is the connection time limit.
 const clickhouseConnectTimeout = 15 * time.Second
 
+// idleConnectionTimeout is the time an unused connection stays open. It is shorter than the
+// keep-alive time of the server.
+const idleConnectionTimeout = 2 * time.Second
+
 // clientName is the name this client sends, which the activity list of the server shows.
 const clientName = "masume"
 
-// buildTLS returns the TLS settings of the connection. The native protocol does not
-// negotiate, so an unset mode and a preferred mode both connect without encryption.
+// nativePorts are the ports of the native protocol of the server.
+var nativePorts = map[int]bool{9000: true, 9440: true}
+
+// checkPort refuses a port of the native protocol.
+func checkPort(profile cfg.Profile) error {
+	if nativePorts[profile.Port] {
+		return db.NewDatabaseError(
+			"port %d is the ClickHouse native protocol port; "+
+				"the HTTP port is 8123, or 8443 with TLS", profile.Port)
+	}
+	return nil
+}
+
+// buildTLS returns the TLS settings of the connection. An unset mode and a preferred mode
+// connect without encryption. The server name is the host of the profile, also through a
+// tunnel.
 func buildTLS(profile cfg.Profile) (*tls.Config, error) {
 	policy := core.ResolveSSLPolicy(profile.SSLMode)
 	if policy == core.PolicyPrefer {
 		return nil, nil
 	}
-	return db.BuildPolicyTLS(policy, profile.Host, profile.BuildSSLFiles())
+	config, err := db.BuildPolicyTLS(policy, profile.Host, profile.BuildSSLFiles())
+	if err != nil || config == nil {
+		return config, err
+	}
+	if config.ServerName == "" {
+		config = config.Clone()
+		config.ServerName = profile.Host
+	}
+	return config, nil
 }
 
-// buildOptions returns the connection as the driver takes it. A read-only session sends no
-// setting of its own, because the server refuses to change one.
-func buildOptions(profile cfg.Profile, password string) (*driver.Options, error) {
-	settings := driver.Settings{}
-	if profile.AccessMode != cfg.AccessReadOnly {
-		// A staged edit is a mutation, and this makes the server finish it before it
-		// answers, so the grid reads the row back as it now stands.
-		settings["mutations_sync"] = 1
+// clientOptions are the options of a profile this client reads itself. Every other option
+// is a server setting.
+var clientOptions = []string{"dial_timeout", "compress"}
+
+// readServerSettings returns the options of a profile that are server settings.
+func readServerSettings(options map[string]string) map[string]string {
+	settings := map[string]string{}
+	for name, value := range options {
+		if !slices.Contains(clientOptions, name) {
+			settings[name] = value
+		}
 	}
+	return settings
+}
+
+// buildClient returns the HTTP client of a profile.
+func buildClient(profile cfg.Profile, password string) (*httpClient, error) {
 	tlsConfig, err := buildTLS(profile)
 	if err != nil {
 		return nil, err
 	}
-	options := &driver.Options{DialTimeout: clickhouseConnectTimeout}
-	if len(profile.Options) > 0 {
-		parsed, parseErr := driver.ParseDSN("clickhouse://localhost?" + cfg.WriteOptions(profile.Options))
+	dialTimeout := clickhouseConnectTimeout
+	if written, set := profile.Options["dial_timeout"]; set {
+		parsed, parseErr := time.ParseDuration(written)
 		if parseErr != nil {
-			return nil, db.WrapDatabaseMessage("invalid options: "+parseErr.Error(), parseErr)
+			return nil, db.WrapDatabaseMessage(
+				"invalid options: dial_timeout: "+parseErr.Error(), parseErr)
 		}
-		if _, set := profile.Options["dial_timeout"]; !set {
-			parsed.DialTimeout = clickhouseConnectTimeout
+		dialTimeout = parsed
+	}
+	settings := url.Values{}
+	if written, set := profile.Options["compress"]; set {
+		compress, parseErr := strconv.ParseBool(written)
+		if written == "gzip" {
+			compress, parseErr = true, nil
 		}
-		maps.Copy(settings, parsed.Settings)
-		options = parsed
+		if parseErr != nil {
+			return nil, db.WrapDatabaseMessage(
+				"invalid options: compress is true, false or gzip", parseErr)
+		}
+		if compress {
+			settings.Set("enable_http_compression", "1")
+		}
+	}
+	for name, value := range readServerSettings(profile.Options) {
+		settings.Set(name, value)
+	}
+	if profile.AccessMode != cfg.AccessReadOnly {
+		// A staged edit is a mutation, and this makes the server finish it before it
+		// answers, so the grid reads the row back as it now stands.
+		settings.Set("mutations_sync", "1")
+	}
+	settings.Set("default_format", resultFormat)
+	settings.Set("date_time_output_format", "unix_timestamp")
+	settings.Set("output_format_decimal_trailing_zeros", "0")
+	settings.Set("output_format_tsv_crlf_end_of_line", "0")
+
+	scheme := "http"
+	if tlsConfig != nil {
+		scheme = "https"
 	}
 	dialHost, dialPort := profile.DialAddress()
-	options.Addr = []string{fmt.Sprintf("%s:%d", dialHost, dialPort)}
-	options.Auth = driver.Auth{Database: profile.Database, Username: profile.User, Password: password}
-	options.Settings = settings
-	options.TLS = tlsConfig
-	options.ClientInfo = driver.ClientInfo{Products: []struct{ Name, Version string }{{Name: clientName}}}
-	return options, nil
+	dialer := &net.Dialer{Timeout: dialTimeout, KeepAlive: 30 * time.Second}
+	return &httpClient{
+		client: &http.Client{Transport: &http.Transport{
+			DialContext: dialer.DialContext, TLSClientConfig: tlsConfig,
+			TLSHandshakeTimeout: dialTimeout, IdleConnTimeout: idleConnectionTimeout,
+			MaxIdleConnsPerHost: 4,
+		}},
+		endpoint: fmt.Sprintf("%s://%s/", scheme,
+			net.JoinHostPort(dialHost, strconv.Itoa(dialPort))),
+		user: profile.User, password: password, settings: settings,
+	}, nil
 }
 
-// openClickhousePool opens a pool limited to one connection.
-func openClickhousePool(profile cfg.Profile, password string) (*sql.DB, error) {
-	options, err := buildOptions(profile, password)
-	if err != nil {
-		return nil, err
-	}
-	pool := driver.OpenDB(options)
-	pool.SetMaxOpenConns(1)
-	return pool, nil
-}
-
-// buildQueryID returns the id this client gives one statement, so a second connection can
-// stop it.
-func buildQueryID() string {
+// buildClientID returns a new id of a statement or of a server session.
+func buildClientID() string {
 	held := make([]byte, 8)
 	if _, err := rand.Read(held); err != nil {
 		return ""
@@ -89,46 +144,35 @@ func buildQueryID() string {
 	return clientName + "-" + hex.EncodeToString(held)
 }
 
-// checkSettingNames reads the names of the server settings in the options on a connection
-// without them. The server refuses every statement of a session with an unknown setting,
-// and the driver reports that as a bad connection.
+// checkSettingNames refuses an option that is no server setting. The check runs on a request
+// without the options.
 func checkSettingNames(ctx context.Context, profile cfg.Profile, password string) error {
-	options, err := buildOptions(profile, password)
-	if err != nil || len(profile.Options) == 0 {
-		return err
-	}
 	names := []string{}
-	for name := range options.Settings {
-		if _, set := profile.Options[name]; set {
-			names = append(names, name)
-		}
+	for name := range readServerSettings(profile.Options) {
+		names = append(names, name)
 	}
 	if len(names) == 0 {
 		return nil
 	}
 	plain := profile
 	plain.Options = nil
-	pool, err := openClickhousePool(plain, password)
+	client, err := buildClient(plain, password)
 	if err != nil {
 		return err
 	}
-	defer func() { _ = pool.Close() }()
-	rows, err := pool.QueryContext(context.WithoutCancel(ctx),
-		"select name from system.settings where name in ?", names)
+	defer client.close()
+	statement, err := bindParams("select name from system.settings where name in ?",
+		[]any{names})
 	if err != nil {
 		return err
 	}
-	defer func() { _ = rows.Close() }()
+	rows, err := readAllRows(ctx, client, statement, nil)
+	if err != nil {
+		return err
+	}
 	known := map[string]bool{}
-	for rows.Next() {
-		var name string
-		if scanErr := rows.Scan(&name); scanErr != nil {
-			return scanErr
-		}
-		known[name] = true
-	}
-	if err := rows.Err(); err != nil {
-		return err
+	for _, row := range rows {
+		known[db.ReadAnyText(row[0])] = true
 	}
 	for _, name := range slices.Sorted(slices.Values(names)) {
 		if !known[name] {
@@ -136,4 +180,20 @@ func checkSettingNames(ctx context.Context, profile cfg.Profile, password string
 		}
 	}
 	return nil
+}
+
+// readAllRows runs a read and returns every row of it.
+func readAllRows(
+	ctx context.Context, client *httpClient, statement string, params url.Values,
+) ([][]any, error) {
+	response, err := client.send(ctx, statement, params)
+	if err != nil {
+		return nil, err
+	}
+	reader, err := openResult(response)
+	if err != nil {
+		return nil, err
+	}
+	defer reader.close()
+	return reader.readRows(-1)
 }

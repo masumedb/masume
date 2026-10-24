@@ -105,7 +105,7 @@ const showCreateSQL = `show create table `
 const listActivitySQL = `
   select query_id as query_id,
          user as user,
-         concat(client_name, if(client_name = '', '', ' ')) as client,
+         if(client_name != '', client_name, http_user_agent) as client,
          toString(address) as address,
          if(is_cancelled, 'cancelled', 'active') as state,
          toUInt64(elapsed * 1000) as duration_ms,
@@ -116,7 +116,8 @@ const listActivitySQL = `
 `
 
 const readServerLoadSQL = `
-  select (select value from system.metrics where metric = 'TCPConnection') as connections,
+  select (select sum(value) from system.metrics
+           where metric in ('TCPConnection', 'HTTPConnection')) as connections,
          (select toUInt64OrZero(value) from system.server_settings
            where name = 'max_connections') as max_connections,
          toUInt64(uptime()) as uptime_seconds

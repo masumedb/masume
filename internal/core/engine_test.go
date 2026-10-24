@@ -234,3 +234,24 @@ func TestTheEnginesThatConnectWithoutADatabase(t *testing.T) {
 		}
 	}
 }
+
+// A ClickHouse profile that encrypts takes the HTTPS port, and every other mode the HTTP port.
+func TestResolveModeDefaultPortTakesTheTLSPort(t *testing.T) {
+	for _, held := range []struct {
+		engine Engine
+		mode   SSLMode
+		want   int
+	}{
+		{EngineClickhouse, SSLUnset, 8123},
+		{EngineClickhouse, SSLPrefer, 8123},
+		{EngineClickhouse, SSLDisable, 8123},
+		{EngineClickhouse, SSLRequire, 8443},
+		{EngineClickhouse, SSLVerifyCa, 8443},
+		{EngineClickhouse, SSLVerifyFull, 8443},
+		{EnginePostgres, SSLVerifyFull, 5432},
+	} {
+		if port := ResolveModeDefaultPort(held.engine, held.mode); port != held.want {
+			t.Errorf("%s with %q takes port %d, wanted %d", held.engine, held.mode, port, held.want)
+		}
+	}
+}

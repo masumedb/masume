@@ -270,3 +270,20 @@ func TestParseConnectionUrlRefusesWhatItCannotUse(t *testing.T) {
 		}
 	}
 }
+
+// A ClickHouse URL that asks for TLS and names no port takes the HTTPS port.
+func TestParseConnectionUrlTakesTheTLSPort(t *testing.T) {
+	for text, want := range map[string]int{
+		"clickhouse://reader@localhost/shop?sslmode=require":      8443,
+		"clickhouse://reader@localhost/shop":                      8123,
+		"clickhouse://reader@localhost:9443/shop?sslmode=require": 9443,
+	} {
+		held, is := cfg.ParseConnectionURL(text)
+		if !is {
+			t.Fatalf("%s was not read", text)
+		}
+		if held.Port != want {
+			t.Errorf("%s reads port %d, wanted %d", text, held.Port, want)
+		}
+	}
+}

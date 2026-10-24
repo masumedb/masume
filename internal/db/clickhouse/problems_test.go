@@ -4,14 +4,12 @@ import (
 	"errors"
 	"testing"
 
-	driver "github.com/ClickHouse/clickhouse-go/v2"
-
 	"github.com/masumedb/masume/internal/db"
 )
 
-// buildServerError returns the error of the server, as the driver hands it over.
+// buildServerError returns the error of the server, as the client reads it.
 func buildServerError(code int32, message string) error {
-	return &driver.Exception{Code: code, Message: message}
+	return &serverError{Code: code, Message: message}
 }
 
 // The message of the server names the node it came from, which says nothing about the

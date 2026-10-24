@@ -464,7 +464,7 @@ func buildProfile(name string, source Table) (Profile, error) {
 		return Profile{}, err
 	}
 	if !hasPort {
-		port = core.ResolveDefaultPort(engine)
+		port = core.ResolveModeDefaultPort(engine, sslMode)
 	}
 
 	waitForPort, _, err := readPositiveInteger(source, "wait_for_port")

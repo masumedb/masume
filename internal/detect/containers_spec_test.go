@@ -80,7 +80,7 @@ const inspectedContainers = `[
       "Labels": {}
     },
     "NetworkSettings": {
-      "Ports": {"9000/tcp": [{"HostIp": "127.0.0.1", "HostPort": "55900"}]}
+      "Ports": {"8123/tcp": [{"HostIp": "127.0.0.1", "HostPort": "55901"}]}
     }
   },
   {
@@ -187,7 +187,7 @@ func TestBuildProfilesFromInspectionReadsTheEnvironmentOfEachFamily(t *testing.T
 		{"masume-test-redis-1", core.EngineRedis, "", "0", "", 55379},
 		{"masume-test-mongo-auth-1", core.EngineMongo, "root", "shop", "secret", 55018},
 		{"masume-test-sqlserver-1", core.EngineSqlserver, "sa", "master", "Masume_2024", 55433},
-		{"masume-test-clickhouse-1", core.EngineClickhouse, "default", "shop", "Masume_2024", 55900},
+		{"masume-test-clickhouse-1", core.EngineClickhouse, "default", "shop", "Masume_2024", 55901},
 	} {
 		profile, holds := findProfileNamed(found, one.name)
 		if !holds {

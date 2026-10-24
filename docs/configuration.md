@@ -136,14 +136,14 @@ Headless commands use `statement_timeout_ms`, `mode`, `page_size`, and `command`
 | Aurora PostgreSQL, CockroachDB, PostgreSQL, TimescaleDB, YugabyteDB | unset, the same as `prefer` | TLS, no certificate check, unencrypted fallback |
 | Azure SQL Database | `require` | Login encrypted, rest of the session unencrypted |
 | Cassandra, Redis, ScyllaDB | unset, no TLS | TLS, no certificate check |
-| ClickHouse | unset, the same as `prefer` | No TLS |
+| ClickHouse | unset, the same as `prefer` | No TLS, plain HTTP |
 | MongoDB | unset, no TLS | TLS, no certificate check, no unencrypted fallback |
 | Neon, PlanetScale, Redshift, Supabase | `require` | TLS, no certificate check, unencrypted fallback |
 | SQL Server | unset, the same as `prefer` | Login encrypted, rest of the session unencrypted |
 | SQLite | none | none |
 | Turso | `require` | `wss://` |
 
-ClickHouse with TLS listens on a separate port, 9440 by default. A `rediss://` target sets `verify-full`. Turso opens `ws://` with `disable` and `wss://` in every other mode, and verifies the server against the system trust store.
+ClickHouse with TLS uses HTTPS on a separate port, 8443 by default. A `rediss://` target sets `verify-full`. Turso opens `ws://` with `disable` and `wss://` in every other mode, and verifies the server against the system trust store.
 
 A profile with an unknown non-empty `sslmode` is skipped and reported. In the connection form, the `sslmode` field cycles through the modes, and `default` means the engine default.
 
@@ -189,7 +189,7 @@ masume "host=db.internal dbname=shop user=reader sslmode=verify-ca sslrootcert=/
 | PostgreSQL family | pgx | libpq keywords, such as `connect_timeout`, `application_name`, `target_session_attrs`, and `options`. Any other key is a server setting for the session |
 | MySQL family | go-sql-driver/mysql | DSN parameters, such as `timeout`, `charset`, `collation`, and `loc`. Any other key is a system variable, set as written, so a text value needs quotes: `sql_mode = "'ANSI_QUOTES'"`. `multiStatements`, `parseTime`, and `interpolateParams` stay as masume sets them |
 | SQL Server, Azure SQL Database | go-mssqldb | Connection string parameters, such as `app name`, `dial timeout`, `connection timeout`, and `packet size` |
-| ClickHouse | clickhouse-go | DSN parameters, such as `dial_timeout`, `read_timeout`, and `compress`. Any other key is a server setting for every statement, such as `max_execution_time`. The connection checks each setting name first |
+| ClickHouse | net/http | `dial_timeout` and `compress` (`true`, `false`, or `gzip`). Any other key is a server setting for every statement, such as `max_execution_time`. The connection checks each setting name first |
 | MongoDB, Amazon DocumentDB | mongo-go-driver | Connection string options, such as `authMechanism`, `maxPoolSize`, `readPreference`, `retryWrites`, and `appName` |
 | Redis | go-redis | URL options, such as `client_name`, `dial_timeout`, `read_timeout`, and `protocol` |
 | Cassandra, ScyllaDB | gocql | `timeout` and `connect_timeout` as durations such as `10s`, `consistency` such as `local_quorum`, `proto_version`, `local_dc`, and `disable_initial_host_lookup`. Any other key is an error |

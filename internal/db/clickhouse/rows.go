@@ -1,8 +1,6 @@
 package clickhouse
 
 import (
-	"database/sql"
-	"strconv"
 	"strings"
 
 	"github.com/masumedb/masume/internal/db"
@@ -50,73 +48,4 @@ const nullablePrefix = "nullable("
 // ReadsNull is true for a column type that takes a null.
 func ReadsNull(dataType string) bool {
 	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(dataType)), nullablePrefix)
-}
-
-// byteArrayType is the one type the driver hands over as raw bytes.
-const byteArrayType = "array(uint8)"
-
-// rowReader reads the values of one row, in the shapes this driver returns them.
-type rowReader struct {
-	// True for a column whose value stays bytes.
-	binary []bool
-}
-
-// readRow reads one row as plain values.
-func (reader rowReader) readRow(rows *sql.Rows) ([]any, error) {
-	return db.ScanRow(rows, len(reader.binary), reader.binary...)
-}
-
-// buildClickhouseColumns reads the columns of a result with the reader of its values.
-func buildClickhouseColumns(rows *sql.Rows) ([]db.ResultColumn, rowReader, error) {
-	names, err := rows.Columns()
-	if err != nil {
-		return nil, rowReader{}, err
-	}
-	if len(names) == 0 {
-		return nil, rowReader{}, nil
-	}
-	types, typeErr := rows.ColumnTypes()
-	if typeErr != nil {
-		return nil, rowReader{}, typeErr
-	}
-
-	columns := make([]db.ResultColumn, 0, len(names))
-	reader := rowReader{binary: make([]bool, 0, len(names))}
-	for at, name := range names {
-		dataType := ""
-		if at < len(types) && types[at] != nil {
-			dataType = types[at].DatabaseTypeName()
-		}
-		if name == "" {
-			// The server names no column of a computed expression.
-			name = "column" + strconv.Itoa(at+1)
-		}
-		columns = append(columns, db.ResultColumn{
-			Name: name, DataType: dataType, Zoned: strings.Contains(dataType, "DateTime"),
-		})
-		reader.binary = append(reader.binary,
-			strings.ToLower(dataType) == byteArrayType)
-	}
-	return columns, reader, nil
-}
-
-// readClickhouseRows reads a result as rows of plain values, with its columns.
-func readClickhouseRows(rows *sql.Rows, cap int) ([][]any, []db.ResultColumn, error) {
-	columns, reader, err := buildClickhouseColumns(rows)
-	if err != nil || columns == nil {
-		return nil, nil, err
-	}
-
-	read := [][]any{}
-	for rows.Next() {
-		values, scanErr := reader.readRow(rows)
-		if scanErr != nil {
-			return nil, nil, scanErr
-		}
-		read = append(read, values)
-		if cap >= 0 && len(read) >= cap {
-			break
-		}
-	}
-	return read, columns, rows.Err()
 }

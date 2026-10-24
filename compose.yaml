@@ -88,13 +88,15 @@ services:
       CLICKHOUSE_PASSWORD: Masume_2024
       CLICKHOUSE_DB: shop
     ports:
-      - "127.0.0.1:55900:9000"
+      - "127.0.0.1:55901:8123"
     ulimits:
       nofile:
         soft: 262144
         hard: 262144
     healthcheck:
-      test: ["CMD", "clickhouse-client", "--password", "Masume_2024", "-q", "select 1"]
+      # The setup server of the image listens on 127.0.0.1 only. The check uses the address
+      # of the container.
+      test: ["CMD-SHELL", "wget -qO- \"http://$$(hostname):8123/ping\""]
       interval: 1s
       timeout: 5s
       retries: 90

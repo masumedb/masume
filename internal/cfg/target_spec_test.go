@@ -522,3 +522,21 @@ func TestBuildProfileFromTargetReadsAMongoSRVURL(t *testing.T) {
 		t.Error("a mongodb+srv URL with a port reads without an error")
 	}
 }
+
+// A ClickHouse target that asks for TLS and names no port takes the HTTPS port.
+func TestBuildProfileFromTargetTakesTheTLSPort(t *testing.T) {
+	for text, want := range map[string]int{
+		"clickhouse://reader@localhost/shop?sslmode=verify-full":                             8443,
+		"clickhouse://reader@localhost/shop":                                                 8123,
+		"engine=clickhouse host=localhost dbname=shop user=reader sslmode=require":           8443,
+		"engine=clickhouse host=localhost port=8123 dbname=shop user=reader sslmode=require": 8123,
+	} {
+		built, err := cfg.BuildProfileFromTarget(text)
+		if err != nil {
+			t.Fatalf("%s answered %v", text, err)
+		}
+		if built.Port != want {
+			t.Errorf("%s reads port %d, wanted %d", text, built.Port, want)
+		}
+	}
+}
