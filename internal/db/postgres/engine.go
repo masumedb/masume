@@ -77,6 +77,26 @@ var Dialect = &query.Dialect{
 		target := dialect.BuildQualifiedName(query.QualifiedName{Schema: schema, Name: table})
 		return "drop trigger " + dialect.QuoteIdentifier(name) + " on " + target + ";"
 	},
+	CreateIfMissing: func(
+		dialect *query.Dialect, kind, schema, name string, lines []string,
+	) []string {
+		lookup := "to_regtype"
+		if kind == string(db.ObjectSequence) {
+			lookup = "to_regclass"
+		}
+		target := dialect.QuoteTextLiteral(
+			dialect.BuildQualifiedName(query.QualifiedName{Schema: schema, Name: name}))
+		guarded := []string{"DO $masume$ BEGIN IF " + lookup + "(" + target + ") IS NULL THEN"}
+		for _, line := range lines {
+			if strings.TrimSpace(line) != "" {
+				guarded = append(guarded, line)
+			}
+		}
+		if last := len(guarded) - 1; !strings.HasSuffix(strings.TrimSpace(guarded[last]), ";") {
+			guarded[last] += ";"
+		}
+		return append(guarded, "END IF; END $masume$;")
+	},
 	// ROUTINE covers a function and a procedure. DROP FUNCTION refuses a procedure.
 	DropRoutine: func(dialect *query.Dialect, schema, name, _ string) string {
 		return "drop routine " +
@@ -92,12 +112,40 @@ var Support = db.EngineSupport{
 	Compose:    db.NewSQLComposer(Dialect),
 }
 
+// CockroachDialect is the PostgreSQL dialect with an IF NOT EXISTS guard. CockroachDB refuses
+// a CREATE TYPE or a CREATE SEQUENCE inside a DO block.
+var CockroachDialect = buildCockroachDialect()
+
+// buildCockroachDialect returns a copy of the PostgreSQL dialect that guards a definition with
+// CREATE TYPE IF NOT EXISTS or CREATE SEQUENCE IF NOT EXISTS.
+func buildCockroachDialect() *query.Dialect {
+	dialect := *Dialect
+	dialect.CreateIfMissing = func(
+		_ *query.Dialect, kind, _, _ string, lines []string,
+	) []string {
+		create := "CREATE " + strings.ToUpper(kind) + " "
+		guarded := make([]string, 0, len(lines))
+		for _, line := range lines {
+			if rest, found := strings.CutPrefix(line, create); found {
+				line = create + "IF NOT EXISTS " + rest
+			}
+			guarded = append(guarded, line)
+		}
+		return guarded
+	}
+	return &dialect
+}
+
 // BuildSupport combines engine metadata with the PostgreSQL dialect and language.
 func BuildSupport(engine core.Engine) db.EngineSupport {
+	dialect := Dialect
+	if engine == core.EngineCockroach {
+		dialect = CockroachDialect
+	}
 	return db.EngineSupport{
 		EngineInfo: core.ResolveEngineInfo(engine),
-		Dialect:    Dialect,
+		Dialect:    dialect,
 		Language:   language.SQL,
-		Compose:    db.NewSQLComposer(Dialect),
+		Compose:    db.NewSQLComposer(dialect),
 	}
 }

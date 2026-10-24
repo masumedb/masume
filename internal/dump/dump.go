@@ -122,6 +122,9 @@ func failEmptySchema(schema string) error {
 // views over them, then the triggers on them.
 type Plan struct {
 	Before []db.SchemaObject
+	// Used are the types and the sequences the named tables of a dump use. Each one is
+	// created only where it is missing, and none of them is dropped.
+	Used   []db.SchemaObject
 	Tables []db.TableRef
 	Views  []db.TableRef
 	After  []db.SchemaObject
@@ -129,21 +132,27 @@ type Plan struct {
 
 // IsEmpty is true for a plan with nothing in it.
 func (plan Plan) IsEmpty() bool {
-	return len(plan.Before)+len(plan.Tables)+len(plan.Views)+len(plan.After) == 0
+	return len(plan.Before)+len(plan.Used)+len(plan.Tables)+len(plan.Views)+len(plan.After) == 0
 }
 
 // beforeTables are the kinds of object a table can use, which are written in front of it.
 var beforeTables = []db.SchemaObjectKind{db.ObjectType, db.ObjectSequence, db.ObjectFunction}
 
-// BuildPlan returns what the dump writes. A named list of tables is taken as it is, and
-// holds no object and no view.
+// tableObjects are the kinds of object a dump of named tables writes where a table uses one.
+var tableObjects = []db.SchemaObjectKind{db.ObjectType, db.ObjectSequence}
+
+// BuildPlan returns what the dump writes. A named list of tables is taken as it is, with the
+// types and the sequences the tables use, and holds no function, no view and no trigger.
 func BuildPlan(ctx context.Context, server Server, options Options) (Plan, error) {
 	relationships, err := server.ListRelationships(ctx)
 	if err != nil {
 		return Plan{}, err
 	}
 	if len(options.Tables) > 0 {
-		return Plan{Tables: SortByReference(options.Tables, relationships)}, nil
+		plan := Plan{Tables: SortByReference(options.Tables, relationships)}
+		used, usedErr := findUsedObjects(ctx, server, plan.Tables)
+		plan.Used = used
+		return plan, usedErr
 	}
 
 	held, err := server.ListTables(ctx)
@@ -185,6 +194,41 @@ func BuildPlan(ctx context.Context, server Server, options Options) (Plan, error
 		plan.After = append(plan.After, object)
 	}
 	return plan, nil
+}
+
+// findUsedObjects returns the types and the sequences the tables use. A table uses an object
+// where its definition holds the name of that object as a word, and the object is in the
+// schema of the table or the definition holds that schema as a word too.
+func findUsedObjects(
+	ctx context.Context, server Server, tables []db.TableRef,
+) ([]db.SchemaObject, error) {
+	objects, err := server.ListSchemaObjects(ctx)
+	if err != nil {
+		return nil, err
+	}
+	definitions := make([]string, 0, len(tables))
+	for _, table := range tables {
+		lines, tableErr := server.BuildTableDDL(ctx, table)
+		if tableErr != nil {
+			return nil, tableErr
+		}
+		definitions = append(definitions, strings.ToLower(strings.Join(lines, "\n")))
+	}
+	used := []db.SchemaObject{}
+	for _, object := range objects {
+		if !slices.Contains(tableObjects, object.Kind) {
+			continue
+		}
+		name, schema := strings.ToLower(object.Name), strings.ToLower(object.Schema)
+		for at, definition := range definitions {
+			if holdsWord(definition, name) &&
+				(object.Schema == tables[at].Schema || holdsWord(definition, schema)) {
+				used = append(used, object)
+				break
+			}
+		}
+	}
+	return used, nil
 }
 
 // sortViewsByReference returns the views with every view in front of the views that read it.
@@ -335,7 +379,12 @@ func Write(
 		writeDrops(writer, server.Dialect(), plan)
 	}
 	if options.Content.WritesSchema() {
-		count, objectErr := writeObjects(ctx, server, writer, options, plan.Before)
+		count, objectErr := writeObjects(ctx, server, writer, plan.Before, false)
+		report.Objects += count
+		if objectErr != nil {
+			return report, objectErr
+		}
+		count, objectErr = writeObjects(ctx, server, writer, plan.Used, true)
 		report.Objects += count
 		if objectErr != nil {
 			return report, objectErr
@@ -365,7 +414,7 @@ func Write(
 		}
 		report.Views++
 	}
-	count, objectErr := writeObjects(ctx, server, writer, options, plan.After)
+	count, objectErr := writeObjects(ctx, server, writer, plan.After, false)
 	report.Objects += count
 	if objectErr != nil {
 		return report, objectErr
@@ -397,7 +446,7 @@ func writeHeader(
 	if len(plan.Views) > 0 {
 		writer.writeLine("-- views: " + strconv.Itoa(len(plan.Views)))
 	}
-	if objects := len(plan.Before) + len(plan.After); objects > 0 {
+	if objects := len(plan.Before) + len(plan.Used) + len(plan.After); objects > 0 {
 		writer.writeLine("-- objects: " + strconv.Itoa(objects))
 	}
 	writer.writeLine("-- written: " + time.Now().UTC().Format(time.RFC3339))
@@ -524,7 +573,7 @@ func isPlannedSequence(plan Plan, value db.SequenceValue) bool {
 			return true
 		}
 	}
-	for _, object := range plan.Before {
+	for _, object := range slices.Concat(plan.Before, plan.Used) {
 		if object.Kind == db.ObjectSequence &&
 			object.Schema == value.Schema && object.Name == value.Name {
 			return true
@@ -569,10 +618,11 @@ func writeView(
 	return writer.err
 }
 
-// writeObjects writes the definition of each object and returns how many it wrote.
+// writeObjects writes the definition of each object and returns how many it wrote. A guarded
+// definition runs only where the object is missing.
 func writeObjects(
 	ctx context.Context, server Server, writer *sqlWriter,
-	options Options, objects []db.SchemaObject,
+	objects []db.SchemaObject, guarded bool,
 ) (int, error) {
 	dialect := server.Dialect()
 	written := 0
@@ -584,6 +634,10 @@ func writeObjects(
 		lines, err := server.BuildObjectDDL(ctx, object)
 		if err != nil {
 			return written, err
+		}
+		if guarded && dialect.CreateIfMissing != nil {
+			lines = dialect.CreateIfMissing(
+				dialect, string(object.Kind), object.Schema, object.Name, lines)
 		}
 		writeDefinition(writer, lines)
 		if writer.err != nil {

@@ -28,7 +28,7 @@ usage:
   FILE                   the file the dump is written to; a single - writes to stdout
   -p, --profile NAME     a user or project profile; without a target or profile, use $DATABASE_URL
   -s, --schema NAME      the schema to dump; without it, the default schema of the connection
-  -t, --table NAME       one table of the schema; repeat for more, and the objects are left out
+  -t, --table NAME       one table and the types and sequences it uses; repeat for more
   -c, --content WHAT     schema and rows (the default), schema only, or rows only
       --drop             put a DROP statement in front of each definition
   -h, --help             print this help and exit

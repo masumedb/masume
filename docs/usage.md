@@ -345,7 +345,7 @@ During a dump, the card shows a progress bar of the tables written, the table be
 
 A dump contains the types, sequences, and functions of the schema, then its tables and their rows, the views on them, and its triggers. Each table comes after the tables that its foreign keys reference. Roles, grants, and owners are not written. Rows are read in batches, and a large table is never held in memory whole. The file is written next to the target, moved over the target at the end, and readable only by its owner.
 
-The table menu dumps one table on its own, without the other objects and the views of the schema.
+The table menu dumps one table with the types and sequences it uses, without the other objects and the views of the schema. The dump creates each of those types and sequences only where it is missing, and never drops one.
 
 To run a `.sql` file, select a schema, press `m`, and choose Restore a dump. Pick the file, then press Enter. The statements run on the open connection, one at a time and in file order, like editor statements. With autocommit off, masume opens one transaction and leaves it open for an explicit commit. A failure stops the run, and the card shows the failed statement. With autocommit on, the writes of the earlier statements stay. Restore rejects an open transaction and a read-only connection. Restored statements are not added to the query history.
 

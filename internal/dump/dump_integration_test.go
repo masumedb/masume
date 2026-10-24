@@ -736,3 +736,41 @@ func TestPostgresDumpRestoresIntoAnEmptyDatabase(t *testing.T) {
 		t.Errorf("the restored schema differs:\n%s", schemadiff.WriteReport(found))
 	}
 }
+
+// A dump of named tables holds the types and the sequences the tables use, so it restores
+// into an empty database and the next rows take the next numbers. It drops the tables and not
+// the types, so it runs again where another table uses one of the types.
+func TestPostgresTableDumpRestoresIntoAnEmptyDatabase(t *testing.T) {
+	session := dbtest.Open(t, dbtest.Postgres)
+	dbtest.RunStatements(t, session, dropRestoreSchema, restoreSchema)
+	t.Cleanup(func() {
+		_, _ = session.RunQuery(
+			context.Background(), dropRestoreSchema, dbtest.ReadEverything, nil)
+	})
+
+	path, _ := writeDump(t, session, dump.Options{
+		Schema: "masume_restore", Content: dump.ContentAll, DropsFirst: true,
+		Tables: []db.TableRef{
+			{Schema: "masume_restore", Name: "orders", Kind: db.RelationTable},
+			{Schema: "masume_restore", Name: "customers", Kind: db.RelationTable},
+		},
+	})
+	copied := restoreIntoEmptyDatabase(t, session, path)
+	dbtest.RunStatements(t, copied, "create table masume_restore.other (feeling masume_restore.mood)")
+	run, err := dump.RunFile(context.Background(), copied, path, copied.Dialect().Syntax)
+	if err != nil {
+		t.Fatalf("the second restore answered %v after %d statements", err, run.Statements)
+	}
+
+	dbtest.RunStatements(t, copied,
+		"insert into masume_restore.customers (email, feeling) values ('cy@example.com', 'sad')",
+		"insert into masume_restore.orders (customer_id, note) values (3, 'third')")
+	for sql, wanted := range map[string]int64{
+		"select max(id) from masume_restore.customers": 3,
+		"select max(id) from masume_restore.orders":    3,
+	} {
+		if held := readNumber(t, copied, sql); held != wanted {
+			t.Errorf("%s: %d, want %d", sql, held, wanted)
+		}
+	}
+}

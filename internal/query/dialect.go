@@ -105,6 +105,9 @@ type Dialect struct {
 	DropSchema  func(dialect *Dialect, schema string) string
 	DropTrigger func(dialect *Dialect, schema, name, table string) string
 	DropRoutine func(dialect *Dialect, schema, name, identity string) string
+	// CreateIfMissing wraps the definition of an object of that kind so it runs only where
+	// the object is missing. A dialect that leaves it unset writes the definition as it is.
+	CreateIfMissing func(dialect *Dialect, kind, schema, name string, lines []string) []string
 	// CommitsDDL is true if a DDL statement commits the open transaction.
 	CommitsDDL bool
 	// ReadOnlyUnit is how this server opens and closes a unit of work that refuses a

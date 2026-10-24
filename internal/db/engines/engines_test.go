@@ -48,7 +48,8 @@ func TestTheAdaptersHoldNoEngineTheClientDoesNotOffer(t *testing.T) {
 }
 
 // A server that speaks one protocol takes the dialect of that protocol, which is what lets
-// one adapter serve a whole family.
+// one adapter serve a whole family. CockroachDB has a copy with its own guard for a missing
+// object.
 func TestAFamilyShareOneDialect(t *testing.T) {
 	byFamily := map[core.Family][]core.Engine{}
 	for _, engine := range core.Engines {
@@ -59,7 +60,8 @@ func TestAFamilyShareOneDialect(t *testing.T) {
 	for family, engines := range byFamily {
 		first := ResolveSupport(engines[0]).Dialect
 		for _, engine := range engines[1:] {
-			if held := ResolveSupport(engine).Dialect; held != first {
+			held := ResolveSupport(engine).Dialect
+			if held.Engine != first.Engine || held.Syntax != first.Syntax {
 				t.Errorf("%q of the %q family answers a dialect of its own", engine, family)
 			}
 		}

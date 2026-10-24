@@ -235,6 +235,43 @@ func TestWriteNamedTables(t *testing.T) {
 	}
 }
 
+func TestWriteNamedTablesWritesTheTypesAndSequencesTheyUse(t *testing.T) {
+	server := buildServer()
+	server.ddl["orders"] = []string{
+		"create table public.orders (",
+		"    id integer default nextval('public.order_seq'::regclass),",
+		"    feeling public.mood",
+		");",
+	}
+	server.objects = append(server.objects,
+		db.SchemaObject{Schema: "public", Name: "mood", Kind: db.ObjectType},
+		db.SchemaObject{Schema: "public", Name: "unused", Kind: db.ObjectType})
+	server.objectDDL["mood"] = []string{"create type public.mood as enum ('happy');"}
+	server.objectDDL["unused"] = []string{"create type public.unused as enum ('x');"}
+	written := &strings.Builder{}
+	report, err := dump.Write(context.Background(), server, dump.Options{
+		Schema: "public", Content: dump.ContentAll,
+		Tables: []db.TableRef{{Schema: "public", Name: "orders", Kind: db.RelationTable}},
+	}, written)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Objects != 2 {
+		t.Fatalf("objects: %d, want the sequence and the type", report.Objects)
+	}
+	text := written.String()
+	for _, wanted := range []string{
+		"create sequence public.order_seq;", "create type public.mood", "create table",
+	} {
+		if !strings.Contains(text, wanted) {
+			t.Errorf("the dump has no %q in it:\n%s", wanted, text)
+		}
+	}
+	if strings.Index(text, "create type public.mood") > strings.Index(text, "create table") {
+		t.Errorf("the type stands after the table that uses it:\n%s", text)
+	}
+}
+
 func TestWriteEmptySchemaFails(t *testing.T) {
 	server := buildServer()
 	_, err := dump.Write(context.Background(), server, dump.Options{

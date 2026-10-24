@@ -238,7 +238,7 @@ masume restore [TARGET] FILE
 | `FILE` | Dump file. `-` is stdout for a dump and stdin for a restore |
 | `-p`, `--profile NAME` | User or project profile |
 | `-s`, `--schema NAME` | Schema to dump. Default: the default schema of the connection |
-| `-t`, `--table NAME` | One table, as `name` or `schema.name`. Repeat for more tables. With `-t`, the dump has no types, sequences, functions, views, or triggers |
+| `-t`, `--table NAME` | One table, as `name` or `schema.name`. Repeat for more tables. With `-t`, the dump has the types and sequences the tables use, and no functions, views, or triggers. It creates each of those types and sequences only where it is missing, and never drops one |
 | `-c`, `--content WHAT` | `schema and rows` by default, or `schema only` or `rows only` |
 | `--drop` | Add a `DROP … IF EXISTS` for each object the dump creates |
 
