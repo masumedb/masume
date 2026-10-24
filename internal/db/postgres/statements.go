@@ -161,6 +161,9 @@ var listSchemaObjectsSQL = `
     join pg_namespace n on n.oid = p.pronamespace
    where ` + buildSystemSchemaFilter("n.nspname") + `
      and p.prokind in ('f', 'p')
+     and not exists (select 1 from pg_depend d
+                      where d.classid = 'pg_proc'::regclass and d.objid = p.oid
+                        and d.deptype = 'i')
   union all
   select n.nspname, c.relname, 'sequence', '', c.oid::text, ''
     from pg_class c
@@ -173,13 +176,13 @@ var listSchemaObjectsSQL = `
   union all
   select n.nspname, t.typname, 'type',
          case t.typtype when 'e' then 'enum' when 'c' then 'composite' when 'd' then 'domain'
-              else 'type' end,
+              when 'r' then 'range' else 'type' end,
          t.oid::text,
          ''
     from pg_type t
     join pg_namespace n on n.oid = t.typnamespace
    where ` + buildSystemSchemaFilter("n.nspname") + `
-     and t.typtype in ('e', 'c', 'd')
+     and t.typtype in ('e', 'c', 'd', 'r')
      and not exists (select 1 from pg_class c where c.oid = t.typrelid and c.relkind <> 'c')
   union all
   select n.nspname, tg.tgname, 'trigger', c.relname, tg.oid::text,
@@ -206,11 +209,11 @@ var listSequenceValuesSQL = `
                                  a.attname)
                      else quote_literal(quote_ident(n.nspname) || '.' || quote_ident(s.relname))
                 end,
-                coalesce(pg_sequence_last_value(s.oid), q.seqstart),
-                (pg_sequence_last_value(s.oid) is not null)::text) as statement
-    from pg_class s
-    join pg_namespace n on n.oid = s.relnamespace
-    join pg_sequence q  on q.seqrelid = s.oid
+                coalesce(q.last_value, q.start_value),
+                (q.last_value is not null)::text) as statement
+    from pg_sequences q
+    join pg_namespace n on n.nspname = q.schemaname
+    join pg_class s     on s.relnamespace = n.oid and s.relname = q.sequencename
     left join pg_depend d
       on d.classid = 'pg_class'::regclass and d.objid = s.oid
      and d.refclassid = 'pg_class'::regclass and d.deptype in ('a', 'i')
@@ -219,6 +222,12 @@ var listSequenceValuesSQL = `
     left join pg_attribute a  on a.attrelid = d.refobjid and a.attnum = d.refobjsubid
    where s.relkind = 'S'
      and ` + buildSystemSchemaFilter("n.nspname") + `
+     and ` + buildOwnSchemaFilter("n.nspname") + `
+     and ((n.nspname, s.relname) in (select * from unnest($1::text[], $2::text[]))
+          or (d.deptype = 'i'
+              and (tn.nspname, t.relname) in (select * from unnest($3::text[], $4::text[]))))
+     and has_sequence_privilege(
+           quote_ident(q.schemaname) || '.' || quote_ident(q.sequencename), 'SELECT,USAGE')
    order by n.nspname, s.relname
 `
 
@@ -394,13 +403,77 @@ var postgresObjectDDL = map[db.SchemaObjectKind]string{
 		"increment_by) as ddl from pg_sequences where schemaname || '.' || sequencename = " +
 		"(select n.nspname || '.' || c.relname from pg_class c " +
 		"join pg_namespace n on n.oid = c.relnamespace where c.oid = $1::oid)",
-	db.ObjectType: "select format('CREATE TYPE %s.%s AS ENUM (%s);', quote_ident(n.nspname), " +
-		"quote_ident(t.typname), string_agg(quote_literal(e.enumlabel), ', ' " +
-		"order by e.enumsortorder)) as ddl from pg_type t " +
-		"join pg_namespace n on n.oid = t.typnamespace " +
-		"left join pg_enum e on e.enumtypid = t.oid where t.oid = $1::oid " +
-		"group by n.nspname, t.typname",
+	db.ObjectType: readTypeDefinitionSQL,
 }
+
+// buildCollateSQL writes the COLLATE clause of a collation that differs from the one of its
+// type, and nothing otherwise.
+func buildCollateSQL(collation, dataType string) string {
+	return `case when ` + collation + ` <> 0 and ` + collation + ` <>
+                    (select b.typcollation from pg_type b where b.oid = ` + dataType + `)
+               then ' COLLATE ' || ` + buildCollationNameSQL(collation) + ` else '' end`
+}
+
+// buildCollationNameSQL writes the qualified name of the collation. CockroachDB has no
+// regcollation type.
+func buildCollationNameSQL(collation string) string {
+	return `(select quote_ident(cn.nspname) || '.' || quote_ident(co.collname)
+                  from pg_collation co
+                  join pg_namespace cn on cn.oid = co.collnamespace
+                 where co.oid = ` + collation + `)`
+}
+
+// The definition of an enum, a domain, a composite or a range type.
+var readTypeDefinitionSQL = `
+  select case t.typtype
+         when 'e' then format('CREATE TYPE %s.%s AS ENUM (%s);',
+                quote_ident(n.nspname), quote_ident(t.typname),
+                (select string_agg(quote_literal(e.enumlabel), ', ' order by e.enumsortorder)
+                   from pg_enum e where e.enumtypid = t.oid))
+         when 'd' then format('CREATE DOMAIN %s.%s AS %s%s%s%s%s;',
+                quote_ident(n.nspname), quote_ident(t.typname),
+                format_type(t.typbasetype, t.typtypmod),
+                ` + buildCollateSQL("t.typcollation", "t.typbasetype") + `,
+                case when t.typdefault is not null then ' DEFAULT ' || t.typdefault else '' end,
+                case when t.typnotnull then ' NOT NULL' else '' end,
+                coalesce((select string_agg(' CONSTRAINT ' || quote_ident(c.conname) || ' ' ||
+                                            pg_get_constraintdef(c.oid), '' order by c.conname)
+                            from pg_constraint c
+                           where c.contypid = t.oid and c.contype = 'c'), ''))
+         when 'c' then format('CREATE TYPE %s.%s AS (%s);',
+                quote_ident(n.nspname), quote_ident(t.typname),
+                (select string_agg(quote_ident(a.attname) || ' ' ||
+                                   format_type(a.atttypid, a.atttypmod) ||
+                                   ` + buildCollateSQL("a.attcollation", "a.atttypid") + `,
+                                   ', ' order by a.attnum)
+                   from pg_attribute a
+                  where a.attrelid = t.typrelid and a.attnum > 0 and not a.attisdropped))
+         when 'r' then format('CREATE TYPE %s.%s AS RANGE (SUBTYPE = %s%s%s%s%s);',
+                quote_ident(n.nspname), quote_ident(t.typname),
+                format_type(r.rngsubtype, null),
+                case when r.rngsubopc <> (select o.oid from pg_opclass o
+                                            join pg_am m on m.oid = o.opcmethod
+                                           where m.amname = 'btree' and o.opcdefault
+                                             and o.opcintype = r.rngsubtype)
+                     then ', SUBTYPE_OPCLASS = ' ||
+                          (select quote_ident(on_.nspname) || '.' || quote_ident(o.opcname)
+                             from pg_opclass o
+                             join pg_namespace on_ on on_.oid = o.opcnamespace
+                            where o.oid = r.rngsubopc)
+                     else '' end,
+                case when r.rngcollation <> 0
+                     then ', COLLATION = ' || ` + buildCollationNameSQL("r.rngcollation") + `
+                     else '' end,
+                case when r.rngcanonical <> 0
+                     then ', CANONICAL = ' || r.rngcanonical::regproc::text else '' end,
+                case when r.rngsubdiff <> 0
+                     then ', SUBTYPE_DIFF = ' || r.rngsubdiff::regproc::text else '' end)
+         end as ddl
+    from pg_type t
+    join pg_namespace n on n.oid = t.typnamespace
+    left join pg_range r on r.rngtypid = t.oid
+   where t.oid = $1::oid
+`
 
 const readViewDefinitionSQL = `
   select pg_get_viewdef($1::regclass, true) as definition

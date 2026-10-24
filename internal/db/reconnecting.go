@@ -173,11 +173,11 @@ func (session *ReconnectingSession) ListSchemaObjects(
 }
 
 func (session *ReconnectingSession) ListSequenceValues(
-	ctx context.Context,
+	ctx context.Context, sequences, tables []query.QualifiedName,
 ) ([]SequenceValue, error) {
 	held, done := session.hold()
 	defer done()
-	return held.ListSequenceValues(ctx)
+	return held.ListSequenceValues(ctx, sequences, tables)
 }
 
 func (session *ReconnectingSession) ListRelationships(

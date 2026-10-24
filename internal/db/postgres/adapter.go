@@ -527,9 +527,15 @@ func (session *postgresSession) ListSchemaObjects(ctx context.Context) ([]db.Sch
 }
 
 func (session *postgresSession) ListSequenceValues(
-	ctx context.Context,
+	ctx context.Context, sequences, tables []query.QualifiedName,
 ) ([]db.SequenceValue, error) {
-	rows, err := session.readRows(ctx, listSequenceValuesSQL)
+	if session.flavour.ListSequenceValuesStatement == "" {
+		return nil, nil
+	}
+	sequenceSchemas, sequenceNames := splitQualifiedNames(sequences)
+	tableSchemas, tableNames := splitQualifiedNames(tables)
+	rows, err := session.readRows(ctx, session.flavour.ListSequenceValuesStatement,
+		sequenceSchemas, sequenceNames, tableSchemas, tableNames)
 	if err != nil {
 		return nil, err
 	}
@@ -545,6 +551,17 @@ func (session *postgresSession) ListSequenceValues(
 		})
 	}
 	return values, nil
+}
+
+// splitQualifiedNames returns the schemas and the names as two lists of the same length.
+func splitQualifiedNames(qualified []query.QualifiedName) ([]string, []string) {
+	schemas := make([]string, 0, len(qualified))
+	names := make([]string, 0, len(qualified))
+	for _, name := range qualified {
+		schemas = append(schemas, name.Schema)
+		names = append(names, name.Name)
+	}
+	return schemas, names
 }
 
 // BuildObjectDDL asks Postgres for the definition of the object, which it prints itself.

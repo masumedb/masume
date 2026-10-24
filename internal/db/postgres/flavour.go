@@ -14,6 +14,8 @@ type Flavour struct {
 	// SQL expression, true where the server keeps statement statistics. Empty for none.
 	CountsStatementsExpression  string
 	ListSlowStatementsStatement string
+	// Statement that reads the sequence values for a dump. Empty for none.
+	ListSequenceValuesStatement string
 }
 
 const postgresReadOnlyStatement = "set default_transaction_read_only = on"
@@ -50,11 +52,12 @@ var FlavourStandard = Flavour{
 		}
 		return "explain (COSTS)"
 	},
-	ReadOnlyStatement:       postgresReadOnlyStatement,
-	BuildCancelStatement:    buildPostgresCancelStatement,
-	ListActivityStatement:   listActivitySQL,
-	ListLockWaitsStatement:  listLockWaitsSQL,
-	ReadServerLoadStatement: readServerLoadSQL,
+	ReadOnlyStatement:           postgresReadOnlyStatement,
+	BuildCancelStatement:        buildPostgresCancelStatement,
+	ListActivityStatement:       listActivitySQL,
+	ListLockWaitsStatement:      listLockWaitsSQL,
+	ReadServerLoadStatement:     readServerLoadSQL,
+	ListSequenceValuesStatement: listSequenceValuesSQL,
 }
 
 // FlavourYugabyte is PostgreSQL with its own server load read.
@@ -76,10 +79,11 @@ var FlavourCockroach = Flavour{
 		}
 		return "explain"
 	},
-	ReadOnlyStatement:      postgresReadOnlyStatement,
-	BuildCancelStatement:   buildCockroachCancelStatement,
-	ListActivityStatement:  listCockroachActivitySQL,
-	ListLockWaitsStatement: listCockroachLockWaitsSQL,
+	ReadOnlyStatement:           postgresReadOnlyStatement,
+	BuildCancelStatement:        buildCockroachCancelStatement,
+	ListActivityStatement:       listCockroachActivitySQL,
+	ListLockWaitsStatement:      listCockroachLockWaitsSQL,
+	ListSequenceValuesStatement: listSequenceValuesSQL,
 }
 
 // FlavourRedshift plans without measuring, so it is only asked for the estimate.

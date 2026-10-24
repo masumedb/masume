@@ -3,6 +3,7 @@ package dump_test
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 
@@ -24,7 +25,9 @@ type fakeServer struct {
 	dialect *query.Dialect
 	objects []db.SchemaObject
 	// objectDDL is the definition of each object, by name.
-	objectDDL     map[string][]string
+	objectDDL map[string][]string
+	// objectReads is the name of the object of every BuildObjectDDL call.
+	objectReads   []string
 	relationships []db.Relationship
 	sequences     []db.SequenceValue
 	columns       []db.ResultColumn
@@ -35,6 +38,8 @@ type fakeServer struct {
 	batches []int
 	readErr error
 	readSQL []string
+	// sequenceErr is the error of every ListSequenceValues call.
+	sequenceErr error
 }
 
 func (server *fakeServer) Describe() db.SessionDescriptor {
@@ -63,13 +68,28 @@ func (server *fakeServer) ListRelationships(context.Context) ([]db.Relationship,
 	return server.relationships, nil
 }
 
-func (server *fakeServer) ListSequenceValues(context.Context) ([]db.SequenceValue, error) {
-	return server.sequences, nil
+// ListSequenceValues returns the held sequences the dump names, and the held sequences of
+// the tables the dump names.
+func (server *fakeServer) ListSequenceValues(
+	_ context.Context, sequences, tables []query.QualifiedName,
+) ([]db.SequenceValue, error) {
+	if server.sequenceErr != nil {
+		return nil, server.sequenceErr
+	}
+	named := []db.SequenceValue{}
+	for _, value := range server.sequences {
+		if slices.Contains(sequences, query.QualifiedName{Schema: value.Schema, Name: value.Name}) ||
+			(value.Table.Name != "" && slices.Contains(tables, value.Table)) {
+			named = append(named, value)
+		}
+	}
+	return named, nil
 }
 
 func (server *fakeServer) BuildObjectDDL(
 	_ context.Context, object db.SchemaObject,
 ) ([]string, error) {
+	server.objectReads = append(server.objectReads, object.Name)
 	return server.objectDDL[object.Name], nil
 }
 
@@ -243,6 +263,10 @@ func TestWriteNamedTablesWritesTheTypesAndSequencesTheyUse(t *testing.T) {
 		"    feeling public.mood",
 		");",
 	}
+	server.detail = map[string]db.TableDetail{"orders": {Columns: []db.ColumnDetail{
+		{Name: "id", DataType: "integer", DefaultValue: "nextval('public.order_seq'::regclass)"},
+		{Name: "feeling", DataType: "public.mood"},
+	}}}
 	server.objects = append(server.objects,
 		db.SchemaObject{Schema: "public", Name: "mood", Kind: db.ObjectType},
 		db.SchemaObject{Schema: "public", Name: "unused", Kind: db.ObjectType})
@@ -269,6 +293,93 @@ func TestWriteNamedTablesWritesTheTypesAndSequencesTheyUse(t *testing.T) {
 	}
 	if strings.Index(text, "create type public.mood") > strings.Index(text, "create table") {
 		t.Errorf("the type stands after the table that uses it:\n%s", text)
+	}
+}
+
+// A column named like a type or a sequence uses neither.
+func TestWriteNamedTablesSkipsAnObjectNamedLikeAColumn(t *testing.T) {
+	server := buildServer()
+	server.ddl["orders"] = []string{
+		"create table public.orders (", "    status text,", "    feeling integer", ");",
+	}
+	server.detail = map[string]db.TableDetail{"orders": {Columns: []db.ColumnDetail{
+		{Name: "status", DataType: "text"},
+		{Name: "feeling", DataType: "integer"},
+	}}}
+	server.objects = append(server.objects,
+		db.SchemaObject{Schema: "public", Name: "status", Kind: db.ObjectType},
+		db.SchemaObject{Schema: "public", Name: "feeling", Kind: db.ObjectSequence})
+	server.objectDDL["status"] = []string{"create type public.status as enum ('open');"}
+	server.objectDDL["feeling"] = []string{"create sequence public.feeling;"}
+	written := &strings.Builder{}
+	report, err := dump.Write(context.Background(), server, dump.Options{
+		Schema: "public", Content: dump.ContentAll,
+		Tables: []db.TableRef{{Schema: "public", Name: "orders", Kind: db.RelationTable}},
+	}, written)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Objects != 0 {
+		t.Errorf("objects: %d, want none:\n%s", report.Objects, written.String())
+	}
+}
+
+func TestWriteNamedTablesWritesATypeInFrontOfTheTypeThatUsesIt(t *testing.T) {
+	server := buildServer()
+	server.ddl["orders"] = []string{"create table public.orders (", "    feeling cheerful", ");"}
+	server.detail = map[string]db.TableDetail{"orders": {Columns: []db.ColumnDetail{
+		{Name: "feeling", DataType: "cheerful"},
+	}}}
+	server.objects = []db.SchemaObject{
+		{Schema: "public", Name: "cheerful", Kind: db.ObjectType},
+		{Schema: "public", Name: "mood", Kind: db.ObjectType},
+	}
+	server.objectDDL["cheerful"] = []string{"create domain public.cheerful as mood;"}
+	server.objectDDL["mood"] = []string{"create type public.mood as enum ('happy');"}
+	written := &strings.Builder{}
+	if _, err := dump.Write(context.Background(), server, dump.Options{
+		Schema: "public", Content: dump.ContentSchema,
+		Tables: []db.TableRef{{Schema: "public", Name: "orders", Kind: db.RelationTable}},
+	}, written); err != nil {
+		t.Fatal(err)
+	}
+	text := written.String()
+	enum, domain := strings.Index(text, "create type public.mood"),
+		strings.Index(text, "create domain public.cheerful")
+	if enum < 0 || domain < 0 || enum > domain {
+		t.Errorf("the enum does not stand in front of the domain over it:\n%s", text)
+	}
+}
+
+func TestWriteReadsEachTypeDefinitionOnce(t *testing.T) {
+	for name, tables := range map[string][]db.TableRef{
+		"a schema dump":      nil,
+		"a named table dump": {{Schema: "public", Name: "orders", Kind: db.RelationTable}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			server := buildServer()
+			server.ddl["orders"] = []string{
+				"create table public.orders (", "    feeling cheerful", ");",
+			}
+			server.detail = map[string]db.TableDetail{"orders": {Columns: []db.ColumnDetail{
+				{Name: "feeling", DataType: "cheerful"},
+			}}}
+			server.objects = []db.SchemaObject{
+				{Schema: "public", Name: "cheerful", Kind: db.ObjectType},
+				{Schema: "public", Name: "mood", Kind: db.ObjectType},
+			}
+			server.objectDDL["cheerful"] = []string{"create domain public.cheerful as mood;"}
+			server.objectDDL["mood"] = []string{"create type public.mood as enum ('happy');"}
+			if _, err := dump.Write(context.Background(), server, dump.Options{
+				Schema: "public", Content: dump.ContentSchema, Tables: tables,
+			}, &strings.Builder{}); err != nil {
+				t.Fatal(err)
+			}
+			slices.Sort(server.objectReads)
+			if reads := strings.Join(server.objectReads, " "); reads != "cheerful mood" {
+				t.Errorf("the dump read the definitions of %s", reads)
+			}
+		})
 	}
 }
 
@@ -587,5 +698,22 @@ func TestWriteSetsTheSequencesAfterTheRows(t *testing.T) {
 	}
 	if strings.Contains(schemaOnly.String(), "setval") {
 		t.Errorf("a dump without rows sets a sequence:\n%s", schemaOnly.String())
+	}
+}
+
+func TestWriteReadsTheSequencesBeforeTheFirstLine(t *testing.T) {
+	server := buildServer()
+	server.sequenceErr = errors.New("not a sequence")
+	for _, content := range []dump.Content{dump.ContentAll, dump.ContentRows} {
+		written := &strings.Builder{}
+		_, err := dump.Write(context.Background(), server, dump.Options{
+			Schema: "public", Content: content,
+		}, written)
+		if err == nil || !strings.Contains(err.Error(), "not a sequence") {
+			t.Fatalf("%s: error %v, want the sequence read failure", content, err)
+		}
+		if written.Len() > 0 || len(server.readSQL) > 0 {
+			t.Errorf("%s: the dump read %v and wrote\n%s", content, server.readSQL, written)
+		}
 	}
 }

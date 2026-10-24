@@ -369,7 +369,11 @@ type CatalogReader interface {
 	ListConstraints(ctx context.Context, table TableRef) ([]ConstraintDetail, error)
 	BuildTableDDL(ctx context.Context, table TableRef) ([]string, error)
 	BuildObjectDDL(ctx context.Context, object SchemaObject) ([]string, error)
-	ListSequenceValues(ctx context.Context) ([]SequenceValue, error)
+	// ListSequenceValues returns the sequences named, and the identity sequences of the tables
+	// named.
+	ListSequenceValues(
+		ctx context.Context, sequences, tables []query.QualifiedName,
+	) ([]SequenceValue, error)
 }
 
 // QueryRunner runs what the user wrote and reads the answer back, a page or a batch at a

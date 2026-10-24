@@ -101,7 +101,9 @@ type Server interface {
 	BuildTableDDL(ctx context.Context, table db.TableRef) ([]string, error)
 	DescribeTable(ctx context.Context, table db.TableRef) (db.TableDetail, error)
 	BuildObjectDDL(ctx context.Context, object db.SchemaObject) ([]string, error)
-	ListSequenceValues(ctx context.Context) ([]db.SequenceValue, error)
+	ListSequenceValues(
+		ctx context.Context, sequences, tables []query.QualifiedName,
+	) ([]db.SequenceValue, error)
 	StreamQuery(
 		ctx context.Context, sql string, params []any, batchSize int,
 		onBatch func(rows [][]any, columns []db.ResultColumn) error,
@@ -128,6 +130,27 @@ type Plan struct {
 	Tables []db.TableRef
 	Views  []db.TableRef
 	After  []db.SchemaObject
+
+	definitions objectDefinitions
+}
+
+// objectDefinitions are the object definitions a dump has read, by object.
+type objectDefinitions map[db.SchemaObject][]string
+
+// readDefinition returns the definition of the object, and reads it from the server only
+// the first time.
+func (held objectDefinitions) readDefinition(
+	ctx context.Context, server Server, object db.SchemaObject,
+) ([]string, error) {
+	if lines, found := held[object]; found {
+		return lines, nil
+	}
+	lines, err := server.BuildObjectDDL(ctx, object)
+	if err != nil {
+		return nil, err
+	}
+	held[object] = lines
+	return lines, nil
 }
 
 // IsEmpty is true for a plan with nothing in it.
@@ -149,8 +172,11 @@ func BuildPlan(ctx context.Context, server Server, options Options) (Plan, error
 		return Plan{}, err
 	}
 	if len(options.Tables) > 0 {
-		plan := Plan{Tables: SortByReference(options.Tables, relationships)}
-		used, usedErr := findUsedObjects(ctx, server, plan.Tables)
+		plan := Plan{
+			Tables:      SortByReference(options.Tables, relationships),
+			definitions: objectDefinitions{},
+		}
+		used, usedErr := findUsedObjects(ctx, server, plan.Tables, plan.definitions)
 		plan.Used = used
 		return plan, usedErr
 	}
@@ -159,7 +185,7 @@ func BuildPlan(ctx context.Context, server Server, options Options) (Plan, error
 	if err != nil {
 		return Plan{}, err
 	}
-	plan := Plan{}
+	plan := Plan{definitions: objectDefinitions{}}
 	for _, relation := range held {
 		if relation.Schema != options.Schema {
 			continue
@@ -193,42 +219,132 @@ func BuildPlan(ctx context.Context, server Server, options Options) (Plan, error
 		}
 		plan.After = append(plan.After, object)
 	}
+	sorted, sortErr := sortTypesByReference(ctx, server, plan.Before, plan.definitions)
+	if sortErr != nil {
+		return Plan{}, sortErr
+	}
+	plan.Before = sorted
 	return plan, nil
 }
 
-// findUsedObjects returns the types and the sequences the tables use. A table uses an object
-// where its definition holds the name of that object as a word, and the object is in the
-// schema of the table or the definition holds that schema as a word too.
+// findUsedObjects returns the types and the sequences the tables use, with the types those
+// types use. A table uses an object where a column type, a column default or a CHECK holds
+// the name of that object as a word. A type uses an object where its definition holds that
+// name. The object is in the schema of the user, or the text holds that schema too.
 func findUsedObjects(
-	ctx context.Context, server Server, tables []db.TableRef,
+	ctx context.Context, server Server, tables []db.TableRef, known objectDefinitions,
 ) ([]db.SchemaObject, error) {
 	objects, err := server.ListSchemaObjects(ctx)
 	if err != nil {
 		return nil, err
 	}
-	definitions := make([]string, 0, len(tables))
+	type definition struct{ schema, text string }
+	definitions := make([]definition, 0, len(tables))
 	for _, table := range tables {
-		lines, tableErr := server.BuildTableDDL(ctx, table)
+		text, tableErr := readTableReferences(ctx, server, table)
 		if tableErr != nil {
 			return nil, tableErr
 		}
-		definitions = append(definitions, strings.ToLower(strings.Join(lines, "\n")))
+		definitions = append(definitions, definition{schema: table.Schema, text: text})
+	}
+	isUsed := make([]bool, len(objects))
+	for read := 0; read < len(definitions); read++ {
+		held := definitions[read]
+		for at, object := range objects {
+			name, schema := strings.ToLower(object.Name), strings.ToLower(object.Schema)
+			if isUsed[at] || !slices.Contains(tableObjects, object.Kind) ||
+				!holdsWord(held.text, name) ||
+				(object.Schema != held.schema && !holdsWord(held.text, schema)) {
+				continue
+			}
+			isUsed[at] = true
+			if object.Kind != db.ObjectType {
+				continue
+			}
+			lines, objectErr := known.readDefinition(ctx, server, object)
+			if objectErr != nil {
+				return nil, objectErr
+			}
+			definitions = append(definitions, definition{
+				schema: object.Schema, text: strings.ToLower(strings.Join(lines, "\n")),
+			})
+		}
 	}
 	used := []db.SchemaObject{}
-	for _, object := range objects {
-		if !slices.Contains(tableObjects, object.Kind) {
-			continue
-		}
-		name, schema := strings.ToLower(object.Name), strings.ToLower(object.Schema)
-		for at, definition := range definitions {
-			if holdsWord(definition, name) &&
-				(object.Schema == tables[at].Schema || holdsWord(definition, schema)) {
-				used = append(used, object)
-				break
-			}
+	for at, object := range objects {
+		if isUsed[at] {
+			used = append(used, object)
 		}
 	}
-	return used, nil
+	return sortTypesByReference(ctx, server, used, known)
+}
+
+// readTableReferences returns the column types, the column defaults and the CHECK lines of
+// a table, in lower case.
+func readTableReferences(ctx context.Context, server Server, table db.TableRef) (string, error) {
+	detail, err := server.DescribeTable(ctx, table)
+	if err != nil {
+		return "", err
+	}
+	lines, err := server.BuildTableDDL(ctx, table)
+	if err != nil {
+		return "", err
+	}
+	parts := []string{}
+	for _, column := range detail.Columns {
+		parts = append(parts, column.DataType, column.DefaultValue)
+	}
+	for _, line := range lines {
+		if strings.Contains(strings.ToLower(line), "check") {
+			parts = append(parts, line)
+		}
+	}
+	return strings.ToLower(strings.Join(parts, "\n")), nil
+}
+
+// sortTypesByReference returns the objects with every type in front of the types that use
+// it. A type uses another type where its definition holds the name of that type as a word.
+// The other objects keep their places.
+func sortTypesByReference(
+	ctx context.Context, server Server, objects []db.SchemaObject, known objectDefinitions,
+) ([]db.SchemaObject, error) {
+	places := []int{}
+	types := []db.TableRef{}
+	byKey := map[string]db.SchemaObject{}
+	for at, object := range objects {
+		if object.Kind != db.ObjectType {
+			continue
+		}
+		places = append(places, at)
+		types = append(types, db.TableRef{Schema: object.Schema, Name: object.Name})
+		byKey[buildTableKey(object.Schema, object.Name)] = object
+	}
+	if len(types) < 2 {
+		return objects, nil
+	}
+	references := []db.Relationship{}
+	for _, held := range types {
+		lines, err := known.readDefinition(
+			ctx, server, byKey[buildTableKey(held.Schema, held.Name)])
+		if err != nil {
+			return nil, err
+		}
+		text := strings.ToLower(strings.Join(lines, "\n"))
+		for _, target := range types {
+			if target == held || !holdsWord(text, strings.ToLower(target.Name)) {
+				continue
+			}
+			references = append(references, db.Relationship{
+				Schema: held.Schema, Table: held.Name,
+				TargetSchema: target.Schema, TargetTable: target.Name,
+			})
+		}
+	}
+	sorted := slices.Clone(objects)
+	for at, held := range SortByReference(types, references) {
+		sorted[places[at]] = byKey[buildTableKey(held.Schema, held.Name)]
+	}
+	return sorted, nil
 }
 
 // sortViewsByReference returns the views with every view in front of the views that read it.
@@ -365,6 +481,12 @@ func Write(
 	if plan.IsEmpty() {
 		return Report{}, failEmptySchema(options.Schema)
 	}
+	// The values are read again after the rows. A failed read here leaves the output empty.
+	if options.Content.WritesRows() {
+		if _, valueErr := listSequenceValues(ctx, server, plan); valueErr != nil {
+			return Report{}, valueErr
+		}
+	}
 
 	writer := &sqlWriter{out: bufio.NewWriter(out)}
 	writeHeader(writer, server.Describe(), options, plan)
@@ -379,12 +501,12 @@ func Write(
 		writeDrops(writer, server.Dialect(), plan)
 	}
 	if options.Content.WritesSchema() {
-		count, objectErr := writeObjects(ctx, server, writer, plan.Before, false)
+		count, objectErr := writeObjects(ctx, server, writer, plan.Before, plan.definitions, false)
 		report.Objects += count
 		if objectErr != nil {
 			return report, objectErr
 		}
-		count, objectErr = writeObjects(ctx, server, writer, plan.Used, true)
+		count, objectErr = writeObjects(ctx, server, writer, plan.Used, plan.definitions, true)
 		report.Objects += count
 		if objectErr != nil {
 			return report, objectErr
@@ -414,7 +536,7 @@ func Write(
 		}
 		report.Views++
 	}
-	count, objectErr := writeObjects(ctx, server, writer, plan.After, false)
+	count, objectErr := writeObjects(ctx, server, writer, plan.After, plan.definitions, false)
 	report.Objects += count
 	if objectErr != nil {
 		return report, objectErr
@@ -542,20 +664,17 @@ func writeTable(
 	return writer.err
 }
 
-// writeSequenceValues sets each sequence of the plan, and each sequence a table of the plan
-// owns, to its current value.
+// writeSequenceValues sets each sequence of the plan, and the identity sequence of each table
+// of the plan, to its current value.
 func writeSequenceValues(
 	ctx context.Context, server Server, writer *sqlWriter, plan Plan,
 ) error {
-	values, err := server.ListSequenceValues(ctx)
+	values, err := listSequenceValues(ctx, server, plan)
 	if err != nil {
 		return err
 	}
 	written := false
 	for _, value := range values {
-		if !isPlannedSequence(plan, value) {
-			continue
-		}
 		if !written {
 			writer.writeLine("")
 			written = true
@@ -565,21 +684,23 @@ func writeSequenceValues(
 	return writer.err
 }
 
-// isPlannedSequence is true for a sequence the plan creates, and for a sequence a table of
-// the plan owns.
-func isPlannedSequence(plan Plan, value db.SequenceValue) bool {
-	for _, table := range plan.Tables {
-		if table.Schema == value.Table.Schema && table.Name == value.Table.Name {
-			return true
-		}
-	}
+// listSequenceValues returns the values of the sequences of the plan, and of the identity
+// sequences of the tables of the plan.
+func listSequenceValues(
+	ctx context.Context, server Server, plan Plan,
+) ([]db.SequenceValue, error) {
+	sequences := []query.QualifiedName{}
 	for _, object := range slices.Concat(plan.Before, plan.Used) {
-		if object.Kind == db.ObjectSequence &&
-			object.Schema == value.Schema && object.Name == value.Name {
-			return true
+		if object.Kind == db.ObjectSequence {
+			sequences = append(sequences,
+				query.QualifiedName{Schema: object.Schema, Name: object.Name})
 		}
 	}
-	return false
+	tables := make([]query.QualifiedName, 0, len(plan.Tables))
+	for _, table := range plan.Tables {
+		tables = append(tables, query.QualifiedName{Schema: table.Schema, Name: table.Name})
+	}
+	return server.ListSequenceValues(ctx, sequences, tables)
 }
 
 // buildRowRead returns the read of the rows of a table. A column the server computes from
@@ -622,7 +743,7 @@ func writeView(
 // definition runs only where the object is missing.
 func writeObjects(
 	ctx context.Context, server Server, writer *sqlWriter,
-	objects []db.SchemaObject, guarded bool,
+	objects []db.SchemaObject, known objectDefinitions, guarded bool,
 ) (int, error) {
 	dialect := server.Dialect()
 	written := 0
@@ -631,7 +752,7 @@ func writeObjects(
 		writer.writeLine("-- " + string(object.Kind) + " " +
 			dialect.BuildQualifiedName(
 				query.QualifiedName{Schema: object.Schema, Name: object.Name}))
-		lines, err := server.BuildObjectDDL(ctx, object)
+		lines, err := known.readDefinition(ctx, server, object)
 		if err != nil {
 			return written, err
 		}

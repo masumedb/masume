@@ -15,6 +15,7 @@ import (
 	"github.com/masumedb/masume/internal/core"
 	"github.com/masumedb/masume/internal/db"
 	"github.com/masumedb/masume/internal/dump"
+	"github.com/masumedb/masume/internal/query"
 )
 
 // dumpSession answers the catalog reads of a dump and keeps the statements of a restore.
@@ -52,7 +53,9 @@ func (session *dumpSession) ListRelationships(context.Context) ([]db.Relationshi
 	return nil, nil
 }
 
-func (session *dumpSession) ListSequenceValues(context.Context) ([]db.SequenceValue, error) {
+func (session *dumpSession) ListSequenceValues(
+	context.Context, []query.QualifiedName, []query.QualifiedName,
+) ([]db.SequenceValue, error) {
 	return nil, nil
 }
 

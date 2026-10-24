@@ -47,3 +47,13 @@ func TestBuildIdentityStatementAsksOnlyTheServersThatHoldTheCatalog(t *testing.T
 		}
 	}
 }
+
+// A dump on Redshift reads no sequence values.
+func TestListSequenceValuesReadsNothingOnRedshift(t *testing.T) {
+	session := &postgresSession{flavour: FlavourRedshift}
+
+	values, err := session.ListSequenceValues(context.Background(), nil, nil)
+	if err != nil || len(values) != 0 {
+		t.Errorf("the read has %d values: %v", len(values), err)
+	}
+}

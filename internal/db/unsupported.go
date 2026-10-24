@@ -1,6 +1,10 @@
 package db
 
-import "context"
+import (
+	"context"
+
+	"github.com/masumedb/masume/internal/query"
+)
 
 type PlainCatalog struct {
 	NoSequences
@@ -15,7 +19,11 @@ func (PlainCatalog) ListRelationships(context.Context) ([]Relationship, error) {
 // NoSequences is the fallback for engines without sequences.
 type NoSequences struct{}
 
-func (NoSequences) ListSequenceValues(context.Context) ([]SequenceValue, error) { return nil, nil }
+func (NoSequences) ListSequenceValues(
+	context.Context, []query.QualifiedName, []query.QualifiedName,
+) ([]SequenceValue, error) {
+	return nil, nil
+}
 
 type NoUserTransactions struct{}
 
