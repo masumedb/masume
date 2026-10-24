@@ -34,7 +34,7 @@ var Dialect = &query.Dialect{
 		core.KindText: "text", core.KindInteger: "bigint", core.KindNumber: "decimal",
 		core.KindBoolean: "boolean", core.KindTimestamp: "timestamp",
 	},
-	BindsCollections: true,
+	BindsCollection: func(string) bool { return true },
 	// CQL has no INSERT of several rows.
 	InsertRowLimit: 1,
 	// A new table takes a partition key of its own, and the server makes no value for it.

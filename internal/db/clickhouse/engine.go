@@ -34,6 +34,9 @@ var Dialect = &query.Dialect{
 		}
 		return core.FormatTimeLiteral(held, dataType)
 	},
+	BindsCollection: func(dataType string) bool {
+		return strings.HasPrefix(dataType, "Map(") || strings.HasPrefix(dataType, "Array(")
+	},
 	MatchText: func(column, pattern string) string {
 		return "toString(" + column + ") ilike " + pattern
 	},

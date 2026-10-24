@@ -31,6 +31,10 @@ func TestApplyChangesWritesANestedJSONValue(t *testing.T) {
 			t.Cleanup(func() {
 				_, _ = session.RunQuery(ctx, "drop table if exists masume_json_value", dbtest.ReadEverything, nil)
 			})
+			shape, err := session.RunQuery(ctx, "select * from masume_json_value", dbtest.ReadEverything, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
 
 			pending := core.NewPendingChanges()
 			pending.Inserts = append(pending.Inserts, map[string]any{
@@ -38,7 +42,8 @@ func TestApplyChangesWritesANestedJSONValue(t *testing.T) {
 				"tags": []any{float64(3), float64(4)},
 			})
 			changes, err := session.Composer().BuildChanges(db.ChangeTarget{
-				Table: db.TableRef{Schema: session.Describe().DefaultSchema, Name: "masume_json_value", Kind: db.RelationTable},
+				Table:   db.TableRef{Schema: session.Describe().DefaultSchema, Name: "masume_json_value", Kind: db.RelationTable},
+				Columns: shape.Columns,
 			}, pending)
 			if err != nil {
 				t.Fatal(err)
@@ -89,6 +94,48 @@ func TestApplyChangesBindsAListToACQLCollection(t *testing.T) {
 	}
 	if tags := fmt.Sprint(read.Rows[0][0]); tags != "[3 4]" {
 		t.Errorf("tags reads %s", tags)
+	}
+}
+
+func TestApplyChangesWritesAnObjectIntoAClickHouseMap(t *testing.T) {
+	session := dbtest.Open(t, dbtest.Clickhouse)
+	ctx := context.Background()
+	dbtest.RunStatements(t, session, "drop table if exists masume_json_value",
+		"create table masume_json_value (id Int64, counts Map(String, Int64), names Map(String, String)) engine = MergeTree order by id")
+	t.Cleanup(func() {
+		_, _ = session.RunQuery(ctx, "drop table if exists masume_json_value", dbtest.ReadEverything, nil)
+	})
+	shape, err := session.RunQuery(ctx, "select * from masume_json_value", dbtest.ReadEverything, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pending := core.NewPendingChanges()
+	pending.Inserts = append(pending.Inserts, map[string]any{
+		"id":     float64(1),
+		"counts": map[string]any{"a": float64(1), "b": float64(2)},
+		"names":  map[string]any{"first": "it's"},
+	})
+	changes, err := session.Composer().BuildChanges(db.ChangeTarget{
+		Table:   db.TableRef{Schema: session.Describe().DefaultSchema, Name: "masume_json_value", Kind: db.RelationTable},
+		Columns: shape.Columns,
+	}, pending)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := session.ApplyChanges(ctx, changes); err != nil {
+		t.Fatalf("the insert failed: %v", err)
+	}
+	read, err := session.RunQuery(ctx,
+		"select counts['b'], names['first'] from masume_json_value", dbtest.ReadEverything, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count := fmt.Sprint(read.Rows[0][0]); count != "2" {
+		t.Errorf("counts['b'] reads %s", count)
+	}
+	if name := fmt.Sprint(read.Rows[0][1]); name != "it's" {
+		t.Errorf("names['first'] reads %s", name)
 	}
 }
 

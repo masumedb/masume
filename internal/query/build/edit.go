@@ -315,7 +315,7 @@ func buildDeleteChunks(
 func resolveInsertValue(value any, column query.ResultColumn, dialect *query.Dialect) (any, error) {
 	switch value.(type) {
 	case map[string]any, []any:
-		if dialect.BindsCollections {
+		if dialect.BindsCollection != nil && dialect.BindsCollection(column.DescribeType()) {
 			return value, nil
 		}
 		if _, isList := value.([]any); isList && dialect.ListText != nil &&
