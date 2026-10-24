@@ -72,6 +72,9 @@ type Dialect struct {
 	ColumnTypes map[core.ColumnKind]string
 	// BindLimit is the maximum placeholders per statement. Zero uses the default 16-bit protocol limit.
 	BindLimit int
+	// BindsCollections is true if the driver binds a map or a list to a collection column.
+	// A dialect that leaves it unset binds a JSON object or array as JSON text.
+	BindsCollections bool
 	// InsertRowLimit is the maximum rows per INSERT. Zero has no limit beyond BindLimit.
 	InsertRowLimit int
 	// UpdateRow writes the statement that assigns columns of one row. A dialect that

@@ -1,6 +1,7 @@
 package build
 
 import (
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
@@ -308,6 +309,23 @@ func buildDeleteChunks(
 	return chunks, nil
 }
 
+// resolveInsertValue writes a JSON object or array of a new row as JSON text, unless the
+// driver binds it to a collection column.
+func resolveInsertValue(value any, dialect *query.Dialect) (any, error) {
+	switch value.(type) {
+	case map[string]any, []any:
+		if dialect.BindsCollections {
+			return value, nil
+		}
+		written, err := json.Marshal(value)
+		if err != nil {
+			return nil, core.NewEditError(err.Error())
+		}
+		return string(written), nil
+	}
+	return value, nil
+}
+
 // BuildInsertStatement builds an INSERT from a column-value map. Omitted columns use server defaults.
 func BuildInsertStatement(
 	table query.QualifiedName, values map[string]any, dialect *query.Dialect,
@@ -327,8 +345,12 @@ func BuildInsertStatement(
 	placeholders := make([]string, 0, len(names))
 	bound := query.NewBoundValues(dialect, 1)
 	for _, name := range names {
+		value, err := resolveInsertValue(values[name], dialect)
+		if err != nil {
+			return query.BoundStatement{}, err
+		}
 		quoted = append(quoted, dialect.QuoteIdentifier(name))
-		placeholders = append(placeholders, bound.Bind(values[name]))
+		placeholders = append(placeholders, bound.Bind(value))
 	}
 
 	return query.BoundStatement{
