@@ -1052,6 +1052,10 @@ func (model *Model) loadShownView(
 
 	switch tab.ActiveView(connection.Session) {
 	case app.ViewData:
+		if tab.Kind == app.TabTable && tab.Results.State().Kind == app.QueryIdle &&
+			!tab.WaitsForKey {
+			return model.runTabRead(connection, tab)
+		}
 		return model, nil
 
 	case app.ViewPlan:

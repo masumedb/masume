@@ -74,7 +74,7 @@ func (model *Model) renderResultPane(
 	// A view is a way of looking at a result, so the strip waits for one: on the first
 	// screen a reader sees, a row of views that all show nothing reads as an interface that
 	// is already broken.
-	if tab.Results.State().Kind != app.QueryIdle {
+	if tab.Kind == app.TabTable || tab.Results.State().Kind != app.QueryIdle {
 		lines = append(lines, model.renderViewStrip(views, drawn, inner,
 			len(statements) > 1, model.layout.resultTop+1+len(lines)))
 		body--
