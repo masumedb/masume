@@ -202,7 +202,10 @@ func serveForward(held ssh.NewChannel) {
 	go func() {
 		defer func() { _ = target.Close() }()
 		defer func() { _ = channel.Close() }()
-		go func() { _, _ = io.Copy(target, channel) }()
+		go func() {
+			_, _ = io.Copy(target, channel)
+			_ = target.(*net.TCPConn).CloseWrite()
+		}()
 		_, _ = io.Copy(channel, target)
 	}()
 }

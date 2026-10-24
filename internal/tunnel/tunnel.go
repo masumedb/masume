@@ -52,10 +52,14 @@ type Handle struct {
 	server string
 	config *ssh.ClientConfig
 
-	// The mutex guards the client, which a dropped SSH session replaces.
+	// The mutex guards the client, which a dropped SSH session replaces, and the open
+	// forwards.
 	guard   sync.Mutex
 	client  *ssh.Client
 	stopped bool
+	// The local connections of the open forwards.
+	forwards   map[net.Conn]struct{}
+	forwarding sync.WaitGroup
 }
 
 // Address returns the local host and port of the tunnel.
@@ -74,7 +78,8 @@ func (handle *Handle) Address() (string, int) {
 	return host, number
 }
 
-// Stop closes the listener and the SSH client.
+// Stop closes the listener, the open forwards and the SSH client, and waits for the
+// forwards to end.
 func (handle *Handle) Stop() {
 	if handle == nil {
 		return
@@ -86,6 +91,9 @@ func (handle *Handle) Stop() {
 	}
 	handle.stopped = true
 	client := handle.client
+	for local := range handle.forwards {
+		_ = local.Close()
+	}
 	handle.guard.Unlock()
 
 	if handle.listener != nil {
@@ -94,6 +102,7 @@ func (handle *Handle) Stop() {
 	if client != nil {
 		_ = client.Close()
 	}
+	handle.forwarding.Wait()
 }
 
 // Open dials the SSH server and starts a local forward to host:port. The SSH server
@@ -122,7 +131,8 @@ func Open(settings Settings, host string, port int) (*Handle, error) {
 
 	handle := &Handle{
 		client: client, listener: listener, server: server, config: config,
-		target: net.JoinHostPort(host, strconv.Itoa(port)),
+		target:   net.JoinHostPort(host, strconv.Itoa(port)),
+		forwards: map[net.Conn]struct{}{},
 	}
 	go handle.watchClient(client)
 	go handle.acceptConnections()
@@ -204,13 +214,40 @@ func (handle *Handle) acceptConnections() {
 		if err != nil {
 			return
 		}
+		if !handle.trackForward(local) {
+			_ = local.Close()
+			return
+		}
 		go handle.forwardConnection(local)
 	}
 }
 
-// forwardConnection proxies one connection over the SSH client.
+// trackForward adds the local connection to the open forwards, and returns false once the
+// tunnel is stopped.
+func (handle *Handle) trackForward(local net.Conn) bool {
+	handle.guard.Lock()
+	defer handle.guard.Unlock()
+	if handle.stopped {
+		return false
+	}
+	handle.forwards[local] = struct{}{}
+	handle.forwarding.Add(1)
+	return true
+}
+
+// untrackForward closes the local connection and takes it off the open forwards.
+func (handle *Handle) untrackForward(local net.Conn) {
+	_ = local.Close()
+	handle.guard.Lock()
+	delete(handle.forwards, local)
+	handle.guard.Unlock()
+	handle.forwarding.Done()
+}
+
+// forwardConnection proxies one connection over the SSH client. The end of the local side
+// closes the remote side for writes. Both sides close when the remote side ends.
 func (handle *Handle) forwardConnection(local net.Conn) {
-	defer func() { _ = local.Close() }()
+	defer handle.untrackForward(local)
 
 	client := handle.readClient()
 	remote, err := client.Dial("tcp", handle.target)
@@ -227,13 +264,19 @@ func (handle *Handle) forwardConnection(local net.Conn) {
 	}
 	defer func() { _ = remote.Close() }()
 
-	done := make(chan struct{})
+	sent := make(chan struct{})
 	go func() {
 		_, _ = io.Copy(remote, local)
-		close(done)
+		if halfClosing, is := remote.(interface{ CloseWrite() error }); is {
+			_ = halfClosing.CloseWrite()
+		} else {
+			_ = remote.Close()
+		}
+		close(sent)
 	}()
 	_, _ = io.Copy(local, remote)
-	<-done
+	_ = local.Close()
+	<-sent
 }
 
 // buildClientConfig returns the SSH client config: auth methods and host key check.

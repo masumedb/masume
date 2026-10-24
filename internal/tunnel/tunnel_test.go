@@ -1,12 +1,15 @@
 package tunnel_test
 
 import (
+	"errors"
 	"io"
 	"net"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/masumedb/masume/internal/tunnel"
 	"github.com/masumedb/masume/internal/tunnel/tunneltest"
@@ -172,4 +175,159 @@ func TestTunnelDialsAgainAfterTheSSHSessionDrops(t *testing.T) {
 	if held := sendThroughTunnel(t, handle); held != "ping" {
 		t.Errorf("the tunnel answered %q after the drop", held)
 	}
+}
+
+// closingServer accepts every connection and closes it at once.
+func closingServer(t *testing.T) net.Listener {
+	t.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("cannot listen: %v", err)
+	}
+	go func() {
+		for {
+			connection, err := listener.Accept()
+			if err != nil {
+				return
+			}
+			_ = connection.Close()
+		}
+	}()
+	t.Cleanup(func() { _ = listener.Close() })
+	return listener
+}
+
+// dialTunnel opens a connection to the local endpoint of the tunnel.
+func dialTunnel(t *testing.T, handle *tunnel.Handle) net.Conn {
+	t.Helper()
+	localHost, localPort := handle.Address()
+	connection, err := net.Dial("tcp", net.JoinHostPort(localHost, strconv.Itoa(localPort)))
+	if err != nil {
+		t.Fatalf("the local port refused a connection: %v", err)
+	}
+	t.Cleanup(func() { _ = connection.Close() })
+	return connection
+}
+
+// waitForClose fails the test unless the tunnel closes the connection.
+func waitForClose(t *testing.T, connection net.Conn) {
+	t.Helper()
+	_ = connection.SetReadDeadline(time.Now().Add(5 * time.Second))
+	held := make([]byte, 16)
+	for {
+		_, err := connection.Read(held)
+		if err == nil {
+			continue
+		}
+		var timeout net.Error
+		if errors.As(err, &timeout) && timeout.Timeout() {
+			t.Fatal("the tunnel kept the local connection open")
+		}
+		return
+	}
+}
+
+// waitForForwardsToEnd fails the test unless every forward goroutine of the tunnel ends.
+func waitForForwardsToEnd(t *testing.T) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		stacks := make([]byte, 1<<20)
+		stacks = stacks[:runtime.Stack(stacks, true)]
+		if !strings.Contains(string(stacks), "tunnel.(*Handle).forwardConnection") {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("a forward goroutine still runs:\n%s", stacks)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func TestForwardClosesWhenTheServerClosesItsSide(t *testing.T) {
+	server := tunneltest.Start(t)
+	target := closingServer(t)
+	host, port := tunneltest.SplitAddress(t, target.Addr().String())
+	handle, err := tunnel.Open(server.Settings(), host, port)
+	if err != nil {
+		t.Fatalf("the tunnel did not open: %v", err)
+	}
+	defer handle.Stop()
+
+	connection := dialTunnel(t, handle)
+	waitForClose(t, connection)
+	waitForForwardsToEnd(t)
+}
+
+func TestStopClosesTheOpenForwards(t *testing.T) {
+	server := tunneltest.Start(t)
+	echo := echoServer(t)
+	host, port := tunneltest.SplitAddress(t, echo.Addr().String())
+	handle, err := tunnel.Open(server.Settings(), host, port)
+	if err != nil {
+		t.Fatalf("the tunnel did not open: %v", err)
+	}
+
+	connection := dialTunnel(t, handle)
+	if _, err := connection.Write([]byte("ping")); err != nil {
+		t.Fatalf("the write failed: %v", err)
+	}
+	held := make([]byte, 4)
+	if _, err := io.ReadFull(connection, held); err != nil {
+		t.Fatalf("the read failed: %v", err)
+	}
+
+	handle.Stop()
+	waitForClose(t, connection)
+	waitForForwardsToEnd(t)
+}
+
+// replyAfterEOFServer reads each connection to its end, then writes back what it read and
+// closes.
+func replyAfterEOFServer(t *testing.T) net.Listener {
+	t.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("cannot listen: %v", err)
+	}
+	go func() {
+		for {
+			connection, err := listener.Accept()
+			if err != nil {
+				return
+			}
+			go func() {
+				defer func() { _ = connection.Close() }()
+				read, _ := io.ReadAll(connection)
+				_, _ = connection.Write(read)
+			}()
+		}
+	}()
+	t.Cleanup(func() { _ = listener.Close() })
+	return listener
+}
+
+func TestForwardKeepsTheReplyAfterTheClientClosesItsSide(t *testing.T) {
+	server := tunneltest.Start(t)
+	target := replyAfterEOFServer(t)
+	host, port := tunneltest.SplitAddress(t, target.Addr().String())
+	handle, err := tunnel.Open(server.Settings(), host, port)
+	if err != nil {
+		t.Fatalf("the tunnel did not open: %v", err)
+	}
+	defer handle.Stop()
+
+	connection := dialTunnel(t, handle)
+	if _, err := connection.Write([]byte("ping")); err != nil {
+		t.Fatalf("the write failed: %v", err)
+	}
+	if err := connection.(*net.TCPConn).CloseWrite(); err != nil {
+		t.Fatalf("the half close failed: %v", err)
+	}
+	_ = connection.SetReadDeadline(time.Now().Add(5 * time.Second))
+	reply, err := io.ReadAll(connection)
+	if err != nil || string(reply) != "ping" {
+		t.Fatalf("the reply is %q: %v", reply, err)
+	}
+	waitForForwardsToEnd(t)
 }
