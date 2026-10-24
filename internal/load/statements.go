@@ -143,11 +143,16 @@ func DescribeStatements(plan Plan, dialect *query.Dialect) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	shownInsert, err := BuildShownInsert(plan, values, dialect)
-	if err != nil {
-		return nil, err
+	batchRows := ResolveBatchRows(len(plan.ListMappedColumns()), dialect)
+	for start := 0; start < len(values); start += batchRows {
+		shownInsert, err := BuildShownInsert(
+			plan, values[start:min(start+batchRows, len(values))], dialect)
+		if err != nil {
+			return nil, err
+		}
+		written = append(written, shownInsert)
 	}
-	return append(written, shownInsert), nil
+	return written, nil
 }
 
 // describedRows is the maximum rows in an INSERT preview.

@@ -252,8 +252,8 @@ func checkImportFile(connectionID int, plan load.Plan, dialect *query.Dialect) t
 	}
 }
 
-// runImport writes the rows of the file, in batches, inside one transaction, and leaves out
-// the rows the check refused.
+// runImport writes the rows of the file, in batches, inside one transaction where the
+// server has transactions, and leaves out the rows the check refused.
 func runImport(
 	connection *app.Connection, connectionID int, plan load.Plan, dialect *query.Dialect,
 	writes int64, updates chan app.Progress,
@@ -273,7 +273,8 @@ func runImport(
 		if session.ReadTransactionState() != db.TransactionNone {
 			return fail(importTransactionProblem)
 		}
-		createdFirst := plan.CreatesTable && dialect.CommitsDDL
+		transactional := session.Capabilities().HasTransactions
+		createdFirst := plan.CreatesTable && (dialect.CommitsDDL || !transactional)
 		dropCreated := func(problem string) string {
 			if !createdFirst {
 				return problem
@@ -291,14 +292,22 @@ func runImport(
 			}
 			plan.CreatesTable = false
 		}
-		if err := session.BeginTransaction(ctx); err != nil {
-			return fail(dropCreated(db.DescribeError(err)))
-		}
-		written, err := writeImportRows(ctx, session, plan, dialect, func(rows int) {
+		onWritten := func(rows int) {
 			sendProgress(updates, app.Progress{
 				Done: int64(rows), Total: writes, Label: "rows",
 			})
-		})
+		}
+		if !transactional {
+			written, err := writeImportRows(ctx, session, plan, dialect, onWritten)
+			if err != nil {
+				return fail(dropCreated(db.DescribeError(err)))
+			}
+			return importRanMsg{ConnectionID: connectionID, Written: written}
+		}
+		if err := session.BeginTransaction(ctx); err != nil {
+			return fail(dropCreated(db.DescribeError(err)))
+		}
+		written, err := writeImportRows(ctx, session, plan, dialect, onWritten)
 		if err != nil {
 			// The rollback runs whatever stopped the import, so it takes its own context.
 			if rollbackErr := session.RollbackTransaction(

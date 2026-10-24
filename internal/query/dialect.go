@@ -72,6 +72,8 @@ type Dialect struct {
 	ColumnTypes map[core.ColumnKind]string
 	// BindLimit is the maximum placeholders per statement. Zero uses the default 16-bit protocol limit.
 	BindLimit int
+	// InsertRowLimit is the maximum rows per INSERT. Zero has no limit beyond BindLimit.
+	InsertRowLimit int
 	// UpdateRow writes the statement that assigns columns of one row. A dialect that
 	// leaves it unset writes `update … set … where …`.
 	UpdateRow func(dialect *Dialect, target, assignments, predicate string) string

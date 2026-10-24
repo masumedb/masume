@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/masumedb/masume/internal/core"
+	"github.com/masumedb/masume/internal/db/cassandra"
 	"github.com/masumedb/masume/internal/db/postgres"
 	"github.com/masumedb/masume/internal/db/sqlite"
 	"github.com/masumedb/masume/internal/load"
@@ -622,6 +623,21 @@ func TestResolveBatchRowsFollowsTheLimitOfTheServer(t *testing.T) {
 
 	if held := load.ResolveBatchRows(100, sqlite.Dialect); held != 327 {
 		t.Errorf("SQLite writes %d rows at a time for 100 columns, wanted 327", held)
+	}
+}
+
+func TestDescribeStatementsWritesOneInsertPerRowForCQL(t *testing.T) {
+	plan := buildOrdersPlan(t, buildOrdersTable())
+
+	written, err := load.DescribeStatements(plan, cassandra.Dialect)
+	if err != nil {
+		t.Fatalf("the review does not build: %v", err)
+	}
+	if len(written) != 3 {
+		t.Fatalf("the review has %d statements, wanted one insert per row: %v", len(written), written)
+	}
+	if held := load.ResolveBatchRows(5, cassandra.Dialect); held != 1 {
+		t.Errorf("CQL writes %d rows at a time, wanted 1", held)
 	}
 }
 

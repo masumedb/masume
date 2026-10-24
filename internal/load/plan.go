@@ -18,10 +18,14 @@ const BatchRows = 1000
 
 // ResolveBatchRows returns how many rows one insert writes.
 func ResolveBatchRows(mapped int, dialect *query.Dialect) int {
-	if mapped < 1 {
-		return BatchRows
+	rows := BatchRows
+	if dialect.InsertRowLimit > 0 {
+		rows = min(rows, dialect.InsertRowLimit)
 	}
-	return max(min(dialect.ResolveBindLimit()/mapped, BatchRows), 1)
+	if mapped < 1 {
+		return rows
+	}
+	return max(min(dialect.ResolveBindLimit()/mapped, rows), 1)
 }
 
 // SourceColumn is one column of the file.
