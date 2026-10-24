@@ -451,6 +451,9 @@ func (session *sqlserverSession) CommitTransaction(ctx context.Context) error {
 	}
 	defer giveBack()
 
+	if err := session.reopenBrokenConnection(ctx); err != nil {
+		return err
+	}
 	if err := session.runPlain(ctx, "commit"); err != nil {
 		return db.WrapDatabaseMessage(describeFailure(err), err)
 	}
@@ -465,6 +468,9 @@ func (session *sqlserverSession) RollbackTransaction(ctx context.Context) error 
 	}
 	defer giveBack()
 
+	if err := session.reopenBrokenConnection(ctx); err != nil {
+		return err
+	}
 	if err := session.runPlain(ctx, "rollback"); err != nil {
 		return db.WrapDatabaseMessage(describeFailure(err), err)
 	}

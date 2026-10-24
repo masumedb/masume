@@ -204,6 +204,38 @@ func TestServerKeepsATransactionAfterAStatementItRefused(t *testing.T) {
 	}
 }
 
+func TestServerReportsATransactionLostWithTheConnection(t *testing.T) {
+	for _, end := range []struct {
+		name string
+		run  func(db.Session, context.Context) error
+	}{
+		{"commit", db.Session.CommitTransaction},
+		{"rollback", db.Session.RollbackTransaction},
+	} {
+		t.Run(end.name, func(t *testing.T) {
+			session := dbtest.Open(t, dbtest.Sqlserver)
+			ctx := context.Background()
+			if err := session.BeginTransaction(ctx); err != nil {
+				t.Fatalf("the transaction did not open: %v", err)
+			}
+			stopped, stop := context.WithTimeout(ctx, 500*time.Millisecond)
+			defer stop()
+			if _, err := session.RunQuery(
+				stopped, "waitfor delay '00:00:30'", dbtest.ReadEverything, nil); err == nil {
+				t.Fatal("the wait ran to the end")
+			}
+
+			err := end.run(session, ctx)
+			if err == nil || !strings.Contains(err.Error(), "transaction was lost") {
+				t.Errorf("the %s answered %v, wanted the lost transaction", end.name, err)
+			}
+			if held := session.ReadTransactionState(); held != db.TransactionNone {
+				t.Errorf("the state reads %q, wanted no transaction", held)
+			}
+		})
+	}
+}
+
 func TestServerRollsBackATransaction(t *testing.T) {
 	session := openShop(t)
 	ctx := context.Background()
