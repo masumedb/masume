@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/masumedb/masume/internal/cfg"
+	"github.com/masumedb/masume/internal/db"
 	"github.com/masumedb/masume/internal/db/engines"
 	"github.com/masumedb/masume/internal/dump"
 	"github.com/masumedb/masume/internal/headless"
@@ -161,6 +162,24 @@ func TestRestoreReportsAMissingFile(t *testing.T) {
 	}
 	if !strings.Contains(reported, "gone.sql") {
 		t.Errorf("report: %q, want the file it could not read", reported)
+	}
+}
+
+func TestDumpReadsANamedTableInTheDefaultSchema(t *testing.T) {
+	profile := buildDatabase(t, cfg.AccessWrite)
+
+	code, written, reported := runDump(t, headless.DumpOptions{
+		Options: headless.Options{Profile: profile}, Path: "-",
+		Dump: dump.Options{
+			Content: dump.ContentAll,
+			Tables:  []db.TableRef{{Name: "orders", Kind: db.RelationTable}},
+		},
+	})
+	if code != headless.CodeOK {
+		t.Fatalf("the dump answered %d: %s", code, reported)
+	}
+	if !strings.Contains(written, `insert into "main"."orders"`) {
+		t.Errorf("the dump holds no row of the table:\n%s", written)
 	}
 }
 

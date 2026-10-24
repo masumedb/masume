@@ -63,6 +63,11 @@ func RunDump(ctx context.Context, adapters engines.Adapters, options DumpOptions
 		options.report("this connection names no schema; name one with --schema")
 		return CodeStatement
 	}
+	for at := range options.Dump.Tables {
+		if options.Dump.Tables[at].Schema == "" {
+			options.Dump.Tables[at].Schema = options.Dump.Schema
+		}
+	}
 
 	report, code := writeDumpFile(ctx, session, options)
 	if code != CodeOK {
