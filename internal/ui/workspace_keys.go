@@ -225,12 +225,34 @@ func (model *Model) runAction(
 func (model *Model) runGlobalAction(
 	connection *app.Connection, tab *app.Tab, match Match,
 ) (tea.Model, tea.Cmd) {
-	id := model.ActiveID()
 	// A hidden result is shown again before something writes into it.
 	if AnswersInResult(match.Scope, match.Action) {
 		connection.ResultVisible = true
 	}
 
+	for _, run := range []func(*app.Connection, *app.Tab, Match) (tea.Model, tea.Cmd, bool){
+		model.runCardOpenAction, model.runPaneAction, model.runSplitViewAction,
+		model.runTabAction, model.runConnectionAction, model.runStatementAction,
+		model.runResultAction, model.runTransactionAction,
+	} {
+		if next, command, taken := run(connection, tab, match); taken {
+			return next, command
+		}
+	}
+	return model, nil
+}
+
+// markTaken adds true to the answer of an action that was taken.
+func markTaken(next tea.Model, command tea.Cmd) (tea.Model, tea.Cmd, bool) {
+	return next, command, true
+}
+
+// runCardOpenAction opens a card or a panel over the workspace. It reports whether the
+// action was one.
+func (model *Model) runCardOpenAction(
+	connection *app.Connection, tab *app.Tab, match Match,
+) (tea.Model, tea.Cmd, bool) {
+	id := model.ActiveID()
 	switch match.Action {
 	case ActionShowHelp:
 		row := model.findHelpSectionRow(
@@ -245,14 +267,53 @@ func (model *Model) runGlobalAction(
 			Draft: app.NewEditorBuffer("", 0),
 		})
 	case ActionShowHistory:
-		return model, readHistory(id, model.log, connection.Profile().Name, historyLimit)
+		return model, readHistory(id, model.log, connection.Profile().Name, historyLimit), true
 	case ActionShowSaved:
-		return model, readSaved(id, model.log, connection.Profile().Name)
+		return model, readSaved(id, model.log, connection.Profile().Name), true
+	case ActionSaveQuery:
+		if !tab.EditorVisible() {
+			return model, nil, true
+		}
+		if tab.Kind == app.TabNotebook {
+			return markTaken(model.saveNotebook(connection, tab))
+		}
+		connection.Open(app.Overlay{
+			Kind: app.OverlayPrompt, Prompt: app.PromptSaveName, Title: "save as",
+			Draft: app.NewEditorBuffer("", 0),
+		})
+	case ActionShowActivity:
+		return model, readActivity(id, connection.Session, readAsked), true
+	case ActionShowThemes:
+		connection.Open(app.Overlay{
+			// The theme the picker opened on, so a walk that is cancelled goes back
+			// to it and the row it is on carries the mark.
+			Kind: app.OverlayThemePicker, List: app.ListState{Cursor: model.themeCursor()},
+			Body: model.styles.Theme.Name, Draft: app.NewEditorBuffer("", 0),
+		})
+	case ActionShowAiChat, ActionSendToAi, ActionAiFixError:
+		return markTaken(model.runAiAction(connection, tab, match))
+	default:
+		return model, nil, false
+	}
+	return model, nil, true
+}
 
+// runPaneAction moves the focus between the panes, or shows or hides one. It reports whether
+// the action was one.
+func (model *Model) runPaneAction(
+	connection *app.Connection, tab *app.Tab, match Match,
+) (tea.Model, tea.Cmd, bool) {
+	switch match.Action {
 	case ActionFocusNextPane:
 		model.stepPane(connection, tab, 1)
 	case ActionFocusPreviousPane:
 		model.stepPane(connection, tab, -1)
+	case ActionFocusSidebar:
+		return markTaken(model.focusPane(connection, tab, app.PaneSidebar))
+	case ActionFocusEditor:
+		return markTaken(model.focusPane(connection, tab, app.PaneEditor))
+	case ActionFocusResult:
+		return markTaken(model.focusPane(connection, tab, app.PaneResult))
 
 	case ActionToggleSidebar:
 		connection.SidebarVisible = !connection.SidebarVisible
@@ -278,7 +339,18 @@ func (model *Model) runGlobalAction(
 				connection.ResultVisible = true
 			}
 		}
+	default:
+		return model, nil, false
+	}
+	return model, nil, true
+}
 
+// runSplitViewAction opens, closes or changes the split view. It reports whether the action
+// was one.
+func (model *Model) runSplitViewAction(
+	connection *app.Connection, _ *app.Tab, match Match,
+) (tea.Model, tea.Cmd, bool) {
+	switch match.Action {
 	case ActionToggleSplitView:
 		if model.split.open {
 			model.split.open = false
@@ -288,7 +360,7 @@ func (model *Model) runGlobalAction(
 	case ActionFocusOtherSide:
 		if !model.split.open {
 			connection.Show("no split view")
-			return model, nil
+			return model, nil, true
 		}
 		model.focusSide(model.split.resolveAside())
 	case ActionMoveTabToOtherSide:
@@ -296,30 +368,40 @@ func (model *Model) runGlobalAction(
 	case ActionFlipSplitView:
 		if !model.split.open {
 			connection.Show("no split view")
-			return model, nil
+			return model, nil, true
 		}
 		model.split.stacked = !model.split.stacked
+	default:
+		return model, nil, false
+	}
+	return model, nil, true
+}
 
+// runTabAction opens, closes, moves or names a tab. It reports whether the action was one.
+func (model *Model) runTabAction(
+	connection *app.Connection, tab *app.Tab, match Match,
+) (tea.Model, tea.Cmd, bool) {
+	switch match.Action {
 	case ActionNewQueryTab:
 		// A new query tab opens with the caret in the editor.
 		connection.OpenQueryTab("").Focus = app.PaneEditor
 	case ActionNewNotebookTab:
-		return model.openNewNotebook(connection)
+		return markTaken(model.openNewNotebook(connection))
 	case ActionNewBuilderTab:
 		if !AnswersFor(connection.Session.Capabilities(), NeedsJoinsTables) {
 			connection.ShowError(string(connection.Profile().Engine) +
 				" joins no tables in one statement, so it has no query builder")
-			return model, nil
+			return model, nil, true
 		}
-		return model.openNewBuilder(connection)
+		return markTaken(model.openNewBuilder(connection))
 	case ActionShowNotebooks:
-		return model.showNotebooks(connection)
+		return markTaken(model.showNotebooks(connection))
 	case ActionNotebookRunPolicy:
-		return model.askNotebookPolicy(connection, tab)
+		return markTaken(model.askNotebookPolicy(connection, tab))
 	case ActionWriteNotebookReport:
-		return model.askNotebookReport(connection, tab)
+		return markTaken(model.askNotebookReport(connection, tab))
 	case ActionCloseTab:
-		return model.requestCloseTab(connection)
+		return markTaken(model.requestCloseTab(connection))
 	case ActionReopenTab:
 		if !connection.ReopenTab() {
 			connection.Show("no closed tab to reopen")
@@ -337,8 +419,19 @@ func (model *Model) runGlobalAction(
 			connection.ActivateTab(match.Digit - 1)
 		}
 	case ActionNameTab:
-		return model.startNaming(connection, tab)
+		return markTaken(model.startNaming(connection, tab))
+	default:
+		return model, nil, false
+	}
+	return model, nil, true
+}
 
+// runConnectionAction steps between the connections, opens the picker or closes the
+// connection. It reports whether the action was one.
+func (model *Model) runConnectionAction(
+	connection *app.Connection, _ *app.Tab, match Match,
+) (tea.Model, tea.Cmd, bool) {
+	switch match.Action {
 	case ActionPreviousConnection:
 		model.connections.step(-1)
 	case ActionNextConnection:
@@ -348,46 +441,79 @@ func (model *Model) runGlobalAction(
 		model.picker.problem = ""
 		model.picker.clearFilter()
 	case ActionCloseConnection:
-		return model.requestCloseConnection(connection)
+		return markTaken(model.requestCloseConnection(connection))
+	default:
+		return model, nil, false
+	}
+	return model, nil, true
+}
 
+// runStatementAction runs, explains or changes the statement of the tab. It reports whether
+// the action was one.
+func (model *Model) runStatementAction(
+	connection *app.Connection, tab *app.Tab, match Match,
+) (tea.Model, tea.Cmd, bool) {
+	switch match.Action {
 	case ActionRunAtCursor:
-		return model.runStatementAtCursor(connection, tab)
+		return markTaken(model.runStatementAtCursor(connection, tab))
 	case ActionRunBatch:
-		return model.runWholeBuffer(connection, tab)
+		return markTaken(model.runWholeBuffer(connection, tab))
 	case ActionExplain:
-		return model.explain(connection, tab, explainOnly)
+		return markTaken(model.explain(connection, tab, explainOnly))
 	case ActionExplainAnalyze:
-		return model.explain(connection, tab, explainAnalyze)
+		return markTaken(model.explain(connection, tab, explainAnalyze))
 	case ActionNextPage:
-		return model.fetchMore(connection, tab)
+		return markTaken(model.fetchMore(connection, tab))
 	case ActionRefreshObjects:
 		connection.Catalog.Loading = true
-		return model, readCatalog(id, connection.Session, announceCatalogRead)
+		return model, readCatalog(model.ActiveID(), connection.Session, announceCatalogRead), true
+	case ActionCancelQuery:
+		return markTaken(model.cancelQuery(connection))
+	case ActionApplySuggestion:
+		return markTaken(model.applySuggestion(connection, tab))
+	}
+	return model, nil, false
+}
 
+// runResultAction changes the view of the result, or exports it. It reports whether the action
+// was one.
+func (model *Model) runResultAction(
+	connection *app.Connection, tab *app.Tab, match Match,
+) (tea.Model, tea.Cmd, bool) {
+	switch match.Action {
 	case ActionRevealSQL:
-		return model.revealSQL(connection, tab)
+		return markTaken(model.revealSQL(connection, tab))
 	case ActionSelectView:
 		if match.Digit > 0 {
-			return model.selectViewAt(connection, tab, match.Digit-1)
+			return markTaken(model.selectViewAt(connection, tab, match.Digit-1))
 		}
+		return model, nil, true
 	case ActionPreviousView:
-		return model.stepView(connection, tab, -1)
+		return markTaken(model.stepView(connection, tab, -1))
 	case ActionNextView:
-		return model.stepView(connection, tab, 1)
+		return markTaken(model.stepView(connection, tab, 1))
 	case ActionPreviousStatement:
 		tab.Results.SelectNextResult(-1)
-		return model.showSelectedResult(connection, tab)
+		return markTaken(model.showSelectedResult(connection, tab))
 	case ActionNextStatement:
 		tab.Results.SelectNextResult(1)
-		return model.showSelectedResult(connection, tab)
-
+		return markTaken(model.showSelectedResult(connection, tab))
 	case ActionExportCSV:
-		return model.openExport(connection, tab, result.ExportCSV)
+		return markTaken(model.openExport(connection, tab, result.ExportCSV))
 	case ActionExportJSON:
-		return model.openExport(connection, tab, result.ExportJSON)
+		return markTaken(model.openExport(connection, tab, result.ExportJSON))
+	}
+	return model, nil, false
+}
 
+// runTransactionAction begins, ends or undoes a transaction, or switches autocommit. It
+// reports whether the action was one.
+func (model *Model) runTransactionAction(
+	connection *app.Connection, _ *app.Tab, match Match,
+) (tea.Model, tea.Cmd, bool) {
+	switch match.Action {
 	case ActionBeginTransaction, ActionCommitTransaction, ActionRollbackTransaction:
-		return model.runTransaction(connection, match.Action)
+		return markTaken(model.runTransaction(connection, match.Action))
 	case ActionToggleAutocommit:
 		connection.Autocommit = !connection.Autocommit
 		if connection.Autocommit {
@@ -395,45 +521,11 @@ func (model *Model) runGlobalAction(
 		} else {
 			connection.Show("autocommit is off: a write needs a commit")
 		}
-
-	case ActionCancelQuery:
-		return model.cancelQuery(connection)
-
-	case ActionSaveQuery:
-		if !tab.EditorVisible() {
-			return model, nil
-		}
-		if tab.Kind == app.TabNotebook {
-			return model.saveNotebook(connection, tab)
-		}
-		connection.Open(app.Overlay{
-			Kind: app.OverlayPrompt, Prompt: app.PromptSaveName, Title: "save as",
-			Draft: app.NewEditorBuffer("", 0),
-		})
-	case ActionShowActivity:
-		return model, readActivity(id, connection.Session, readAsked)
+		return model, nil, true
 	case ActionUndoWrite:
-		return model.undoLastWrite(connection)
-	case ActionShowThemes:
-		connection.Open(app.Overlay{
-			// The theme the picker opened on, so a walk that is cancelled goes back
-			// to it and the row it is on carries the mark.
-			Kind: app.OverlayThemePicker, List: app.ListState{Cursor: model.themeCursor()},
-			Body: model.styles.Theme.Name, Draft: app.NewEditorBuffer("", 0),
-		})
-	case ActionFocusSidebar:
-		return model.focusPane(connection, tab, app.PaneSidebar)
-	case ActionFocusEditor:
-		return model.focusPane(connection, tab, app.PaneEditor)
-	case ActionFocusResult:
-		return model.focusPane(connection, tab, app.PaneResult)
-
-	case ActionShowAiChat, ActionSendToAi, ActionAiFixError:
-		return model.runAiAction(connection, tab, match)
-	case ActionApplySuggestion:
-		return model.applySuggestion(connection, tab)
+		return markTaken(model.undoLastWrite(connection))
 	}
-	return model, nil
+	return model, nil, false
 }
 
 // applySuggestion writes the suggested name over the unknown name of the failed statement.
