@@ -93,7 +93,7 @@ func (model *Model) readPickerFilterKey(key tea.Key) (tea.Model, tea.Cmd) {
 	}
 	if isCtrlKey(key, 'u') {
 		model.picker.filter.SetText("")
-		model.picker.cursor = 0
+		model.focusFirstPickerProfile()
 		return model, nil
 	}
 	switch key.Code {
@@ -113,8 +113,21 @@ func (model *Model) readPickerFilterKey(key tea.Key) (tea.Model, tea.Cmd) {
 		}
 		model.picker.filter.Insert(key.Text)
 	}
-	model.picker.cursor = 0
+	model.focusFirstPickerProfile()
 	return model, nil
+}
+
+// focusFirstPickerProfile selects the first profile row, or the first row of a list with
+// no profile row.
+func (model *Model) focusFirstPickerProfile() {
+	rows := model.shownPickerRows()
+	for at, row := range rows {
+		if !row.isGroup() {
+			model.picker.focus(at, len(rows))
+			return
+		}
+	}
+	model.picker.cursor = 0
 }
 
 // runPickerAction runs one action of the connection picker, whether a key or a press asked

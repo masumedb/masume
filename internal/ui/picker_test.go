@@ -441,6 +441,21 @@ func TestThePickerFilterMatchesTheGroupAndUnfoldsIt(t *testing.T) {
 	}
 }
 
+func TestThePickerFilterSelectsTheFirstMatchingProfile(t *testing.T) {
+	model := NewModel(loadedConfigForTest("tokyonight"), nil, nil, nil)
+	model.screen = ScreenPickingProfile
+	model.profiles = buildGroupedProfiles()
+
+	pressKey(t, model, tea.KeyPressMsg{Code: '/', Text: "/"})
+	for _, letter := range "shop" {
+		pressKey(t, model, tea.KeyPressMsg{Code: letter, Text: string(letter)})
+	}
+
+	if profile, found := model.pickedProfile(); !found || profile.Name != "shop-prod" {
+		t.Errorf("the cursor is on %+v, found=%v", profile, found)
+	}
+}
+
 func TestFocusProfileUnfoldsItsGroups(t *testing.T) {
 	model := NewModel(loadedConfigForTest("tokyonight"), nil, nil, nil)
 	model.profiles = buildGroupedProfiles()
