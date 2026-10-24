@@ -931,9 +931,15 @@ func (model *Model) viewCell(
 	return model, nil
 }
 
+const readOnlyStagingProblem = "this connection is read-only; grid writes need a writable profile"
+
 // refusesEdit is true where the result cannot be written to, and reports why in the bar. Every
 // key that stages a change asks this first.
 func refusesEdit(connection *app.Connection, tab *app.Tab) bool {
+	if connection.Profile().AccessMode == cfg.AccessReadOnly {
+		connection.ShowError(readOnlyStagingProblem)
+		return true
+	}
 	if tab.Target.Editable {
 		return false
 	}
