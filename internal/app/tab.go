@@ -428,6 +428,21 @@ func (tab *Tab) BindParameters(
 	return session.Composer().BindParameters(written, tab.Parameters)
 }
 
+// ComposeWrittenRead binds the `:name` marks of the statement and composes the read with
+// the rewrite. The read keeps the marks in Written.
+func (tab *Tab) ComposeWrittenRead(
+	session db.SessionInfo, written string, rewrite core.ReadRewrite,
+) (db.ComposedRead, error) {
+	bound, err := tab.BindParameters(session, written)
+	if err != nil {
+		return db.ComposedRead{}, err
+	}
+	composer := session.Composer()
+	read := composer.ComposeStatementRead(bound, rewrite)
+	read.Written = composer.ComposeStatementRead(db.BoundText{Text: written}, rewrite).Display
+	return read, nil
+}
+
 // InlineParameters substitutes literals for display and plan requests, preserving the original text on failure.
 func (tab *Tab) InlineParameters(session db.SessionInfo, written string) string {
 	shown, err := statement.InlineQueryParameters(

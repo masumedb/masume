@@ -238,11 +238,7 @@ func (model *Model) buildRuns(
 	reads []db.ComposedRead, then func([]db.ComposedRead) (tea.Model, tea.Cmd),
 ) (tea.Model, tea.Cmd) {
 	compose := func(written string) (db.ComposedRead, error) {
-		bound, err := tab.BindParameters(connection.Session, written)
-		if err != nil {
-			return db.ComposedRead{}, err
-		}
-		return tab.ComposeStatementRead(connection.Session, bound), nil
+		return tab.ComposeWrittenRead(connection.Session, written, tab.Rewrite())
 	}
 	for ; at < len(statements); at++ {
 		names := statement.FindQueryParameters(statements[at])

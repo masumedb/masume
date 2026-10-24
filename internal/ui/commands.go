@@ -472,8 +472,12 @@ func runOneStatement(deps runOneStatementDeps) tea.Cmd {
 				})
 		}
 		answered.Undo = undo
+		shown := read.Written
+		if shown == "" {
+			shown = read.Display
+		}
 		entry := hist.HistoryEntry{
-			ProfileName: profileName, SQL: read.Display, RanAt: startedAt,
+			ProfileName: profileName, SQL: shown, RanAt: startedAt,
 			Elapsed: time.Since(startedAt),
 		}
 		if err != nil {

@@ -211,12 +211,12 @@ func (model *Model) composeStatementReads(
 ) ([]db.ComposedRead, bool) {
 	reads := make([]db.ComposedRead, 0, len(statements))
 	for _, written := range statements {
-		bound, err := tab.BindParameters(connection.Session, written)
+		read, err := tab.ComposeWrittenRead(connection.Session, written, tab.Rewrite())
 		if err != nil {
 			connection.ShowError(db.DescribeError(err))
 			return nil, false
 		}
-		reads = append(reads, tab.ComposeStatementRead(connection.Session, bound))
+		reads = append(reads, read)
 	}
 	return reads, true
 }

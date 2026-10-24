@@ -297,7 +297,9 @@ type ComposedRead struct {
 	Text   string
 	Params []any
 	// The values are written in rather than bound.
-	Display  string
+	Display string
+	// Written is Display with the `:name` marks of the user in place of their values.
+	Written  string
 	Pageable bool
 	// An engine that reads a cursor keeps its state here.
 	Payload any

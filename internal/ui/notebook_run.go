@@ -75,15 +75,15 @@ func (model *Model) sendNotebookPlan(
 	}
 	reads := make([]db.ComposedRead, 0, len(plan.Statements))
 	for at, written := range plan.Statements {
-		bound, err := tab.BindParameters(connection.Session, written)
+		// Every statement carries the sort and the filter of its own cell, and none of
+		// another cell.
+		read, err := tab.ComposeWrittenRead(connection.Session, written,
+			tab.Notebook.Cells[plan.CellOf[at]].BuildRewrite())
 		if err != nil {
 			connection.ShowError(db.DescribeError(err))
 			return nil
 		}
-		// Every statement carries the sort and the filter of its own cell, and none of
-		// another cell.
-		reads = append(reads, connection.Session.Composer().ComposeStatementRead(
-			bound, tab.Notebook.Cells[plan.CellOf[at]].BuildRewrite()))
+		reads = append(reads, read)
 	}
 	_, command := model.executeBound(connection, tab, plan.Statements, reads)
 	return command
