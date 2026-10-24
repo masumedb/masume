@@ -3,7 +3,9 @@ package hist
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -592,5 +594,44 @@ func TestUseCommandListsTheLastCommandFirst(t *testing.T) {
 	}
 	if !slices.Equal(held, []string{"show-help", "format-sql"}) {
 		t.Errorf("the recent commands read %v", held)
+	}
+}
+
+func TestTwoStoresOnOneFileWriteAtTheSameTime(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "history.sqlite")
+	stores := make([]*Store, 2)
+	for index := range stores {
+		store, err := Open(path)
+		if err != nil {
+			t.Fatalf("the history file did not open: %v", err)
+		}
+		t.Cleanup(func() { _ = store.Close() })
+		stores[index] = store
+	}
+
+	const recordsPerStore = 200
+	failures := make(chan error, 2*recordsPerStore)
+	var writers sync.WaitGroup
+	for _, store := range stores {
+		writers.Go(func() {
+			for range recordsPerStore {
+				if err := store.Record(HistoryEntry{ProfileName: "shop", SQL: "select 1"}); err != nil {
+					failures <- err
+				}
+			}
+		})
+	}
+	writers.Wait()
+	close(failures)
+	for err := range failures {
+		t.Fatalf("a concurrent record failed: %v", err)
+	}
+
+	held, err := stores[0].ListRecent("shop", 1000)
+	if err != nil {
+		t.Fatalf("the list answered %v", err)
+	}
+	if len(held) != 2*recordsPerStore {
+		t.Errorf("the file has %d entries, wanted %d", len(held), 2*recordsPerStore)
 	}
 }
