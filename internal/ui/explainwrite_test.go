@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"slices"
 	"testing"
 
 	"github.com/masumedb/masume/internal/app"
@@ -80,5 +81,44 @@ func TestExplainAnalyzeMeasuresARead(t *testing.T) {
 
 	if !session.analyzed {
 		t.Error("a read was only estimated")
+	}
+}
+
+// A plan of a new statement replaces the views of the run before it.
+func TestExplainReplacesTheViewsOfThePreviousRun(t *testing.T) {
+	model, session, connection, tab := buildPlanningModel(t)
+	tab.Results.Start([]string{"update orders set total = 1"}, 100)
+	tab.Results.Succeed(0, db.ComposedRead{}, db.QueryResult{Affected: 3, HasAffected: true})
+	tab.Editor = app.NewEditorBuffer("select * from orders", 0)
+
+	_, command := model.explain(connection, tab, false)
+	if command == nil {
+		t.Fatal("the plan was not asked for")
+	}
+	model.Update(command())
+
+	views := tab.Views(session)
+	if slices.Contains(views, app.ViewStatistics) {
+		t.Errorf("the views are %v, wanted the views of the planned statement", views)
+	}
+	if tab.ActiveView(session) != app.ViewPlan {
+		t.Errorf("the view is %v, wanted the plan", tab.ActiveView(session))
+	}
+}
+
+// A plan of the statement that ran keeps its rows.
+func TestExplainKeepsTheResultOfTheSameStatement(t *testing.T) {
+	model, _, connection, tab := buildPlanningModel(t)
+	tab.Results.Start([]string{"select * from orders"}, 100)
+	tab.Results.Succeed(0, db.ComposedRead{}, db.QueryResult{
+		Columns: []db.ResultColumn{{Name: "id"}}, Rows: [][]any{{1}},
+	})
+	tab.Editor = app.NewEditorBuffer("select * from orders", 0)
+
+	_, command := model.explain(connection, tab, false)
+	model.Update(command())
+
+	if tab.Results.Active() == nil {
+		t.Error("the rows of the statement were dropped")
 	}
 }

@@ -465,6 +465,20 @@ func (tab *Tab) StatementToExplain(session db.SessionInfo) string {
 		tab.ComposeStatementRead(session, db.BoundText{Text: shown}).Display)
 }
 
+// ClearOtherResult clears the result of a single run of a statement other than planned. A run
+// in progress and a result with staged changes are kept.
+func (tab *Tab) ClearOtherResult(planned string) {
+	if tab.Kind != TabQuery || len(tab.Results.Results()) != 1 || tab.Results.IsRunning() ||
+		core.CountChanges(tab.Pending) > 0 {
+		return
+	}
+	if strings.TrimSpace(tab.Results.Active().Source) == strings.TrimSpace(planned) {
+		return
+	}
+	tab.Results.Clear()
+	tab.Screen = present.NoScreenFilter()
+}
+
 // StatementToPlan returns the active batch statement or the statement under the caret.
 func (tab *Tab) StatementToPlan(session db.SessionInfo) string {
 	if len(tab.Results.Results()) < 2 {

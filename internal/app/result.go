@@ -160,6 +160,12 @@ func (store *ResultStore) Start(statements []string, pageSize int) {
 	store.activeIndex = 0
 }
 
+// Clear removes every result.
+func (store *ResultStore) Clear() {
+	store.results = nil
+	store.activeIndex = 0
+}
+
 // ApplyLabels sets the result labels in order and numbers a repeated label.
 func (store *ResultStore) ApplyLabels(labels []string) {
 	taken := map[string]bool{}

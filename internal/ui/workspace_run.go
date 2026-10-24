@@ -890,6 +890,7 @@ func (model *Model) explainBound(
 		connection.Show("this statement may write; requesting an estimated plan without running the statement")
 	}
 
+	tab.ClearOtherResult(tab.StatementToPlan(connection.Session))
 	tab.View = app.ViewPlan
 	tab.ViewData = app.PaneContent{Kind: app.DataLoading, StartedAt: time.Now()}
 	if active := tab.Results.Active(); active != nil {
