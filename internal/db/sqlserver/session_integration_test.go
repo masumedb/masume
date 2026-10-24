@@ -525,6 +525,17 @@ func TestServerStreamsAResultInBatches(t *testing.T) {
 	}
 }
 
+func TestServerReportsAStreamErrorAsADatabaseError(t *testing.T) {
+	session := dbtest.Open(t, dbtest.Sqlserver)
+
+	_, err := session.StreamQuery(context.Background(),
+		"select case when n = 3 then 1 / 0 else n end as n from (values (1), (2), (3)) as t (n)",
+		nil, 1, func([][]any, []db.ResultColumn) error { return nil })
+	if !errors.Is(err, db.ErrDatabase) {
+		t.Fatalf("the stream answered %v, wanted a database error", err)
+	}
+}
+
 func TestServerAppliesStagedChanges(t *testing.T) {
 	session := openShop(t)
 	ctx := context.Background()

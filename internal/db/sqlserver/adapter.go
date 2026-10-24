@@ -320,7 +320,7 @@ func (session *sqlserverSession) StreamQuery(
 	if rows.Err() != nil {
 		session.markBroken(ctx, rows.Err())
 		session.readServerTransaction(ctx)
-		return batcher.CountRows(), rows.Err()
+		return batcher.CountRows(), db.WrapDatabaseMessage(describeFailure(rows.Err()), rows.Err())
 	}
 	if batchErr := batcher.FlushRows(columns); batchErr != nil {
 		return batcher.CountRows(), batchErr
