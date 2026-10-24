@@ -40,13 +40,13 @@ const markedChatRow = "marked"
 
 // markKeptChatRows lays the mark over the rows the model holds.
 func markKeptChatRows(model *Model) {
-	model.chatRows.rows = []string{markedChatRow}
+	model.chatRows.current.rows = []string{markedChatRow}
 }
 
 // holdsMarkedChatRows is true while the rows the model holds are still the marked ones.
 func holdsMarkedChatRows(model *Model) bool {
-	return model.chatRows.drawn && len(model.chatRows.rows) == 1 &&
-		model.chatRows.rows[0] == markedChatRow
+	return model.chatRows.current.drawn && len(model.chatRows.current.rows) == 1 &&
+		model.chatRows.current.rows[0] == markedChatRow
 }
 
 // The scroll bounds, a jump between turns and the draw all read the rows, so one press drew
@@ -63,7 +63,7 @@ func TestChatRowsAreKeptWhileNothingChanges(t *testing.T) {
 		t.Error("the conversation was drawn again although nothing changed")
 	}
 
-	model.chatRows.rows = first
+	model.chatRows.current.rows = first
 	if len(readChatRows(model, model.Active())) != len(first) {
 		t.Error("the conversation that was kept holds a different number of rows")
 	}

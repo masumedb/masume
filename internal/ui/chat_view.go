@@ -166,6 +166,31 @@ func (model *Model) resolveChatContent() int {
 	return content - chatTrackWidth
 }
 
+// chatPanelRows is the conversation as the chat panel draws it, for the two panel grounds.
+type chatPanelRows struct {
+	current chatRowsCache
+	// The entry before current, for the other panel ground.
+	before chatRowsCache
+}
+
+// findRows returns the rows drawn for this key, and makes them the current entry.
+func (panel *chatPanelRows) findRows(key chatRowsKey) ([]string, []int, bool) {
+	if panel.current.drawn && panel.current.key == key {
+		return panel.current.rows, panel.current.starts, true
+	}
+	if panel.before.drawn && panel.before.key == key {
+		panel.current, panel.before = panel.before, panel.current
+		return panel.current.rows, panel.current.starts, true
+	}
+	return nil, nil, false
+}
+
+// keepRows stores the rows drawn for this key as the current entry.
+func (panel *chatPanelRows) keepRows(key chatRowsKey, rows []string, starts []int) {
+	panel.before = panel.current
+	panel.current = chatRowsCache{drawn: true, key: key, rows: rows, starts: starts}
+}
+
 // chatRowsCache holds the conversation as rows, and what they were drawn for.
 type chatRowsCache struct {
 	drawn  bool
@@ -205,16 +230,11 @@ func (model *Model) resolveChatRows(
 ) ([]string, []int) {
 	chat := connection.Chat
 	key := model.buildChatRowsKey(connection, chat, content)
-	if model.chatRows.drawn && model.chatRows.key == key {
-		return model.chatRows.rows, model.chatRows.starts
-	}
-	if model.chatRowsBefore.drawn && model.chatRowsBefore.key == key {
-		model.chatRows, model.chatRowsBefore = model.chatRowsBefore, model.chatRows
-		return model.chatRows.rows, model.chatRows.starts
+	if rows, starts, found := model.chatRows.findRows(key); found {
+		return rows, starts
 	}
 	rows, starts := model.renderChatTurns(chat, content)
-	model.chatRowsBefore = model.chatRows
-	model.chatRows = chatRowsCache{drawn: true, key: key, rows: rows, starts: starts}
+	model.chatRows.keepRows(key, rows, starts)
 	return rows, starts
 }
 

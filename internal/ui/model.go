@@ -160,9 +160,7 @@ type Model struct {
 	caches                            tabCaches
 	// The conversation as the chat panel draws it, kept because the scroll bounds, a jump
 	// between turns and the draw itself each read the rows.
-	chatRows chatRowsCache
-	// The previous chatRows entry, for the other panel ground.
-	chatRowsBefore chatRowsCache
+	chatRows chatPanelRows
 	// What the last copy took, for the screens without a connection to report it.
 	copied string
 }
