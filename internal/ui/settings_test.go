@@ -19,8 +19,7 @@ import (
 func openSettings(t *testing.T, model *Model) string {
 	t.Helper()
 	path := useConfigFile(t)
-	model.settingsCameFrom = model.screen
-	model.showSettings()
+	model.showSettings(model.screen)
 	return path
 }
 

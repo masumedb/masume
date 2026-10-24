@@ -57,11 +57,15 @@ type SettingsState struct {
 	// Saved is true after a change that wrote the file, and Message says what happened.
 	Saved   bool
 	Message string
+	// CameFrom is the screen the settings screen was opened from.
+	CameFrom ScreenKind
 }
 
 // NewSettingsState opens the settings screen on the first section.
-func NewSettingsState(sources cfg.SettingsSources) *SettingsState {
-	state := &SettingsState{Sources: sources, Sections: cfg.ListSettingSections()}
+func NewSettingsState(sources cfg.SettingsSources, cameFrom ScreenKind) *SettingsState {
+	state := &SettingsState{
+		Sources: sources, Sections: cfg.ListSettingSections(), CameFrom: cameFrom,
+	}
 	state.readItems()
 	return state
 }
@@ -186,9 +190,101 @@ func (state *SettingsState) stepItem(step int) {
 	state.Item = wrap(state.Item+step, len(state.Items))
 }
 
+// readDraftKey runs one press while a row is open for typing. It returns true for a press
+// that keeps the typed text.
+func (state *SettingsState) readDraftKey(key tea.Key) bool {
+	switch key.Code {
+	case tea.KeyEscape:
+		state.closeDraft()
+		return false
+	case tea.KeyEnter:
+		return true
+	case tea.KeyTab:
+		return true
+	case tea.KeyLeft:
+		state.Draft.MoveCaret(-1, false)
+		return false
+	case tea.KeyRight:
+		state.Draft.MoveCaret(1, false)
+		return false
+	case tea.KeyHome:
+		state.Draft.MoveToLineStart(false)
+		return false
+	case tea.KeyEnd:
+		state.Draft.MoveToLineEnd(false)
+		return false
+	case tea.KeyBackspace:
+		state.Draft.DeleteBackward()
+		return false
+	case tea.KeyDelete:
+		state.Draft.DeleteForward()
+		return false
+	}
+	if key.Text != "" && !key.Mod.Contains(uv.ModCtrl) && !key.Mod.Contains(uv.ModAlt) {
+		state.Draft.Insert(key.Text)
+	}
+	return false
+}
+
+// goBack goes back one step: the page on show closes, then the sections take the keyboard.
+// It returns false where no step is left and the screen closes.
+func (state *SettingsState) goBack() bool {
+	switch {
+	case state.TypesIntoRow():
+		state.closeDraft()
+	case state.closePage():
+	case state.Pane == paneItems:
+		state.Pane = paneSections
+	default:
+		return false
+	}
+	return true
+}
+
+// focusPane gives the keyboard to one pane.
+func (state *SettingsState) focusPane(pane settingsPane) {
+	state.closeDraft()
+	state.Pane = pane
+}
+
+// countRows returns how many rows the pane with the keyboard holds.
+func (state *SettingsState) countRows() int {
+	if state.Pane == paneSections {
+		return len(state.Sections)
+	}
+	return len(state.Items)
+}
+
+// stepCaret moves the caret of the pane with the keyboard.
+func (state *SettingsState) stepCaret(step int) {
+	if state.Pane == paneSections {
+		state.stepSection(step)
+		return
+	}
+	state.stepItem(step)
+}
+
+// holdCaret puts the caret of the pane with the keyboard on one row.
+func (state *SettingsState) holdCaret(row int) {
+	if state.Pane == paneSections {
+		state.stepSection(clamp(row, len(state.Sections)) - state.Section)
+		return
+	}
+	state.closeDraft()
+	state.Item = clamp(row, len(state.Items))
+}
+
+// stepsChoice is true where the row under the caret steps through a list of values.
+// A row that is on or off is not one: the arrow that steps a value back always goes back,
+// so no page can hold the reader.
+func (state *SettingsState) stepsChoice() bool {
+	item, found := state.FocusedItem()
+	return found && item.Kind == cfg.SettingChoice
+}
+
 // showSettings opens the settings screen.
-func (model *Model) showSettings() (tea.Model, tea.Cmd) {
-	model.settingsForm = NewSettingsState(model.buildSettingsSources())
+func (model *Model) showSettings(cameFrom ScreenKind) (tea.Model, tea.Cmd) {
+	model.settingsForm = NewSettingsState(model.buildSettingsSources(), cameFrom)
 	model.screen = ScreenSettings
 	return model, nil
 }
@@ -301,8 +397,11 @@ func describeActionHelp(scope cfg.KeyScope, id ActionID) string {
 
 // leaveSettings closes the screen and goes back to the screen it was opened from.
 func (model *Model) leaveSettings() (tea.Model, tea.Cmd) {
+	model.screen = ScreenWorking
+	if model.settingsForm != nil {
+		model.screen = model.settingsForm.CameFrom
+	}
 	model.settingsForm = nil
-	model.screen = model.settingsCameFrom
 	return model, nil
 }
 
@@ -313,7 +412,10 @@ func (model *Model) readSettingsKey(key tea.Key) (tea.Model, tea.Cmd) {
 		return model.leaveSettings()
 	}
 	if state.TypesIntoRow() {
-		return model.readSettingsDraftKey(key, state)
+		if state.readDraftKey(key) {
+			return model.keepDraft(state), nil
+		}
+		return model, nil
 	}
 	// Escape belongs to an action of the registry as well, and here it goes back one step.
 	if key.Code == tea.KeyEscape {
@@ -334,43 +436,6 @@ func (model *Model) readSettingsKey(key tea.Key) (tea.Model, tea.Cmd) {
 		item.Kind == cfg.SettingText && key.Text != "" &&
 		!key.Mod.Contains(uv.ModCtrl) && !key.Mod.Contains(uv.ModAlt) {
 		state.openDraft(describeOpenedValue(item))
-		state.Draft.Insert(key.Text)
-	}
-	return model, nil
-}
-
-// readSettingsDraftKey returns what one press does while a row is open for typing.
-func (model *Model) readSettingsDraftKey(
-	key tea.Key, state *SettingsState,
-) (tea.Model, tea.Cmd) {
-	switch key.Code {
-	case tea.KeyEscape:
-		state.closeDraft()
-		return model, nil
-	case tea.KeyEnter:
-		return model.keepDraft(state), nil
-	case tea.KeyTab:
-		return model.keepDraft(state), nil
-	case tea.KeyLeft:
-		state.Draft.MoveCaret(-1, false)
-		return model, nil
-	case tea.KeyRight:
-		state.Draft.MoveCaret(1, false)
-		return model, nil
-	case tea.KeyHome:
-		state.Draft.MoveToLineStart(false)
-		return model, nil
-	case tea.KeyEnd:
-		state.Draft.MoveToLineEnd(false)
-		return model, nil
-	case tea.KeyBackspace:
-		state.Draft.DeleteBackward()
-		return model, nil
-	case tea.KeyDelete:
-		state.Draft.DeleteForward()
-		return model, nil
-	}
-	if key.Text != "" && !key.Mod.Contains(uv.ModCtrl) && !key.Mod.Contains(uv.ModAlt) {
 		state.Draft.Insert(key.Text)
 	}
 	return model, nil
@@ -412,26 +477,26 @@ func (model *Model) runSettingsAction(match Match) (tea.Model, tea.Cmd, bool) {
 		held, command := model.goSettingsBack()
 		return held, command, true
 	case ActionCursorUp:
-		model.stepSettingsCaret(-1)
+		state.stepCaret(-1)
 		return model, nil, true
 	case ActionCursorDown:
-		model.stepSettingsCaret(1)
+		state.stepCaret(1)
 		return model, nil, true
 	case ActionCursorFirstRow:
-		model.holdSettingsCaret(0)
+		state.holdCaret(0)
 		return model, nil, true
 	case ActionCursorLastRow:
-		model.holdSettingsCaret(model.countSettingsRows() - 1)
+		state.holdCaret(state.countRows() - 1)
 		return model, nil, true
 	case ActionNextField:
-		model.focusSettingsPane(paneItems)
+		state.focusPane(paneItems)
 		return model, nil, true
 	case ActionPreviousField:
-		model.focusSettingsPane(paneSections)
+		state.focusPane(paneSections)
 		return model, nil, true
 	case ActionNextValue:
 		if !onItems {
-			model.focusSettingsPane(paneItems)
+			state.focusPane(paneItems)
 			return model, nil, true
 		}
 		if item, found := state.FocusedItem(); found && item.Kind == cfg.SettingGroup {
@@ -440,14 +505,14 @@ func (model *Model) runSettingsAction(match Match) (tea.Model, tea.Cmd, bool) {
 		}
 		return model.stepSettingsValue(1), nil, true
 	case ActionPreviousValue:
-		if !onItems || !model.stepsSettingsChoice() {
+		if !onItems || !state.stepsChoice() {
 			held, command := model.goSettingsBack()
 			return held, command, true
 		}
 		return model.stepSettingsValue(-1), nil, true
 	case ActionChooseRow, ActionToggleValue:
 		if !onItems {
-			model.focusSettingsPane(paneItems)
+			state.focusPane(paneItems)
 			return model, nil, true
 		}
 		held, command := model.openSettingsRow()
@@ -461,65 +526,12 @@ func (model *Model) runSettingsAction(match Match) (tea.Model, tea.Cmd, bool) {
 	return model, nil, false
 }
 
-// goSettingsBack goes back one step: the page on show closes, then the sections take the
-// keyboard, and then the screen closes.
+// goSettingsBack goes back one step, and closes the screen where no step is left.
 func (model *Model) goSettingsBack() (tea.Model, tea.Cmd) {
-	state := model.settingsForm
-	switch {
-	case state.TypesIntoRow():
-		state.closeDraft()
-	case state.closePage():
-	case state.Pane == paneItems:
-		state.Pane = paneSections
-	default:
-		return model.leaveSettings()
+	if model.settingsForm.goBack() {
+		return model, nil
 	}
-	return model, nil
-}
-
-// focusSettingsPane gives the keyboard to one pane.
-func (model *Model) focusSettingsPane(pane settingsPane) {
-	state := model.settingsForm
-	state.closeDraft()
-	state.Pane = pane
-}
-
-// countSettingsRows returns how many rows the pane with the keyboard holds.
-func (model *Model) countSettingsRows() int {
-	state := model.settingsForm
-	if state.Pane == paneSections {
-		return len(state.Sections)
-	}
-	return len(state.Items)
-}
-
-// stepSettingsCaret moves the caret of the pane with the keyboard.
-func (model *Model) stepSettingsCaret(step int) {
-	state := model.settingsForm
-	if state.Pane == paneSections {
-		state.stepSection(step)
-		return
-	}
-	state.stepItem(step)
-}
-
-// holdSettingsCaret puts the caret of the pane with the keyboard on one row.
-func (model *Model) holdSettingsCaret(row int) {
-	state := model.settingsForm
-	if state.Pane == paneSections {
-		state.stepSection(clamp(row, len(state.Sections)) - state.Section)
-		return
-	}
-	state.closeDraft()
-	state.Item = clamp(row, len(state.Items))
-}
-
-// stepsSettingsChoice is true where the row under the caret steps through a list of values.
-// A row that is on or off is not one: the arrow that steps a value back always goes back,
-// so no page can hold the reader.
-func (model *Model) stepsSettingsChoice() bool {
-	item, found := model.settingsForm.FocusedItem()
-	return found && item.Kind == cfg.SettingChoice
+	return model.leaveSettings()
 }
 
 // stepSettingsValue steps the row under the caret to the value before or after the one it
@@ -828,7 +840,7 @@ func (model *Model) renderSettings() string {
 	inner := max(cardWidth-4, 1)
 	itemWidth := max(inner-settingsSidebarWidth-settingsDividerWidth, 8)
 
-	rows, drawsFoot := model.resolveSettingsRows()
+	rows, drawsFoot := state.resolveRows(model.height)
 	state.Offset = scrollTo(state.Item, state.Offset, rows, len(state.Items))
 	left := halfRoundedUp(model.width - cardWidth)
 	chrome := settingsBareChrome
@@ -846,7 +858,7 @@ func (model *Model) renderSettings() string {
 			item = model.styles.paintThumbColumn(item, thumb[at], itemWidth-1, theme.Panel)
 		}
 		lines = append(lines,
-			model.renderSectionCell(at)+
+			state.renderSectionCell(theme, at)+
 				paintText(theme.Faint, theme.Panel, " │ ")+item)
 	}
 
@@ -854,7 +866,7 @@ func (model *Model) renderSettings() string {
 	// frame and the row a press lands on is the row under the pointer.
 	if drawsFoot {
 		lines = append(lines, "", model.styles.Faint().Render(
-			present.TruncateText(model.describeSettingsDetail(), inner)))
+			present.TruncateText(state.describeDetail(), inner)))
 		keys := model.buildKeyLineOf(settingsKeySpecs, keyScene{})
 		if keys.hasButtons() {
 			lines = append(lines, model.renderKeyButtons(keys, inner, 1,
@@ -872,25 +884,24 @@ func (model *Model) renderSettings() string {
 		from:  left + cardBodyColumn + settingsSidebarWidth + settingsDividerWidth,
 		to:    left + cardWidth - 2,
 	}
-	return model.renderCard(model.describeSettingsTitle(), cardWidth, lines, plainCard)
+	return model.renderCard(state.describeTitle(), cardWidth, lines, plainCard)
 }
 
-// describeSettingsTitle returns the heading of the card: the settings, and the pages that
-// are open under the section.
-func (model *Model) describeSettingsTitle() string {
+// describeTitle returns the heading of the card: the settings, and the pages that are open
+// under the section.
+func (state *SettingsState) describeTitle() string {
 	written := " settings"
-	for _, page := range model.settingsForm.Trail {
+	for _, page := range state.Trail {
 		written += " · " + page
 	}
 	return written + " "
 }
 
-// resolveSettingsRows returns how many rows the panes draw, and whether the card has room
-// for the foot under them.
-func (model *Model) resolveSettingsRows() (int, bool) {
-	state := model.settingsForm
+// resolveRows returns how many rows the panes draw, and whether the card has room for the
+// foot under them.
+func (state *SettingsState) resolveRows(height int) (int, bool) {
 	wanted := max(len(state.Sections), len(state.Items))
-	body := model.height - 2
+	body := height - 2
 	if room := body - settingsCardChrome; room >= fewestSettingsRows {
 		return min(wanted, room), true
 	}
@@ -898,9 +909,7 @@ func (model *Model) resolveSettingsRows() (int, bool) {
 }
 
 // renderSectionCell draws one row of the left pane.
-func (model *Model) renderSectionCell(at int) string {
-	state := model.settingsForm
-	theme := model.styles.Theme
+func (state *SettingsState) renderSectionCell(theme Theme, at int) string {
 	if at >= len(state.Sections) {
 		return paintBlanks(theme.Panel, settingsSidebarWidth)
 	}
@@ -934,7 +943,7 @@ func (model *Model) renderItemCell(at, width int) string {
 		ground = theme.Header
 	}
 
-	labelWidth := model.resolveSettingsLabelWidth(width)
+	labelWidth := state.resolveLabelWidth(width)
 	labelInk := theme.Muted
 	switch {
 	case focused:
@@ -947,11 +956,11 @@ func (model *Model) renderItemCell(at, width int) string {
 	return label + model.renderItemValue(item, focused, max(width-labelWidth, 1), ground)
 }
 
-// resolveSettingsLabelWidth returns the column the names of the page keep: what the longest
-// one needs, and never so much that the value beside it has no room.
-func (model *Model) resolveSettingsLabelWidth(width int) int {
+// resolveLabelWidth returns the column the names of the page keep: what the longest one
+// needs, and never so much that the value beside it has no room.
+func (state *SettingsState) resolveLabelWidth(width int) int {
 	longest := 0
-	for _, item := range model.settingsForm.Items {
+	for _, item := range state.Items {
 		longest = max(longest, present.MeasureText(item.Label))
 	}
 	return min(longest+2, max(width-widestSettingsValue, 8))
@@ -1046,9 +1055,8 @@ func (model *Model) renderSettingsChoice(
 		present.MeasureText(written)+choiceMarkChrome)
 }
 
-// describeSettingsDetail returns the line that says what the row under the caret is.
-func (model *Model) describeSettingsDetail() string {
-	state := model.settingsForm
+// describeDetail returns the line that says what the row under the caret is.
+func (state *SettingsState) describeDetail() string {
 	if state.Pane == paneSections {
 		if state.Section < len(state.Sections) {
 			return state.Sections[state.Section].Detail

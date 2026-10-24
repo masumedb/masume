@@ -91,9 +91,8 @@ type Model struct {
 	picker pickerState
 	// builderRows is what every drawn row of a builder pane stands for.
 	builderRows []builderRow
-	// The settings screen, and the screen it was opened from.
-	settingsForm     *SettingsState
-	settingsCameFrom ScreenKind
+	// The settings screen.
+	settingsForm *SettingsState
 	// The key preset and chords of the config file, which are applied again when the AI
 	// settings switch the chat off or on.
 	keys cfg.KeySettings

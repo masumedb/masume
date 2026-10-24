@@ -110,8 +110,7 @@ func (model *Model) runChatAction(
 		}
 		if model.blocksChat(chat) {
 			connection.CloseEveryOverlay()
-			model.settingsCameFrom = ScreenWorking
-			held, command := model.showSettings()
+			held, command := model.showSettings(ScreenWorking)
 			return true, held, command
 		}
 		held, command := model.submitChatQuestion(connection, tab)

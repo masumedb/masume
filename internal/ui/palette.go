@@ -557,8 +557,7 @@ func (model *Model) runPaletteRow(
 	case "reload-themes":
 		return model.reloadThemeFiles(connection)
 	case settingsAction:
-		model.settingsCameFrom = ScreenWorking
-		return model.showSettings()
+		return model.showSettings(ScreenWorking)
 	case "ai-explain-query":
 		return model.askAi(connection, connection.Active(),
 			"Explain what the query in the editor does, in plain terms.")
