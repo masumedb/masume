@@ -299,6 +299,9 @@ type chatQuestion struct {
 // refusedByUser is the refusal the model reads after the user answers no.
 const refusedByUser = "the user did not approve execution; the requested statements did not run"
 
+// refusedReadOnly is the refusal the model reads for a write on a read-only connection.
+const refusedReadOnly = "this connection is read-only; the statements were not sent"
+
 // askChatToRun measures the write, asks the user whether it may run, and waits for the
 // answer. The panel asks it, not a card: only one overlay is drawn at a time, and a card
 // would cover the conversation.
@@ -307,6 +310,9 @@ func askChatToRun(
 	risk statement.WriteRisk, statements []string,
 ) agent.RunPermission {
 	profile := question.profile
+	if profile.AccessMode == cfg.AccessReadOnly && risk != statement.RiskNone {
+		return agent.RunPermission{Refusal: refusedReadOnly}
+	}
 	summary := statement.DescribeRisk(risk, len(statements)) + " on " + string(profile.Environment)
 	ai.LogEvent("> asking to run (" + summary + "): " + strings.Join(statements, "; "))
 
