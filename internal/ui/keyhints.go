@@ -500,7 +500,7 @@ var (
 		keyOf(cfg.ScopeDialog, ActionDeleteConnection, "delete").onlyWhen(picksConnection),
 		keyOf(cfg.ScopeDialog, ActionFilterConnections, "filter").
 			onlyWhen(listsConnections),
-		keyOf(cfg.ScopeDialog, ActionClose, "clear the filter").
+		keyOf(cfg.ScopeDialog, ActionClose, "keep the filter").
 			onlyWhen(filtersConnections),
 	}
 	passwordKeySpecs = []keySpec{

@@ -8,7 +8,7 @@ This guide covers the interactive terminal client. The [key reference](keys.md) 
 
 A profile with a `group` is listed under a group header. `group = "work/shop"` puts it in the `shop` group inside `work`. Each level lists its profiles first, then its groups by name. Enter or Left folds a group, and Enter or Right unfolds it. A folded group shows its profile count. Left on a profile moves to its group. See [profiles](configuration.md#profiles).
 
-The filter field is above the list, and `/` focuses it. The filter matches the name, group, environment, engine, and target. A filter shows every group unfolded. Up, Down, and Enter still work while the field has focus. Esc leaves the field and keeps the filter.
+The filter field is above the list, and `/` focuses it. The filter matches the name, group, environment, engine, and target. A filter shows every group unfolded. Up, Down, and Enter still work while the field has focus. Esc leaves the field and keeps the filter. `Ctrl+U` clears the field.
 
 `n` opens a new connection form. `e` edits the selected profile. In the form, `Ctrl+T` tests the connection and `Ctrl+S` saves the profile. The `ssh tunnel` toggle shows the SSH fields. See [SSH tunnel](configuration.md#ssh-tunnel). The `tls files` toggle shows the certificate fields, and `Enter` on a file path field opens a file picker. The line under the fields shows what the selected `auth`, `sslmode` or `confirm` value does. See [Certificate files](configuration.md#certificate-files).
 

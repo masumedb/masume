@@ -224,6 +224,37 @@ func TestEscapeStopsThePickerFilter(t *testing.T) {
 	}
 }
 
+// Ctrl+U clears the filter field and keeps the focus in the field.
+func TestCtrlUClearsThePickerFilter(t *testing.T) {
+	model := NewModel(loadedConfigForTest("tokyonight"), nil, nil, nil)
+	model.screen = ScreenPickingProfile
+	model.profiles = []cfg.Profile{{Name: "alpha"}, {Name: "beta"}}
+
+	pressKey(t, model, tea.KeyPressMsg{Code: '/', Text: "/"})
+	pressKey(t, model, tea.KeyPressMsg{Code: 'b', Text: "b"})
+	pressKey(t, model, tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl})
+
+	if model.picker.filter.Text != "" {
+		t.Errorf("ctrl+u left %q in the field", model.picker.filter.Text)
+	}
+	if !model.picker.filtersList() {
+		t.Error("ctrl+u moved the keyboard out of the field")
+	}
+}
+
+// The key line of the filter field labels Escape with what it does.
+func TestThePickerFilterLabelsEscape(t *testing.T) {
+	model := buildOfflineModel(t, 120, 30)
+	model.screen = ScreenPickingProfile
+	model.profiles = []cfg.Profile{{Name: "alpha"}}
+
+	pressKey(t, model, tea.KeyPressMsg{Code: '/', Text: "/"})
+
+	if drawn := stripEscapes(model.render()); !strings.Contains(drawn, "keep the filter") {
+		t.Errorf("the key line has no label for escape:\n%s", drawn)
+	}
+}
+
 // The card always draws the field, and the unfocused placeholder names the filter key.
 func TestThePickerDrawsTheFilterFieldAtAllTimes(t *testing.T) {
 	model := buildOfflineModel(t, 120, 30)

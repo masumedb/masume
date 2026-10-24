@@ -91,6 +91,11 @@ func (model *Model) readPickerFilterKey(key tea.Key) (tea.Model, tea.Cmd) {
 		key, pickerListActions, cfg.ScopeList); matched {
 		return model.runPickerAction(match)
 	}
+	if isCtrlKey(key, 'u') {
+		model.picker.filter.SetText("")
+		model.picker.cursor = 0
+		return model, nil
+	}
 	switch key.Code {
 	case tea.KeyBackspace:
 		model.picker.filter.DeleteBackward()
