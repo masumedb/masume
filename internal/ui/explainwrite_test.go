@@ -122,3 +122,16 @@ func TestExplainKeepsTheResultOfTheSameStatement(t *testing.T) {
 		t.Error("the rows of the statement were dropped")
 	}
 }
+
+// The keys of the plan header belong to the result pane.
+func TestExplainMovesTheFocusToTheResult(t *testing.T) {
+	model, _, connection, tab := buildPlanningModel(t)
+	tab.Editor = app.NewEditorBuffer("select * from orders", 0)
+	tab.Focus = app.PaneEditor
+
+	model.explain(connection, tab, false)
+
+	if tab.Focus != app.PaneResult {
+		t.Errorf("the focus is on %v, wanted the result", tab.Focus)
+	}
+}

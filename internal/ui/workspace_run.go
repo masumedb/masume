@@ -891,6 +891,11 @@ func (model *Model) explainBound(
 	}
 
 	tab.ClearOtherResult(tab.StatementToPlan(connection.Session))
+	connection.ResultVisible = true
+	if tab.Kind != app.TabNotebook && tab.Kind != app.TabBuilder {
+		tab.Focus = app.PaneResult
+	}
+	tab.Completion.Close()
 	tab.View = app.ViewPlan
 	tab.ViewData = app.PaneContent{Kind: app.DataLoading, StartedAt: time.Now()}
 	if active := tab.Results.Active(); active != nil {
