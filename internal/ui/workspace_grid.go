@@ -459,17 +459,40 @@ func (model *Model) runGridAction(
 	connection *app.Connection, tab *app.Tab, match Match,
 ) (tea.Model, tea.Cmd) {
 	shape := model.buildGridShape(connection, tab)
-	rowCount := len(shape.Text)
-	columnCount := len(shape.Columns)
 
-	// A move of the cursor brings it back into view, whatever the wheel rolled to.
 	switch match.Action {
 	case ActionCursorUp, ActionCursorDown, ActionCursorPageUp, ActionCursorPageDown,
-		ActionCursorFirstRow, ActionCursorLastRow:
-		tab.GridRolled = false
+		ActionCursorFirstRow, ActionCursorLastRow, ActionCursorLeft, ActionCursorRight:
+		return model.moveGridCursor(connection, tab, match.Action, len(shape.Text),
+			len(shape.Columns))
+	}
+	for _, run := range []func(*app.Connection, *app.Tab, GridShape, Match) (tea.Model, tea.Cmd, bool){
+		model.runGridResultAction, model.runGridFilterAction, model.runGridColumnAction,
+		model.runGridRowAction, model.runGridMenuAction,
+	} {
+		if next, command, taken := run(connection, tab, shape, match); taken {
+			return next, command
+		}
+	}
+	return model, nil
+}
+
+// moveGridCursor moves the cursor of the grid.
+func (model *Model) moveGridCursor(
+	connection *app.Connection, tab *app.Tab, action ActionID, rowCount, columnCount int,
+) (tea.Model, tea.Cmd) {
+	switch action {
+	case ActionCursorLeft:
+		moveGridColumn(tab, columnCount, -1)
+		return model, nil
+	case ActionCursorRight:
+		moveGridColumn(tab, columnCount, 1)
+		return model, nil
 	}
 
-	switch match.Action {
+	// A move of the cursor brings it back into view, whatever the wheel rolled to.
+	tab.GridRolled = false
+	switch action {
 	case ActionCursorUp:
 		tab.GridRow = clamp(tab.GridRow-1, rowCount)
 	case ActionCursorDown:
@@ -480,28 +503,48 @@ func (model *Model) runGridAction(
 		tab.GridRow = clamp(tab.GridRow+listPage, rowCount)
 	case ActionCursorFirstRow:
 		tab.GridRow = 0
+		return model, nil
 	case ActionCursorLastRow:
 		tab.GridRow = clamp(rowCount-1, rowCount)
-	case ActionCursorLeft:
-		moveGridColumn(tab, columnCount, -1)
-	case ActionCursorRight:
-		moveGridColumn(tab, columnCount, 1)
+	}
 
+	// A move towards the foot of the grid reads the next page before the cursor gets
+	// there. A move to the first row needs none, and a move between columns moves no row.
+	return model, model.approachGridEnd(connection, tab, tab.GridRow, rowCount)
+}
+
+// runGridResultAction counts, pins or compares the result. It reports whether the action was
+// one.
+func (model *Model) runGridResultAction(
+	connection *app.Connection, tab *app.Tab, _ GridShape, match Match,
+) (tea.Model, tea.Cmd, bool) {
+	switch match.Action {
 	case ActionCountRows:
-		return model.countRows(connection, tab)
+		return markTaken(model.countRows(connection, tab))
 	case ActionPinResult:
-		return model.pinResult(connection, tab)
+		return markTaken(model.pinResult(connection, tab))
 	case ActionCompareResult:
-		return model.compareWithPinned(connection, tab)
+		return markTaken(model.compareWithPinned(connection, tab))
+	}
+	return model, nil, false
+}
 
+// runGridFilterAction sorts, filters or searches the rows. It reports whether the action was
+// one.
+func (model *Model) runGridFilterAction(
+	connection *app.Connection, tab *app.Tab, shape GridShape, match Match,
+) (tea.Model, tea.Cmd, bool) {
+	switch match.Action {
 	case ActionSortColumn, ActionAddSortColumn:
-		return model.sortByColumn(connection, tab, shape, match.Action == ActionAddSortColumn)
+		return markTaken(model.sortByColumn(
+			connection, tab, shape, match.Action == ActionAddSortColumn))
 	case ActionClearRewrites:
-		return model.clearRewrites(connection, tab)
+		return markTaken(model.clearRewrites(connection, tab))
 	case ActionPopFilter:
-		return model.popFilter(connection, tab)
+		return markTaken(model.popFilter(connection, tab))
 	case ActionFilterByCell, ActionExcludeCell:
-		return model.filterByCell(connection, tab, shape, match.Action == ActionExcludeCell)
+		return markTaken(model.filterByCell(
+			connection, tab, shape, match.Action == ActionExcludeCell))
 	case ActionFilterWhere:
 		written := ""
 		for _, step := range tab.Filter {
@@ -527,14 +570,25 @@ func (model *Model) runGridAction(
 			Draft: app.NewEditorBuffer("", 0),
 		})
 	case ActionFilterByValues:
-		return model.askValueFilter(connection, tab, shape)
+		return markTaken(model.askValueFilter(connection, tab, shape))
+	default:
+		return model, nil, false
+	}
+	return model, nil, true
+}
 
+// runGridColumnAction freezes, hides, chooses or moves the columns. It reports whether the
+// action was one.
+func (model *Model) runGridColumnAction(
+	connection *app.Connection, tab *app.Tab, shape GridShape, match Match,
+) (tea.Model, tea.Cmd, bool) {
+	switch match.Action {
 	case ActionFreezeColumns:
-		return model.freezeColumns(connection, tab), nil
+		return model.freezeColumns(connection, tab), nil, true
 	case ActionHideColumn:
 		hideColumn(connection, tab, len(shape.Columns))
 	case ActionChooseColumns:
-		return model.askColumns(connection, tab, shape)
+		return markTaken(model.askColumns(connection, tab, shape))
 	case ActionMoveColumnLeft:
 		stepColumn(tab, len(shape.Columns), -1)
 	case ActionMoveColumnRight:
@@ -546,12 +600,24 @@ func (model *Model) runGridAction(
 		} else {
 			connection.Show("masked values are hidden")
 		}
+	default:
+		return model, nil, false
+	}
+	return model, nil, true
+}
 
+// runGridRowAction opens, edits or stages a change to the row under the cursor. It reports
+// whether the action was one.
+func (model *Model) runGridRowAction(
+	connection *app.Connection, tab *app.Tab, shape GridShape, match Match,
+) (tea.Model, tea.Cmd, bool) {
+	rowCount := len(shape.Text)
+	switch match.Action {
 	case ActionViewCell:
-		return model.viewCell(connection, tab, shape)
+		return markTaken(model.viewCell(connection, tab, shape))
 	case ActionOpenRow:
 		if rowCount == 0 {
-			return model, nil
+			return model, nil, true
 		}
 		connection.Open(app.Overlay{
 			Kind: app.OverlayRowDetail,
@@ -563,15 +629,15 @@ func (model *Model) runGridAction(
 			List: app.ListState{Cursor: clamp(tab.GridColumn, len(shape.Columns))},
 		})
 	case ActionEditCell:
-		return model.editCell(connection, tab, shape)
+		return markTaken(model.editCell(connection, tab, shape))
 	case ActionToggleDelete:
-		return model.toggleRowDelete(connection, tab, shape)
+		return markTaken(model.toggleRowDelete(connection, tab, shape))
 	case ActionDuplicateRow:
-		return model.duplicateRow(connection, tab, shape)
+		return markTaken(model.duplicateRow(connection, tab, shape))
 	case ActionInsertRow:
-		return model.insertRow(connection, tab, shape)
+		return markTaken(model.insertRow(connection, tab, shape))
 	case ActionReviewChanges:
-		return model.reviewChanges(connection, tab)
+		return markTaken(model.reviewChanges(connection, tab))
 	case ActionUndoChange:
 		if !tab.UndoChange() {
 			connection.Show("no staged change to undo")
@@ -581,38 +647,44 @@ func (model *Model) runGridAction(
 			connection.Show("no staged change to redo")
 		}
 	case ActionFollowForeignKey:
-		return model.followForeignKey(connection, tab, shape)
+		return markTaken(model.followForeignKey(connection, tab, shape))
+	case ActionDiscardChanges:
+		return markTaken(model.requestDiscardChanges(connection, tab))
+	default:
+		return model, nil, false
+	}
+	return model, nil, true
+}
+
+// runGridMenuAction opens a menu of the grid, or copies the result. It reports whether the
+// action was one.
+func (model *Model) runGridMenuAction(
+	connection *app.Connection, tab *app.Tab, shape GridShape, match Match,
+) (tea.Model, tea.Cmd, bool) {
+	switch match.Action {
 	case ActionCopyMenu:
 		connection.Open(app.Overlay{
 			Kind: app.OverlayCopyMenu, Title: " copy to clipboard ", Actions: buildCopyMenuActions(),
 			Draft: app.NewEditorBuffer("", 0),
 		})
 	case ActionCopyCSV:
-		return model.runCopy(connection, tab, copyResultCSV)
+		return markTaken(model.runCopy(connection, tab, copyResultCSV))
 	case ActionCopyJSON:
-		return model.runCopy(connection, tab, copyResultJSON)
+		return markTaken(model.runCopy(connection, tab, copyResultJSON))
 	case ActionCopyMarkdown:
-		return model.runCopy(connection, tab, copyResultMarkdown)
+		return markTaken(model.runCopy(connection, tab, copyResultMarkdown))
 	case ActionCopyInserts:
-		return model.runCopy(connection, tab, copyResultInsert)
-	case ActionDiscardChanges:
-		return model.requestDiscardChanges(connection, tab)
+		return markTaken(model.runCopy(connection, tab, copyResultInsert))
 	case ActionOpenMenu:
 		connection.Open(app.Overlay{
 			Kind: app.OverlayActionMenu, Title: model.describeGridMenuTitle(tab, shape),
 			Draft:   app.NewEditorBuffer("", 0),
 			Actions: model.buildGridMenu(connection, tab, shape),
 		})
+	default:
+		return model, nil, false
 	}
-
-	// A move towards the foot of the grid reads the next page before the cursor gets
-	// there. A move to the first row needs none, and a move between columns moves no row.
-	switch match.Action {
-	case ActionCursorUp, ActionCursorDown, ActionCursorPageUp, ActionCursorPageDown,
-		ActionCursorLastRow:
-		return model, model.approachGridEnd(connection, tab, tab.GridRow, rowCount)
-	}
-	return model, nil
+	return model, nil, true
 }
 
 // runPlanAction returns the keys of the plan view, which is drawn in place of the grid.
