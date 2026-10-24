@@ -225,7 +225,8 @@ func holdsQueryPlan(scene keyScene) bool {
 
 // runsQuery is true while a statement runs, which is the only time one can be cancelled.
 func runsQuery(scene keyScene) bool {
-	return scene.tab.Results.State().Kind == app.QueryRunning
+	_, writing := scene.connection.FindWrite()
+	return writing || scene.tab.Results.State().Kind == app.QueryRunning
 }
 
 // stagesChanges is true where the grid holds a change that is not written yet.

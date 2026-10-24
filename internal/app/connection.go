@@ -185,6 +185,8 @@ type Connection struct {
 	// The context of the statements the user runs, and its cancel function.
 	runs     context.Context
 	stopRuns context.CancelFunc
+	// The labels of the writes and transaction steps that run now.
+	writes []string
 
 	// The cached object tree and its input fingerprint.
 	treeAt     treeFingerprint
@@ -322,6 +324,31 @@ func (connection *Connection) StopRuns() {
 	}
 	connection.stopRuns()
 	connection.runs, connection.stopRuns = nil, nil
+}
+
+// BeginWrite marks a write or a transaction step as running, and returns the run context
+// it runs on. StopRuns cancels it.
+func (connection *Connection) BeginWrite(label string) context.Context {
+	connection.writes = append(connection.writes, label)
+	return connection.RunContext()
+}
+
+// EndWrite takes one running write with this label off.
+func (connection *Connection) EndWrite(label string) {
+	for at, held := range connection.writes {
+		if held == label {
+			connection.writes = append(connection.writes[:at], connection.writes[at+1:]...)
+			return
+		}
+	}
+}
+
+// FindWrite returns the label of the write that runs now.
+func (connection *Connection) FindWrite() (string, bool) {
+	if len(connection.writes) == 0 {
+		return "", false
+	}
+	return connection.writes[0], true
 }
 
 // Show displays an informational notice.

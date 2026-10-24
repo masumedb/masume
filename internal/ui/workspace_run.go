@@ -1131,6 +1131,9 @@ func buildStatistics(tab *app.Tab) []app.Statistic {
 
 // readChangesAnswer reports what applying the staged work did.
 func (model *Model) readChangesAnswer(answered changesAppliedMsg) (tea.Model, tea.Cmd) {
+	if connection, _, found := model.findConnection(answered.ConnectionID); found {
+		connection.EndWrite(saveWriteLabel)
+	}
 	connection, tab, found := model.findConnectionTab(answered.ConnectionID, answered.TabID)
 	if !found {
 		return model, nil
@@ -1166,6 +1169,7 @@ func (model *Model) readTransactionAnswer(answered transactionRanMsg) (tea.Model
 	if !found {
 		return model, nil
 	}
+	connection.EndWrite(answered.Label)
 	if answered.Problem != "" {
 		connection.ShowError(answered.Problem)
 		return model, nil
@@ -1230,15 +1234,14 @@ func (model *Model) applyStagedChanges(
 		return model.askWithStagedPlan(connection, tab, changes)
 	}
 	tab.Applying = true
-	return model, applyChanges(model.ActiveID(), tab.ID, connection.Session, changes,
-		connection.Autocommit, nil, "")
+	return model, applyChanges(connection, model.ActiveID(), tab.ID, changes, nil, "")
 }
 
 // askToApplyOneAtATime asks before applying changes without a shared transaction.
 func (model *Model) askToApplyOneAtATime(
 	connection *app.Connection, tab *app.Tab, changes []db.Change,
 ) (tea.Model, tea.Cmd) {
-	id, tabID, session := model.ActiveID(), tab.ID, connection.Session
+	id, tabID := model.ActiveID(), tab.ID
 	connection.Open(app.Overlay{
 		Kind:  app.OverlayConfirm,
 		Title: " apply one at a time ", Yes: "apply", Destructive: true,
@@ -1250,7 +1253,7 @@ func (model *Model) askToApplyOneAtATime(
 				return nil
 			}
 			tab.Applying = true
-			return carryAnswer(applyChanges(id, tabID, session, changes, connection.Autocommit, nil, ""))
+			return carryAnswer(applyChanges(connection, id, tabID, changes, nil, ""))
 		}},
 	})
 	return model, nil

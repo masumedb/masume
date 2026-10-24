@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"context"
 	"strconv"
 	"strings"
 
@@ -184,11 +183,12 @@ func (model *Model) opensNotebookTransaction(
 func (model *Model) beginThen(connection *app.Connection, next tea.Cmd) tea.Cmd {
 	session := connection.Session
 	id := model.ActiveID()
+	ctx := connection.RunContext()
 	return func() tea.Msg {
-		if err := session.BeginTransaction(context.Background()); err != nil {
+		if err := session.BeginTransaction(ctx); err != nil {
 			return transactionRanMsg{
 				ConnectionID: id, Action: ActionBeginTransaction,
-				Problem: db.DescribeError(err),
+				Problem: describeRunError(ctx, err),
 			}
 		}
 		if next == nil {
@@ -204,11 +204,12 @@ func (model *Model) beginThen(connection *app.Connection, next tea.Cmd) tea.Cmd 
 func (model *Model) rollBackThen(connection *app.Connection, next tea.Cmd) tea.Cmd {
 	session := connection.Session
 	id := model.ActiveID()
+	ctx := connection.RunContext()
 	return func() tea.Msg {
-		if err := session.RollbackTransaction(context.Background()); err != nil {
+		if err := session.RollbackTransaction(ctx); err != nil {
 			return transactionRanMsg{
 				ConnectionID: id, Action: ActionRollbackTransaction,
-				Problem: db.DescribeError(err),
+				Problem: describeRunError(ctx, err),
 			}
 		}
 		if next == nil {
@@ -244,11 +245,13 @@ func (model *Model) closeNotebookRun(
 	book.HoldsTransaction = false
 	session := connection.Session
 	id := model.ActiveID()
+	label := describeTransactionStep(ActionCommitTransaction)
+	ctx := connection.BeginWrite(label)
 	return func() tea.Msg {
-		err := session.CommitTransaction(context.Background())
+		err := session.CommitTransaction(ctx)
 		return transactionRanMsg{
-			ConnectionID: id, Action: ActionCommitTransaction,
-			Problem: db.DescribeError(err),
+			ConnectionID: id, Action: ActionCommitTransaction, Label: label,
+			Problem: describeRunError(ctx, err),
 		}
 	}
 }

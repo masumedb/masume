@@ -118,6 +118,10 @@ func resolveWorkingStatus(connection *app.Connection) (tea.ProgramStatus, bool) 
 		status.Message = "AI chat answers"
 		return status, true
 	}
+	if label, writing := connection.FindWrite(); writing {
+		status.Message = "running " + label
+		return status, true
+	}
 	for _, tab := range connection.Tabs {
 		if tab.Results.IsRunning() {
 			status.Message = "running " + tab.Label()

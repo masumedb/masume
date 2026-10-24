@@ -506,7 +506,8 @@ func (model *Model) renderWorkspaceStatusBar() string {
 
 	active := tab.Results.Active()
 	hasResult := active != nil && active.State.Kind == app.QuerySucceeded
-	running := active != nil && active.State.Kind == app.QueryRunning
+	_, writing := connection.FindWrite()
+	running := writing || active != nil && active.State.Kind == app.QueryRunning
 	failed := active != nil && active.State.Kind == app.QueryFailed
 
 	hints := model.BuildHints(HintContext{
@@ -556,6 +557,9 @@ func (model *Model) describeStatus(
 			return model.writeProblemSign() + written, app.NoticeError
 		}
 		return written, app.NoticeActive
+	}
+	if label, writing := connection.FindWrite(); writing {
+		return "running " + label, app.NoticeActive
 	}
 
 	staged := core.CountChanges(tab.Pending)

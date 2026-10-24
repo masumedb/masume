@@ -28,6 +28,27 @@ func (session *slowSession) RunQuery(
 	return QueryResult{}, ctx.Err()
 }
 
+func (session *slowSession) CommitTransaction(ctx context.Context) error {
+	_, session.deadline = ctx.Deadline()
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+// A commit that waits for a lock is stopped at the limit of its profile.
+func TestMakeTimeLimitedStopsACommitThatPassesTheLimit(t *testing.T) {
+	inner := &slowSession{
+		profile: cfg.Profile{Name: "held", StatementTimeout: 20 * time.Millisecond},
+	}
+	session := MakeTimeLimited(inner)
+
+	if err := session.CommitTransaction(context.Background()); err == nil {
+		t.Fatal("the commit answered although it never ended")
+	}
+	if !inner.deadline {
+		t.Error("the commit ran with no deadline")
+	}
+}
+
 // A profile that named no limit runs as it is, so nothing is wrapped and no statement is
 // cut short.
 func TestMakeTimeLimitedLeavesAProfileWithNoLimit(t *testing.T) {

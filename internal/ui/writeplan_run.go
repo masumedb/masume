@@ -183,8 +183,7 @@ func (model *Model) readStagedPlanAnswer(answered stagedPlanBuiltMsg) (tea.Model
 	if !answered.Measured || !merged {
 		connection.CloseEveryOverlay()
 		tab.Applying = true
-		return model, applyChanges(id, tab.ID, connection.Session, changes,
-			connection.Autocommit, nil, "")
+		return model, applyChanges(connection, id, tab.ID, changes, nil, "")
 	}
 
 	undo := make([]writeplan.UndoPlan, 0, len(answered.Plans))
@@ -199,8 +198,7 @@ func (model *Model) readStagedPlanAnswer(answered stagedPlanBuiltMsg) (tea.Model
 				return nil
 			}
 			tab.Applying = true
-			return carryAnswer(applyChanges(id, tab.ID, connection.Session, changes,
-				connection.Autocommit, undo, plan.SQL))
+			return carryAnswer(applyChanges(connection, id, tab.ID, changes, undo, plan.SQL))
 		}},
 	})
 	return model, nil
@@ -260,7 +258,7 @@ func (model *Model) undoLastWrite(connection *app.Connection) (tea.Model, tea.Cm
 		return model, nil
 	}
 
-	id, session := model.ActiveID(), connection.Session
+	id := model.ActiveID()
 	connection.Open(app.Overlay{
 		Kind: app.OverlayConfirm, Title: " undo the write ",
 		Body:        describeUndoQuestion(*held, connection.Session.Dialect().Syntax),
@@ -270,7 +268,7 @@ func (model *Model) undoLastWrite(connection *app.Connection) (tea.Model, tea.Cm
 			if !confirmed {
 				return nil
 			}
-			return carryAnswer(applyUndo(id, session, held.Undo, connection.Autocommit))
+			return carryAnswer(applyUndo(connection, id, held.Undo))
 		}},
 	})
 	return model, nil
@@ -305,21 +303,23 @@ type undoWrittenMsg struct {
 	Problem      string
 }
 
-// applyUndo runs the undo, all of it or none.
-func applyUndo(
-	connectionID int, session db.Session, undo writeplan.Undo, autocommit bool,
-) tea.Cmd {
+// undoWriteLabel is the label of an undo while it runs.
+const undoWriteLabel = "undo"
+
+// applyUndo runs the undo, all of it or none, on the run context of the connection.
+func applyUndo(connection *app.Connection, connectionID int, undo writeplan.Undo) tea.Cmd {
+	session, autocommit := connection.Session, connection.Autocommit
+	ctx := connection.BeginWrite(undoWriteLabel)
 	return func() tea.Msg {
 		answered := undoWrittenMsg{
 			ConnectionID: connectionID, Table: undo.Table, Rows: undo.Rows,
 		}
-		ctx := context.Background()
 		err := beginManualTransaction(ctx, session, autocommit, "")
 		if err == nil {
 			err = session.ApplyChanges(ctx, undo.Changes)
 		}
 		if err != nil {
-			answered.Problem = db.DescribeError(err)
+			answered.Problem = describeRunError(ctx, err)
 		}
 		return answered
 	}
@@ -332,6 +332,7 @@ func (model *Model) readUndoAnswer(answered undoWrittenMsg) (tea.Model, tea.Cmd)
 	if !found {
 		return model, nil
 	}
+	connection.EndWrite(undoWriteLabel)
 	if answered.Problem != "" {
 		connection.ShowError(answered.Problem)
 		return model, nil

@@ -306,6 +306,9 @@ func (model *Model) isWaitingForSomething() bool {
 		if connection.Chat != nil && connection.Chat.IsStreaming() {
 			return true
 		}
+		if _, writing := connection.FindWrite(); writing {
+			return true
+		}
 		for _, tab := range connection.Tabs {
 			if tab.ViewData.Kind == app.DataLoading || tab.Results.IsRunning() ||
 				tab.Results.IsCounting() {
@@ -953,43 +956,67 @@ func (model *Model) askDiscardOnExit() bool {
 	if transactions > 0 {
 		model.confirm.Yes = "roll back and quit"
 	}
-	if sessions := model.findOpenTransactions(); len(sessions) > 0 {
-		model.confirm.Commit = func() tea.Cmd { return commitBeforeQuit(sessions) }
+	if connections := model.findOpenTransactions(); len(connections) > 0 {
+		model.confirm.Commit = func() tea.Cmd { return model.commitBeforeQuit(connections) }
 	}
 	return true
 }
 
-// findOpenTransactions returns the sessions that hold a transaction a commit can end.
-func (model *Model) findOpenTransactions() []db.Session {
-	sessions := []db.Session{}
+// findOpenTransactions returns the connections that hold a transaction a commit can end.
+func (model *Model) findOpenTransactions() []*app.Connection {
+	connections := []*app.Connection{}
 	for _, connection := range model.connections.all() {
 		if connection.Session.ReadTransactionState() == db.TransactionOpen {
-			sessions = append(sessions, connection.Session)
+			connections = append(connections, connection)
 		}
 	}
-	return sessions
+	return connections
 }
 
 // quitCommittedMsg reports the commits that run before the client ends.
 type quitCommittedMsg struct {
-	Problem string
+	// The connections whose commit was marked as running.
+	ConnectionIDs []int
+	Problem       string
 }
 
-// commitBeforeQuit commits the transaction of every session, and stops at the first that
-// fails.
-func commitBeforeQuit(sessions []db.Session) tea.Cmd {
+// quitCommitTimeout is the time limit for one commit before the client ends.
+const quitCommitTimeout = 30 * time.Second
+
+// commitBeforeQuit commits the transaction of every connection, and stops at the first that
+// fails. Each commit runs on the run context of its connection, within quitCommitTimeout.
+func (model *Model) commitBeforeQuit(connections []*app.Connection) tea.Cmd {
+	label := describeTransactionStep(ActionCommitTransaction)
+	ids := make([]int, 0, len(connections))
+	sessions := make([]db.Session, 0, len(connections))
+	contexts := make([]context.Context, 0, len(connections))
+	for _, connection := range connections {
+		ids = append(ids, model.connections.idOf(connection))
+		sessions = append(sessions, connection.Session)
+		contexts = append(contexts, connection.BeginWrite(label))
+	}
 	return func() tea.Msg {
-		for _, session := range sessions {
-			if err := session.CommitTransaction(context.Background()); err != nil {
-				return quitCommittedMsg{Problem: "commit failed: " + db.DescribeError(err)}
+		answered := quitCommittedMsg{ConnectionIDs: ids}
+		for at, session := range sessions {
+			ctx, stop := context.WithTimeout(contexts[at], quitCommitTimeout)
+			err := session.CommitTransaction(ctx)
+			stop()
+			if err != nil {
+				answered.Problem = "commit failed: " + describeRunError(ctx, err)
+				return answered
 			}
 		}
-		return quitCommittedMsg{}
+		return answered
 	}
 }
 
 // readQuitCommitted ends the client once every commit is done, and reports a failed one.
 func (model *Model) readQuitCommitted(answered quitCommittedMsg) (tea.Model, tea.Cmd) {
+	for _, id := range answered.ConnectionIDs {
+		if connection, _, found := model.findConnection(id); found {
+			connection.EndWrite(describeTransactionStep(ActionCommitTransaction))
+		}
+	}
 	if answered.Problem != "" {
 		if connection := model.Active(); connection != nil {
 			connection.ShowError(answered.Problem)

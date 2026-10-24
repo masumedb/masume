@@ -86,3 +86,21 @@ func (session *timeLimitedSession) ApplyChanges(ctx context.Context, changes []C
 	defer giveBack()
 	return session.Session.ApplyChanges(bound, changes)
 }
+
+func (session *timeLimitedSession) BeginTransaction(ctx context.Context) error {
+	bound, giveBack := session.buildLimitedContext(ctx)
+	defer giveBack()
+	return session.Session.BeginTransaction(bound)
+}
+
+func (session *timeLimitedSession) CommitTransaction(ctx context.Context) error {
+	bound, giveBack := session.buildLimitedContext(ctx)
+	defer giveBack()
+	return session.Session.CommitTransaction(bound)
+}
+
+func (session *timeLimitedSession) RollbackTransaction(ctx context.Context) error {
+	bound, giveBack := session.buildLimitedContext(ctx)
+	defer giveBack()
+	return session.Session.RollbackTransaction(bound)
+}

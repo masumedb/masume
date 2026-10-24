@@ -700,8 +700,9 @@ func (model *Model) runTransaction(
 ) (tea.Model, tea.Cmd) {
 	session := connection.Session
 	id := model.ActiveID()
+	label := describeTransactionStep(action)
+	ctx := connection.BeginWrite(label)
 	return model, func() tea.Msg {
-		ctx := context.Background()
 		var err error
 		switch action {
 		case ActionBeginTransaction:
@@ -712,8 +713,20 @@ func (model *Model) runTransaction(
 			err = session.RollbackTransaction(ctx)
 		}
 		return transactionRanMsg{
-			ConnectionID: id, Action: action, Problem: db.DescribeError(err),
+			ConnectionID: id, Action: action, Label: label, Problem: describeRunError(ctx, err),
 		}
+	}
+}
+
+// describeTransactionStep returns the label of a transaction step while it runs.
+func describeTransactionStep(action ActionID) string {
+	switch action {
+	case ActionBeginTransaction:
+		return "begin"
+	case ActionCommitTransaction:
+		return "commit"
+	default:
+		return "rollback"
 	}
 }
 
@@ -724,7 +737,7 @@ func (model *Model) cancelQuery(connection *app.Connection) (tea.Model, tea.Cmd)
 	// The cancel reaches whatever the server runs now, and that statement can belong to
 	// any tab of this connection. Every notebook that is running is stopped, and a run
 	// that starts again clears the stop.
-	running := false
+	_, running := connection.FindWrite()
 	for _, tab := range connection.Tabs {
 		if tab.Results.IsRunning() {
 			running = true
@@ -742,7 +755,9 @@ func (model *Model) cancelQuery(connection *app.Connection) (tea.Model, tea.Cmd)
 		}
 	}
 	return model, func() tea.Msg {
-		stopped, err := session.CancelRunningQuery(context.Background())
+		ctx, stop := context.WithTimeout(context.Background(), pingTimeout)
+		defer stop()
+		stopped, err := session.CancelRunningQuery(ctx)
 		return cancelledMsg{
 			ConnectionID: id, Stopped: stopped, Problem: db.DescribeError(err),
 		}
@@ -1287,7 +1302,9 @@ func (model *Model) readNamedTableDetails(
 type transactionRanMsg struct {
 	ConnectionID int
 	Action       ActionID
-	Problem      string
+	// The label of the running write the step ends, or empty.
+	Label   string
+	Problem string
 }
 
 // cancelledMsg returns an attempt at stopping the running statement.

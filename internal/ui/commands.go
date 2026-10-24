@@ -691,13 +691,17 @@ func readObjectDDL(
 	}
 }
 
-// applyChanges sends the staged changes to the session.
+// saveWriteLabel is the label of a grid save while it runs.
+const saveWriteLabel = "save"
+
+// applyChanges sends the staged changes to the session, on the run context of the connection.
 func applyChanges(
-	connectionID, tabID int, session db.Session, changes []db.Change, autocommit bool,
+	connection *app.Connection, connectionID, tabID int, changes []db.Change,
 	undo []writeplan.UndoPlan, shown string,
 ) tea.Cmd {
+	session, autocommit := connection.Session, connection.Autocommit
+	ctx := connection.BeginWrite(saveWriteLabel)
 	return func() tea.Msg {
-		ctx := context.Background()
 		var kept writeplan.Undo
 		err := beginManualTransaction(ctx, session, autocommit, "")
 		if err == nil {
@@ -708,7 +712,7 @@ func applyChanges(
 		}
 		if err != nil {
 			return changesAppliedMsg{
-				ConnectionID: connectionID, TabID: tabID, Problem: db.DescribeError(err),
+				ConnectionID: connectionID, TabID: tabID, Problem: describeRunError(ctx, err),
 			}
 		}
 		return changesAppliedMsg{
