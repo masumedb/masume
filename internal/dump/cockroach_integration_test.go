@@ -141,6 +141,14 @@ func TestCockroachDumpRestoresIntoAnEmptyDatabase(t *testing.T) {
 	checkNextNumbers(t, copied)
 }
 
+func TestCockroachListsTheSequenceOfAnIdentityColumn(t *testing.T) {
+	source := openCockroachSource(t)
+	checkIdentitySequences(t, source, "public", map[string]bool{
+		"events_id_seq": true,
+		"ticket_number": false,
+	})
+}
+
 func TestCockroachSchemaAndRowsDumpsRestoreIntoAnEmptyDatabase(t *testing.T) {
 	source := openCockroachSource(t)
 	schemaPath, schema := writeCockroachDump(t, source, dump.Options{Content: dump.ContentSchema})

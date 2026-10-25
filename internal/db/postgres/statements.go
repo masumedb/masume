@@ -156,29 +156,30 @@ var listSchemaObjectsSQL = `
          'function' as kind,
          pg_get_function_result(p.oid) as detail,
          p.oid::text as identity,
-         '' as events
+         '' as events,
+         exists (select 1 from pg_depend d
+                  where d.classid = 'pg_proc'::regclass and d.objid = p.oid
+                    and d.deptype = 'i') as is_dependent
     from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace
    where ` + buildSystemSchemaFilter("n.nspname") + `
      and p.prokind in ('f', 'p')
-     and not exists (select 1 from pg_depend d
-                      where d.classid = 'pg_proc'::regclass and d.objid = p.oid
-                        and d.deptype = 'i')
   union all
-  select n.nspname, c.relname, 'sequence', '', c.oid::text, ''
+  select n.nspname, c.relname, 'sequence', '', c.oid::text, '',
+         exists (select 1 from pg_depend d
+                  where d.classid = 'pg_class'::regclass and d.objid = c.oid
+                    and d.deptype = 'i')
     from pg_class c
     join pg_namespace n on n.oid = c.relnamespace
    where c.relkind = 'S'
      and ` + buildSystemSchemaFilter("n.nspname") + `
-     and not exists (select 1 from pg_depend d
-                      where d.classid = 'pg_class'::regclass and d.objid = c.oid
-                        and d.deptype = 'i')
   union all
   select n.nspname, t.typname, 'type',
          case t.typtype when 'e' then 'enum' when 'c' then 'composite' when 'd' then 'domain'
               when 'r' then 'range' else 'type' end,
          t.oid::text,
-         ''
+         '',
+         false
     from pg_type t
     join pg_namespace n on n.oid = t.typnamespace
    where ` + buildSystemSchemaFilter("n.nspname") + `
@@ -186,7 +187,8 @@ var listSchemaObjectsSQL = `
      and not exists (select 1 from pg_class c where c.oid = t.typrelid and c.relkind <> 'c')
   union all
   select n.nspname, tg.tgname, 'trigger', c.relname, tg.oid::text,
-         ` + triggerEventsSQL + `
+         ` + triggerEventsSQL + `,
+         false
     from pg_trigger tg
     join pg_class c     on c.oid = tg.tgrelid
     join pg_namespace n on n.oid = c.relnamespace

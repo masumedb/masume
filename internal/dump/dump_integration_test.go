@@ -6,6 +6,7 @@ package dump_test
 
 import (
 	"context"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -744,6 +745,42 @@ func TestPostgresDumpRestoresIntoAnEmptyDatabase(t *testing.T) {
 	}
 	if found := schemadiff.Compare(source, target); len(found) != 0 {
 		t.Errorf("the restored schema differs:\n%s", schemadiff.WriteReport(found))
+	}
+}
+
+func TestPostgresListsTheSequenceOfAnIdentityColumn(t *testing.T) {
+	session := dbtest.Open(t, dbtest.Postgres)
+	dbtest.RunStatements(t, session, dropRestoreSchema, restoreSchema)
+	t.Cleanup(func() {
+		_, _ = session.RunQuery(
+			context.Background(), dropRestoreSchema, dbtest.ReadEverything, nil)
+	})
+	checkIdentitySequences(t, session, "masume_restore", map[string]bool{
+		"customers_id_seq": false,
+		"events_id_seq":    true,
+		"orders_id_seq":    true,
+		"ticket_number":    false,
+	})
+}
+
+// checkIdentitySequences checks that the schema has exactly the sequences, each with its
+// identity flag.
+func checkIdentitySequences(
+	t *testing.T, session db.Session, schema string, wanted map[string]bool,
+) {
+	t.Helper()
+	objects, err := session.ListSchemaObjects(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	held := map[string]bool{}
+	for _, object := range objects {
+		if object.Schema == schema && object.Kind == db.ObjectSequence {
+			held[object.Name] = object.IsDependent
+		}
+	}
+	if !maps.Equal(held, wanted) {
+		t.Errorf("sequences: %v, want %v", held, wanted)
 	}
 }
 

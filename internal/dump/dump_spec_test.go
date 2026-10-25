@@ -324,6 +324,30 @@ func TestWriteNamedTablesSkipsAnObjectNamedLikeAColumn(t *testing.T) {
 	}
 }
 
+func TestWriteSkipsTheSequenceOfAnIdentityColumn(t *testing.T) {
+	server := buildServer()
+	server.ddl["orders"] = []string{
+		"create table public.orders (", "    id integer generated always as identity", ");",
+	}
+	server.objects = append(server.objects, db.SchemaObject{
+		Schema: "public", Name: "orders_id_seq", Kind: db.ObjectSequence, IsDependent: true,
+	})
+	server.objectDDL["orders_id_seq"] = []string{"create sequence public.orders_id_seq;"}
+	for _, tables := range [][]db.TableRef{
+		nil, {{Schema: "public", Name: "orders", Kind: db.RelationTable}},
+	} {
+		written := &strings.Builder{}
+		if _, err := dump.Write(context.Background(), server, dump.Options{
+			Schema: "public", Content: dump.ContentAll, Tables: tables,
+		}, written); err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(written.String(), "orders_id_seq") {
+			t.Errorf("tables %v: the dump creates the identity sequence:\n%s", tables, written)
+		}
+	}
+}
+
 func TestWriteNamedTablesWritesATypeInFrontOfTheTypeThatUsesIt(t *testing.T) {
 	server := buildServer()
 	server.ddl["orders"] = []string{"create table public.orders (", "    feeling cheerful", ");"}

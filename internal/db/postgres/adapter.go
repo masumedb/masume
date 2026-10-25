@@ -559,6 +559,7 @@ func (session *postgresSession) ListSchemaObjects(ctx context.Context) ([]db.Sch
 			Schema: db.ReadAnyText(row["schema"]), Name: db.ReadAnyText(row["name"]),
 			Kind: db.SchemaObjectKind(kind), Detail: db.ReadAnyText(row["detail"]),
 			Events: db.ReadAnyText(row["events"]), Identity: db.ReadAnyText(row["identity"]),
+			IsDependent: row["is_dependent"] == true,
 		})
 	}
 	return objects, nil

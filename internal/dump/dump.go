@@ -210,7 +210,7 @@ func BuildPlan(ctx context.Context, server Server, options Options) (Plan, error
 		return Plan{}, objectErr
 	}
 	for _, object := range objects {
-		if object.Schema != options.Schema {
+		if object.Schema != options.Schema || object.IsDependent {
 			continue
 		}
 		if slices.Contains(beforeTables, object.Kind) {
@@ -252,7 +252,7 @@ func findUsedObjects(
 		held := definitions[read]
 		for at, object := range objects {
 			name, schema := strings.ToLower(object.Name), strings.ToLower(object.Schema)
-			if isUsed[at] || !slices.Contains(tableObjects, object.Kind) ||
+			if isUsed[at] || object.IsDependent || !slices.Contains(tableObjects, object.Kind) ||
 				!holdsWord(held.text, name) ||
 				(object.Schema != held.schema && !holdsWord(held.text, schema)) {
 				continue

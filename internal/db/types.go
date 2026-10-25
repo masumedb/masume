@@ -280,6 +280,9 @@ type SchemaObject struct {
 	Events string
 	// A DDL lookup identifies a function by its argument types.
 	Identity string
+	// IsDependent is true for an object the server made with another one: the sequence of an
+	// identity column, or a constructor of a range type.
+	IsDependent bool
 }
 
 // SequenceValue is the current value of one sequence.
