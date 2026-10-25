@@ -54,8 +54,10 @@ type Handle struct {
 
 	// The mutex guards the client, which a dropped SSH session replaces, and the open
 	// forwards.
-	guard   sync.Mutex
-	client  *ssh.Client
+	guard  sync.Mutex
+	client *ssh.Client
+	// ended closes when the connection of the client ends.
+	ended   chan struct{}
 	stopped bool
 	// The local connections of the open forwards.
 	forwards   map[net.Conn]struct{}
@@ -132,45 +134,46 @@ func Open(settings Settings, host string, port int) (*Handle, error) {
 	handle := &Handle{
 		client: client, listener: listener, server: server, config: config,
 		target:   net.JoinHostPort(host, strconv.Itoa(port)),
-		forwards: map[net.Conn]struct{}{},
+		forwards: map[net.Conn]struct{}{}, ended: make(chan struct{}),
 	}
-	go handle.watchClient(client)
+	go handle.watchClient(client, handle.ended)
 	go handle.acceptConnections()
 	return handle, nil
 }
 
-// readClient returns the current SSH client.
-func (handle *Handle) readClient() *ssh.Client {
+// readClient returns the current SSH client, and the channel that closes when its
+// connection ends.
+func (handle *Handle) readClient() (*ssh.Client, <-chan struct{}) {
 	handle.guard.Lock()
 	defer handle.guard.Unlock()
-	return handle.client
+	return handle.client, handle.ended
 }
 
-// redial replaces the failed SSH client with a new one. A client that another forward
-// replaced already is returned as it is.
-func (handle *Handle) redial(failed *ssh.Client) (*ssh.Client, error) {
+// redial replaces the failed SSH client with a new one, and returns it with the channel
+// that closes when its connection ends. A client that another forward replaced already is
+// returned as it is.
+func (handle *Handle) redial(failed *ssh.Client) (*ssh.Client, <-chan struct{}, error) {
 	handle.guard.Lock()
 	defer handle.guard.Unlock()
 	if handle.stopped {
-		return nil, errors.New("the ssh tunnel is closed")
+		return nil, nil, errors.New("the ssh tunnel is closed")
 	}
 	if handle.client != failed {
-		return handle.client, nil
+		return handle.client, handle.ended, nil
 	}
 	_ = failed.Close()
 	client, err := ssh.Dial("tcp", handle.server, handle.config)
 	if err != nil {
-		return nil, fmt.Errorf("the ssh tunnel to %s failed: %w", handle.server, err)
+		return nil, nil, fmt.Errorf("the ssh tunnel to %s failed: %w", handle.server, err)
 	}
-	handle.client = client
-	go handle.watchClient(client)
-	return client, nil
+	handle.client, handle.ended = client, make(chan struct{})
+	go handle.watchClient(client, handle.ended)
+	return client, handle.ended, nil
 }
 
 // watchClient sends keepalive requests until the client closes, and closes a client whose
 // server stops answering.
-func (handle *Handle) watchClient(client *ssh.Client) {
-	closed := make(chan struct{})
+func (handle *Handle) watchClient(client *ssh.Client, closed chan struct{}) {
 	go func() {
 		_ = client.Wait()
 		close(closed)
@@ -249,15 +252,15 @@ func (handle *Handle) untrackForward(local net.Conn) {
 func (handle *Handle) forwardConnection(local net.Conn) {
 	defer handle.untrackForward(local)
 
-	client := handle.readClient()
-	remote, err := client.Dial("tcp", handle.target)
+	client, ended := handle.readClient()
+	remote, err := dialThrough(client.Dial, ended, handle.target)
 	var refused *ssh.OpenChannelError
 	if err != nil && !errors.As(err, &refused) {
-		reopened, redialErr := handle.redial(client)
+		reopened, reopenedEnded, redialErr := handle.redial(client)
 		if redialErr != nil {
 			return
 		}
-		remote, err = reopened.Dial("tcp", handle.target)
+		remote, err = dialThrough(reopened.Dial, reopenedEnded, handle.target)
 	}
 	if err != nil {
 		return
@@ -277,6 +280,37 @@ func (handle *Handle) forwardConnection(local net.Conn) {
 	_, _ = io.Copy(local, remote)
 	_ = local.Close()
 	<-sent
+}
+
+// errSessionEnded is the error of a dial over a client whose connection ended.
+var errSessionEnded = errors.New("the ssh session ended")
+
+// dialThrough opens a connection to the target with the dial of an SSH client. It returns
+// errSessionEnded once the connection of the client ends: golang.org/x/crypto/ssh never
+// answers a channel opened just after its connection ends.
+func dialThrough(
+	dial func(network, address string) (net.Conn, error), ended <-chan struct{}, target string,
+) (net.Conn, error) {
+	type dialed struct {
+		remote net.Conn
+		err    error
+	}
+	answered := make(chan dialed, 1)
+	go func() {
+		remote, err := dial("tcp", target)
+		answered <- dialed{remote, err}
+	}()
+	select {
+	case held := <-answered:
+		return held.remote, held.err
+	case <-ended:
+		go func() {
+			if held := <-answered; held.remote != nil {
+				_ = held.remote.Close()
+			}
+		}()
+		return nil, errSessionEnded
+	}
 }
 
 // buildClientConfig returns the SSH client config: auth methods and host key check.
