@@ -1,4 +1,4 @@
-# masume configuration examples. Values are not all defaults. See docs/configuration.md for defaults and docs/usage.md for workflows.
+# masume configuration examples. The file lists every setting and every key binding with its default chords. Values are not all defaults. See docs/configuration.md for defaults and docs/usage.md for workflows.
 #
 # The user file is $XDG_CONFIG_HOME/masume/config.toml, normally ~/.config/masume/config.toml, and %APPDATA%\masume\config.toml on Windows. Custom themes are in the adjacent themes directory.
 # The connection form saves profiles in the user file. Text outside the edited profile block stays unchanged.
@@ -103,9 +103,8 @@ wait_for_port   = 15432
 
 # Notebook directories. The list always holds <project root>/.masume/notebooks and
 # $XDG_STATE_HOME/masume/notebooks. See docs/notebooks.md.
-#
-# [notebooks]
-# paths = ["~/notes/sql"]
+[notebooks]
+paths = []   # example: ["~/notes/sql"]
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Setting reference. Commented values include defaults and examples. Connection addresses, credentials, colours and glyph overrides are examples.
@@ -134,6 +133,7 @@ wait_for_port   = 15432
 #                                     # yugabyte cassandra scylladb
 # host                 = "127.0.0.1"
 # port                 = 5432         # the default port of the engine when not set
+# other_hosts          = []           # postgres and mongodb families. more servers as host:port, such as ["db2:5432"]. not with ssh_host or srv
 # database             = "shop"       # the file path for sqlite, the database number for redis
 # user                 = "you"
 # auth                 = "password"   # password command prompt keyring secret
@@ -153,6 +153,10 @@ wait_for_port   = 15432
 # sslcert              = "~/.certs/client.pem"   # client certificate the server asks for
 # sslkey               = "~/.certs/client.key"   # private key of sslcert. set with sslcert
 # direct_connection    = false        # mongodb and documentdb. true connects to host only, without replica set discovery
+# srv                  = false        # mongodb. true reads the hosts from the SRV record of host, as a mongodb+srv URL does. not with ssh_host or direct_connection
+# auth_source          = "admin"      # mongodb and documentdb. the database with the user
+# replica_set          = "rs0"        # mongodb and documentdb. the replica set name
+# options              = { connect_timeout = "5" }   # driver options. See docs/configuration.md#driver-options
 # statement_timeout_ms = 0            # time limit per statement. 0 uses the server default
 # keepalive_s          = 30           # seconds between connection checks. 0 disables the keepalive
 # page_size            = 200          # rows the grid loads per page
@@ -177,17 +181,28 @@ wait_for_port   = 15432
 # Environment defaults apply to absent file settings. Changing env in the form does not change confirmation.
 # Undo covers eligible single updates, deletes and truncates. Captured target rows exclude cascades and trigger effects.
 # A later undo can overwrite newer values. Grid changes and imports retain no undo. See docs/configuration.md for eligibility and failures.
-# Each engine has its own default sslmode and its own allow and prefer behaviour. See docs/configuration.md#tls.
+# Default sslmode per engine. See docs/configuration.md#tls.
+#   require: Redshift, Neon, Supabase, PlanetScale, Turso, Azure SQL Database, Amazon DocumentDB
+#   unset, the same as prefer: PostgreSQL, CockroachDB, TimescaleDB, YugabyteDB, Aurora PostgreSQL, MySQL, MariaDB, TiDB, Aurora MySQL, SQL Server, ClickHouse
+#   unset, no TLS: MongoDB, Redis, Cassandra, ScyllaDB
+# allow and prefer per engine:
+#   TLS, no certificate check, unencrypted fallback: the PostgreSQL and MySQL families
+#   TLS, no certificate check, no unencrypted fallback: MongoDB, Amazon DocumentDB
+#   TLS, no certificate check: Redis, Cassandra, ScyllaDB
+#   login encrypted, rest of the session unencrypted: SQL Server, Azure SQL Database
+#   no TLS, plain HTTP: ClickHouse
+#   wss://: Turso
+# ClickHouse uses HTTP on port 8123, and HTTPS on port 8443 with require, verify-ca or verify-full. SQLite ignores TLS.
 # Relative SQLite paths in a project file use the project directory. Other relative SQLite paths use the startup directory.
 
-# [ui]
-# icons               = "plain"   # plain ascii nerd
-# theme               = "ayu-dark" # system, a built-in theme, or a custom theme from the themes directory.
-# hide_system_schemas = true      # false lists pg_catalog and other system schemas in the tree
-# key_hints           = "full"    # full main off. main names the primary keys only, off names none
-# timezone            = "server"  # server utc local. the zone of a timestamp with a time zone in the grid
-# wrap_lines          = false     # true wraps a long editor line. alt+l turns it on or off for the session
-# notify_after        = 10        # seconds. a longer run that ends while the window is not focused posts a desktop notification. 0 is off
+[ui]
+icons               = "plain"    # plain ascii nerd
+theme               = "ayu-dark" # system, a built-in theme, or a custom theme from the themes directory.
+hide_system_schemas = true       # false lists pg_catalog and other system schemas in the tree
+key_hints           = "full"     # full main off. main names the primary keys only, off names none
+timezone            = "server"   # server utc local. the zone of a timestamp with a time zone in the grid
+wrap_lines          = false      # true wraps a long editor line. alt+l turns it on or off for the session
+notify_after        = 10         # seconds. a longer run that ends while the window is not focused posts a desktop notification. 0 is off
 
 # Example glyph overrides by row kind. An empty string hides that glyph.
 # These examples are Nerd Font glyphs. A terminal without that font draws empty boxes.
@@ -280,19 +295,312 @@ wait_for_port   = 15432
 # env_test     = "#e0af68"
 # env_prod     = "#f7768e"
 
-# Key bindings by scope. A configured action replaces the preset binding. Unlisted actions
-# retain the preset binding. An empty list removes the binding. docs/keys.md lists every
-# scope, action and default chord.
+# Key bindings by scope, with default preset chords. A configured action replaces the preset binding.
+# Unlisted actions retain the preset binding. An empty list removes the binding. docs/keys.md describes every action.
 #
-# [keys]
-# preset = "default"
+[keys]
+preset = "default"
 #
-# [keys.global]
-# refresh-objects = []
-# run-at-cursor   = ["ctrl+r", "f5"]
+# [keys.global]   # handled in every pane
+# activate-tab         = ["meta+digit"]
+# ai-fix-error         = ["ctrl+h"]
+# apply-suggestion       = ["meta+a"]
+# begin-transaction    = ["ctrl+b"]
+# cancel-query         = ["ctrl+x"]
+# close-connection     = ["ctrl+w"]
+# close-tab            = ["meta+w"]
+# commit-transaction   = ["ctrl+l"]
+# explain              = ["ctrl+e"]
+# explain-analyze      = ["ctrl+y"]
+# export-csv           = ["ctrl+s"]
+# export-json          = ["ctrl+g"]
+# flip-split-view      = ["meta+shift+v"]
+# focus-editor         = ["meta+p e"]
+# focus-next-pane      = ["tab"]
+# focus-other-side     = ["meta+p v"]
+# focus-previous-pane  = ["shift+tab"]
+# focus-result         = ["meta+p r"]
+# focus-sidebar        = ["meta+p s"]
+# move-tab-left          = ["meta+shift+up"]
+# move-tab-right         = ["meta+shift+down"]
+# move-tab-to-other-side = ["meta+p m"]
+# name-tab             = ["meta+t"]
+# new-builder-tab        = ["meta+j"]
+# new-notebook-tab       = ["meta+b", "meta+shift+n"]
+# new-query-tab        = ["meta+n"]
+# next-connection      = ["}", "meta+right"]
+# next-page            = ["ctrl+f"]
+# next-statement       = ["'"]
+# next-tab             = ["]", "meta+down"]
+# next-view            = ["."]
+# notebook-run-policy    = ["meta+o p"]
+# open-picker          = ["ctrl+n"]
+# previous-connection  = ["{", "meta+left"]
+# previous-statement   = [";"]
+# previous-tab         = ["[", "meta+up"]
+# previous-view        = [","]
+# refresh-objects      = ["f5"]
+# reopen-tab           = ["meta+shift+w"]
+# reveal-sql           = ["meta+e"]
+# rollback-transaction = ["ctrl+u"]
+# run-at-cursor        = ["ctrl+r"]
+# run-batch            = ["meta+r"]
+# save-query           = ["ctrl+p"]
+# select-view          = ["digit"]
+# send-to-ai           = ["meta+i"]
+# show-activity        = ["meta+o a"]
+# show-ai-chat         = ["ctrl+i"]
+# show-help            = ["?"]
+# show-history         = ["ctrl+t"]
+# show-notebooks         = ["meta+o n"]
+# show-palette         = ["ctrl+k"]
+# show-saved           = ["ctrl+q"]
+# show-themes          = ["meta+o t"]
+# toggle-autocommit    = ["ctrl+o"]
+# toggle-result        = ["meta+d"]
+# toggle-sidebar       = ["meta+s"]
+# toggle-split-view    = ["meta+v"]
+# undo-write           = ["meta+u"]
+# write-notebook-report  = ["meta+o r"]
 #
-# [keys.grid]
-# copy-menu = ["alt+y"]
+# [keys.grid]   # the rows of the result
+# add-sort-column    = ["shift+s"]
+# choose-columns     = ["shift+h"]
+# clear-rewrites     = ["c"]
+# compare-result     = ["="]
+# copy-csv           = ["shift+c c"]
+# copy-inserts       = ["shift+c i"]
+# copy-json          = ["shift+c j"]
+# copy-markdown      = ["shift+c m"]
+# copy-menu          = ["y"]
+# count-rows         = ["t"]
+# cursor-down        = ["down"]
+# cursor-first-row   = ["home"]
+# cursor-last-row    = ["end"]
+# cursor-left        = ["left"]
+# cursor-page-down   = ["pagedown"]
+# cursor-page-up     = ["pageup"]
+# cursor-right       = ["right"]
+# cursor-up          = ["up"]
+# discard-changes    = ["shift+x"]
+# duplicate-row      = ["shift+d"]
+# edit-cell          = ["e"]
+# exclude-cell       = ["x"]
+# filter-by-cell     = ["f"]
+# filter-by-values   = ["shift+f"]
+# filter-where       = ["w"]
+# follow-foreign-key = ["g"]
+# freeze-columns     = ["z"]
+# go-to-column       = ["a"]
+# hide-column        = ["h"]
+# insert-row         = ["n"]
+# move-column-left   = ["meta+shift+left"]
+# move-column-right  = ["meta+shift+right"]
+# open-menu          = ["m"]
+# open-row           = ["return"]
+# pin-result         = ["shift+p"]
+# pop-filter         = ["u"]
+# redo-change        = ["ctrl+shift+z", "shift+z"]
+# review-changes     = ["p"]
+# search-columns     = ["/"]
+# sort-column        = ["s"]
+# toggle-delete      = ["d"]
+# toggle-masking     = ["shift+m"]
+# undo-change        = ["ctrl+z"]
+# view-cell          = ["v"]
+#
+# [keys.document]   # the document tree
+# clear-rewrites   = ["c"]
+# copy-path        = ["shift+y"]
+# copy-value       = ["y"]
+# count-rows       = ["t"]
+# cursor-down      = ["down"]
+# cursor-first-row = ["home"]
+# cursor-last-row  = ["end"]
+# cursor-page-down = ["pagedown"]
+# cursor-page-up   = ["pageup"]
+# cursor-up        = ["up"]
+# fold-row         = ["left"]
+# open-node        = ["return"]
+# pop-filter       = ["u"]
+# search-columns   = ["/"]
+# unfold-row       = ["right"]
+#
+# [keys.plan]   # the plan of a statement
+# ai-check-plan   = ["i"]
+# copy-plan       = ["y"]
+# toggle-raw-plan = ["r"]
+#
+# [keys.definition]   # the DDL view and the compare view
+# copy-definition = ["y"]
+# edit-definition = ["e"]
+# scroll-left     = ["left"]
+# scroll-right    = ["right"]
+#
+# [keys.tree]   # the object tree
+# cursor-down           = ["down"]
+# cursor-first-row      = ["home"]
+# cursor-last-row       = ["end"]
+# cursor-page-down      = ["pagedown"]
+# cursor-page-up        = ["pageup"]
+# cursor-up             = ["up"]
+# describe-table        = ["i"]
+# filter-tree           = ["/"]
+# fold-row              = ["left"]
+# object-menu           = ["m"]
+# open-in-new-tab       = ["meta+return", "o"]
+# open-node             = ["return"]
+# toggle-favourite      = ["f"]
+# toggle-system-schemas = ["h"]
+# unfold-row            = ["right"]
+#
+# [keys.editor]   # the statement, while the caret is in it
+# caret-down           = ["down", "shift+down"]
+# caret-left           = ["left", "shift+left"]
+# caret-line-end       = ["end", "shift+end"]
+# caret-line-start     = ["home", "shift+home"]
+# caret-page-down      = ["pagedown", "shift+pagedown"]
+# caret-page-up        = ["pageup", "shift+pageup"]
+# caret-right          = ["right", "shift+right"]
+# caret-text-end       = ["ctrl+end", "ctrl+shift+end"]
+# caret-text-start     = ["ctrl+home", "ctrl+shift+home"]
+# caret-up             = ["up", "shift+up"]
+# caret-word-left      = ["ctrl+left", "ctrl+shift+left"]
+# caret-word-right     = ["ctrl+right", "ctrl+shift+right"]
+# comment-lines        = ["meta+c"]
+# delete-back          = ["backspace"]
+# delete-forward       = ["delete"]
+# delete-word-back     = ["ctrl+backspace", "meta+backspace"]
+# delete-word-forward  = ["ctrl+delete", "meta+delete"]
+# find-in-statement    = ["meta+f"]
+# format-sql           = ["ctrl+d"]
+# indent-lines         = ["meta+]"]
+# leave-cell          = ["escape"]
+# next-match           = ["f3"]
+# next-problem         = ["f8"]
+# open-line            = ["return"]
+# outdent-lines        = ["meta+["]
+# paste-text           = ["ctrl+v"]
+# previous-match       = ["shift+f3"]
+# redo-edit            = ["ctrl+shift+z", "meta+z"]
+# replace-match       = ["f4"]
+# select-all           = ["ctrl+a"]
+# show-completion     = ["ctrl+space"]
+# toggle-wrap         = ["meta+l"]
+# undo-edit            = ["ctrl+z"]
+#
+# [keys.notebook]   # the cell list of a notebook tab
+# add-cell-above       = ["a"]
+# add-cell-below       = ["b"]
+# copy-cell            = ["y"]
+# cursor-down          = ["down", "j"]
+# cursor-first-row     = ["home"]
+# cursor-last-row      = ["end"]
+# cursor-up            = ["up", "k"]
+# cut-cell             = ["x"]
+# delete-cell          = ["d d"]
+# edit-cell-source     = ["return"]
+# mark-cell            = ["space"]
+# move-cell-down       = ["J"]
+# move-cell-up         = ["K"]
+# name-cell            = ["t"]
+# paste-cell           = ["p"]
+# redo-cell-change     = ["Z"]
+# run-cell             = ["r"]
+# run-from-cell        = ["R"]
+# run-marked-cells     = ["m"]
+# set-cell-kind        = ["c"]
+# toggle-cell-output   = ["o"]
+# toggle-every-output  = ["O"]
+# undo-cell-change     = ["u"]
+#
+# [keys.builder]   # the diagram of a query builder tab
+# add-filter     = ["w"]
+# add-table      = ["t"]
+# cursor-down    = ["down", "j"]
+# cursor-up      = ["up", "k"]
+# drop-row       = ["x"]
+# edit-row       = ["return"]
+# next-table     = ["right", "l"]
+# pick-column    = ["space"]
+# previous-table = ["left", "h"]
+# send-to-editor = ["e"]
+#
+# [keys.list]   # any list with its own cursor
+# choose-row       = ["return"]
+# cursor-down      = ["down"]
+# cursor-first-row = ["home"]
+# cursor-last-row  = ["end"]
+# cursor-page-down = ["pagedown"]
+# cursor-page-up   = ["pageup"]
+# cursor-up        = ["up"]
+#
+# [keys.dialog]   # the active dialog card
+# accept-completion    = ["tab"]
+# answer-no         = ["n"]
+# answer-yes        = ["y"]
+# apply-changes     = ["ctrl+y"]
+# apply-step           = ["return"]
+# ask-ai-again         = ["ctrl+r"]
+# chat-to-notebook     = ["ctrl+g"]
+# close             = ["escape"]
+# copy-ai-reply        = ["ctrl+a"]
+# copy-value        = ["ctrl+a", "y"]
+# delete-connection = ["d"]
+# discard-changes   = ["x"]
+# edit-cell            = ["e"]
+# edit-connection   = ["e"]
+# filter-connections   = ["/"]
+# fold-row             = ["left"]
+# follow-foreign-key   = ["g"]
+# follow-table         = ["g"]
+# insert-ai-sql     = ["ctrl+j"]
+# keep-all-values   = ["a"]
+# keep-only-value   = ["o"]
+# leave-directory      = ["left"]
+# list-models          = ["ctrl+t"]
+# list-secondary    = ["ctrl+d"]
+# new-ai-chat       = ["ctrl+l"]
+# new-connection    = ["n"]
+# next-field           = ["down", "tab"]
+# next-row             = ["right"]
+# next-table           = ["tab"]
+# next-turn         = ["ctrl+n"]
+# next-value           = ["right"]
+# open-directory       = ["right"]
+# open-in-new-tab   = ["meta+return"]
+# prettify-json     = ["ctrl+f"]
+# previous-field       = ["up"]
+# previous-row         = ["left"]
+# previous-table       = ["shift+tab"]
+# previous-turn     = ["ctrl+p"]
+# previous-value       = ["left"]
+# replace-in-statement = ["ctrl+r"]   # in the find field, replace the matches instead of marking them
+# reverse-session-sort = ["S"]
+# run-with-values   = ["ctrl+r"]
+# save-cell         = ["ctrl+s"]
+# save-form         = ["ctrl+s"]
+# scroll-back       = ["pageup"]
+# scroll-forward    = ["pagedown"]
+# scroll-left          = ["left"]
+# scroll-right         = ["right"]
+# send-question        = ["return"]
+# set-default       = ["ctrl+d"]
+# set-empty         = ["ctrl+e"]
+# set-null          = ["ctrl+l"]
+# show-ai-chats     = ["ctrl+o"]
+# sort-sessions        = ["s"]
+# step-back            = ["escape"]
+# stop-ai-reply     = ["ctrl+x"]
+# stop-session         = ["x"]
+# test-connection   = ["ctrl+t"]
+# toggle-idle-sessions = ["i"]
+# toggle-statements    = ["s"]
+# toggle-value      = ["space"]
+# toggle-whole-word    = ["meta+w"]
+# unfold-row           = ["right"]
+# write-export      = ["ctrl+s"]
+# write-newline        = ["shift+return", "meta+return"]
 
 # The version masume wrote the file at. masume adds what a newer version brings to an older
 # file. See docs/configuration.md#file-version.
@@ -317,6 +625,7 @@ wait_for_port   = 15432
 # api_key      = ""                   # Default: empty.
 # base_url     = ""                   # Default: the provider address.
 # base_url_env = "ANTHROPIC_BASE_URL" # Example. Default: empty.
+# max_tool_steps = 25                 # maximum provider rounds for one question
 #
 # [ai.providers.openai]
 # model        = "gpt-5"
@@ -324,20 +633,25 @@ wait_for_port   = 15432
 # api_key      = ""                   # Default: empty.
 # base_url     = ""                   # Default: the provider address.
 # base_url_env = "OPENAI_BASE_URL"    # Example. Default: empty.
+# max_tool_steps = 25                 # maximum provider rounds for one question
 #
 # [ai.providers.grok]
 # model        = "grok-4.6"
 # api_key_env  = "XAI_API_KEY"
 # api_key      = ""                   # Default: empty.
 # base_url     = ""                   # Default: https://api.x.ai/v1
+# base_url_env = "XAI_BASE_URL"       # Example. Default: empty.
+# max_tool_steps = 25                 # maximum provider rounds for one question
 #
 # Any server with the OpenAI chat completions endpoint: Ollama, LM Studio, llama.cpp, vLLM.
-# base_url and model are required. api_key is optional.
+# model and base_url or base_url_env are required. api_key and api_key_env are optional.
 #
 # [ai.providers.openai_compatible]
 # model          = "qwen3-coder:30b"
 # base_url       = "http://localhost:11434"
 # api_key        = ""                 # Default: empty.
+# api_key_env    = "LLM_API_KEY"      # Example. Default: empty.
+# base_url_env   = "LLM_BASE_URL"     # Example. Default: empty.
 # max_tool_steps = 25                 # maximum provider rounds for one question
 
 # A coding agent, reached over the Agent Client Protocol. masume runs the command as a child

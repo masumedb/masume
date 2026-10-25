@@ -2,7 +2,7 @@
 
 The user configuration file is `$XDG_CONFIG_HOME/masume/config.toml`. The default path is `~/.config/masume/config.toml`, and `%APPDATA%\masume\config.toml` on Windows. A repository can provide profiles and queries in a [project file](#project-file), `.masume.toml`.
 
-[`config.example.toml`](../config.example.toml) lists the settings and sample profiles. Not every example value is a default. The tables below list the defaults. [Usage](usage.md) covers the client workflows.
+[`config.example.toml`](../config.example.toml) lists every setting, every key binding with its default chords, and sample profiles. Not every example value is a default. The tables below list the defaults. [Usage](usage.md) covers the client workflows.
 
 If no file exists, the client, `masume --detect` and `masume --mcp` create a starter file. `masume run` does not. The connection form saves profiles in the user configuration file. A save leaves text outside the edited profile block unchanged, but a rewritten assignment can lose its inline comment.
 
