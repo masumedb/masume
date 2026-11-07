@@ -574,9 +574,15 @@ func TestTheEditorStaysFastWhileTheTabConnects(t *testing.T) {
 		<-release
 		return open(ctx)
 	}
-	defer close(release)
-
 	opened := make(chan struct{})
+	defer func() {
+		close(release)
+		select {
+		case <-opened:
+		case <-time.After(5 * time.Second):
+			t.Error("the background open did not finish after the release")
+		}
+	}()
 	go func() {
 		model.openActiveTabSession()()
 		close(opened)
