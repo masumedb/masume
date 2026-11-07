@@ -1535,7 +1535,7 @@ func (model *Model) startExport(
 	connection *app.Connection, tab *app.Tab, path string, overlay app.Overlay,
 ) tea.Cmd {
 	active := tab.Results.Active()
-	session := connection.Session
+	session := connection.ResolveTabSession(tab)
 	id := model.ActiveID()
 	read := active.Read
 	loaded := active.State.Result

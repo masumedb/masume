@@ -526,7 +526,7 @@ func (model *Model) applyChatEvent(connection *app.Connection, event app.ChatEve
 		connection.Catalog.Details[present.BuildTableID(event.Table)] =
 			present.TableDetailState{Kind: present.DetailReady, Detail: event.Detail}
 	case app.ChatUndoKept:
-		connection.KeepUndo(event.Undo, event.Text, time.Now())
+		connection.KeepUndo(0, event.Undo, event.Text, time.Now())
 		chat.Notice = model.describeWriteOutcome(event.Undo)
 	case app.ChatHistoryFailed:
 		model.reportHistoryFailure(connection, event.Problem)

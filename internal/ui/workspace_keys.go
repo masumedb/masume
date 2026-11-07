@@ -509,11 +509,11 @@ func (model *Model) runResultAction(
 // runTransactionAction begins, ends or undoes a transaction, or switches autocommit. It
 // reports whether the action was one.
 func (model *Model) runTransactionAction(
-	connection *app.Connection, _ *app.Tab, match Match,
+	connection *app.Connection, tab *app.Tab, match Match,
 ) (tea.Model, tea.Cmd, bool) {
 	switch match.Action {
 	case ActionBeginTransaction, ActionCommitTransaction, ActionRollbackTransaction:
-		return markTaken(model.runTransaction(connection, match.Action))
+		return markTaken(model.runTransaction(connection, tab, match.Action))
 	case ActionToggleAutocommit:
 		connection.Autocommit = !connection.Autocommit
 		if connection.Autocommit {
@@ -659,9 +659,12 @@ func (model *Model) requestCloseTab(connection *app.Connection) (tea.Model, tea.
 	}
 	tab := connection.Active()
 	staged := core.CountChanges(tab.Pending)
-	if staged == 0 {
-		connection.CloseTab(connection.ActiveIndex)
+	if holdsTabTransaction(connection, tab) {
+		model.askCloseTabTransaction(connection, tab, staged)
 		return model, nil
+	}
+	if staged == 0 {
+		return model, closeTabSession(connection.CloseTab(connection.ActiveIndex))
 	}
 
 	// Closing a tab drops its staged work, so the question names the count and offers to
@@ -700,7 +703,7 @@ func (model *Model) closeTabAnswer(
 	switch chosen {
 	case "discard":
 		tab.DiscardChanges()
-		connection.CloseTab(index)
+		return closeTabSession(connection.CloseTab(index))
 	case "apply":
 		// A write the server refused leaves the work staged, so the tab stays open.
 		tab.ClosingAfterApply = true
@@ -708,6 +711,36 @@ func (model *Model) closeTabAnswer(
 		return command
 	}
 	return nil
+}
+
+// holdsTabTransaction is true where the session of the tab holds a transaction.
+func holdsTabTransaction(connection *app.Connection, tab *app.Tab) bool {
+	if !connection.HasTabSessions() {
+		return false
+	}
+	return connection.ReadTabTransactionState(tab) != db.TransactionNone ||
+		(tab.Notebook != nil && tab.Notebook.HoldsTransaction)
+}
+
+// askCloseTabTransaction asks before a tab with an open transaction is closed. Closing the
+// session of the tab rolls the transaction back.
+func (model *Model) askCloseTabTransaction(
+	connection *app.Connection, tab *app.Tab, staged int,
+) {
+	connection.Open(app.Overlay{
+		Kind:  app.OverlayConfirm,
+		Title: " close tab ",
+		Body:  describeUnwrittenWork("Closing", staged, 1),
+		Yes:   "roll back and close", No: "keep the tab", Destructive: true,
+		Answers: app.OverlayAnswers{Answer: func(confirmed bool) app.AnswerCommand {
+			index := connection.IndexOfTab(tab.ID)
+			if !confirmed || index < 0 {
+				return nil
+			}
+			tab.DiscardChanges()
+			return carryAnswer(closeTabSession(connection.CloseTab(index)))
+		}},
+	})
 }
 
 // requestCloseConnection closes the connection with every tab on it. It asks first when the
@@ -744,16 +777,20 @@ func (model *Model) requestCloseConnection(connection *app.Connection) (tea.Mode
 	return model, nil
 }
 
-// countConnectionWork returns the staged changes of every tab of the connection, and one for
-// a transaction open on its session.
+// countConnectionWork returns the staged changes of every tab of the connection, and the
+// sessions of the connection that hold a transaction.
 func countConnectionWork(connection *app.Connection) (staged int, transactions int) {
 	holds := connection.Session.ReadTransactionState() != db.TransactionNone
 	for _, tab := range connection.Tabs {
 		staged += core.CountChanges(tab.Pending)
+		if holdsTabTransaction(connection, tab) {
+			transactions++
+			continue
+		}
 		holds = holds || (tab.Notebook != nil && tab.Notebook.HoldsTransaction)
 	}
 	if holds {
-		transactions = 1
+		transactions++
 	}
 	return staged, transactions
 }
@@ -765,8 +802,9 @@ func (model *Model) closeConnection() (tea.Model, tea.Cmd) {
 		return model, nil
 	}
 	session, preConnect := connection.Session, connection.PreConnect
+	tabSessions := connection.TakeTabSessions()
 	model.closeActiveConnection()
-	return model, closeSession(session, preConnect)
+	return model, closeSession(session, preConnect, tabSessions...)
 }
 
 // closeActiveConnection takes the connection out of the list, and opens the picker where
@@ -786,14 +824,14 @@ func (model *Model) closeActiveConnection() {
 	}
 }
 
-// runTransaction opens, commits or rolls back the transaction of the user.
+// runTransaction opens, commits or rolls back the transaction of the tab.
 func (model *Model) runTransaction(
-	connection *app.Connection, action ActionID,
+	connection *app.Connection, tab *app.Tab, action ActionID,
 ) (tea.Model, tea.Cmd) {
-	session := connection.Session
+	session := connection.ResolveTabSession(tab)
 	id := model.ActiveID()
 	label := describeTransactionStep(action)
-	ctx := connection.BeginWrite(label)
+	ctx := connection.BeginWrite(tab, label)
 	return model, func() tea.Msg {
 		var err error
 		switch action {
@@ -822,26 +860,39 @@ func describeTransactionStep(action ActionID) string {
 	}
 }
 
-// cancelQuery asks the server to stop the statement that holds the connection, and stops an
-// export that streams at the same time.
+// cancelQuery asks the server to stop the statement of the active tab, and stops an export
+// that streams at the same time.
 func (model *Model) cancelQuery(connection *app.Connection) (tea.Model, tea.Cmd) {
+	exporting := connection.IsExporting()
 	connection.StopExport()
-	// The cancel reaches whatever the server runs now, and that statement can belong to
-	// any tab of this connection. Every notebook that is running is stopped, and a run
-	// that starts again clears the stop.
-	_, running := connection.FindWrite()
+	active := connection.Active()
+	shared := !connection.HasTabSessions()
+	// On a shared session, the cancel stops whatever the server runs now, which can be a
+	// statement of any tab. A run that starts again clears the stop.
+	running := connection.HasTabWrite(active)
+	if shared {
+		_, running = connection.FindWrite()
+	}
 	for _, tab := range connection.Tabs {
-		if tab.Results.IsRunning() {
+		if (shared || tab == active) && tab.Results.IsRunning() {
 			running = true
 			if tab.Notebook != nil {
 				tab.Notebook.Stopped = true
 			}
 		}
 	}
-	session := connection.Session
+	if !running && !exporting {
+		connection.Show("nothing to cancel")
+		return model, nil
+	}
+	session := connection.ResolveTabSession(active)
 	id := model.ActiveID()
 	if session.Capabilities().CancelsByContext {
-		connection.StopRuns()
+		if shared {
+			connection.StopRuns()
+		} else {
+			connection.StopTabRuns(active)
+		}
 		return model, func() tea.Msg {
 			return cancelledMsg{ConnectionID: id, Stopped: running}
 		}
@@ -1338,7 +1389,8 @@ func (model *Model) readCheckDue(due checkDueMsg) (tea.Model, tea.Cmd) {
 	if len(model.findLocalDiagnostics(connection, tab)) > 0 {
 		return model, nil
 	}
-	return model, checkStatements(due.ConnectionID, due.TabID, connection.Session, due.SQL)
+	return model, checkStatements(
+		due.ConnectionID, due.TabID, connection.ResolveTabSession(tab), due.SQL)
 }
 
 // readChecked keeps the faults the server found in the buffer it was given.

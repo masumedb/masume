@@ -68,14 +68,14 @@ func TestCancelOnAContextEngineStopsTheRunContext(t *testing.T) {
 		SortsRead: true, CancelsByContext: true,
 	}
 	connection.Active().Results.Start([]string{"select 1"}, 200)
-	running := connection.RunContext()
+	running := connection.RunContext(connection.Active())
 
 	_, command := model.cancelQuery(connection)
 
 	if running.Err() != context.Canceled {
 		t.Errorf("the run context reads %v, wanted it cancelled", running.Err())
 	}
-	if connection.RunContext().Err() != nil {
+	if connection.RunContext(connection.Active()).Err() != nil {
 		t.Error("the next run starts with a cancelled context")
 	}
 	if answered := command().(cancelledMsg); !answered.Stopped || answered.Problem != "" {
@@ -89,7 +89,7 @@ func TestCancelOnAContextEngineStopsTheRunContext(t *testing.T) {
 func TestStopRunsCancelsARunningSqliteStatement(t *testing.T) {
 	session := openTransactionSession(t)
 	connection := &app.Connection{}
-	command := runStatements(connection.RunContext(), 1, 1, 1, 0, session,
+	command := runStatements(connection.RunContext(nil), 1, 1, 1, 0, session,
 		[]db.ComposedRead{{Text: "with recursive n(i) as (select 1 union all " +
 			"select i + 1 from n where i < 1000000000) select count(*) from n"}},
 		100, writeplan.UndoPlan{}, nil, "test", true)

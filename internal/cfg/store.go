@@ -275,6 +275,7 @@ func writeProfileBlock(text string, profile Profile) (string, error) {
 			{"undo_rows", profile.UndoRows, false},
 			{"statement_timeout_ms", int(profile.StatementTimeout / time.Millisecond), false},
 			{"autocommit", profile.Autocommit, false},
+			{"tab_sessions", false, !profile.SharesSession},
 			{"page_size", profile.PageSize, profile.PageSize == 0},
 			{"keepalive_s", int(profile.Keepalive / time.Second), false},
 			{"command", profile.Command, profile.Command == ""},

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"strings"
+	"sync"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -29,7 +30,9 @@ import (
 type connectedMsg struct {
 	Profile cfg.Profile
 	Session db.Session
-	Problem string
+	// OpenTabSession opens one more session through the same tunnel.
+	OpenTabSession func(ctx context.Context) (db.Session, error)
+	Problem        string
 	// What was started to reach the server, which is stopped with the connection.
 	PreConnect *cfg.PreConnectHandle
 }
@@ -292,8 +295,66 @@ func connect(adapters engines.Adapters, profile cfg.Profile, password string) te
 			preConnect.Stop()
 			return connectedMsg{Profile: profile, Problem: db.DescribeError(err)}
 		}
-		return connectedMsg{Profile: profile, Session: session, PreConnect: preConnect}
+		opener := &tabSessionOpener{
+			password: password,
+			resolve: func(held string) (string, error) {
+				return db.ResolveFreshPassword(dialed, held)
+			},
+			open: func(ctx context.Context, password string) (db.Session, error) {
+				ctx, stop := context.WithTimeout(ctx, connectTimeout)
+				defer stop()
+				sibling, opens := db.FindSiblingOpener(session)
+				if !opens {
+					return adapters.Open(ctx, dialed, password)
+				}
+				opened, err := sibling.OpenSibling(ctx, password)
+				if err != nil {
+					return nil, err
+				}
+				return adapters.WrapSession(opened, password)
+			},
+		}
+		return connectedMsg{
+			Profile: profile, Session: session, OpenTabSession: opener.openTab,
+			PreConnect: preConnect,
+		}
 	}
+}
+
+// tabSessionOpener opens the sessions of tabs with the password the connection opened with.
+// The password source runs again only after an open failed.
+type tabSessionOpener struct {
+	guard    sync.Mutex
+	password string
+	// resolve reads the password source again, and returns the held password where the
+	// source needs the user.
+	resolve func(held string) (string, error)
+	open    func(ctx context.Context, password string) (db.Session, error)
+}
+
+// openTab opens the session of one tab. After a failed open, a password source that returns
+// another password gets one more open, and that password is kept for the next tabs.
+func (opener *tabSessionOpener) openTab(ctx context.Context) (db.Session, error) {
+	opener.guard.Lock()
+	held := opener.password
+	opener.guard.Unlock()
+
+	session, err := opener.open(ctx, held)
+	if err == nil {
+		return session, nil
+	}
+	fresh, resolveErr := opener.resolve(held)
+	if resolveErr != nil || fresh == held {
+		return nil, err
+	}
+	session, err = opener.open(ctx, fresh)
+	if err != nil {
+		return nil, err
+	}
+	opener.guard.Lock()
+	opener.password = fresh
+	opener.guard.Unlock()
+	return session, nil
 }
 
 // readTimeout is how long a catalog read may take.
@@ -698,13 +759,15 @@ func readObjectDDL(
 // saveWriteLabel is the label of a grid save while it runs.
 const saveWriteLabel = "save"
 
-// applyChanges sends the staged changes to the session, on the run context of the connection.
+// applyChanges sends the staged changes to the session of the tab, on the run context of the
+// tab.
 func applyChanges(
-	connection *app.Connection, connectionID, tabID int, changes []db.Change,
+	connection *app.Connection, connectionID int, tab *app.Tab, changes []db.Change,
 	undo []writeplan.UndoPlan, shown string,
 ) tea.Cmd {
-	session, autocommit := connection.Session, connection.Autocommit
-	ctx := connection.BeginWrite(saveWriteLabel)
+	session, autocommit := connection.ResolveTabSession(tab), connection.Autocommit
+	tabID := tab.ID
+	ctx := connection.BeginWrite(tab, saveWriteLabel)
 	return func() tea.Msg {
 		var kept writeplan.Undo
 		err := beginManualTransaction(ctx, session, autocommit, "")
@@ -851,12 +914,47 @@ func keepSavedQuery(
 	})
 }
 
-// closeSession ends a connection off the draw loop, so a socket that will not close does
-// not hold the frame.
-func closeSession(session io.Closer, preConnect *cfg.PreConnectHandle) tea.Cmd {
+// closeSession ends a connection and the sessions of its tabs off the draw loop, so a socket
+// that will not close does not hold the frame.
+func closeSession(
+	session io.Closer, preConnect *cfg.PreConnectHandle, tabSessions ...io.Closer,
+) tea.Cmd {
 	return func() tea.Msg {
+		for _, held := range tabSessions {
+			_ = held.Close()
+		}
 		_ = session.Close()
 		preConnect.Stop()
+		return nil
+	}
+}
+
+// openTabSessionAhead connects the session of a tab in the background. A failed open shows
+// nothing: the next statement of the tab connects again and reports the failure.
+func openTabSessionAhead(session *db.TabSession) tea.Cmd {
+	return func() tea.Msg {
+		_ = session.OpenAhead(context.Background())
+		return nil
+	}
+}
+
+// closeTabSession closes the session of a closed tab. A nil session returns no command.
+func closeTabSession(session io.Closer) tea.Cmd {
+	if session == nil {
+		return nil
+	}
+	return closeTabSessions([]io.Closer{session})
+}
+
+// closeTabSessions closes the sessions of tabs.
+func closeTabSessions(sessions []io.Closer) tea.Cmd {
+	if len(sessions) == 0 {
+		return nil
+	}
+	return func() tea.Msg {
+		for _, session := range sessions {
+			_ = session.Close()
+		}
 		return nil
 	}
 }
@@ -1077,6 +1175,23 @@ func pingSession(connectionID int, session db.SessionLifecycle) tea.Cmd {
 			}
 		}
 		return healthCheckedMsg{ConnectionID: connectionID}
+	}
+}
+
+// checkIdleConnections checks each user connection that was idle for the keepalive period. A
+// failed check shows nothing: the health check of the connection reports a server that is
+// down.
+func checkIdleConnections(checkers []db.IdleChecker) tea.Cmd {
+	if len(checkers) == 0 {
+		return nil
+	}
+	return func() tea.Msg {
+		for _, checker := range checkers {
+			ctx, stop := context.WithTimeout(context.Background(), connectTimeout)
+			_ = checker.CheckIdleConnection(ctx)
+			stop()
+		}
+		return nil
 	}
 }
 

@@ -485,6 +485,11 @@ func (adapter *sqliteAdapter) Connect(
 		serverVersion = written
 	}
 
+	support := adapter.support
+	// A second connection to ":memory:" opens a different database.
+	if core.ExpandHomePath(profile.Database) == memoryDatabase {
+		support.Capabilities.OpensTabSessions = false
+	}
 	return &sqliteSession{
 		SessionFacts: db.SessionFacts{
 			Descriptor: db.SessionDescriptor{
@@ -492,7 +497,7 @@ func (adapter *sqliteAdapter) Connect(
 				// A bare name is looked up in the file itself.
 				DefaultSchema: mainSchema,
 			},
-			Support: adapter.support,
+			Support: support,
 		},
 		file: file, mainQueue: db.NewCallQueue(),
 	}, nil

@@ -297,7 +297,7 @@ func redoesChange(scene keyScene) bool { return scene.tab.CanRedoChange() }
 // holdsTransaction is true while a transaction is open on the server, and opensTransaction
 // while none is.
 func holdsTransaction(scene keyScene) bool {
-	return scene.connection.Session.ReadTransactionState() == db.TransactionOpen
+	return scene.connection.ReadTabTransactionState(scene.tab) == db.TransactionOpen
 }
 
 func opensTransaction(scene keyScene) bool { return !holdsTransaction(scene) }

@@ -135,7 +135,7 @@ func TestThePlanCardSaysWhatTheWriteDoes(t *testing.T) {
 
 func TestTheUndoIsOfferedAndRun(t *testing.T) {
 	model, connection, session := buildPlannedModel(t)
-	connection.KeepUndo(buildTestUndo(), "update orders set status = 'sent'", time.Now())
+	connection.KeepUndo(0, buildTestUndo(), "update orders set status = 'sent'", time.Now())
 
 	held, _ := model.undoLastWrite(connection)
 	model = held.(*Model)

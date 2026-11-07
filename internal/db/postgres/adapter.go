@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -28,10 +30,13 @@ type postgresSession struct {
 	connection *pgx.Conn
 	// True where the server has the extension that counts statements, read once at connect.
 	holdsStatementStats bool
-	backendPID          int64
-	password            string
-	transaction         db.TransactionMark
-	side                *db.SideConnection[*pgx.Conn]
+	// True where the process id of the protocol equals pg_backend_pid(). A pooler in between
+	// sends its own id.
+	trustsProtocolPID bool
+	backendPID        atomic.Int64
+	password          string
+	transaction       db.TransactionMark
+	side              *db.SideConnection[*pgx.Conn]
 
 	// Server type names by OID, including custom enums, domains, and composites.
 	typeNames map[uint32]string
@@ -41,6 +46,47 @@ type postgresSession struct {
 	// Each connection requires serialized driver calls.
 	mainQueue *db.CallQueue
 	sideQueue *db.CallQueue
+	// The end of the last call on the user connection.
+	usedAt time.Time
+}
+
+// ReadBackendID returns the process id of the user connection.
+func (session *postgresSession) ReadBackendID() (int64, bool) {
+	held := session.backendPID.Load()
+	return held, held > 0
+}
+
+// CheckIdleConnection pings a user connection that was idle for the keepalive period. A
+// connection the server closed opens again at once where no transaction was open. A busy
+// connection is not checked.
+func (session *postgresSession) CheckIdleConnection(ctx context.Context) error {
+	giveBack, free := session.mainQueue.TryTake()
+	if !free {
+		return nil
+	}
+	defer giveBack()
+
+	keepalive := session.Descriptor.Profile.Keepalive
+	if keepalive <= 0 || time.Since(session.usedAt) < keepalive ||
+		session.transaction.ReadState() == db.TransactionFailed {
+		return nil
+	}
+	if !session.connection.IsClosed() {
+		err := session.connection.Ping(ctx)
+		if err == nil || ctx.Err() != nil {
+			return err
+		}
+		_ = session.connection.Close(ctx)
+	}
+	if session.transaction.ReadState() != db.TransactionNone {
+		return db.NewDatabaseError("the connection closed and the transaction was lost")
+	}
+	return session.reopenClosedConnection(ctx)
+}
+
+// markConnectionUsed records the end of a call on the user connection.
+func (session *postgresSession) markConnectionUsed() {
+	session.usedAt = time.Now()
 }
 
 // Capabilities returns engine support plus statement statistics availability from the connected server.
@@ -82,13 +128,22 @@ func (session *postgresSession) reopenClosedConnection(ctx context.Context) erro
 	decodeUUIDAsText(opened)
 
 	session.connection = opened
-	session.backendPID = readBackendPID(ctx, opened)
+	session.backendPID.Store(session.readNewBackendPID(ctx, opened))
 	lost := session.transaction.ReadState() != db.TransactionNone
 	session.transaction.WriteState(db.TransactionNone)
 	if lost {
 		return db.NewDatabaseError("the connection closed and the transaction was lost")
 	}
 	return nil
+}
+
+// readNewBackendPID returns the process id of a connection opened again. It reads the id of
+// the protocol where that id is the server process id.
+func (session *postgresSession) readNewBackendPID(ctx context.Context, connection *pgx.Conn) int64 {
+	if session.trustsProtocolPID {
+		return int64(connection.PgConn().PID())
+	}
+	return readBackendPID(ctx, connection)
 }
 
 // readBackendPID returns the process id of the connection, or zero.
@@ -350,6 +405,7 @@ func (session *postgresSession) RunQuery(
 	if err := session.reopenClosedConnection(ctx); err != nil {
 		return db.QueryResult{}, err
 	}
+	defer session.markConnectionUsed()
 	result, err := session.runOn(ctx, session.connection, sql, rowLimit, params)
 	if err != nil {
 		session.markTransactionFailed()
@@ -432,6 +488,7 @@ func (session *postgresSession) StreamQuery(
 	if err := session.reopenClosedConnection(ctx); err != nil {
 		return 0, err
 	}
+	defer session.markConnectionUsed()
 	rows, err := session.connection.Query(ctx, sql, params...)
 	if err != nil {
 		session.markTransactionFailed()
@@ -801,6 +858,7 @@ func (session *postgresSession) ExplainQuery(
 	if err := session.reopenClosedConnection(ctx); err != nil {
 		return db.QueryPlan{}, err
 	}
+	defer session.markConnectionUsed()
 	prefix := session.flavour.BuildExplainPrefix(analyze)
 	rows, err := session.connection.Query(ctx, prefix+" "+sql)
 	if err != nil {
@@ -843,6 +901,7 @@ func (session *postgresSession) BeginTransaction(ctx context.Context) error {
 	if err := session.reopenClosedConnection(ctx); err != nil {
 		return err
 	}
+	defer session.markConnectionUsed()
 	if _, err := session.connection.Exec(ctx, "begin"); err != nil {
 		return db.WrapDatabaseMessage(describeFailure(err), err)
 	}
@@ -860,6 +919,7 @@ func (session *postgresSession) CommitTransaction(ctx context.Context) error {
 	if err := session.reopenClosedConnection(ctx); err != nil {
 		return err
 	}
+	defer session.markConnectionUsed()
 	if _, err := session.connection.Exec(ctx, "commit"); err != nil {
 		return db.WrapDatabaseMessage(describeFailure(err), err)
 	}
@@ -877,6 +937,7 @@ func (session *postgresSession) RollbackTransaction(ctx context.Context) error {
 	if err := session.reopenClosedConnection(ctx); err != nil {
 		return err
 	}
+	defer session.markConnectionUsed()
 	if _, err := session.connection.Exec(ctx, "rollback"); err != nil {
 		return db.WrapDatabaseMessage(describeFailure(err), err)
 	}
@@ -891,6 +952,10 @@ func (session *postgresSession) ApplyChanges(ctx context.Context, changes []db.C
 	}
 	defer giveBack()
 
+	if err := session.reopenClosedConnection(ctx); err != nil {
+		return err
+	}
+	defer session.markConnectionUsed()
 	return db.ApplyChangesInTransaction(ctx, changes, db.ChangeApplication{
 		JoinsUserTransaction: session.transaction.ReadState() == db.TransactionOpen,
 		Begin: func(ctx context.Context) error {
@@ -1061,7 +1126,8 @@ func (session *postgresSession) CancelRunningQuery(ctx context.Context) (bool, e
 	if !session.Support.Capabilities.CancelsRunningQuery {
 		return false, db.NewUnsupportedError("cancel a running statement")
 	}
-	if session.backendPID <= 0 {
+	backendPID := session.backendPID.Load()
+	if backendPID <= 0 {
 		return false, db.NewDatabaseError(
 			"cannot cancel the statement: the connection ID is unavailable")
 	}
@@ -1076,7 +1142,7 @@ func (session *postgresSession) CancelRunningQuery(ctx context.Context) (bool, e
 	defer giveBack()
 
 	tag, execErr := connection.Exec(
-		ctx, session.flavour.BuildCancelStatement(false), session.backendPID)
+		ctx, session.flavour.BuildCancelStatement(false), backendPID)
 	if execErr != nil {
 		return false, execErr
 	}
@@ -1126,7 +1192,7 @@ func (session *postgresSession) Ping(ctx context.Context) error {
 	}
 	rows.Close()
 	// An unavailable original ID prevents the replacement check.
-	if session.backendPID <= 0 || answered == session.backendPID {
+	if held := session.backendPID.Load(); held <= 0 || answered == held {
 		return nil
 	}
 
@@ -1227,7 +1293,7 @@ func (adapter *postgresAdapter) Connect(
 	}
 	identity.Close()
 
-	return &postgresSession{
+	session := &postgresSession{
 		SessionFacts: db.SessionFacts{
 			Descriptor: db.SessionDescriptor{
 				Profile: profile, ServerVersion: serverVersion, DefaultSchema: defaultSchema,
@@ -1236,13 +1302,82 @@ func (adapter *postgresAdapter) Connect(
 		},
 		flavour: adapter.flavour, connection: connection,
 		holdsStatementStats: holdsStatementStats,
-		backendPID:          backendPID, password: password, typeNames: typeNames,
+		password:            password, typeNames: typeNames,
 		typeWritten: typeWritten,
 		side: db.NewSideConnection(func() (*pgx.Conn, error) {
 			return openPostgresConnection(context.Background(), profile, password)
 		}, (*pgx.Conn).IsClosed),
 		mainQueue: db.NewCallQueue(), sideQueue: db.NewCallQueue(),
-	}, nil
+		usedAt: time.Now(),
+	}
+	session.backendPID.Store(backendPID)
+	session.trustsProtocolPID = backendPID > 0 && int64(connection.PgConn().PID()) == backendPID
+	return session, nil
+}
+
+// OpenSibling opens one more session to the same server. The new connection runs the
+// read-only statement where the profile asks for it, and reads pg_backend_pid() where the
+// protocol id is not the server process id, in one round trip at most. The server version,
+// the default schema, the type names and the statement counter check come from this
+// session.
+func (session *postgresSession) OpenSibling(ctx context.Context, password string) (db.Session, error) {
+	profile := session.Descriptor.Profile
+	connection, err := openPostgresConnection(ctx, profile, password)
+	if err != nil {
+		return nil, db.WrapDatabaseMessage(db.BuildConnectMessage(profile, err), err)
+	}
+	setup := []string{}
+	if profile.AccessMode == cfg.AccessReadOnly {
+		setup = append(setup, session.flavour.ReadOnlyStatement)
+	}
+	if !session.trustsProtocolPID {
+		setup = append(setup, "select pg_backend_pid()")
+	}
+	backendPID := int64(connection.PgConn().PID())
+	if len(setup) > 0 {
+		results, setupErr := connection.PgConn().Exec(ctx, strings.Join(setup, "; ")).ReadAll()
+		if setupErr != nil {
+			_ = connection.Close(ctx)
+			return nil, db.WrapDatabaseMessage(db.BuildConnectMessage(profile, setupErr), setupErr)
+		}
+		if !session.trustsProtocolPID {
+			backendPID = readSetupBackendPID(results)
+		}
+	}
+	keepJSONFieldOrder(connection)
+	decodeUUIDAsText(connection)
+
+	sibling := &postgresSession{
+		SessionFacts: session.SessionFacts,
+		flavour:      session.flavour, connection: connection,
+		holdsStatementStats: session.holdsStatementStats,
+		trustsProtocolPID:   session.trustsProtocolPID,
+		password:            password, typeNames: session.typeNames,
+		typeWritten: session.typeWritten,
+		side: db.NewSideConnection(func() (*pgx.Conn, error) {
+			return openPostgresConnection(context.Background(), profile, password)
+		}, (*pgx.Conn).IsClosed),
+		mainQueue: db.NewCallQueue(), sideQueue: db.NewCallQueue(),
+		usedAt: time.Now(),
+	}
+	sibling.backendPID.Store(backendPID)
+	return sibling, nil
+}
+
+// readSetupBackendPID returns the process id the last statement of the setup read, or zero.
+func readSetupBackendPID(results []*pgconn.Result) int64 {
+	if len(results) == 0 {
+		return 0
+	}
+	rows := results[len(results)-1].Rows
+	if len(rows) == 0 || len(rows[0]) == 0 {
+		return 0
+	}
+	held, err := strconv.ParseInt(string(rows[0][0]), 10, 64)
+	if err != nil || held < 0 {
+		return 0
+	}
+	return held
 }
 
 // Compile-time Session interface check.

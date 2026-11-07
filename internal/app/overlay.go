@@ -388,6 +388,8 @@ type ServerReading struct {
 	HasLocks bool
 	HasSlow  bool
 	ReadAt   time.Time
+	// The label of each session of this client, by server id.
+	Own map[int64]string
 }
 
 // DashboardView is the retained panel state and previous sample for rate calculations.

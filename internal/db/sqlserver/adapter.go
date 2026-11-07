@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/masumedb/masume/internal/cfg"
@@ -19,6 +20,23 @@ type sqlserverSession struct {
 
 	// True where the connection may read the statement counters of the server.
 	holdsStatementStats bool
+	// The session id of the user connection.
+	spid atomic.Int64
+}
+
+// ReadBackendID returns the session id of the user connection.
+func (session *sqlserverSession) ReadBackendID() (int64, bool) {
+	held := session.spid.Load()
+	return held, held > 0
+}
+
+// readSessionID returns the session id of the connection, or zero.
+func readSessionID(ctx context.Context, connection *sql.Conn) int64 {
+	held := int64(0)
+	if connection.QueryRowContext(ctx, "select @@spid as spid").Scan(&held) != nil {
+		return 0
+	}
+	return held
 }
 
 // Capabilities returns engine support plus statement statistics availability from the
@@ -71,6 +89,7 @@ func (session *sqlserverSession) RunQuery(
 	if err := session.ReopenBrokenConnection(ctx); err != nil {
 		return db.QueryResult{}, err
 	}
+	defer session.MarkConnectionUsed()
 
 	flavour := session.Support.Dialect.Syntax
 	lastStatement := db.ReadLastStatement(sql, flavour)
@@ -168,6 +187,7 @@ func (session *sqlserverSession) ExplainQuery(
 	if err := session.ReopenBrokenConnection(ctx); err != nil {
 		return db.QueryPlan{}, err
 	}
+	defer session.MarkConnectionUsed()
 
 	setting := planSetting(analyze)
 	if _, err := session.Connection.ExecContext(ctx, "set "+setting+" on"); err != nil {
@@ -346,25 +366,58 @@ func (adapter *sqlserverAdapter) Connect(
 			db.BuildConnectMessage(profile, connectionErr), connectionErr)
 	}
 
+	return buildSqlserverSession(sqlserverSessionParts{
+		support: adapter.support, profile: profile, password: password,
+		pool: pool, connection: connection,
+		serverVersion:       readServerVersion(ctx, connection),
+		defaultSchema:       readDefaultSchema(ctx, connection),
+		holdsStatementStats: readsStatementStats(ctx, connection),
+		spid:                readSessionID(ctx, connection),
+	}), nil
+}
+
+// sqlserverSessionParts is what a session is built from: the user connection and the facts
+// read at connect.
+type sqlserverSessionParts struct {
+	support             db.EngineSupport
+	profile             cfg.Profile
+	password            string
+	pool                *sql.DB
+	connection          *sql.Conn
+	serverVersion       string
+	defaultSchema       string
+	holdsStatementStats bool
+	spid                int64
+}
+
+// buildSqlserverSession returns the session of a user connection that is ready.
+func buildSqlserverSession(parts sqlserverSessionParts) *sqlserverSession {
+	profile, password := parts.profile, parts.password
 	session := &sqlserverSession{
 		Session: sqlbase.Session{
 			SessionFacts: db.SessionFacts{
 				Descriptor: db.SessionDescriptor{
-					Profile: profile, ServerVersion: readServerVersion(ctx, connection),
-					DefaultSchema: readDefaultSchema(ctx, connection),
+					Profile: profile, ServerVersion: parts.serverVersion,
+					DefaultSchema: parts.defaultSchema,
 				},
-				Support: adapter.support,
+				Support: parts.support,
 			},
-			Connection: connection, Pool: pool,
+			Connection: parts.connection, Pool: parts.pool,
 			Side: db.NewSideConnection(func() (*sql.DB, error) {
 				return openSqlserverPool(profile, password)
 			}, nil),
 			MainQueue: db.NewCallQueue(),
 		},
-		holdsStatementStats: readsStatementStats(ctx, connection),
+		holdsStatementStats: parts.holdsStatementStats,
 	}
+	session.spid.Store(parts.spid)
+	session.MarkConnectionUsed()
 	session.Hooks = sqlbase.Hooks{
 		BeginStatement: "begin transaction",
+		PrepareConnection: func(ctx context.Context, opened *sql.Conn) error {
+			session.spid.Store(readSessionID(ctx, opened))
+			return nil
+		},
 		ReportFailure: func(ctx context.Context, _ error) {
 			session.readServerTransaction(ctx)
 		},
@@ -372,7 +425,32 @@ func (adapter *sqlserverAdapter) Connect(
 		WrapStatementError:   wrapFailure,
 		ReadStreamColumns:    readStreamColumns,
 	}
-	return session, nil
+	return session
+}
+
+// OpenSibling opens one more session to the same server. The new connection reads only its
+// session id. The server version, the default schema and the statement counter check come
+// from this session.
+func (session *sqlserverSession) OpenSibling(ctx context.Context, password string) (db.Session, error) {
+	profile := session.Descriptor.Profile
+	pool, err := openSqlserverPool(profile, password)
+	if err != nil {
+		return nil, db.WrapDatabaseMessage(db.BuildConnectMessage(profile, err), err)
+	}
+	connection, connectionErr := pool.Conn(ctx)
+	if connectionErr != nil {
+		_ = pool.Close()
+		return nil, db.WrapDatabaseMessage(
+			db.BuildConnectMessage(profile, connectionErr), connectionErr)
+	}
+	return buildSqlserverSession(sqlserverSessionParts{
+		support: session.Support, profile: profile, password: password,
+		pool: pool, connection: connection,
+		serverVersion:       session.Descriptor.ServerVersion,
+		defaultSchema:       session.Descriptor.DefaultSchema,
+		holdsStatementStats: session.holdsStatementStats,
+		spid:                readSessionID(ctx, connection),
+	}), nil
 }
 
 // readStreamColumns returns the columns of a streamed result and the reader of one row.

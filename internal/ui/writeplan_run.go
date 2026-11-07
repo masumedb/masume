@@ -64,12 +64,12 @@ func (model *Model) askWithWritePlan(
 		Kind: app.OverlayMessage, Title: measuringPlanTitle,
 		Body: "checking affected rows…\n\n" + read.Display,
 	})
-	return model, buildWritePlan(model.ActiveID(), tab.ID, written, connection.Session,
+	session := connection.ResolveTabSession(tab)
+	return model, buildWritePlan(model.ActiveID(), tab.ID, written, session,
 		writeplan.Request{
 			SQL: read.Display, Tables: connection.Catalog.Tables, Mode: profile.WritePlan,
-			UndoRows: profile.UndoRows,
-			InTransaction: connection.Session.ReadTransactionState() ==
-				db.TransactionOpen,
+			UndoRows:      profile.UndoRows,
+			InTransaction: session.ReadTransactionState() == db.TransactionOpen,
 		})
 }
 
@@ -161,12 +161,12 @@ func (model *Model) askWithStagedPlan(
 		Kind: app.OverlayMessage, Title: measuringPlanTitle,
 		Body: "checking affected rows…\n\n" + strings.Join(described, "\n"),
 	})
-	return model, buildStagedPlans(model.ActiveID(), tab.ID, changes, connection.Session,
+	session := connection.ResolveTabSession(tab)
+	return model, buildStagedPlans(model.ActiveID(), tab.ID, changes, session,
 		writeplan.Request{
 			Tables: connection.Catalog.Tables, Mode: profile.WritePlan,
-			UndoRows: profile.UndoRows,
-			InTransaction: connection.Session.ReadTransactionState() ==
-				db.TransactionOpen,
+			UndoRows:      profile.UndoRows,
+			InTransaction: session.ReadTransactionState() == db.TransactionOpen,
 		})
 }
 
@@ -183,7 +183,7 @@ func (model *Model) readStagedPlanAnswer(answered stagedPlanBuiltMsg) (tea.Model
 	if !answered.Measured || !merged {
 		connection.CloseEveryOverlay()
 		tab.Applying = true
-		return model, applyChanges(connection, id, tab.ID, changes, nil, "")
+		return model, applyChanges(connection, id, tab, changes, nil, "")
 	}
 
 	undo := make([]writeplan.UndoPlan, 0, len(answered.Plans))
@@ -198,7 +198,7 @@ func (model *Model) readStagedPlanAnswer(answered stagedPlanBuiltMsg) (tea.Model
 				return nil
 			}
 			tab.Applying = true
-			return carryAnswer(applyChanges(connection, id, tab.ID, changes, undo, plan.SQL))
+			return carryAnswer(applyChanges(connection, id, tab, changes, undo, plan.SQL))
 		}},
 	})
 	return model, nil
@@ -268,7 +268,7 @@ func (model *Model) undoLastWrite(connection *app.Connection) (tea.Model, tea.Cm
 			if !confirmed {
 				return nil
 			}
-			return carryAnswer(applyUndo(connection, id, held.Undo))
+			return carryAnswer(applyUndo(connection, id, *held))
 		}},
 	})
 	return model, nil
@@ -306,10 +306,12 @@ type undoWrittenMsg struct {
 // undoWriteLabel is the label of an undo while it runs.
 const undoWriteLabel = "undo"
 
-// applyUndo runs the undo, all of it or none, on the run context of the connection.
-func applyUndo(connection *app.Connection, connectionID int, undo writeplan.Undo) tea.Cmd {
-	session, autocommit := connection.Session, connection.Autocommit
-	ctx := connection.BeginWrite(undoWriteLabel)
+// applyUndo runs the undo, all of it or none, on the session of the tab the write ran in.
+func applyUndo(connection *app.Connection, connectionID int, held app.HeldUndo) tea.Cmd {
+	undo := held.Undo
+	tab := connection.FindUndoTab(held)
+	session, autocommit := connection.ResolveTabSession(tab), connection.Autocommit
+	ctx := connection.BeginWrite(tab, undoWriteLabel)
 	return func() tea.Msg {
 		answered := undoWrittenMsg{
 			ConnectionID: connectionID, Table: undo.Table, Rows: undo.Rows,
@@ -325,8 +327,8 @@ func applyUndo(connection *app.Connection, connectionID int, undo writeplan.Undo
 	}
 }
 
-// readUndoAnswer reports what the undo did, and reads the relation again where the tab on
-// show is the one that changed.
+// readUndoAnswer reports what the undo did, and reads the relation again in every table tab
+// of it: the tab on show at once, and the others when they are next shown.
 func (model *Model) readUndoAnswer(answered undoWrittenMsg) (tea.Model, tea.Cmd) {
 	connection, _, found := model.findConnection(answered.ConnectionID)
 	if !found {
@@ -343,9 +345,14 @@ func (model *Model) readUndoAnswer(answered undoWrittenMsg) (tea.Model, tea.Cmd)
 	connection.Show("the write was undone, " +
 		present.FormatCountOf(int64(answered.Rows), "row", "rows"))
 
-	tab := connection.Active()
-	if tab == nil || tab.Kind != app.TabTable || tab.Table != answered.Table {
+	active := connection.Active()
+	for _, tab := range connection.Tabs {
+		if tab != active && tab.Kind == app.TabTable && tab.Table == answered.Table {
+			connection.Unread[tab.ID] = true
+		}
+	}
+	if active == nil || active.Kind != app.TabTable || active.Table != answered.Table {
 		return model, nil
 	}
-	return model.runTabRead(connection, tab)
+	return model.runTabRead(connection, active)
 }

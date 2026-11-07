@@ -161,9 +161,10 @@ func (model *Model) runTabRead(
 	reads := []db.ComposedRead{read}
 	runID := model.startBatch(connection, tab, reads,
 		connection.Profile().PageSize, writeplan.UndoPlan{})
-	return model, runStatements(connection.RunContext(), model.ActiveID(), tab.ID, runID, 0,
-		connection.Session, reads, connection.Profile().PageSize, writeplan.UndoPlan{},
-		model.log, connection.Profile().Name, connection.Autocommit)
+	return model, tea.Batch(startTabSessionOpen(connection, tab),
+		runStatements(connection.RunContext(tab), model.ActiveID(), tab.ID, runID, 0,
+			connection.ResolveTableReadSession(tab), reads, connection.Profile().PageSize,
+			writeplan.UndoPlan{}, model.log, connection.Profile().Name, connection.Autocommit))
 }
 
 // waitForKeyColumns sets the primary key order of a table tab. It returns true while the
@@ -414,8 +415,8 @@ func (model *Model) startRun(
 	tab.Completion.Close()
 
 	runID := model.startBatch(connection, tab, reads, pageSize, undo)
-	return runStatements(connection.RunContext(), model.ActiveID(), tab.ID, runID, 0,
-		connection.Session, reads, pageSize, undo, model.log, connection.Profile().Name, connection.Autocommit)
+	return runStatements(connection.RunContext(tab), model.ActiveID(), tab.ID, runID, 0,
+		connection.ResolveTabSession(tab), reads, pageSize, undo, model.log, connection.Profile().Name, connection.Autocommit)
 }
 
 // startBatch opens a run of that tab and returns the number it is stamped with. The number
@@ -520,7 +521,7 @@ func (model *Model) readQueryAnswer(answered queryRanMsg) (tea.Model, tea.Cmd) {
 	// A planned write says what it left behind. The undo is kept for this write only, and
 	// the next one replaces it.
 	if answered.Undo.Table.Name != "" {
-		connection.KeepUndo(answered.Undo, answered.Read.Display, time.Now())
+		connection.KeepUndo(answered.TabID, answered.Undo, answered.Read.Display, time.Now())
 		connection.Show(model.describeWriteOutcome(answered.Undo))
 	}
 	model.placeResultCursor(connection, tab, answered.Result.Columns)
@@ -566,8 +567,12 @@ func (model *Model) askNextStatement(
 	if !held {
 		return nil
 	}
-	return runStatements(connection.RunContext(), answered.ConnectionID, answered.TabID, answered.RunID,
-		answered.Index+1, connection.Session, batch.reads, batch.rowLimit,
+	tab, found := findTab(connection, answered.TabID)
+	if !found {
+		return nil
+	}
+	return runStatements(connection.RunContext(tab), answered.ConnectionID, answered.TabID, answered.RunID,
+		answered.Index+1, connection.ResolveTabSession(tab), batch.reads, batch.rowLimit,
 		batch.undo, model.log, batch.profileName, connection.Autocommit)
 }
 
@@ -769,8 +774,8 @@ func (model *Model) readMoreRows(connection *app.Connection, tab *app.Tab) tea.C
 		return nil
 	}
 	active.FetchingMore = true
-	return readNextPage(connection.RunContext(), model.ActiveID(), tab.ID, tab.Results.ActiveIndex(), active.ID,
-		connection.Session, active.Read,
+	return readNextPage(connection.RunContext(tab), model.ActiveID(), tab.ID, tab.Results.ActiveIndex(), active.ID,
+		connection.ResolveTableReadSession(tab), active.Read,
 		db.ReadWindow{Limit: active.PageSize, Offset: len(active.State.Result.Rows)}, connection.Autocommit)
 }
 
@@ -818,8 +823,8 @@ func (model *Model) countRows(
 	// The count of a whole relation takes as long as the server needs to read it, so the
 	// size says one is on its way.
 	active.Counting = true
-	return model, countRows(connection.RunContext(), model.ActiveID(), tab.ID, tab.Results.ActiveIndex(), active.ID,
-		connection.Session, active.Read, connection.Autocommit)
+	return model, countRows(connection.RunContext(tab), model.ActiveID(), tab.ID, tab.Results.ActiveIndex(), active.ID,
+		connection.ResolveTableReadSession(tab), active.Read, connection.Autocommit)
 }
 
 // readCountAnswer keeps the count of the whole result.
@@ -901,8 +906,8 @@ func (model *Model) explainBound(
 	if active := tab.Results.Active(); active != nil {
 		active.Plan = app.PlanState{Kind: app.PlanLoading}
 	}
-	return model, readPlan(connection.RunContext(), model.ActiveID(), tab.ID, tab.ReadActiveResultID(),
-		connection.Session, written, analyze, connection.Autocommit)
+	return model, readPlan(connection.RunContext(tab), model.ActiveID(), tab.ID, tab.ReadActiveResultID(),
+		connection.ResolveTabSession(tab), written, analyze, connection.Autocommit)
 }
 
 // readPlanAnswer draws the plan the server sent.
@@ -1157,14 +1162,13 @@ func (model *Model) readChangesAnswer(answered changesAppliedMsg) (tea.Model, te
 	connection.CloseEveryOverlay()
 	applied := present.FormatCountOf(int64(answered.Applied), "change", "changes") + " applied"
 	if answered.Undo.Table.Name != "" {
-		connection.KeepUndo(answered.Undo, answered.SQL, time.Now())
+		connection.KeepUndo(answered.TabID, answered.Undo, answered.SQL, time.Now())
 		applied += " · " + model.describeWriteOutcome(answered.Undo)
 	}
 	connection.Show(applied)
 	if tab.ClosingAfterApply {
 		tab.ClosingAfterApply = false
-		connection.CloseTab(connection.IndexOfTab(tab.ID))
-		return model, nil
+		return model, closeTabSession(connection.CloseTab(connection.IndexOfTab(tab.ID)))
 	}
 	return model.runTabRead(connection, tab)
 }
@@ -1240,14 +1244,14 @@ func (model *Model) applyStagedChanges(
 		return model.askWithStagedPlan(connection, tab, changes)
 	}
 	tab.Applying = true
-	return model, applyChanges(connection, model.ActiveID(), tab.ID, changes, nil, "")
+	return model, applyChanges(connection, model.ActiveID(), tab, changes, nil, "")
 }
 
 // askToApplyOneAtATime asks before applying changes without a shared transaction.
 func (model *Model) askToApplyOneAtATime(
 	connection *app.Connection, tab *app.Tab, changes []db.Change,
 ) (tea.Model, tea.Cmd) {
-	id, tabID := model.ActiveID(), tab.ID
+	id := model.ActiveID()
 	connection.Open(app.Overlay{
 		Kind:  app.OverlayConfirm,
 		Title: " apply one at a time ", Yes: "apply", Destructive: true,
@@ -1259,7 +1263,7 @@ func (model *Model) askToApplyOneAtATime(
 				return nil
 			}
 			tab.Applying = true
-			return carryAnswer(applyChanges(connection, id, tabID, changes, nil, ""))
+			return carryAnswer(applyChanges(connection, id, tab, changes, nil, ""))
 		}},
 	})
 	return model, nil
@@ -1303,6 +1307,36 @@ func (model *Model) buildChanges(
 		Table: tab.Target.Table, Columns: active.State.Result.Columns,
 		Rows: active.State.Result.Rows, KeyColumns: tab.Target.KeyColumns,
 	}, tab.Pending)
+}
+
+// openActiveTabSession connects the session of the active tab in the background, so the
+// first run of the tab does not wait for the login. A table tab connects with its first read
+// instead, and an object tab never runs a statement.
+func (model *Model) openActiveTabSession() tea.Cmd {
+	if model.screen != ScreenWorking || model.quitting {
+		return nil
+	}
+	connection := model.Active()
+	if connection == nil {
+		return nil
+	}
+	tab := connection.Active()
+	if tab == nil || (tab.Kind != app.TabQuery && tab.Kind != app.TabNotebook &&
+		tab.Kind != app.TabBuilder) {
+		return nil
+	}
+	return startTabSessionOpen(connection, tab)
+}
+
+// startTabSessionOpen returns the command that connects the session of the tab in the
+// background, and nothing where the tab is connected, opening, or runs on the connection
+// session.
+func startTabSessionOpen(connection *app.Connection, tab *app.Tab) tea.Cmd {
+	held, own := connection.ResolveOwnTabSession(tab)
+	if !own || !held.ClaimOpen() {
+		return nil
+	}
+	return openTabSessionAhead(held)
 }
 
 // readWhenShown reads what a restored tab describes, the first time it is shown. A

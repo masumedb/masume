@@ -160,8 +160,10 @@ type Profile struct {
 	AuthSource string
 	ReplicaSet string
 	// Driver options by name, as a URL query writes them. The driver of the engine reads them.
-	Options       map[string]string
-	Autocommit    bool
+	Options    map[string]string
+	Autocommit bool
+	// True for `tab_sessions = false`.
+	SharesSession bool
 	ConfirmWrites ConfirmWrites
 	WritePlan     WritePlan
 	// The maximum row count for undo.
@@ -511,6 +513,10 @@ func buildProfile(name string, source Table) (Profile, error) {
 	if written, isFlag := FindBool(source, "autocommit"); isFlag {
 		autocommit = written
 	}
+	tabSessions := true
+	if written, isFlag := FindBool(source, "tab_sessions"); isFlag {
+		tabSessions = written
+	}
 
 	directConnection, _ := FindBool(source, "direct_connection")
 	srv, _ := FindBool(source, "srv")
@@ -561,7 +567,7 @@ func buildProfile(name string, source Table) (Profile, error) {
 		SSLMode: sslMode, SSLRootCert: sslFiles.RootCert, SSLCert: sslFiles.Cert,
 		SSLKey: sslFiles.Key, DirectConnection: directConnection,
 		SRV: srv, AuthSource: authSource, ReplicaSet: replicaSet, Options: options,
-		Autocommit: autocommit, ConfirmWrites: confirmWrites,
+		Autocommit: autocommit, SharesSession: !tabSessions, ConfirmWrites: confirmWrites,
 		WritePlan: writePlan, UndoRows: undoRows,
 		SSHHost: sshHost, SSHPort: sshPort, SSHUser: sshUser, SSHKey: sshKey,
 		SSHKeyPassphraseEnv: sshKeyPassphraseEnv, SSHPasswordEnv: sshPasswordEnv,

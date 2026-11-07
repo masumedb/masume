@@ -64,6 +64,96 @@ func FindReconnectable(session Session) (*ReconnectingSession, bool) {
 	return nil, false
 }
 
+// BackendReporter returns the server id of the user connection of a session.
+type BackendReporter interface {
+	ReadBackendID() (int64, bool)
+}
+
+// FindBackendID searches the session and its wrappers for the server id of the user
+// connection.
+func FindBackendID(session Session) (int64, bool) {
+	for session != nil {
+		if reporter, reports := session.(BackendReporter); reports {
+			return reporter.ReadBackendID()
+		}
+		wrapper, wraps := session.(interface{ unwrapSession() Session })
+		if !wraps {
+			return 0, false
+		}
+		session = wrapper.unwrapSession()
+	}
+	return 0, false
+}
+
+// ReadBackendID returns the server id of the user connection of the current session.
+func (session *ReconnectingSession) ReadBackendID() (int64, bool) {
+	held, done := session.hold()
+	defer done()
+	return FindBackendID(held)
+}
+
+// SiblingOpener opens one more session to the same server. The new session runs only the
+// setup of its own connection, and takes the facts the first session read at connect.
+type SiblingOpener interface {
+	OpenSibling(ctx context.Context, password string) (Session, error)
+}
+
+// FindSiblingOpener searches the session and its wrappers for a SiblingOpener.
+func FindSiblingOpener(session Session) (SiblingOpener, bool) {
+	for session != nil {
+		if opener, opens := session.(SiblingOpener); opens {
+			return opener, true
+		}
+		wrapper, wraps := session.(interface{ unwrapSession() Session })
+		if !wraps {
+			return nil, false
+		}
+		session = wrapper.unwrapSession()
+	}
+	return nil, false
+}
+
+// OpenSibling opens one more session to the server of the current session.
+func (session *ReconnectingSession) OpenSibling(ctx context.Context, password string) (Session, error) {
+	held, done := session.hold()
+	defer done()
+	opener, opens := FindSiblingOpener(held)
+	if !opens {
+		return nil, NewDatabaseError("this session cannot open another session")
+	}
+	return opener.OpenSibling(ctx, password)
+}
+
+// IdleChecker checks the user connection of a session that was idle for the keepalive period.
+type IdleChecker interface {
+	CheckIdleConnection(ctx context.Context) error
+}
+
+// FindIdleChecker searches the session and its wrappers for an IdleChecker.
+func FindIdleChecker(session Session) (IdleChecker, bool) {
+	for session != nil {
+		if checker, checks := session.(IdleChecker); checks {
+			return checker, true
+		}
+		wrapper, wraps := session.(interface{ unwrapSession() Session })
+		if !wraps {
+			return nil, false
+		}
+		session = wrapper.unwrapSession()
+	}
+	return nil, false
+}
+
+// CheckIdleConnection checks the user connection of the current session.
+func (session *ReconnectingSession) CheckIdleConnection(ctx context.Context) error {
+	held, done := session.hold()
+	defer done()
+	if checker, checks := FindIdleChecker(held); checks {
+		return checker.CheckIdleConnection(ctx)
+	}
+	return nil
+}
+
 // hold returns the current session and a release callback. The active call prevents retirement from closing the session.
 func (session *ReconnectingSession) hold() (Session, func()) {
 	session.guard.Lock()
@@ -98,7 +188,7 @@ func (session *ReconnectingSession) Reconnect(ctx context.Context) ReconnectOutc
 	profile := old.session.Describe().Profile
 	session.guard.Unlock()
 
-	password, resolveErr := session.resolvePassword(profile)
+	password, resolveErr := ResolveFreshPassword(profile, session.password)
 	fresh, err := session.adapter.Connect(ctx, profile, password)
 
 	session.guard.Lock()
@@ -122,16 +212,16 @@ func (session *ReconnectingSession) Reconnect(ctx context.Context) ReconnectOutc
 	return ReconnectOutcome{Reconnected: true, TransactionLost: lost}
 }
 
-// resolvePassword reads the password again from a source that needs no user, such as a
+// ResolveFreshPassword reads the password again from a source that needs no user, such as a
 // command that prints a short-lived token. A password the user typed is reused, and so is
 // the held password where the source fails or returns nothing.
-func (session *ReconnectingSession) resolvePassword(profile cfg.Profile) (string, error) {
+func ResolveFreshPassword(profile cfg.Profile, held string) (string, error) {
 	if profile.Auth == cfg.AuthPrompt {
-		return session.password, nil
+		return held, nil
 	}
 	password, err := cfg.ResolveProfilePassword(profile)
 	if err != nil || password == "" {
-		return session.password, err
+		return held, err
 	}
 	return password, nil
 }

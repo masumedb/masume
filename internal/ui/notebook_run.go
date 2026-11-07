@@ -54,10 +54,10 @@ func (model *Model) runNotebook(
 
 	book.Stopped = false
 	book.ApplyRunPlan(plan)
-	if model.opensNotebookTransaction(connection, book) {
+	if model.opensNotebookTransaction(connection, tab) {
 		// The transaction opens before the first cell is sent. A begin beside the run
 		// would reach the server in either order, and the cells would run outside it.
-		return model, model.beginThen(connection,
+		return model, model.beginThen(connection, tab,
 			model.sendNotebookPlan(connection, tab, plan))
 	}
 	return model, model.sendNotebookPlan(connection, tab, plan)
@@ -160,9 +160,8 @@ func (model *Model) reportEngineMismatch(connection *app.Connection, book *app.N
 
 // opensNotebookTransaction is true where the policy asks for one transaction and this run
 // is the one that opens it.
-func (model *Model) opensNotebookTransaction(
-	connection *app.Connection, book *app.Notebook,
-) bool {
+func (model *Model) opensNotebookTransaction(connection *app.Connection, tab *app.Tab) bool {
+	book := tab.Notebook
 	if !book.Run.RunsInOneTransaction() || book.HoldsTransaction {
 		return false
 	}
@@ -171,7 +170,7 @@ func (model *Model) opensNotebookTransaction(
 		return false
 	}
 	// A transaction the reader opened stays theirs to close.
-	if connection.Session.ReadTransactionState() != db.TransactionNone {
+	if connection.ReadTabTransactionState(tab) != db.TransactionNone {
 		return false
 	}
 	book.HoldsTransaction = true
@@ -180,10 +179,10 @@ func (model *Model) opensNotebookTransaction(
 
 // beginThen opens a transaction and then runs what follows it, in that order and on one
 // goroutine.
-func (model *Model) beginThen(connection *app.Connection, next tea.Cmd) tea.Cmd {
-	session := connection.Session
+func (model *Model) beginThen(connection *app.Connection, tab *app.Tab, next tea.Cmd) tea.Cmd {
+	session := connection.ResolveTabSession(tab)
 	id := model.ActiveID()
-	ctx := connection.RunContext()
+	ctx := connection.RunContext(tab)
 	return func() tea.Msg {
 		if err := session.BeginTransaction(ctx); err != nil {
 			return transactionRanMsg{
@@ -201,10 +200,12 @@ func (model *Model) beginThen(connection *app.Connection, next tea.Cmd) tea.Cmd 
 // rollBackThen rolls a failed transaction back and then runs what follows it. A server that
 // holds a failed transaction refuses every statement until it is rolled back, so a run that
 // continues after a failure rolls back first.
-func (model *Model) rollBackThen(connection *app.Connection, next tea.Cmd) tea.Cmd {
-	session := connection.Session
+func (model *Model) rollBackThen(
+	connection *app.Connection, tab *app.Tab, next tea.Cmd,
+) tea.Cmd {
+	session := connection.ResolveTabSession(tab)
 	id := model.ActiveID()
-	ctx := connection.RunContext()
+	ctx := connection.RunContext(tab)
 	return func() tea.Msg {
 		if err := session.RollbackTransaction(ctx); err != nil {
 			return transactionRanMsg{
@@ -224,14 +225,14 @@ func (model *Model) rollBackThen(connection *app.Connection, next tea.Cmd) tea.C
 func (model *Model) resumesAfterFailure(
 	connection *app.Connection, tab *app.Tab, next tea.Cmd,
 ) tea.Cmd {
-	if connection.Session.ReadTransactionState() != db.TransactionFailed {
+	if connection.ReadTabTransactionState(tab) != db.TransactionFailed {
 		return next
 	}
 	if tab.Notebook != nil {
 		tab.Notebook.HoldsTransaction = false
 	}
 	connection.Show("the transaction failed and was rolled back; the run goes on")
-	return model.rollBackThen(connection, next)
+	return model.rollBackThen(connection, tab, next)
 }
 
 // closeNotebookRun commits the one transaction of a notebook once the last cell answered.
@@ -243,10 +244,10 @@ func (model *Model) closeNotebookRun(
 		return nil
 	}
 	book.HoldsTransaction = false
-	session := connection.Session
+	session := connection.ResolveTabSession(tab)
 	id := model.ActiveID()
 	label := describeTransactionStep(ActionCommitTransaction)
-	ctx := connection.BeginWrite(label)
+	ctx := connection.BeginWrite(tab, label)
 	return func() tea.Msg {
 		err := session.CommitTransaction(ctx)
 		return transactionRanMsg{

@@ -26,6 +26,41 @@ type Session struct {
 
 	// True where the user connection cannot take another statement.
 	broken bool
+	// The end of the last call on the user connection, or the time it opened.
+	usedAt time.Time
+}
+
+// CheckIdleConnection pings a user connection that was idle for the keepalive period. A
+// connection the server closed opens again at once where no transaction was open. A busy
+// connection is not checked.
+func (session *Session) CheckIdleConnection(ctx context.Context) error {
+	giveBack, free := session.MainQueue.TryTake()
+	if !free {
+		return nil
+	}
+	defer giveBack()
+
+	keepalive := session.Descriptor.Profile.Keepalive
+	if keepalive <= 0 || time.Since(session.usedAt) < keepalive ||
+		session.Transaction.ReadState() == db.TransactionFailed {
+		return nil
+	}
+	if !session.broken {
+		err := session.Connection.PingContext(ctx)
+		if err == nil || ctx.Err() != nil {
+			return err
+		}
+		session.broken = true
+	}
+	if session.Transaction.ReadState() != db.TransactionNone {
+		return db.NewDatabaseError("the connection closed and the transaction was lost")
+	}
+	return session.ReopenBrokenConnection(ctx)
+}
+
+// MarkConnectionUsed records the end of a call on the user connection.
+func (session *Session) MarkConnectionUsed() {
+	session.usedAt = time.Now()
 }
 
 // Hooks are the parts of a session that differ between engines.
@@ -133,6 +168,7 @@ func (session *Session) ReopenBrokenConnection(ctx context.Context) error {
 	}
 	session.Connection = opened
 	session.broken = false
+	session.MarkConnectionUsed()
 	if lost {
 		return db.NewDatabaseError("the connection closed and the transaction was lost")
 	}
@@ -239,6 +275,7 @@ func (session *Session) StreamQuery(
 	if err := session.ReopenBrokenConnection(ctx); err != nil {
 		return 0, err
 	}
+	defer session.MarkConnectionUsed()
 	if session.Hooks.PrepareStream != nil {
 		if err := session.Hooks.PrepareStream(ctx); err != nil {
 			return 0, err
@@ -301,6 +338,7 @@ func (session *Session) runTransactionStatement(
 	if err := session.ReopenBrokenConnection(ctx); err != nil {
 		return err
 	}
+	defer session.MarkConnectionUsed()
 	if err := session.RunPlain(ctx, sql); err != nil {
 		return session.Hooks.WrapTransactionError(err)
 	}
@@ -330,6 +368,7 @@ func (session *Session) ApplyChanges(ctx context.Context, changes []db.Change) e
 	if err := session.ReopenBrokenConnection(ctx); err != nil {
 		return err
 	}
+	defer session.MarkConnectionUsed()
 	return db.ApplyChangesInTransaction(ctx, changes, db.ChangeApplication{
 		JoinsUserTransaction: session.Transaction.ReadState() == db.TransactionOpen,
 		Begin: func(ctx context.Context) error {

@@ -293,7 +293,7 @@ func (model *Model) renderTitleBar() string {
 		writeTextOn(&text, resolveMarkInk(theme.Warning), ground,
 			hintSeparator+"reconnecting")
 	}
-	switch connection.Session.ReadTransactionState() {
+	switch connection.ReadTabTransactionState(connection.Active()) {
 	case db.TransactionOpen:
 		writeTextOn(&text, resolveMarkInk(theme.Warning), ground, hintSeparator+"tx open")
 	case db.TransactionFailed:
@@ -568,7 +568,7 @@ func (model *Model) describeStatus(
 			model.describeReviewKey(tab), app.NoticeActive
 	}
 
-	switch connection.Session.ReadTransactionState() {
+	switch connection.ReadTabTransactionState(tab) {
 	case db.TransactionOpen:
 		return warning + "a transaction is open", app.NoticeInfo
 	case db.TransactionFailed:

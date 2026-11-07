@@ -100,6 +100,8 @@ type Capabilities struct {
 	JoinsTables bool
 	// True if the server stores schemaless documents. An import writes each document whole.
 	StoresDocuments bool
+	// True if each tab can open a session of its own.
+	OpensTabSessions bool
 }
 
 // EngineInfo is the engine metadata available before connection. Query support adds the dialect and language.
@@ -166,6 +168,7 @@ var postgresCapabilities = Capabilities{
 	PlansWrites:         true,
 	TakesReadOnlyMode:   true,
 	JoinsTables:         true,
+	OpensTabSessions:    true,
 
 	AppliesChangesTogether: true,
 }
@@ -190,6 +193,7 @@ var sqliteCapabilities = Capabilities{
 	TakesReadOnlyMode:      true,
 	JoinsTables:            true,
 	AppliesChangesTogether: true,
+	OpensTabSessions:       true,
 }
 
 var sqlserverCapabilities = Capabilities{
@@ -214,6 +218,7 @@ var sqlserverCapabilities = Capabilities{
 	TakesReadOnlyMode:      true,
 	JoinsTables:            true,
 	AppliesChangesTogether: true,
+	OpensTabSessions:       true,
 }
 
 func withSqlite(change func(*Capabilities)) Capabilities {
@@ -299,6 +304,7 @@ var clickhouseCapabilities = Capabilities{
 	JoinsTables:       true,
 	// Without a transaction, every change stands on its own.
 	AppliesChangesTogether: false,
+	OpensTabSessions:       true,
 }
 
 var engineRegistry = map[Engine]EngineInfo{
@@ -334,6 +340,8 @@ var engineRegistry = map[Engine]EngineInfo{
 			// The cluster reports its locks and its load through its own `stv_` tables.
 			capabilities.ReportsLockWaits = false
 			capabilities.ReportsServerLoad = false
+			// A Redshift connection is slow to open, and a cluster allows few connections.
+			capabilities.OpensTabSessions = false
 		}),
 		DefaultPort: 5439, NeedsUser: true, NeedsPassword: true, NeedsDatabase: true,
 		URLSchemes: []string{"redshift"},

@@ -153,7 +153,7 @@ func TestRunStatementsLeavesWritesForExplicitTransactionActions(t *testing.T) {
 				connection.Session = session
 				connection.Autocommit = autocommit
 				if autocommit {
-					_, command := model.runTransaction(connection, ActionBeginTransaction)
+					_, command := model.runTransaction(connection, connection.Active(), ActionBeginTransaction)
 					if answered := command().(transactionRanMsg); answered.Problem != "" {
 						t.Fatal(answered.Problem)
 					}
@@ -169,7 +169,7 @@ func TestRunStatementsLeavesWritesForExplicitTransactionActions(t *testing.T) {
 				if session.ReadTransactionState() != db.TransactionOpen {
 					t.Fatal("the write closed the transaction")
 				}
-				_, command = model.runTransaction(connection, action)
+				_, command = model.runTransaction(connection, connection.Active(), action)
 				if answered := command().(transactionRanMsg); answered.Problem != "" {
 					t.Fatal(answered.Problem)
 				}
@@ -308,13 +308,13 @@ func TestRunQueryReadPathsBeginManualTransactions(t *testing.T) {
 				case "plan":
 					command = readPlan(context.Background(), 1, 1, 1, connection.Session, read.Text, false, autocommit)
 				case "grid":
-					command = applyChanges(connection, 1, 1, []db.Change{{
+					command = applyChanges(connection, 1, connection.Active(), []db.Change{{
 						Payload: query.BoundStatement{SQL: "insert into entries values (1)"},
 					}}, nil, "")
 				case "undo":
-					command = applyUndo(connection, 1, writeplan.Undo{Changes: []db.Change{{
+					command = applyUndo(connection, 1, app.HeldUndo{Undo: writeplan.Undo{Changes: []db.Change{{
 						Payload: query.BoundStatement{SQL: "insert into entries values (1)"},
-					}}})
+					}}}})
 				case "export":
 					tab.Results.Start([]string{read.Text}, 100)
 					tab.Results.Succeed(0, read, db.QueryResult{})
@@ -394,7 +394,7 @@ func TestRunQueryReadPathsRefuseFailedBegin(t *testing.T) {
 			case "plan":
 				problem = readPlan(context.Background(), 1, 1, 1, session, read.Text, false, false)().(planReadMsg).Problem
 			case "grid":
-				problem = applyChanges(&app.Connection{Session: session}, 1, 1, []db.Change{{}}, nil, "")().(changesAppliedMsg).Problem
+				problem = applyChanges(&app.Connection{Session: session}, 1, &app.Tab{ID: 1}, []db.Change{{}}, nil, "")().(changesAppliedMsg).Problem
 			}
 			if problem == "" || !reflect.DeepEqual(session.calls, []string{"begin"}) {
 				t.Fatalf("calls %v, problem %q", session.calls, problem)

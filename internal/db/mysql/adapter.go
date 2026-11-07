@@ -6,6 +6,7 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	driver "github.com/go-sql-driver/mysql"
@@ -23,7 +24,7 @@ type mysqlSession struct {
 	sqlbase.Session
 
 	flavour  Flavour
-	threadID int64
+	threadID atomic.Int64
 	profile  cfg.Profile
 	password string
 	// The row cap of the connection, kept so it is not set twice.
@@ -31,6 +32,12 @@ type mysqlSession struct {
 	hasSelectLimit bool
 	// True if innodb_rollback_on_timeout enables full rollback after a lock timeout.
 	rollsBackOnTimeout bool
+}
+
+// ReadBackendID returns the connection id of the user connection.
+func (session *mysqlSession) ReadBackendID() (int64, bool) {
+	held := session.threadID.Load()
+	return held, held > 0
 }
 
 // markTransactionFailed records full transaction rollback errors. Ordinary MySQL errors leave the transaction open.
@@ -48,8 +55,9 @@ func (session *mysqlSession) markTransactionFailed(err error) {
 
 // stopAbandonedStatement stops the statement of the user connection on the server.
 func (session *mysqlSession) stopAbandonedStatement(ctx context.Context) {
-	statement := session.flavour.BuildKillStatement(session.threadID, false)
-	if session.threadID <= 0 || statement == "" {
+	threadID := session.threadID.Load()
+	statement := session.flavour.BuildKillStatement(threadID, false)
+	if threadID <= 0 || statement == "" {
 		return
 	}
 	side, err := session.Side.Read()
@@ -76,7 +84,7 @@ func (session *mysqlSession) prepareReopenedConnection(
 	if err != nil {
 		return err
 	}
-	session.threadID = threadID
+	session.threadID.Store(threadID)
 	session.hasSelectLimit = false
 	return nil
 }
@@ -175,6 +183,7 @@ func (session *mysqlSession) RunQuery(
 	if err := session.ReopenBrokenConnection(ctx); err != nil {
 		return db.QueryResult{}, err
 	}
+	defer session.MarkConnectionUsed()
 	flavour := session.Support.Dialect.Syntax
 	if err := session.applySelectLimit(
 		ctx, resolveSelectLimit(statement, flavour, rowLimit)); err != nil {
@@ -302,6 +311,7 @@ func (session *mysqlSession) ExplainQuery(
 	if err := session.ReopenBrokenConnection(ctx); err != nil {
 		return db.QueryPlan{}, err
 	}
+	defer session.MarkConnectionUsed()
 	// Planning requires the original statement without the session row cap.
 	if err := session.applySelectLimit(ctx, -1); err != nil {
 		return db.QueryPlan{}, db.WrapDatabaseError(err)
@@ -418,11 +428,12 @@ func (session *mysqlSession) CancelRunningQuery(ctx context.Context) (bool, erro
 	if !session.Support.Capabilities.CancelsRunningQuery {
 		return false, db.NewUnsupportedError("cancel a running statement")
 	}
-	if session.threadID <= 0 {
+	threadID := session.threadID.Load()
+	if threadID <= 0 {
 		return false, db.NewDatabaseError(
 			"cannot cancel the statement: the connection ID is unavailable")
 	}
-	statement := session.flavour.BuildKillStatement(session.threadID, false)
+	statement := session.flavour.BuildKillStatement(threadID, false)
 	if statement == "" {
 		return false, db.NewUnsupportedError("cancel a running statement")
 	}
@@ -484,27 +495,53 @@ func (adapter *mysqlAdapter) Connect(
 		serverVersion = written
 	}
 
-	session := &mysqlSession{
+	return buildMysqlSession(mysqlSessionParts{
+		support: adapter.support, flavour: adapter.flavour, profile: profile,
+		password: password, pool: pool, connection: connection, threadID: threadID,
+		serverVersion:      serverVersion,
 		rollsBackOnTimeout: readRollsBackOnTimeout(ctx, connection),
+	}), nil
+}
+
+// mysqlSessionParts is what a session is built from: the user connection and the facts read
+// at connect.
+type mysqlSessionParts struct {
+	support            db.EngineSupport
+	flavour            Flavour
+	profile            cfg.Profile
+	password           string
+	pool               *sql.DB
+	connection         *sql.Conn
+	threadID           int64
+	serverVersion      string
+	rollsBackOnTimeout bool
+}
+
+// buildMysqlSession returns the session of a user connection that is ready.
+func buildMysqlSession(parts mysqlSessionParts) *mysqlSession {
+	profile, password := parts.profile, parts.password
+	session := &mysqlSession{
+		rollsBackOnTimeout: parts.rollsBackOnTimeout,
 		Session: sqlbase.Session{
 			SessionFacts: db.SessionFacts{
 				Descriptor: db.SessionDescriptor{
-					Profile: profile, ServerVersion: serverVersion,
+					Profile: profile, ServerVersion: parts.serverVersion,
 					// A MySQL schema is a database. The connected one is the default.
 					DefaultSchema: profile.Database,
 				},
-				Support: adapter.support,
+				Support: parts.support,
 			},
-			Connection: connection, Pool: pool,
+			Connection: parts.connection, Pool: parts.pool,
 			Side: db.NewSideConnection(func() (*sql.DB, error) {
 				return openMysqlPool(profile, password)
 			}, nil),
 			MainQueue: db.NewCallQueue(),
 		},
-		flavour:  adapter.flavour,
-		threadID: threadID,
-		profile:  profile, password: password,
+		flavour: parts.flavour,
+		profile: profile, password: password,
 	}
+	session.threadID.Store(parts.threadID)
+	session.MarkConnectionUsed()
 	session.Hooks = sqlbase.Hooks{
 		BeginStatement:         "start transaction",
 		PrepareConnection:      session.prepareReopenedConnection,
@@ -520,7 +557,35 @@ func (adapter *mysqlAdapter) Connect(
 		},
 		ReadStreamColumns: readStreamColumns,
 	}
-	return session, nil
+	return session
+}
+
+// OpenSibling opens one more session to the same server. The new connection runs only the
+// read-only statement and the connection id read. The server version and the rollback
+// setting come from this session.
+func (session *mysqlSession) OpenSibling(ctx context.Context, password string) (db.Session, error) {
+	profile := session.profile
+	pool, err := openMysqlPool(profile, password)
+	if err != nil {
+		return nil, db.WrapDatabaseMessage(db.BuildConnectMessage(profile, err), err)
+	}
+	connection, connectionErr := pool.Conn(ctx)
+	if connectionErr != nil {
+		_ = pool.Close()
+		return nil, db.WrapDatabaseMessage(db.BuildConnectMessage(profile, connectionErr), connectionErr)
+	}
+	threadID, prepareErr := prepareUserConnection(ctx, connection, profile, session.flavour)
+	if prepareErr != nil {
+		_ = connection.Close()
+		_ = pool.Close()
+		return nil, db.WrapDatabaseMessage(db.BuildConnectMessage(profile, prepareErr), prepareErr)
+	}
+	return buildMysqlSession(mysqlSessionParts{
+		support: session.Support, flavour: session.flavour, profile: profile,
+		password: password, pool: pool, connection: connection, threadID: threadID,
+		serverVersion:      session.Descriptor.ServerVersion,
+		rollsBackOnTimeout: session.rollsBackOnTimeout,
+	}), nil
 }
 
 // readStreamColumns returns the columns of a streamed result and the reader of one row.

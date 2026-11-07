@@ -255,3 +255,12 @@ func TestResolveModeDefaultPortTakesTheTLSPort(t *testing.T) {
 		}
 	}
 }
+
+func TestRedshiftRunsEveryTabOnOneSession(t *testing.T) {
+	if ResolveEngineInfo(EngineRedshift).Capabilities.OpensTabSessions {
+		t.Error("Redshift opens a session per tab")
+	}
+	if !ResolveEngineInfo(EnginePostgres).Capabilities.OpensTabSessions {
+		t.Error("PostgreSQL runs every tab on one session")
+	}
+}

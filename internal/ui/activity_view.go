@@ -33,7 +33,8 @@ func (model *Model) renderActivity(
 ) string {
 	sessions := app.ListShownSessions(overlay.Sessions, overlay.View)
 	labels := model.buildActivityHeadings(overlay.View)
-	columns := measureActivityColumns(sessions, labels)
+	own := overlay.Server.Own
+	columns := measureActivityColumns(sessions, labels, own)
 	rows := make([]string, 0, len(sessions))
 	for at, session := range sessions {
 		rows = append(rows, model.renderListRow(ListRowSpec{
@@ -41,7 +42,7 @@ func (model *Model) renderActivity(
 				present.FitText(session.State, columns.state),
 			LabelWidth: columns.pid + 2 + columns.state + 2,
 			Detail: present.FitTextRight(core.FormatClock(session.Duration), columns.time) + "  " +
-				present.FitText(describeActivityUser(session), columns.user) + "  " +
+				present.FitText(describeActivityUser(session, own), columns.user) + "  " +
 				core.CollapseWhitespace(session.Query),
 			Selected: at == overlay.List.Cursor, Destructive: session.State == "active",
 			Width: width,
@@ -146,7 +147,7 @@ func describeEmptySessions(overlay app.Overlay) string {
 // measureActivityColumns returns the widths that hold the widest value and heading of each
 // column of the session list.
 func measureActivityColumns(
-	sessions []db.Activity, labels map[app.ActivityColumn]string,
+	sessions []db.Activity, labels map[app.ActivityColumn]string, own map[int64]string,
 ) activityColumns {
 	columns := activityColumns{
 		pid:   present.MeasureText(labels[app.ActivityByPID]),
@@ -158,7 +159,7 @@ func measureActivityColumns(
 		columns.pid = max(columns.pid, len(strconv.FormatInt(session.PID, 10)))
 		columns.state = max(columns.state, present.MeasureText(session.State))
 		columns.time = max(columns.time, present.MeasureText(core.FormatClock(session.Duration)))
-		columns.user = min(max(columns.user, present.MeasureText(describeActivityUser(session))),
+		columns.user = min(max(columns.user, present.MeasureText(describeActivityUser(session, own))),
 			activityUserWidth)
 	}
 	return columns
@@ -167,8 +168,12 @@ func measureActivityColumns(
 // activityUserWidth is the widest user@app column the session list draws.
 const activityUserWidth = 28
 
-// describeActivityUser returns the user and the application of a session.
-func describeActivityUser(session db.Activity) string {
+// describeActivityUser returns the user and the application of a session, and the label of
+// a session of this client.
+func describeActivityUser(session db.Activity, own map[int64]string) string {
+	if label, mine := own[session.PID]; mine {
+		return label
+	}
 	application := session.ApplicationName
 	if application == "" {
 		application = "?"
@@ -232,7 +237,8 @@ func (model *Model) buildDashboardSummary(overlay app.Overlay, width int) string
 	}
 
 	text += paintText(theme.Muted, theme.Panel, "other sessions ")
-	text += paintText(theme.Text, theme.Panel, strconv.Itoa(len(overlay.Sessions)))
+	text += paintText(theme.Text, theme.Panel,
+		strconv.Itoa(app.CountOtherSessions(overlay.Sessions, overlay.Server.Own)))
 	if idle := app.CountIdleSessions(overlay.Sessions); overlay.View.HidesIdle && idle > 0 {
 		text += paintText(theme.Muted, theme.Panel, " · "+strconv.Itoa(idle)+" idle hidden")
 	}

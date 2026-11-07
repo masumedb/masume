@@ -78,7 +78,17 @@ func (adapters Adapters) Open(
 	if err != nil {
 		return nil, err
 	}
-	// Session wrappers apply reconnection, time limits, and read-only checks.
+	return adapters.WrapSession(session, password)
+}
+
+// WrapSession applies reconnection, time limits, and read-only checks to a session the
+// adapter of its engine opened.
+func (adapters Adapters) WrapSession(session db.Session, password string) (db.Session, error) {
+	profile := session.Describe().Profile
+	adapter, known := adapters[profile.Engine]
+	if !known {
+		return nil, db.NewDatabaseError("no driver is registered for engine %s", profile.Engine)
+	}
 	return db.MakeReadOnly(
 		db.MakeTimeLimited(db.MakeReconnectable(session, adapter, password))), nil
 }

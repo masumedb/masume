@@ -745,6 +745,28 @@ func (adapter *clickhouseAdapter) Connect(
 	return session, nil
 }
 
+// OpenSibling opens one more server session with its own client. It sends only the
+// statement that opens the server session. The server version and the statement log check
+// come from this session.
+func (session *clickhouseSession) OpenSibling(ctx context.Context, password string) (db.Session, error) {
+	profile := session.Descriptor.Profile
+	client, err := buildClient(profile, password)
+	if err != nil {
+		return nil, db.WrapDatabaseMessage(db.BuildConnectMessage(profile, err), err)
+	}
+	sibling := &clickhouseSession{
+		SessionFacts: session.SessionFacts,
+		client:       client, sessionID: buildClientID(), sessionTimeout: sessionTimeout,
+		holdsStatementStats: session.holdsStatementStats,
+		listedIDs:           map[int64]string{}, mainQueue: db.NewCallQueue(),
+	}
+	if err := sibling.openServerSession(ctx); err != nil {
+		client.close()
+		return nil, db.WrapDatabaseMessage(db.BuildConnectMessage(profile, err), err)
+	}
+	return sibling, nil
+}
+
 // readServerVersion returns the version of the server, as it writes it itself.
 func (session *clickhouseSession) readServerVersion(ctx context.Context) string {
 	rows, _, err := session.readNamedRows(ctx, "select version() as version")

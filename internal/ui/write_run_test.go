@@ -52,7 +52,7 @@ func TestGridSaveRunsUntilTheCancelKey(t *testing.T) {
 	model, connection, _ := buildWaitingWriteModel(t)
 	tab := connection.Active()
 
-	command := applyChanges(connection, model.ActiveID(), tab.ID, []db.Change{{}}, nil, "")
+	command := applyChanges(connection, model.ActiveID(), tab, []db.Change{{}}, nil, "")
 	if text, _ := model.describeStatus(connection, tab); text != "running "+saveWriteLabel {
 		t.Errorf("the bar shows %q during the save", text)
 	}
@@ -83,7 +83,7 @@ func TestTransactionStepRunsUntilItAnswers(t *testing.T) {
 	model, connection, session := buildWaitingWriteModel(t)
 	session.state = db.TransactionOpen
 
-	_, command := model.runTransaction(connection, ActionCommitTransaction)
+	_, command := model.runTransaction(connection, connection.Active(), ActionCommitTransaction)
 	if label, _ := connection.FindWrite(); label != "commit" {
 		t.Errorf("the running write is %q", label)
 	}

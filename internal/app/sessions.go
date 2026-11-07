@@ -37,6 +37,17 @@ func IsIdleSession(session db.Activity) bool {
 	return slices.Contains(idleStates, strings.ToLower(strings.TrimSpace(session.State)))
 }
 
+// CountOtherSessions returns how many sessions belong to another client.
+func CountOtherSessions(sessions []db.Activity, own map[int64]string) int {
+	count := 0
+	for _, session := range sessions {
+		if _, mine := own[session.PID]; !mine {
+			count++
+		}
+	}
+	return count
+}
+
 // CountIdleSessions returns how many sessions wait for their next statement.
 func CountIdleSessions(sessions []db.Activity) int {
 	count := 0

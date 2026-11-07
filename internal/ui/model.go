@@ -321,6 +321,9 @@ func (model *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		model.outcome = nil
 	}
 	next, command := model.readMessage(message)
+	if open := model.openActiveTabSession(); open != nil {
+		command = tea.Batch(command, open)
+	}
 	model.settleSplitView()
 	if read := model.readShownSides(); read != nil {
 		command = tea.Batch(command, read)
@@ -930,21 +933,37 @@ func (model *Model) askDiscardOnExit() bool {
 	if transactions > 0 {
 		model.confirm.Yes = "roll back and quit"
 	}
-	if connections := model.findOpenTransactions(); len(connections) > 0 {
-		model.confirm.Commit = func() tea.Cmd { return model.commitBeforeQuit(connections) }
+	if transactions := model.findOpenTransactions(); len(transactions) > 0 {
+		model.confirm.Commit = func() tea.Cmd { return model.commitBeforeQuit(transactions) }
 	}
 	return true
 }
 
-// findOpenTransactions returns the connections that hold a transaction a commit can end.
-func (model *Model) findOpenTransactions() []*app.Connection {
-	connections := []*app.Connection{}
+// openTransaction is a session that holds a transaction a commit can end, and its tab. The
+// connection session has no tab.
+type openTransaction struct {
+	connection *app.Connection
+	tab        *app.Tab
+	session    db.Session
+}
+
+// findOpenTransactions returns every session that holds a transaction a commit can end.
+func (model *Model) findOpenTransactions() []openTransaction {
+	transactions := []openTransaction{}
 	for _, connection := range model.connections.all() {
 		if connection.Session.ReadTransactionState() == db.TransactionOpen {
-			connections = append(connections, connection)
+			transactions = append(transactions,
+				openTransaction{connection: connection, session: connection.Session})
+		}
+		for _, tab := range connection.Tabs {
+			session, found := connection.FindTabSession(tab)
+			if found && session.ReadTransactionState() == db.TransactionOpen {
+				transactions = append(transactions,
+					openTransaction{connection: connection, tab: tab, session: session})
+			}
 		}
 	}
-	return connections
+	return transactions
 }
 
 // quitCommittedMsg reports the commits that run before the client ends.
@@ -957,17 +976,17 @@ type quitCommittedMsg struct {
 // quitCommitTimeout is the time limit for one commit before the client ends.
 const quitCommitTimeout = 30 * time.Second
 
-// commitBeforeQuit commits the transaction of every connection, and stops at the first that
-// fails. Each commit runs on the run context of its connection, within quitCommitTimeout.
-func (model *Model) commitBeforeQuit(connections []*app.Connection) tea.Cmd {
+// commitBeforeQuit commits every open transaction, and stops at the first that fails. Each
+// commit runs on the run context of its tab, within quitCommitTimeout.
+func (model *Model) commitBeforeQuit(transactions []openTransaction) tea.Cmd {
 	label := describeTransactionStep(ActionCommitTransaction)
-	ids := make([]int, 0, len(connections))
-	sessions := make([]db.Session, 0, len(connections))
-	contexts := make([]context.Context, 0, len(connections))
-	for _, connection := range connections {
-		ids = append(ids, model.connections.idOf(connection))
-		sessions = append(sessions, connection.Session)
-		contexts = append(contexts, connection.BeginWrite(label))
+	ids := make([]int, 0, len(transactions))
+	sessions := make([]db.Session, 0, len(transactions))
+	contexts := make([]context.Context, 0, len(transactions))
+	for _, held := range transactions {
+		ids = append(ids, model.connections.idOf(held.connection))
+		sessions = append(sessions, held.session)
+		contexts = append(contexts, held.connection.BeginWrite(held.tab, label))
 	}
 	return func() tea.Msg {
 		answered := quitCommittedMsg{ConnectionIDs: ids}
@@ -1004,7 +1023,7 @@ func (model *Model) readQuitCommitted(answered quitCommittedMsg) (tea.Model, tea
 	return model, model.shutDown()
 }
 
-// countUnwrittenWork returns the staged changes of every tab, and the number of connections
+// countUnwrittenWork returns the staged changes of every tab, and the number of sessions
 // that hold an open transaction.
 func (model *Model) countUnwrittenWork() (staged int, transactions int) {
 	for _, connection := range model.connections.all() {
@@ -1101,7 +1120,8 @@ func (model *Model) shutDown() tea.Cmd {
 		commands = append(commands, model.saveWorkspace(connection))
 	}
 	for _, connection := range model.connections.all() {
-		commands = append(commands, closeSession(connection.Session, connection.PreConnect))
+		commands = append(commands, closeSession(
+			connection.Session, connection.PreConnect, connection.TakeTabSessions()...))
 	}
 	commands = append(commands, tea.Quit)
 	return tea.Sequence(commands...)
@@ -1168,6 +1188,7 @@ func (model *Model) readConnected(answered connectedMsg) (tea.Model, tea.Cmd) {
 
 	connection := app.NewConnection(
 		answered.Session, answered.PreConnect, model.settings.HideSystemSchemas)
+	connection.OpenTabSession = answered.OpenTabSession
 	id := model.connections.open(connection)
 	model.screen = ScreenWorking
 	// The password is kept only once the server took it, so a wrong one is never stored.
@@ -1249,7 +1270,8 @@ func (model *Model) readHealthDue(due healthDueMsg) (tea.Model, tea.Cmd) {
 	if !found {
 		return model, nil
 	}
-	return model, pingSession(due.ConnectionID, connection.Session)
+	return model, tea.Batch(pingSession(due.ConnectionID, connection.Session),
+		checkIdleConnections(connection.ListIdleCheckers()))
 }
 
 // readHealthChecked keeps what the check found, and arranges the next one. A server that
@@ -1292,6 +1314,7 @@ func (model *Model) readReconnected(answered reconnectedMsg) (tea.Model, tea.Cmd
 	if !found {
 		return model, nil
 	}
+	var detached tea.Cmd
 	if answered.Outcome.Reconnected {
 		connection.Health, connection.HealthFailures, connection.HealthProblem =
 			app.HealthOk, 0, ""
@@ -1301,6 +1324,7 @@ func (model *Model) readReconnected(answered reconnectedMsg) (tea.Model, tea.Cmd
 		} else {
 			connection.Show("reconnected")
 		}
+		detached = closeTabSessions(connection.DetachIdleTabSessions())
 	} else {
 		connection.Health = app.HealthDown
 		problem := answered.Outcome.Problem
@@ -1313,8 +1337,8 @@ func (model *Model) readReconnected(answered reconnectedMsg) (tea.Model, tea.Cmd
 		}
 		connection.ShowError("cannot reconnect: " + problem + lost)
 	}
-	return model, scheduleHealthCheck(answered.ConnectionID, ResolveHealthBackoff(
-		connection.HealthFailures, connection.Profile().Keepalive))
+	return model, tea.Batch(detached, scheduleHealthCheck(answered.ConnectionID,
+		ResolveHealthBackoff(connection.HealthFailures, connection.Profile().Keepalive)))
 }
 
 // readCatalogAnswer keeps what the server holds.
@@ -1488,6 +1512,7 @@ func (model *Model) readActivityAnswer(answered activityReadMsg) (tea.Model, tea
 			HasLoad: answered.HasLoad, HasLocks: answered.HasLocks,
 			HasSlow: answered.HasSlow,
 			ReadAt:  time.Now(),
+			Own:     connection.ListOwnBackends(),
 		},
 	}
 	if open {

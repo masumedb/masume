@@ -118,6 +118,24 @@ func Open(t *testing.T, target Target) db.Session {
 	return session
 }
 
+// OpenSibling opens one more session to the server of the session, the way a new tab does.
+func OpenSibling(t *testing.T, target Target, session db.Session) db.Session {
+	t.Helper()
+	opener, opens := db.FindSiblingOpener(session)
+	if !opens {
+		t.Fatalf("the %s session cannot open a sibling", target.Engine)
+	}
+	_, password := BuildProfile(t, target)
+	ctx, stop := context.WithTimeout(context.Background(), openTimeout)
+	defer stop()
+	sibling, err := opener.OpenSibling(ctx, password)
+	if err != nil {
+		t.Fatalf("the sibling of the %s session did not open: %v", target.Engine, err)
+	}
+	t.Cleanup(func() { _ = sibling.Close() })
+	return sibling
+}
+
 // BuildProfile reads the URL of a target into a profile and the password beside it, for
 // a test that opens a connection itself rather than through Open.
 func BuildProfile(t *testing.T, target Target) (cfg.Profile, string) {

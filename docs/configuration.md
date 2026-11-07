@@ -93,9 +93,10 @@ mode     = "write"
 | `replica_set` | | MongoDB and Amazon DocumentDB. Replica set name |
 | `options` | | Driver options, such as `options = { connect_timeout = "5" }`. See [Driver options](#driver-options) |
 | `statement_timeout_ms` | `0` | Time limit for one statement in milliseconds. `0` means the server default |
-| `keepalive_s` | `30` | Seconds between connection checks. `0` disables the keepalive |
+| `keepalive_s` | `30` | Seconds between connection checks. `0` disables the keepalive. On the PostgreSQL, MySQL and SQL Server families, each check also pings the connection of every tab that was idle for this long, and opens it again if the server closed it. If a transaction was open on it, the next statement does not run and the transaction is reported as lost |
 | `page_size` | `200` | Rows per page, in the grid and in `masume run`. Must be above zero |
-| `autocommit` | `true` | `false` opens a transaction when a statement runs in the TUI, and keeps it open until commit or rollback |
+| `autocommit` | `true` | `false` opens a transaction when a statement runs in the TUI, and keeps it open until commit or rollback. Each tab has its own transaction |
+| `tab_sessions` | `true` | `true` opens one database session per tab. `false` runs every tab on one session. See [transactions](usage.md#transactions) |
 | `ssh_host` | | SSH server host. Without it masume connects to `host` directly. See [SSH tunnel](#ssh-tunnel) |
 | `ssh_port` | `22` | SSH server port |
 | `ssh_user` | required with `ssh_host` | SSH server user |
@@ -117,7 +118,7 @@ A leading `~` in `database` expands to the home directory. Relative SQLite paths
 
 The per-environment defaults of `confirm_writes` and `write_plan` apply when the profile does not set them. Changing `env` in the connection form does not change the confirmation setting. A new form starts with confirmation `off`. [Usage](usage.md) covers connection forms and transaction commands.
 
-Headless commands use `statement_timeout_ms`, `mode`, `page_size`, and `command`. They do not use `autocommit`, `confirm_writes`, `write_plan`, or undo. They cannot prompt for a password. See [headless.md](headless.md).
+Headless commands use `statement_timeout_ms`, `mode`, `page_size`, and `command`. They do not use `autocommit`, `tab_sessions`, `confirm_writes`, `write_plan`, or undo. They cannot prompt for a password. See [headless.md](headless.md).
 
 ### TLS
 

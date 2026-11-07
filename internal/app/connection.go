@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"io"
 	"slices"
 	"time"
 
@@ -127,6 +128,9 @@ func (marks *Marks) VisitSchema(schema string, now time.Time) {
 // Connection is one open connection, with the tabs and the state that belong to it.
 type Connection struct {
 	Session db.Session
+	// OpenTabSession opens the session of one tab. With nil, every tab runs on Session.
+	OpenTabSession func(ctx context.Context) (db.Session, error)
+	tabSessions    map[int]*db.TabSession
 	// What was started to reach the server, which is stopped with the connection.
 	PreConnect *cfg.PreConnectHandle
 	Catalog    *Catalog
@@ -182,11 +186,10 @@ type Connection struct {
 	stopImport func()
 	// stopDump is the way to stop the dump or the restore that runs now.
 	stopDump func()
-	// The context of the statements the user runs, and its cancel function.
-	runs     context.Context
-	stopRuns context.CancelFunc
-	// The labels of the writes and transaction steps that run now.
-	writes []string
+	// The context of the statements the user runs in each tab, by tab id.
+	runs map[int]tabRun
+	// The writes and transaction steps that run now.
+	writes []heldWrite
 
 	// The cached object tree and its input fingerprint.
 	treeAt     treeFingerprint
@@ -194,16 +197,44 @@ type Connection struct {
 	treeBuilt  bool
 }
 
+// tabRun is the context of the statements the user runs in one tab, and its cancel function.
+type tabRun struct {
+	ctx  context.Context
+	stop context.CancelFunc
+}
+
+// heldWrite is one write or transaction step that runs now.
+type heldWrite struct {
+	tabID int
+	label string
+}
+
 // HeldUndo is the undo of one write, and the write it reverses.
 type HeldUndo struct {
 	Undo  writeplan.Undo
 	SQL   string
 	RanAt time.Time
+	// The tab the write ran in. Zero for a write on the connection session.
+	TabID int
 }
 
 // KeepUndo replaces the stored undo with the latest write, including the reason when undo is unavailable.
-func (connection *Connection) KeepUndo(undo writeplan.Undo, sql string, now time.Time) {
-	connection.Undo = &HeldUndo{Undo: undo, SQL: sql, RanAt: now}
+func (connection *Connection) KeepUndo(
+	tabID int, undo writeplan.Undo, sql string, now time.Time,
+) {
+	connection.Undo = &HeldUndo{Undo: undo, SQL: sql, RanAt: now, TabID: tabID}
+}
+
+// FindUndoTab returns the tab the undo runs in: the tab of the write, or the active tab where
+// that tab is closed. A write on the connection session returns nil.
+func (connection *Connection) FindUndoTab(held HeldUndo) *Tab {
+	if held.TabID == 0 {
+		return nil
+	}
+	if at := connection.IndexOfTab(held.TabID); at >= 0 {
+		return connection.Tabs[at]
+	}
+	return connection.Active()
 }
 
 // TreeState holds the view state of the object tree, which is not application state.
@@ -309,34 +340,184 @@ func (connection *Connection) StopDump() {
 	connection.stopDump = nil
 }
 
-// RunContext returns the context of the statements the user runs on this connection.
-func (connection *Connection) RunContext() context.Context {
-	if connection.runs == nil {
-		connection.runs, connection.stopRuns = context.WithCancel(context.Background())
-	}
-	return connection.runs
+// HasTabSessions is true where each tab runs on a session of its own.
+func (connection *Connection) HasTabSessions() bool {
+	return connection.OpenTabSession != nil && !connection.Profile().SharesSession &&
+		connection.Session.Capabilities().OpensTabSessions
 }
 
-// StopRuns cancels every statement started with RunContext. The next RunContext is a new one.
+// ResolveTabSession returns the session the work of the tab runs on.
+func (connection *Connection) ResolveTabSession(tab *Tab) db.Session {
+	if held, own := connection.ResolveOwnTabSession(tab); own {
+		return held
+	}
+	return connection.Session
+}
+
+// ResolveOwnTabSession returns the session of the tab itself, and false where the tab runs on
+// the connection session.
+func (connection *Connection) ResolveOwnTabSession(tab *Tab) (*db.TabSession, bool) {
+	if tab == nil || !connection.HasTabSessions() {
+		return nil, false
+	}
+	held, found := connection.tabSessions[tab.ID]
+	if !found {
+		held = db.NewTabSession(connection.Session, connection.OpenTabSession)
+		if connection.tabSessions == nil {
+			connection.tabSessions = map[int]*db.TabSession{}
+		}
+		connection.tabSessions[tab.ID] = held
+	}
+	return held, true
+}
+
+// ResolveTableReadSession returns the session the reads of a table tab run on. With
+// autocommit on, they run on the connection session until the tab connects.
+func (connection *Connection) ResolveTableReadSession(tab *Tab) db.Session {
+	held, own := connection.ResolveOwnTabSession(tab)
+	if !own {
+		return connection.Session
+	}
+	if tab.Kind != TabTable || !connection.Autocommit {
+		return held
+	}
+	return held.BorrowShared()
+}
+
+// FindTabSession returns the session of the tab, and false where the tab has none yet.
+func (connection *Connection) FindTabSession(tab *Tab) (*db.TabSession, bool) {
+	if tab == nil || !connection.HasTabSessions() {
+		return nil, false
+	}
+	held, found := connection.tabSessions[tab.ID]
+	return held, found
+}
+
+// ReadTabTransactionState returns the transaction state of the session the tab runs on. A tab
+// without a session yet has no transaction.
+func (connection *Connection) ReadTabTransactionState(tab *Tab) db.TransactionState {
+	if tab == nil || !connection.HasTabSessions() {
+		return connection.Session.ReadTransactionState()
+	}
+	held, found := connection.tabSessions[tab.ID]
+	if !found {
+		return db.TransactionNone
+	}
+	return held.ReadTransactionState()
+}
+
+// ListOwnBackends returns the server id of each user connection of this client, with its
+// label: the tab title for a tab session, and "connection" for the connection session.
+func (connection *Connection) ListOwnBackends() map[int64]string {
+	own := map[int64]string{}
+	if backendID, known := db.FindBackendID(connection.Session); known {
+		own[backendID] = "connection"
+	}
+	for _, tab := range connection.Tabs {
+		held, found := connection.FindTabSession(tab)
+		if !found {
+			continue
+		}
+		if backendID, known := held.ReadBackendID(); known {
+			own[backendID] = "tab " + tab.Label()
+		}
+	}
+	return own
+}
+
+// ListIdleCheckers returns the idle check of the connection session and of every tab
+// session.
+func (connection *Connection) ListIdleCheckers() []db.IdleChecker {
+	checkers := []db.IdleChecker{}
+	if checker, checks := db.FindIdleChecker(connection.Session); checks {
+		checkers = append(checkers, checker)
+	}
+	for _, tab := range connection.Tabs {
+		if held, found := connection.FindTabSession(tab); found {
+			checkers = append(checkers, held)
+		}
+	}
+	return checkers
+}
+
+// TakeTabSessions removes every tab session and returns them for closing.
+func (connection *Connection) TakeTabSessions() []io.Closer {
+	taken := make([]io.Closer, 0, len(connection.tabSessions))
+	for _, held := range connection.tabSessions {
+		taken = append(taken, held)
+	}
+	connection.tabSessions = nil
+	return taken
+}
+
+// DetachIdleTabSessions returns for closing the connected session of every tab with no
+// transaction and no running statement. The next run of such a tab connects again.
+func (connection *Connection) DetachIdleTabSessions() []io.Closer {
+	detached := []io.Closer{}
+	for _, tab := range connection.Tabs {
+		held, found := connection.tabSessions[tab.ID]
+		if !found || tab.Results.IsRunning() || connection.HasTabWrite(tab) ||
+			held.ReadTransactionState() != db.TransactionNone {
+			continue
+		}
+		if inner, open := held.Detach(); open {
+			detached = append(detached, inner)
+		}
+	}
+	return detached
+}
+
+// RunContext returns the context of the statements the user runs in the tab.
+func (connection *Connection) RunContext(tab *Tab) context.Context {
+	id := findTabID(tab)
+	held, found := connection.runs[id]
+	if !found {
+		held.ctx, held.stop = context.WithCancel(context.Background())
+		if connection.runs == nil {
+			connection.runs = map[int]tabRun{}
+		}
+		connection.runs[id] = held
+	}
+	return held.ctx
+}
+
+// StopTabRuns cancels every statement started with RunContext of the tab. The next
+// RunContext is a new one.
+func (connection *Connection) StopTabRuns(tab *Tab) {
+	id := findTabID(tab)
+	if held, found := connection.runs[id]; found {
+		held.stop()
+		delete(connection.runs, id)
+	}
+}
+
+// StopRuns cancels every statement started with RunContext, in every tab.
 func (connection *Connection) StopRuns() {
-	if connection.stopRuns == nil {
-		return
+	for _, held := range connection.runs {
+		held.stop()
 	}
-	connection.stopRuns()
-	connection.runs, connection.stopRuns = nil, nil
+	connection.runs = nil
 }
 
-// BeginWrite marks a write or a transaction step as running, and returns the run context
-// it runs on. StopRuns cancels it.
-func (connection *Connection) BeginWrite(label string) context.Context {
-	connection.writes = append(connection.writes, label)
-	return connection.RunContext()
+// findTabID returns the id of the tab, and zero for no tab.
+func findTabID(tab *Tab) int {
+	if tab == nil {
+		return 0
+	}
+	return tab.ID
+}
+
+// BeginWrite marks a write or a transaction step of the tab as running, and returns the run
+// context it runs on. StopTabRuns cancels it.
+func (connection *Connection) BeginWrite(tab *Tab, label string) context.Context {
+	connection.writes = append(connection.writes, heldWrite{tabID: findTabID(tab), label: label})
+	return connection.RunContext(tab)
 }
 
 // EndWrite takes one running write with this label off.
 func (connection *Connection) EndWrite(label string) {
 	for at, held := range connection.writes {
-		if held == label {
+		if held.label == label {
 			connection.writes = append(connection.writes[:at], connection.writes[at+1:]...)
 			return
 		}
@@ -348,7 +529,18 @@ func (connection *Connection) FindWrite() (string, bool) {
 	if len(connection.writes) == 0 {
 		return "", false
 	}
-	return connection.writes[0], true
+	return connection.writes[0].label, true
+}
+
+// HasTabWrite is true while a write or a transaction step of the tab runs.
+func (connection *Connection) HasTabWrite(tab *Tab) bool {
+	id := findTabID(tab)
+	for _, held := range connection.writes {
+		if held.tabID == id {
+			return true
+		}
+	}
+	return false
 }
 
 // Show displays an informational notice.
@@ -389,7 +581,20 @@ func (connection *Connection) showTab(tab *Tab) *Tab {
 		return connection.appendTab(tab)
 	}
 	connection.Tabs[connection.ActiveIndex] = tab
+	connection.moveTabSession(standing, tab)
 	return tab
+}
+
+// moveTabSession gives the session and the run context of one tab to another tab.
+func (connection *Connection) moveTabSession(from, to *Tab) {
+	if held, found := connection.tabSessions[from.ID]; found {
+		delete(connection.tabSessions, from.ID)
+		connection.tabSessions[to.ID] = held
+	}
+	if held, found := connection.runs[from.ID]; found {
+		delete(connection.runs, from.ID)
+		connection.runs[to.ID] = held
+	}
 }
 
 // numberQueryTab gives the query tab the next query tab number.
@@ -487,12 +692,20 @@ func (connection *Connection) OpenObject(object db.SchemaObject) *Tab {
 // closedTabDepth is the maximum retained closed tabs, including their results.
 const closedTabDepth = 10
 
-// CloseTab closes the tab at that position. The last tab cannot be closed.
-func (connection *Connection) CloseTab(index int) {
+// CloseTab closes the tab at that position, and returns the session of the tab for closing.
+// The last tab cannot be closed.
+func (connection *Connection) CloseTab(index int) io.Closer {
 	if len(connection.Tabs) <= 1 || index < 0 || index >= len(connection.Tabs) {
-		return
+		return nil
 	}
-	connection.closed = append(connection.closed, connection.Tabs[index])
+	tab := connection.Tabs[index]
+	connection.StopTabRuns(tab)
+	var session io.Closer
+	if held, found := connection.tabSessions[tab.ID]; found {
+		delete(connection.tabSessions, tab.ID)
+		session = held
+	}
+	connection.closed = append(connection.closed, tab)
 	if len(connection.closed) > closedTabDepth {
 		copy(connection.closed, connection.closed[1:])
 		connection.closed[len(connection.closed)-1] = nil
@@ -500,6 +713,7 @@ func (connection *Connection) CloseTab(index int) {
 	}
 	connection.Tabs = append(connection.Tabs[:index], connection.Tabs[index+1:]...)
 	connection.ActiveIndex = core.ClampIndex(connection.ActiveIndex, len(connection.Tabs))
+	return session
 }
 
 // IndexOfTab returns where the tab of that id stands, and -1 where the connection has none.

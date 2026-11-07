@@ -157,18 +157,22 @@ Quitting clears the report. Inside tmux this needs `set -g allow-passthrough on`
 
 A read-only profile rejects writes. Other profiles can confirm writes and show a write plan. Check the SQL and the affected rows before accepting. See [write guards](configuration.md#profiles) and [write plans](configuration.md#write-plans).
 
-`Ctrl+X` cancels the running query, a running grid write, a running begin, commit or rollback, and a running export. The status bar shows `running` and the operation while it runs. Cancellation depends on the engine. Amazon DocumentDB, Cassandra, PlanetScale, Redis, and Turso cannot cancel a statement. On these engines the key is hidden, and the run spinner has the note `this engine cannot stop a running statement`. `Ctrl+C` copies or quits.
+`Ctrl+X` cancels the running query of the active tab, a running grid write, a running begin, commit or rollback, and a running export. The status bar shows `running` and the operation while it runs. Cancellation depends on the engine. Amazon DocumentDB, Cassandra, PlanetScale, Redis, and Turso cannot cancel a statement. On these engines the key is hidden, and the run spinner has the note `this engine cannot stop a running statement`. `Ctrl+C` copies or quits.
 
 ## Transactions
 
-Transaction commands apply to the active connection, in all of its tabs. They need an engine with transaction support.
+Each tab has its own database session and its own transaction. A tab opens its session in the background when it is created or first shown. With autocommit on, a table tab reads its first rows on the session of the connection while its own session opens. A tab closes its session when the tab closes. A statement in one tab does not wait for a statement in another tab. The explorer, the dashboard, imports, dumps, data search, schema compare, and the AI chat run on the session of the connection. The explorer and completion do not show an object that a tab creates in an open transaction until that transaction commits.
+
+The PostgreSQL family except Redshift, the MySQL family, the SQL Server family, SQLite on a file, Turso, and ClickHouse open a session per tab. Redshift, SQLite `:memory:`, MongoDB, Amazon DocumentDB, Redis, Cassandra, and ScyllaDB run every tab on one session. The profile setting `tab_sessions = false` runs every tab on one session.
+
+Transaction commands apply to the active tab. They need an engine with transaction support.
 
 | Command | Key |
 | --- | --- |
 | Begin a transaction | `Ctrl+B` |
 | Commit the transaction | `Ctrl+L` |
 | Roll back the transaction | `Ctrl+U` |
-| Toggle autocommit for this connection | `Ctrl+O` |
+| Toggle autocommit for every tab of this connection | `Ctrl+O` |
 
 Begin a transaction before statements that must stay uncommitted. With autocommit off, masume begins a transaction before a run when none is active, and leaves it open until an explicit commit or rollback. The profile setting `autocommit = false` starts the connection in this mode.
 
@@ -381,7 +385,7 @@ A box shows every column of the table in the middle. A box of a related table sh
 
 `Alt+Up` and `Alt+Down` switch tabs. `Alt+1` through `Alt+9` select a tab directly. `Alt+T` names a query tab with a first-line comment, and sets the title of a notebook tab. Table and object tabs keep their object names.
 
-`Alt+W` closes a tab. `Alt+Shift+W` reopens the last closed tab of the session. Closing a tab with staged edits prompts to apply, discard, or cancel. The last tab stays open. `Ctrl+W` closes the connection, after a confirmation when there are several tabs or staged changes.
+`Alt+W` closes a tab. `Alt+Shift+W` reopens the last closed tab of the session. Closing a tab with staged edits prompts to apply, discard, or cancel. Closing a tab with an open transaction asks first, and rolls the transaction back. The last tab stays open. `Ctrl+W` closes the connection, after a confirmation when there are several tabs, staged changes, or an open transaction.
 
 `Ctrl+N` returns to the connection picker. `Alt+Left` and `Alt+Right` switch open connections. `Alt+S` toggles the sidebar. `Alt+D` toggles the result pane.
 
