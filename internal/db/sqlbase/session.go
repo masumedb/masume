@@ -156,14 +156,12 @@ func (session *Session) ReopenBrokenConnection(ctx context.Context) error {
 	defer stop()
 	opened, err := session.Pool.Conn(held)
 	if err != nil {
-		return db.WrapDatabaseMessage(
-			db.BuildConnectMessage(session.Descriptor.Profile, err), err)
+		return session.wrapReopenError(err, lost)
 	}
 	if session.Hooks.PrepareConnection != nil {
 		if prepareErr := session.Hooks.PrepareConnection(held, opened); prepareErr != nil {
 			_ = opened.Close()
-			return db.WrapDatabaseMessage(
-				db.BuildConnectMessage(session.Descriptor.Profile, prepareErr), prepareErr)
+			return session.wrapReopenError(prepareErr, lost)
 		}
 	}
 	session.Connection = opened
@@ -173,6 +171,16 @@ func (session *Session) ReopenBrokenConnection(ctx context.Context) error {
 		return db.NewDatabaseError("the connection closed and the transaction was lost")
 	}
 	return nil
+}
+
+// wrapReopenError returns the error of a failed reopen, with the lost transaction in the
+// message where one was open.
+func (session *Session) wrapReopenError(err error, lost bool) error {
+	message := db.BuildConnectMessage(session.Descriptor.Profile, err)
+	if lost {
+		message = "the connection closed and the transaction was lost; " + message
+	}
+	return db.WrapDatabaseMessage(message, err)
 }
 
 // QueryRunner is what a catalog read needs of a connection or a pool.
