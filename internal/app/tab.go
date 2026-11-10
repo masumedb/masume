@@ -541,8 +541,24 @@ func (tab *Tab) RewriteSummary(session db.SessionInfo) string {
 // ComposeRelationRead returns the read of the table a table tab is bound to.
 func (tab *Tab) ComposeRelationRead(session db.SessionInfo) db.ComposedRead {
 	return session.Composer().ComposeRelationRead(tab.Table, core.ReadRewrite{
-		Sort: tab.ResolveReadSort(), Filter: tab.Filter,
+		Sort: tab.buildReadOrder(), Filter: tab.Filter,
 	})
+}
+
+// buildReadOrder returns the grid sort followed by the primary key columns it does not hold.
+func (tab *Tab) buildReadOrder() []core.SortState {
+	if len(tab.Sort) == 0 {
+		return tab.KeySort
+	}
+	order := slices.Clone(tab.Sort)
+	for _, key := range tab.KeySort {
+		if !slices.ContainsFunc(tab.Sort, func(held core.SortState) bool {
+			return held.Column == key.Column
+		}) {
+			order = append(order, key)
+		}
+	}
+	return order
 }
 
 // ResolveReadSort returns the order of the rows of a read: the grid sort, or the primary key

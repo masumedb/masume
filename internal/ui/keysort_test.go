@@ -33,9 +33,9 @@ func TestTableTabReadsInThePrimaryKeyOrder(t *testing.T) {
 	}{
 		{name: "a table with a primary key", keyed: true, sortsRead: true,
 			want: `order by "id" asc`},
-		{name: "a sort of the grid replaces the key order", keyed: true, sortsRead: true,
+		{name: "the key order follows a sort of the grid", keyed: true, sortsRead: true,
 			sort: []core.SortState{{Column: "qty", Direction: core.SortDescending}},
-			want: `order by "qty" desc`, wantNot: `"id"`},
+			want: `order by "qty" desc, "id" asc`},
 		{name: "a table without a primary key", sortsRead: true, wantNot: "order by"},
 		{name: "a server that cannot sort", keyed: true, wantNot: "order by"},
 	} {
