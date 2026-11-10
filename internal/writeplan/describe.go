@@ -105,6 +105,11 @@ func DescribeCommit(plan Plan) string {
 	return "autocommit"
 }
 
+// DescribeCascadesReason returns the line of triggers and foreign keys that could not be read.
+func DescribeCascadesReason(plan Plan) string {
+	return "unknown · " + plan.CascadesReason
+}
+
 // DescribeLines returns the whole plan as lines of text.
 func DescribeLines(plan Plan) []string {
 	lines := []string{writeLine(LabelRows, DescribeRows(plan))}
@@ -117,6 +122,13 @@ func DescribeLines(plan Plan) []string {
 			label = ""
 		}
 		lines = append(lines, writeLine(label, DescribeCascade(cascade)))
+	}
+	if plan.CascadesReason != "" {
+		label := LabelCascades
+		if len(plan.Cascades) > 0 {
+			label = ""
+		}
+		lines = append(lines, writeLine(label, DescribeCascadesReason(plan)))
 	}
 	for at, blocker := range plan.Blockers {
 		label := LabelBlocked

@@ -63,6 +63,8 @@ type Plan struct {
 	HasTotal bool
 
 	Cascades []Cascade
+	// The reason the triggers and the foreign keys of the write are unknown.
+	CascadesReason string
 	// Tables with references that may block the write.
 	Blockers []Cascade
 	// Undo availability and the query for the original rows.

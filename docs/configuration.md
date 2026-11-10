@@ -272,7 +272,7 @@ With `write_plan`, masume checks a single write before it runs, if the statement
 
 Staged grid changes get a plan when `Ctrl+Y` applies them. Changes of one kind share one plan. A mix of inserts, updates and deletes, or a change the plan cannot read, is applied without a plan.
 
-The server counts the matching rows with the write predicate. The count can change before the write runs. An update plan also lists assigned columns. `cascades` lists trigger names and foreign key effects. The plan does not inspect trigger bodies or predict their effects. `blocked` lists foreign keys that can reject the delete. In the client, these keys put a headline at the top of the plan, and Enter opens the referencing rows.
+The server counts the matching rows with the write predicate. The count can change before the write runs. An update plan also lists assigned columns. `cascades` lists trigger names and foreign key effects. When the triggers or foreign keys cannot be read, `cascades` shows `unknown` and the error. The plan does not inspect trigger bodies or predict their effects. `blocked` lists foreign keys that can reject the delete. In the client, these keys put a headline at the top of the plan, and Enter opens the referencing rows.
 
 `write_plan = "undo"` prepares an undo for updates, deletes, and truncates. An update undo restores assigned columns by primary key. A delete or truncate undo inserts captured target rows. `Alt+U` (`global.undo-write`) asks for confirmation, then runs the undo statements together. The connection keeps only the latest write result, in memory.
 

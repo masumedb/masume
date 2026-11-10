@@ -71,7 +71,11 @@ func (measure measurer) readCascades(ctx context.Context, plan *Plan) {
 	if plan.HasRows && plan.Rows == 0 {
 		return
 	}
-	plan.Cascades = append(plan.Cascades, measure.readTriggers(ctx)...)
+	triggers, err := measure.readTriggers(ctx)
+	if err != nil {
+		plan.CascadesReason = db.DescribeError(err)
+	}
+	plan.Cascades = append(plan.Cascades, triggers...)
 	if measure.target.Kind == statement.WriteUpdate ||
 		measure.target.Kind == statement.WriteInsert {
 		return
@@ -80,10 +84,10 @@ func (measure measurer) readCascades(ctx context.Context, plan *Plan) {
 }
 
 // readTriggers returns matching triggers. Engine adapters return the target table in Detail and trigger events in Events.
-func (measure measurer) readTriggers(ctx context.Context) []Cascade {
+func (measure measurer) readTriggers(ctx context.Context) ([]Cascade, error) {
 	objects, err := measure.session.ListSchemaObjects(ctx)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	cascades := []Cascade{}
 	for _, object := range objects {
@@ -101,7 +105,7 @@ func (measure measurer) readTriggers(ctx context.Context) []Cascade {
 			Reason: "trigger " + object.Name, Trigger: true,
 		})
 	}
-	return cascades
+	return cascades, nil
 }
 
 // runsTrigger is true when the trigger matches the write or its events are unknown.
@@ -121,6 +125,9 @@ func (measure measurer) runsTrigger(object db.SchemaObject) bool {
 func (measure measurer) readKeysPointingHere(ctx context.Context, plan *Plan) {
 	relationships, err := measure.session.ListRelationships(ctx)
 	if err != nil {
+		if plan.CascadesReason == "" {
+			plan.CascadesReason = db.DescribeError(err)
+		}
 		return
 	}
 

@@ -231,6 +231,16 @@ func (model *Model) buildWritePlanCascadeLines(plan writeplan.Plan) []writePlanL
 			ink: model.styles.Theme.Warning,
 		})
 	}
+	if plan.CascadesReason != "" {
+		label := writeplan.LabelCascades
+		if len(plan.Cascades) > 0 {
+			label = ""
+		}
+		rows = append(rows, writePlanLine{
+			label: label, value: writeplan.DescribeCascadesReason(plan),
+			ink: model.styles.Theme.Warning,
+		})
+	}
 	return rows
 }
 

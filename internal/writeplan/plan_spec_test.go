@@ -2,6 +2,7 @@ package writeplan_test
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"testing"
 
@@ -41,6 +42,8 @@ type planningSession struct {
 	asked []string
 	// True where the server takes no write the client can read as one relation.
 	plansNoWrite bool
+	// The error of the catalog reads of the cascades.
+	catalogErr error
 }
 
 func (session *planningSession) Describe() db.SessionDescriptor {
@@ -89,13 +92,13 @@ func (session *planningSession) DescribeTable(
 func (session *planningSession) ListRelationships(
 	context.Context,
 ) ([]db.Relationship, error) {
-	return session.relationships, nil
+	return session.relationships, session.catalogErr
 }
 
 func (session *planningSession) ListSchemaObjects(
 	context.Context,
 ) ([]db.SchemaObject, error) {
-	return session.objects, nil
+	return session.objects, session.catalogErr
 }
 
 // buildOrdersSession answers a relation of three columns, keyed by id.
@@ -145,6 +148,22 @@ func TestBuildCountsTheRowsAnUpdateLandsOn(t *testing.T) {
 	}
 	if plan.Table.Name != "orders" {
 		t.Errorf("the plan names %q", plan.Table.Name)
+	}
+}
+
+// A failed read of the triggers and the foreign keys shows in the plan.
+func TestBuildReportsCascadesItCouldNotRead(t *testing.T) {
+	session := buildOrdersSession()
+	session.catalogErr = db.NewDatabaseError("canceling statement due to statement timeout")
+	plan := buildPlan(t, session, "delete from orders where status = 'open'", cfg.PlanCount)
+
+	if !strings.Contains(plan.CascadesReason, "statement timeout") {
+		t.Fatalf("the plan holds the cascade reason %q", plan.CascadesReason)
+	}
+	if !slices.ContainsFunc(writeplan.DescribeLines(plan), func(line string) bool {
+		return strings.HasPrefix(line, "cascades") && strings.Contains(line, "unknown · ")
+	}) {
+		t.Errorf("the plan lines %q do not show the unknown cascades", writeplan.DescribeLines(plan))
 	}
 }
 
