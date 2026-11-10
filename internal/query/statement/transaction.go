@@ -22,6 +22,11 @@ const (
 // transactionOpeners is the set of possible transaction opening keywords. START requires TRANSACTION.
 var transactionOpeners = map[string]bool{"begin": true, "start": true}
 
+// beginWords is the set of words that can follow BEGIN in a statement that opens a transaction.
+var beginWords = map[string]bool{
+	"transaction": true, "work": true, "tran": true, "distributed": true,
+}
+
 // transactionEnders is the set of transaction closing keywords. PostgreSQL and SQLite accept END as COMMIT.
 var transactionEnders = map[string]bool{"commit": true, "rollback": true, "end": true}
 
@@ -43,14 +48,15 @@ func resolveStatementEffect(sql string, flavour syntax.SyntaxFlavour) Transactio
 	second, hasSecond := syntax.TokenAt(tokens, 1)
 
 	if transactionOpeners[opening] {
-		// Recognize START TRANSACTION and BEGIN with optional TRANSACTION or WORK.
+		// Recognize START TRANSACTION and BEGIN with optional TRANSACTION or WORK. T-SQL also
+		// has BEGIN TRAN and BEGIN DISTRIBUTED TRANSACTION.
 		if opening == "start" {
 			if hasSecond && second.Text == "transaction" {
 				return EffectOpen
 			}
 			return EffectNone
 		}
-		if !hasSecond || second.Text == "transaction" || second.Text == "work" {
+		if !hasSecond || beginWords[second.Text] {
 			return EffectOpen
 		}
 		return EffectNone

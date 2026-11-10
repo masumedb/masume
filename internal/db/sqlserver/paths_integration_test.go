@@ -261,6 +261,25 @@ func TestImportWritesATableAndFillsIt(t *testing.T) {
 
 // A transaction the user holds keeps its writes until a commit, and the client reports it as
 // open the whole time.
+// BEGIN TRAN written in the editor opens a transaction the client tracks.
+func TestBeginTranFromTheEditorIsTracked(t *testing.T) {
+	session := openShop(t)
+	ctx := context.Background()
+
+	if _, err := session.RunQuery(ctx, "begin tran", dbtest.ReadEverything, nil); err != nil {
+		t.Fatalf("begin tran answered %v", err)
+	}
+	if held := session.ReadTransactionState(); held != db.TransactionOpen {
+		t.Errorf("the state reads %q after begin tran, wanted it open", held)
+	}
+	if _, err := session.RunQuery(ctx, "rollback tran", dbtest.ReadEverything, nil); err != nil {
+		t.Fatalf("rollback tran answered %v", err)
+	}
+	if held := session.ReadTransactionState(); held != db.TransactionNone {
+		t.Errorf("the state reads %q after rollback tran, wanted none", held)
+	}
+}
+
 func TestTransactionOfTheUserHoldsItsWrites(t *testing.T) {
 	session := openShop(t)
 	ctx := context.Background()
