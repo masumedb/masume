@@ -1292,14 +1292,9 @@ func (model *Model) buildSchemaKnowledge(
 		byQualifier[qualifier] = names
 	}
 
-	tableNames := make([]string, 0, len(connection.Catalog.Tables))
-	for _, table := range connection.Catalog.Tables {
-		tableNames = append(tableNames, table.Name)
-	}
-
 	return editor.SchemaKnowledge{
-		Loaded:     len(connection.Catalog.Tables) > 0,
-		TableNames: tableNames,
+		Loaded:       len(connection.Catalog.Tables) > 0,
+		SuggestTable: connection.SuggestTableName,
 		IsKnownTable: func(reference statement.TableReference) bool {
 			_, known := model.findTableByName(connection, reference.SelectSource)
 			return known

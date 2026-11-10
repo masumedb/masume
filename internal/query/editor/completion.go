@@ -199,11 +199,19 @@ type rankedCompletion struct {
 type collector struct {
 	needle string
 	kept   []rankedCompletion
-	seen   map[string]bool
+	seen   map[seenCompletion]bool
+	// The most candidates kept, or zero for no limit.
+	limit int
+}
+
+// seenCompletion is one kind and lowercase text.
+type seenCompletion struct {
+	kind CompletionKind
+	text string
 }
 
 func newCollector(needle string) *collector {
-	return &collector{needle: needle, seen: map[string]bool{}}
+	return &collector{needle: needle, seen: map[seenCompletion]bool{}}
 }
 
 func (kept *collector) add(text string, kind CompletionKind, detail string) {
@@ -220,14 +228,21 @@ func (kept *collector) addAgainst(text string, kind CompletionKind, against, det
 func (kept *collector) addRankedOn(
 	text, rankText string, kind CompletionKind, against, detail string,
 ) {
-	lowered := strings.ToLower(text)
-	rank := rankCandidate(strings.ToLower(rankText), against)
+	if kept.limit > 0 && len(kept.kept) >= kept.limit {
+		return
+	}
+	loweredRank := strings.ToLower(rankText)
+	rank := rankCandidate(loweredRank, against)
 	if rank >= rankNoMatch {
 		return
 	}
+	lowered := loweredRank
+	if rankText != text {
+		lowered = strings.ToLower(text)
+	}
 
 	// Two candidates of one kind with the same text are one suggestion.
-	key := string(kind) + ":" + lowered
+	key := seenCompletion{kind: kind, text: lowered}
 	if kept.seen[key] {
 		return
 	}
@@ -280,6 +295,7 @@ func buildPositionCompletions(
 	sources CompletionSources, context CompletionContext, position NamePosition,
 ) []Completion {
 	kept := newCollector("")
+	kept.limit = maxCompletions
 
 	if position == PositionColumn {
 		if !addReferenceColumns(sources, context, kept) {

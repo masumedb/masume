@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/masumedb/masume/internal/query/statement"
 	"github.com/masumedb/masume/internal/query/syntax"
@@ -23,8 +24,9 @@ type SchemaKnowledge struct {
 	// False until the catalog is loaded. Unknown table checks require a loaded catalog.
 	Loaded       bool
 	IsKnownTable func(reference statement.TableReference) bool
-	// Table and view names of the catalog, without the schema.
-	TableNames []string
+	// SuggestTable returns the catalog name closest to an unknown table name, or nothing. It
+	// may be nil.
+	SuggestTable func(name string) string
 	// Columns indexed by lowercase table names and aliases. Unloaded tables are absent.
 	ColumnsByQualifier map[string][]string
 }
@@ -116,8 +118,8 @@ func findUnknownTables(
 			written = reference.Schema + "." + reference.Name
 		}
 		suggestion := ""
-		if !reference.HasSchema {
-			suggestion = findClosestName(reference.Name, knowledge.TableNames)
+		if !reference.HasSchema && knowledge.SuggestTable != nil {
+			suggestion = knowledge.SuggestTable(reference.Name)
 		}
 		found = append(found, Diagnostic{
 			Message: "unknown table: " + written, Start: reference.Start, End: reference.End,
@@ -175,7 +177,7 @@ func findUnknownColumns(sql string, tokens []syntax.Token, knowledge SchemaKnowl
 			Message:    fmt.Sprintf("unknown column: %s.%s", readName(sql, qualifier), column),
 			Start:      named.Start,
 			End:        named.End,
-			Suggestion: findClosestName(column, columns),
+			Suggestion: FindClosestName(column, columns),
 		})
 		index += 2
 	}
@@ -207,14 +209,20 @@ func FindLocalDiagnostics(
 	return found
 }
 
-// findClosestName returns the one candidate within a few edits of the written name. It
+// FindClosestName returns the one candidate within a few edits of the written name. It
 // returns an empty string when no candidate is close, or when two are equally close.
-func findClosestName(written string, candidates []string) string {
+func FindClosestName(written string, candidates []string) string {
 	lowered := strings.ToLower(written)
-	limit := max(1, len([]rune(lowered))/3)
+	writtenRunes := utf8.RuneCountInString(lowered)
+	limit := max(1, writtenRunes/3)
 	best, bestDistance, tied := "", limit+1, false
 	for _, candidate := range candidates {
-		distance := measureEditDistance(lowered, strings.ToLower(candidate))
+		loweredCandidate := strings.ToLower(candidate)
+		lengthGap := utf8.RuneCountInString(loweredCandidate) - writtenRunes
+		if lengthGap > bestDistance || -lengthGap > bestDistance {
+			continue
+		}
+		distance := measureEditDistance(lowered, loweredCandidate)
 		switch {
 		case distance == 0:
 			return ""

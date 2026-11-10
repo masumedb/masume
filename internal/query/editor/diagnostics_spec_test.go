@@ -138,7 +138,9 @@ func TestFindLocalDiagnosticsAnswersInTheOrderOfTheBuffer(t *testing.T) {
 
 func TestFindLocalDiagnosticsSuggestsTheClosestCatalogName(t *testing.T) {
 	knowledge := buildKnowledge()
-	knowledge.TableNames = []string{"orders", "order_items", "customers"}
+	knowledge.SuggestTable = func(name string) string {
+		return editor.FindClosestName(name, []string{"orders", "order_items", "customers"})
+	}
 	for _, held := range []struct {
 		name string
 		sql  string
@@ -164,7 +166,9 @@ func TestFindLocalDiagnosticsSuggestsTheClosestCatalogName(t *testing.T) {
 
 func TestFindLocalDiagnosticsSuggestsNothingWhenTwoNamesAreEquallyClose(t *testing.T) {
 	knowledge := buildKnowledge()
-	knowledge.TableNames = []string{"cart", "card"}
+	knowledge.SuggestTable = func(name string) string {
+		return editor.FindClosestName(name, []string{"cart", "card"})
+	}
 	found := editor.FindLocalDiagnostics("select * from carx", knowledge, syntax.FlavourStandard)
 	if len(found) != 1 || found[0].Suggestion != "" {
 		t.Errorf("the faults are %+v, wanted one with no suggestion", found)

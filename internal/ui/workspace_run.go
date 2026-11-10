@@ -712,8 +712,7 @@ func (model *Model) resolveEditTarget(
 func (model *Model) findTableByName(
 	connection *app.Connection, source statement.SelectSource,
 ) (db.TableRef, bool) {
-	return db.FindTableByName(
-		connection.Catalog.Tables, source, connection.Session.Describe().DefaultSchema)
+	return connection.FindCatalogTable(source)
 }
 
 // buildEditTarget returns what a result of that relation can be edited as.

@@ -11,6 +11,8 @@ import (
 	"github.com/masumedb/masume/internal/db"
 	"github.com/masumedb/masume/internal/notebook"
 	"github.com/masumedb/masume/internal/present"
+	"github.com/masumedb/masume/internal/query/editor"
+	"github.com/masumedb/masume/internal/query/statement"
 	"github.com/masumedb/masume/internal/writeplan"
 )
 
@@ -195,6 +197,36 @@ type Connection struct {
 	treeAt     treeFingerprint
 	treeResult present.TreeResult
 	treeBuilt  bool
+
+	// The cached completion names and their catalog key.
+	namesAt    completionKey
+	namesHeld  completionNames
+	namesBuilt bool
+
+	// The table lookups and name suggestions of one catalog read.
+	lookupsAt   completionKey
+	lookups     map[statement.SelectSource]foundTable
+	suggestions map[string]string
+	tableNames  []string
+}
+
+// foundTable is the answer of one table lookup.
+type foundTable struct {
+	table db.TableRef
+	found bool
+}
+
+// completionKey is the cache key of the completion names.
+type completionKey struct {
+	readAt     time.Time
+	tables     int
+	objects    int
+	hideSystem bool
+}
+
+// completionNames are the schema, table, and routine names of one catalog read.
+type completionNames struct {
+	schemas, tables, functions []string
 }
 
 // tabRun is the context of the statements the user runs in one tab, and its cancel function.
@@ -792,6 +824,66 @@ func (connection *Connection) SeedTree() {
 
 // CompletionSources returns schema, table, and routine suggestions from the connection catalog.
 func (connection *Connection) CompletionSources() (schemas, tables, functions []string) {
+	key := connection.buildCompletionKey()
+	if !connection.namesBuilt || connection.namesAt != key {
+		held := &connection.namesHeld
+		held.schemas, held.tables, held.functions = connection.buildCompletionNames()
+		connection.namesAt, connection.namesBuilt = key, true
+	}
+	return connection.namesHeld.schemas, connection.namesHeld.tables, connection.namesHeld.functions
+}
+
+// FindCatalogTable returns the catalog relation of a name in a statement.
+func (connection *Connection) FindCatalogTable(source statement.SelectSource) (db.TableRef, bool) {
+	connection.resetLookups()
+	if held, kept := connection.lookups[source]; kept {
+		return held.table, held.found
+	}
+	table, found := db.FindTableByName(
+		connection.Catalog.Tables, source, connection.Session.Describe().DefaultSchema)
+	connection.lookups[source] = foundTable{table: table, found: found}
+	return table, found
+}
+
+// SuggestTableName returns the catalog table name closest to an unknown name, or nothing.
+func (connection *Connection) SuggestTableName(name string) string {
+	connection.resetLookups()
+	if held, kept := connection.suggestions[name]; kept {
+		return held
+	}
+	if connection.tableNames == nil {
+		connection.tableNames = make([]string, 0, len(connection.Catalog.Tables))
+		for _, table := range connection.Catalog.Tables {
+			connection.tableNames = append(connection.tableNames, table.Name)
+		}
+	}
+	suggestion := editor.FindClosestName(name, connection.tableNames)
+	connection.suggestions[name] = suggestion
+	return suggestion
+}
+
+// resetLookups drops the table lookups and suggestions of an earlier catalog read.
+func (connection *Connection) resetLookups() {
+	key := connection.buildCompletionKey()
+	if connection.lookups != nil && connection.lookupsAt == key {
+		return
+	}
+	connection.lookups = map[statement.SelectSource]foundTable{}
+	connection.suggestions = map[string]string{}
+	connection.tableNames = nil
+	connection.lookupsAt = key
+}
+
+// buildCompletionKey returns the cache key of the catalog read on show.
+func (connection *Connection) buildCompletionKey() completionKey {
+	return completionKey{
+		readAt: connection.Catalog.ReadAt, tables: len(connection.Catalog.Tables),
+		objects: len(connection.Catalog.Objects), hideSystem: connection.Tree.HideSystemSchemas,
+	}
+}
+
+// buildCompletionNames returns the schema, table, and routine names of the catalog.
+func (connection *Connection) buildCompletionNames() (schemas, tables, functions []string) {
 	offered := func(schema string) bool {
 		if !connection.Tree.HideSystemSchemas {
 			return true

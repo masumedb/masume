@@ -593,7 +593,7 @@ func narrowToTableName(tables []TableRef, name string) []TableRef {
 		switch {
 		case table.Name == name:
 			exact = append(exact, table)
-		case strings.ToLower(table.Name) == lowered:
+		case strings.EqualFold(table.Name, name) && strings.ToLower(table.Name) == lowered:
 			folded = append(folded, table)
 		}
 	}
@@ -611,7 +611,7 @@ func narrowToSchemaName(tables []TableRef, schema string) []TableRef {
 		switch {
 		case table.Schema == schema:
 			exact = append(exact, table)
-		case strings.ToLower(table.Schema) == lowered:
+		case strings.EqualFold(table.Schema, schema) && strings.ToLower(table.Schema) == lowered:
 			folded = append(folded, table)
 		}
 	}
