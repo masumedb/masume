@@ -56,6 +56,7 @@ func TestServerReportsWhichSessionWaitsForALock(t *testing.T) {
 		t.Fatalf("the holder took no lock: %v", err)
 	}
 
+	_, _ = session.ListLockWaits(ctx)
 	blocked := make(chan error, 1)
 	go func() {
 		_, err := waiter.RunQuery(context.Background(),
@@ -63,8 +64,10 @@ func TestServerReportsWhichSessionWaitsForALock(t *testing.T) {
 		blocked <- err
 	}()
 
+	// InnoDB refreshes its lock tables for information_schema only after 100 ms without a
+	// read, so a faster poll on MariaDB reads the same snapshot forever.
 	var found db.LockWait
-	for range 100 {
+	for range 34 {
 		waits, err := session.ListLockWaits(ctx)
 		if err != nil {
 			t.Fatalf("the server did not report its lock waits: %v", err)
@@ -77,7 +80,7 @@ func TestServerReportsWhichSessionWaitsForALock(t *testing.T) {
 		if found.BlockedPID != 0 {
 			break
 		}
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(150 * time.Millisecond)
 	}
 
 	if found.BlockedPID == 0 {
