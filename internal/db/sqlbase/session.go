@@ -80,6 +80,9 @@ type Hooks struct {
 	WrapTransactionError func(err error) error
 	// WrapStatementError wraps the error of a streamed or staged statement. It may be nil.
 	WrapStatementError func(err error) error
+	// PrepareCatalogRead prepares the user connection for a catalog read inside the user
+	// transaction. It may be nil.
+	PrepareCatalogRead func(ctx context.Context) error
 	// PrepareStream prepares the user connection for a streamed statement. It may be nil.
 	PrepareStream func(ctx context.Context) error
 	// ReadStreamColumns returns the columns of a streamed result and the reader of one row.
@@ -217,6 +220,12 @@ func (session *Session) holdCatalogPool(
 	giveBack, waitErr := session.MainQueue.Take(ctx)
 	if waitErr != nil {
 		return nil, nil, waitErr
+	}
+	if session.Hooks.PrepareCatalogRead != nil {
+		if err := session.Hooks.PrepareCatalogRead(ctx); err != nil {
+			giveBack()
+			return nil, nil, err
+		}
 	}
 	return runner, giveBack, nil
 }

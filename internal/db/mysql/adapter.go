@@ -551,6 +551,10 @@ func buildMysqlSession(parts mysqlSessionParts) *mysqlSession {
 			session.markTransactionFailed(err)
 		},
 		WrapTransactionError: db.WrapDatabaseError,
+		PrepareCatalogRead: func(ctx context.Context) error {
+			// The row cap of a page would cut the catalog short.
+			return session.applySelectLimit(ctx, -1)
+		},
 		PrepareStream: func(ctx context.Context) error {
 			// The row cap of a page would cut the export short.
 			return session.applySelectLimit(ctx, -1)
