@@ -51,6 +51,15 @@ type catalogReadMsg struct {
 	Announce bool
 }
 
+// catalogCachedMsg returns the catalog saved by the last read of the profile.
+type catalogCachedMsg struct {
+	ConnectionID int
+	Schemas      []string
+	Tables       []db.TableRef
+	Objects      []db.SchemaObject
+	Roles        []db.DbRole
+}
+
 // tableDetailMsg returns the columns and the keys of one relation.
 type tableDetailMsg struct {
 	ConnectionID int
@@ -863,6 +872,25 @@ func readActivity(connectionID int, session db.ServerAdmin, refresh bool) tea.Cm
 }
 
 // readMarks asks the file what the user marked on this profile.
+// readCachedCatalog reads the catalog saved by the last read of the profile. A profile with
+// no saved catalog returns no message.
+func readCachedCatalog(connectionID int, log *hist.Store, profileName string) tea.Cmd {
+	return func() tea.Msg {
+		snapshot, found := log.FindCatalog(profileName)
+		if !found {
+			return nil
+		}
+		answered := catalogCachedMsg{ConnectionID: connectionID}
+		if json.Unmarshal(snapshot.Schemas, &answered.Schemas) != nil ||
+			json.Unmarshal(snapshot.Tables, &answered.Tables) != nil ||
+			json.Unmarshal(snapshot.Objects, &answered.Objects) != nil ||
+			json.Unmarshal(snapshot.Roles, &answered.Roles) != nil {
+			return nil
+		}
+		return answered
+	}
+}
+
 func readMarks(connectionID int, log *hist.Store, profileName string) tea.Cmd {
 	return func() tea.Msg {
 		favourites, _ := log.ListFavourites(profileName)

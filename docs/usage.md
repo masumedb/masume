@@ -20,7 +20,7 @@ The tree shows every schema on the server, including empty schemas. A MySQL-fami
 
 In the tree, the arrow keys move, expand, and collapse nodes. `Enter` on a table opens its rows, or switches to its open tab. `o` opens another tab for that table. `i` opens the Columns view. `Enter` on a column inserts its qualified name into a query editor.
 
-`/` filters the tree. Enter keeps the filter. Esc clears the active filter entry. A filter started inside a schema searches only that schema. `f` toggles a favourite. `h` toggles system schemas. `F5` refreshes the catalog.
+`/` filters the tree. Enter keeps the filter. Esc clears the active filter entry. A filter started inside a schema searches only that schema. `f` toggles a favourite. `h` toggles system schemas. `F5` refreshes the catalog. At connect, the explorer shows the catalog of the last connection to the profile until the new read ends.
 
 `m` opens the object menu, with SQL templates, table changes, imports, and an ER diagram. A SQL template goes into the editor and does not run. The entries depend on the object and the engine.
 

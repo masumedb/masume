@@ -489,6 +489,8 @@ func (model *Model) readConnectionMessage(message tea.Msg) (tea.Model, tea.Cmd, 
 		next, command = model.readActivityAnswer(held)
 	case marksReadMsg:
 		next, command = model.readMarksAnswer(held)
+	case catalogCachedMsg:
+		next, command = model.readCachedCatalogAnswer(held)
 	default:
 		return model, nil, false
 	}
@@ -1209,6 +1211,7 @@ func (model *Model) readConnected(answered connectedMsg) (tea.Model, tea.Cmd) {
 	}
 
 	commands := []tea.Cmd{
+		readCachedCatalog(id, model.log, profileName),
 		readCatalog(id, connection.Session, quietCatalogRead),
 		readMarks(id, model.log, profileName),
 		scheduleHealthCheck(id, connection.Profile().Keepalive),
@@ -1379,6 +1382,24 @@ func (model *Model) readCatalogAnswer(answered catalogReadMsg) (tea.Model, tea.C
 			answered.Schemas, answered.Tables, answered.Objects, answered.Roles),
 		model.readOpenTableDetails(answered.ConnectionID, connection),
 	)
+}
+
+// readCachedCatalogAnswer draws the saved catalog while the first read of the server runs.
+// The answer of that read replaces it.
+func (model *Model) readCachedCatalogAnswer(answered catalogCachedMsg) (tea.Model, tea.Cmd) {
+	connection, _, found := model.findConnection(answered.ConnectionID)
+	if !found || !connection.Catalog.Loading || len(connection.Catalog.Tables) > 0 {
+		return model, nil
+	}
+	model.keepTreeCursor(connection, func() {
+		connection.Catalog.Schemas = answered.Schemas
+		connection.Catalog.Tables = answered.Tables
+		connection.Catalog.Objects = answered.Objects
+		connection.Catalog.Roles = answered.Roles
+		connection.Catalog.ReadAt = time.Now()
+		connection.SeedTree()
+	})
+	return model, nil
 }
 
 // readOpenTableDetails asks the server again for the columns of every relation the tree holds
