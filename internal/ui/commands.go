@@ -538,7 +538,9 @@ func runOneStatement(deps runOneStatementDeps) tea.Cmd {
 		if err == nil {
 			result, undo, err = writeplan.RunWithUndo(ctx, session, deps.undo,
 				func(running context.Context) (db.QueryResult, error) {
-					return session.ReadPage(running, read, db.ReadWindow{Limit: rowLimit})
+					return session.ReadPage(running, read, db.ReadWindow{
+						Limit: resolveFirstReadLimit(read, rowLimit),
+					})
 				})
 		}
 		answered.Undo = undo
@@ -562,6 +564,18 @@ func runOneStatement(deps runOneStatementDeps) tea.Cmd {
 		answered.HistoryProblem = describeHistoryError(log.Record(entry))
 		return answered
 	}
+}
+
+// unpagedRowLimit is the row limit of a statement that cannot be paged.
+const unpagedRowLimit = 10000
+
+// resolveFirstReadLimit returns the row limit of the first read of a statement: one page, or
+// unpagedRowLimit where no later page can be read.
+func resolveFirstReadLimit(read db.ComposedRead, pageSize int) int {
+	if read.Pageable {
+		return pageSize
+	}
+	return max(pageSize, unpagedRowLimit)
 }
 
 // describeRunError returns the error text of a statement the user ran.

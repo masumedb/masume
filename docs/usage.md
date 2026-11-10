@@ -236,7 +236,7 @@ Sorting, server filtering, and rerunning discard staged grid edits, after a conf
 
 ## Loading rows
 
-`page_size` is the rows per page. The default is 200. Moving or scrolling near the last loaded row fetches more rows. The footer shows the loaded rows, the total rows when known, and the rows shown after screen filtering.
+`page_size` is the rows per page. The default is 200. Moving or scrolling near the last loaded row fetches more rows. A statement that cannot be paged, such as `PRAGMA`, `SHOW`, `EXEC` or `CALL`, reads up to 10,000 rows at once. The footer shows the loaded rows, the total rows when known, and the rows shown after screen filtering.
 
 An active screen filter turns off automatic paging in both Data and Tree. `Ctrl+F` fetches another page, also under a screen filter. `t` gets a row count from the server where supported. Counting does not load the rows.
 

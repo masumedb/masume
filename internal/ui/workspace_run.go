@@ -757,7 +757,14 @@ func (model *Model) buildEditTarget(
 func (model *Model) fetchMore(
 	connection *app.Connection, tab *app.Tab,
 ) (tea.Model, tea.Cmd) {
-	if tab.Results.Active() == nil || !tab.Results.CanFetchMore() {
+	active := tab.Results.Active()
+	if active != nil && active.State.Kind == app.QuerySucceeded &&
+		active.State.Result.Truncated && !active.Read.Pageable {
+		connection.Show("this statement cannot be paged; the first " +
+			present.FormatCount(int64(len(active.State.Result.Rows))) + " rows are loaded")
+		return model, nil
+	}
+	if active == nil || !tab.Results.CanFetchMore() {
 		connection.Show("every row is already loaded")
 		return model, nil
 	}
