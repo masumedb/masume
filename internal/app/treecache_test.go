@@ -58,20 +58,25 @@ func TestBuildTreeIsKeptWhileNothingChanges(t *testing.T) {
 	}
 }
 
-// A later moment inside the same second draws the same tree, because the only thing the moment
-// changes is the age beside a recent schema and that is written to the second.
-func TestBuildTreeIsKeptForALaterMomentInTheSameSecond(t *testing.T) {
+// Time moves only the age labels of the open Recent folder, so a later moment draws the same
+// tree until one of those labels changes.
+func TestBuildTreeIsBuiltAgainOnlyWhenARecentAgeChanges(t *testing.T) {
 	connection := buildCachedConnection(t)
 	now := time.Unix(1_700_000_000, 0)
+	connection.Marks.VisitSchema("public", now)
 
 	first := connection.BuildTree(now)
-	if !holdsSameRows(first, connection.BuildTree(now.Add(300*time.Millisecond))) {
-		t.Error("the tree was built again for a later moment in the same second")
+	if !holdsSameRows(first, connection.BuildTree(now.Add(10*time.Minute))) {
+		t.Error("the tree was built again while the Recent folder is closed")
 	}
 
-	// The next second draws it again, so the age moves on.
-	if holdsSameRows(first, connection.BuildTree(now.Add(time.Second))) {
-		t.Error("the tree was not built again for the next second")
+	connection.Tree.Expanded[present.RecentID] = true
+	open := connection.BuildTree(now)
+	if !holdsSameRows(open, connection.BuildTree(now.Add(20*time.Second))) {
+		t.Error("the tree was built again while the age label stayed \"just now\"")
+	}
+	if holdsSameRows(open, connection.BuildTree(now.Add(2*time.Minute))) {
+		t.Error("the tree was not built again when the age label changed")
 	}
 }
 

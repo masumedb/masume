@@ -2,6 +2,7 @@ package app
 
 import (
 	"hash/fnv"
+	"strings"
 	"time"
 
 	"github.com/masumedb/masume/internal/core"
@@ -24,8 +25,8 @@ type treeFingerprint struct {
 	filter      string
 	filterScope string
 	hideSystem  bool
-	// The display time rounded to seconds.
-	second int64
+	// The age labels of the open Recent folder.
+	recentAges string
 }
 
 // buildTreeFingerprint builds a cache key for mutable tree inputs.
@@ -43,8 +44,21 @@ func (connection *Connection) buildTreeFingerprint(now time.Time) treeFingerprin
 		filter:      connection.Tree.Filter,
 		filterScope: connection.Tree.FilterScope,
 		hideSystem:  connection.Tree.HideSystemSchemas,
-		second:      now.Unix(),
+		recentAges:  connection.joinRecentAges(now),
 	}
+}
+
+// joinRecentAges returns the age labels the Recent folder draws, and nothing while the folder
+// is closed.
+func (connection *Connection) joinRecentAges(now time.Time) string {
+	if !connection.Tree.Expanded[present.RecentID] {
+		return ""
+	}
+	ages := make([]string, 0, len(connection.Marks.Recent))
+	for _, entry := range connection.Marks.Recent {
+		ages = append(ages, present.FormatAge(now.Sub(entry.VisitedAt)))
+	}
+	return strings.Join(ages, ",")
 }
 
 // BuildTree returns cached tree rows and counts until the input fingerprint changes.
