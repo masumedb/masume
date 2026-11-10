@@ -172,6 +172,31 @@ func TestApplyPagingWrapsAStatementThatAlreadyPagesItself(t *testing.T) {
 	}
 }
 
+func TestApplyPagingWrapsASqlServerTopClause(t *testing.T) {
+	for _, held := range []struct {
+		name string
+		sql  string
+		want string
+	}{
+		{"a top clause", "select top 1000 * from t",
+			"select * from (\nselect top 1000 * from t\n) as masume_page\n" +
+				"order by (select null)\noffset 20 rows fetch next 10 rows only"},
+		{"a top clause with a sort", "select top 1000 * from t order by id;",
+			"select * from (\nselect top 1000 * from t\norder by id\n) as masume_page\n" +
+				"order by (select null)\noffset 20 rows fetch next 10 rows only;"},
+		{"a top clause inside a subquery only", "select * from (select top 5 * from t) as s",
+			"select * from (select top 5 * from t) as s\norder by (select null)\n" +
+				"offset 20 rows fetch next 10 rows only"},
+	} {
+		t.Run(held.name, func(t *testing.T) {
+			got := statement.ApplyPaging(held.sql, 10, 20, sqlserver.Dialect)
+			if got != held.want {
+				t.Errorf("statement.ApplyPaging(%q)\n got %q\nwant %q", held.sql, got, held.want)
+			}
+		})
+	}
+}
+
 func TestApplyPagingLeavesAStatementWithNoBodyAlone(t *testing.T) {
 	for _, sql := range []string{"", "   ", ";"} {
 		if got := statement.ApplyPaging(sql, 10, 20, postgres.Dialect); got != sql {

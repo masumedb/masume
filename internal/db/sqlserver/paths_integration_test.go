@@ -33,6 +33,23 @@ func readColumn(result db.QueryResult, at int) []string {
 	return written
 }
 
+// A statement with TOP pages past its first page. SQL Server refuses TOP and OFFSET in one
+// query.
+func TestATopStatementReadsAPageAfterTheFirst(t *testing.T) {
+	session := openShop(t)
+	ctx := context.Background()
+	read := session.Composer().ComposeStatementRead(
+		db.BoundText{Text: "select top 3 total from orders order by total desc"}, core.ReadRewrite{})
+
+	next, err := session.ReadPage(ctx, read, db.ReadWindow{Limit: 2, Offset: 2})
+	if err != nil {
+		t.Fatalf("the second page of a TOP statement answered %v", err)
+	}
+	if held := readColumn(next, 0); len(held) != 1 || held[0] != "0.00" {
+		t.Errorf("the second page holds the totals %v, wanted the smallest", held)
+	}
+}
+
 // The grid sorts on the server, and the pages of a sorted read follow one another.
 func TestGridSortsAReadAndPagesItInOrder(t *testing.T) {
 	session := openShop(t)

@@ -260,7 +260,7 @@ func ApplyPaging(sql string, limit, offset int, dialect *query.Dialect) string {
 		return sql
 	}
 
-	if parts.Tail == "" {
+	if parts.Tail == "" && !holdsTopClause(parts.Body, dialect.Syntax) {
 		return joinParts(
 			[]string{parts.Body, sortBeforeWindow(parts.OrderBy, dialect), window},
 			parts.Terminator)
@@ -270,6 +270,15 @@ func ApplyPaging(sql string, limit, offset int, dialect *query.Dialect) string {
 	return joinParts(
 		[]string{wrapStatement(inner, pageAlias), dialect.Paging.EmptySort, window},
 		parts.Terminator)
+}
+
+// holdsTopClause is true for a T-SQL statement with a top-level TOP. SQL Server refuses TOP
+// and OFFSET in one query.
+func holdsTopClause(body string, flavour syntax.SyntaxFlavour) bool {
+	if flavour != syntax.FlavourSqlserver {
+		return false
+	}
+	return len(syntax.FindTopLevelKeywords(body, []string{"top"}, flavour)) > 0
 }
 
 // DescribeRewrite summarizes the grid sort and filter.
