@@ -16,6 +16,8 @@ type Flavour struct {
 	ListSlowStatementsStatement string
 	// Statement that reads the sequence values for a dump. Empty for none.
 	ListSequenceValuesStatement string
+	// True where the server has no SAVEPOINT.
+	RefusesSavepoints bool
 }
 
 const postgresReadOnlyStatement = "set default_transaction_read_only = on"
@@ -88,6 +90,7 @@ var FlavourCockroach = Flavour{
 
 // FlavourRedshift plans without measuring, so it is only asked for the estimate.
 var FlavourRedshift = Flavour{
+	RefusesSavepoints:      true,
 	BuildExplainPrefix:     func(bool) string { return "explain" },
 	ReadOnlyStatement:      postgresReadOnlyStatement,
 	BuildCancelStatement:   buildPostgresCancelStatement,

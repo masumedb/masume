@@ -182,6 +182,11 @@ func (session *postgresSession) holdCatalog(
 		}
 		return session.connection, giveBack, nil
 	}
+	return session.holdSide(ctx)
+}
+
+// holdSide reserves the side connection and returns a release callback.
+func (session *postgresSession) holdSide(ctx context.Context) (*pgx.Conn, func(), error) {
 	connection, err := session.side.Read()
 	if err != nil {
 		return nil, nil, err
@@ -191,6 +196,19 @@ func (session *postgresSession) holdCatalog(
 		return nil, nil, waitErr
 	}
 	return connection, giveBack, nil
+}
+
+// readServerRows returns a read of the server state, on the side connection outside the user
+// transaction.
+func (session *postgresSession) readServerRows(
+	ctx context.Context, sql string, params ...any,
+) ([]map[string]any, error) {
+	connection, giveBack, err := session.holdSide(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer giveBack()
+	return readNamedRows(ctx, connection, sql, params...)
 }
 
 // readTypeName returns the name of a type, so a result column carries it.
@@ -528,6 +546,40 @@ func (session *postgresSession) readRows(
 	}
 	defer giveBack()
 
+	endGuard, guardErr := session.guardUserTransaction(ctx, connection)
+	if guardErr != nil {
+		return nil, guardErr
+	}
+	read, readErr := readNamedRows(ctx, connection, sql, params...)
+	endGuard(readErr != nil)
+	return read, readErr
+}
+
+// guardUserTransaction sets a savepoint before a catalog read that runs inside the user
+// transaction, and returns the function that ends it. A failed read rolls back to the
+// savepoint, and the user transaction stays usable.
+func (session *postgresSession) guardUserTransaction(
+	ctx context.Context, connection *pgx.Conn,
+) (func(failed bool), error) {
+	if connection != session.connection || session.flavour.RefusesSavepoints {
+		return func(bool) {}, nil
+	}
+	if _, err := connection.Exec(ctx, "savepoint masume_catalog"); err != nil {
+		return nil, err
+	}
+	return func(failed bool) {
+		ending := context.WithoutCancel(ctx)
+		if failed {
+			_, _ = connection.Exec(ending, "rollback to savepoint masume_catalog")
+		}
+		_, _ = connection.Exec(ending, "release savepoint masume_catalog")
+	}, nil
+}
+
+// readNamedRows reads a result as rows keyed by column name.
+func readNamedRows(
+	ctx context.Context, connection *pgx.Conn, sql string, params ...any,
+) ([]map[string]any, error) {
 	rows, queryErr := connection.Query(ctx, sql, params...)
 	if queryErr != nil {
 		return nil, queryErr
@@ -990,7 +1042,7 @@ func (session *postgresSession) ListActivity(ctx context.Context) ([]db.Activity
 	if !session.Support.Capabilities.HasServerSessions {
 		return nil, db.NewUnsupportedError("list sessions")
 	}
-	rows, err := session.readRows(ctx, session.flavour.ListActivityStatement)
+	rows, err := session.readServerRows(ctx, session.flavour.ListActivityStatement)
 	if err != nil {
 		return nil, err
 	}
@@ -1012,7 +1064,7 @@ func (session *postgresSession) ListLockWaits(ctx context.Context) ([]db.LockWai
 	if !session.Support.Capabilities.ReportsLockWaits {
 		return nil, db.NewUnsupportedError("report lock waits")
 	}
-	rows, err := session.readRows(ctx, session.flavour.ListLockWaitsStatement)
+	rows, err := session.readServerRows(ctx, session.flavour.ListLockWaitsStatement)
 	if err != nil {
 		return nil, err
 	}
@@ -1038,7 +1090,7 @@ func (session *postgresSession) ReadServerLoad(ctx context.Context) (db.ServerLo
 	if !session.Support.Capabilities.ReportsServerLoad {
 		return db.ServerLoad{}, db.NewUnsupportedError("report server load")
 	}
-	rows, err := session.readRows(ctx, session.flavour.ReadServerLoadStatement)
+	rows, err := session.readServerRows(ctx, session.flavour.ReadServerLoadStatement)
 	if err != nil {
 		return db.ServerLoad{}, err
 	}
@@ -1081,7 +1133,7 @@ func (session *postgresSession) ListSlowStatements(
 	if limit < 1 {
 		return nil, nil
 	}
-	rows, err := session.readRows(
+	rows, err := session.readServerRows(
 		ctx, session.flavour.ListSlowStatementsStatement, limit, DashboardMark)
 	if err != nil {
 		return nil, err
@@ -1109,7 +1161,7 @@ func (session *postgresSession) CancelBackend(
 	if !session.Support.Capabilities.HasServerSessions {
 		return false, db.NewUnsupportedError("stop another session")
 	}
-	connection, giveBack, err := session.holdCatalog(ctx)
+	connection, giveBack, err := session.holdSide(ctx)
 	if err != nil {
 		return false, err
 	}
